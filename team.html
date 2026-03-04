@@ -288,9 +288,9 @@ async function load() {
 
     const rankHtml = (rState || rClass) ? `
       <span class="rank-trio">
-        ${rState  ? `<span><span class="rtag">ST</span>#${rState}</span>`  : ''}
-        ${rClass  ? `<span class="cls"><span class="rtag cls-tag">${classReg}</span>#${rClass}</span>` : ''}
-        ${rRegion ? `<span><span class="rtag">${regionName.toUpperCase()}</span>#${rRegion}</span>` : ''}
+        ${rState  ? `<span><span class="rtag">STATE</span> #${rState}</span>` : ''}
+        ${rClass  ? `<span class="cls"><span class="rtag cls-tag">CLASS</span> #${rClass}</span>` : ''}
+        ${rRegion ? `<span><span class="rtag">REGION</span> #${rRegion}</span>` : ''}
       </span>` : '';
 
     // Stat cards

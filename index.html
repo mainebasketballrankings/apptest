@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maine Basketball Rankings — Scoreboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--black);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--white);
+      border-bottom: 3px solid var(--green);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 66px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+
+    .logo { text-decoration: none; display: flex; align-items: center; }
+    .logo-img { height: 52px; width: auto; }
+
+    nav { display: flex; gap: 2px; }
+
+    nav a {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--gray);
+      text-decoration: none;
+      padding: 6px 13px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    nav a:hover  { color: var(--black); background: var(--bg); }
+    nav a.active { color: var(--green); background: #e6f4ec; }
+
+    /* PAGE */
+    .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    /* DATE BAR */
+    .date-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .date-heading {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      color: var(--black);
+    }
+
+    .date-nav { display: flex; align-items: center; gap: 6px; }
+
+    .date-btn {
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--gray);
+      width: 34px; height: 34px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .date-btn:hover { background: var(--bg); color: var(--black); border-color: #bbb; }
+
+    .date-today {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--gray);
+      padding: 0 14px; height: 34px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .date-today:hover { background: var(--bg); color: var(--black); border-color: #bbb; }
+
+    /* FILTERS */
+    .filters { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+
+    .filter-btn {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--gray);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover { color: var(--black); border-color: #bbb; }
+    .filter-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+    /* SECTION LABEL */
+    .section-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--lgray);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* GRID */
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    /* CARD */
+    .game-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+
+    .game-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.09); }
+
+    .game-card.live {
+      border-color: var(--green2);
+      box-shadow: 0 0 0 1px var(--green2), 0 4px 18px rgba(34,168,99,0.12);
+    }
+
+    /* status bar */
+    .card-top {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      background: #fafafa;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--lgray);
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green2);
+      margin-right: 5px;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+    /* teams */
+    .card-body { padding: 12px 14px 10px; }
+
+    .team-row {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 7px;
+    }
+
+    .team-row:last-child { margin-bottom: 0; }
+
+    .logo-wrap {
+      width: 38px; height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .team-logo {
+      max-width: 38px; max-height: 38px;
+      width: auto; height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .logo-initial {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--lgray);
+    }
+
+    .team-name-wrap { min-width: 0; }
+
+    .team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--black);
+    }
+
+    .team-name .rnk { color: var(--lgray); font-weight: 600; }
+    .team-name.winner { font-weight: 800; }
+    .team-name.loser  { color: var(--lgray); font-weight: 600; }
+
+    .team-score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 27px;
+      line-height: 1;
+      min-width: 34px;
+      text-align: right;
+      color: var(--black);
+    }
+
+    .team-score.winner { color: var(--black); }
+    .team-score.loser  { color: var(--lgray); font-weight: 600; }
+    .team-score.empty  { color: var(--lgray); font-size: 18px; font-weight: 600; }
+
+    /* footer */
+    .card-footer {
+      padding: 7px 12px 9px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-meta { font-size: 11px; color: var(--lgray); line-height: 1.5; flex: 1; min-width: 0; }
+
+    .submit-btn-inline {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: transparent;
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+
+    .submit-btn-inline:hover { background: var(--green); color: #fff; }
+
+    /* SUBMIT PANEL */
+    .submit-panel {
+      display: none;
+      background: #f8f9fa;
+      border-top: 1px solid var(--border);
+      padding: 14px;
+    }
+
+    .submit-panel.open { display: block; }
+
+    .submit-panel h4 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--lgray);
+      margin-bottom: 10px;
+    }
+
+    .score-inputs {
+      display: grid;
+      grid-template-columns: 1fr 20px 1fr;
+      gap: 6px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+
+    .si-group { display: flex; flex-direction: column; gap: 3px; }
+
+    .si-group label {
+      font-size: 10px;
+      color: var(--lgray);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .si-group input {
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--black);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      text-align: center;
+      padding: 6px;
+      border-radius: 6px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .si-group input:focus { border-color: var(--green2); }
+
+    .si-dash {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 18px;
+      color: var(--lgray);
+      text-align: center;
+      padding-bottom: 9px;
+    }
+
+    .si-extras { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+
+    .si-extras input,
+    .si-extras textarea {
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--black);
+      font-family: 'Barlow', sans-serif;
+      font-size: 12px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .si-extras input:focus,
+    .si-extras textarea:focus { border-color: var(--green2); }
+    .si-extras textarea { resize: vertical; min-height: 50px; }
+    .si-extras input::placeholder,
+    .si-extras textarea::placeholder { color: var(--lgray); }
+
+    .si-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .final-label {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--gray); cursor: pointer;
+    }
+
+    .final-label input[type=checkbox] { accent-color: var(--green2); }
+
+    .si-submit {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .si-submit:hover { background: var(--green2); }
+    .si-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .si-success {
+      display: none;
+      font-size: 12px;
+      color: var(--green2);
+      font-weight: 600;
+      padding-top: 6px;
+    }
+
+    /* LOADING / EMPTY */
+    .loading {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px; padding: 60px 20px; color: var(--lgray);
+    }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green2);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center; padding: 60px 20px; color: var(--lgray);
+      grid-column: 1 / -1;
+    }
+
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+
+    .empty-state h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 20px; color: var(--gray); margin-bottom: 4px;
+    }
+
+    .empty-state p { font-size: 13px; }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #222; color: #fff;
+      padding: 11px 18px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      opacity: 0; transform: translateY(6px);
+      transition: all 0.22s; z-index: 999; pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: var(--red); }
+
+    @media (max-width: 640px) {
+      nav { display: none; }
+      .games-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="#"><img class="logo-img" src="logo.png" alt="Maine Basketball Rankings" /></a>
+  <nav>
+    <a href="#" class="active">Scoreboard</a>
+    <a href="rankings.html">Rankings</a>
+    <a href="heals.html">Heal Points</a>
+    <a href="#">Gold Ball Odds</a>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="date-bar">
+    <div>
+      <div class="date-heading" id="dateHeading">Today's Games</div>
+    </div>
+    <div class="date-nav">
+      <button class="date-btn" id="prevDay">&#8592;</button>
+      <button class="date-today" id="todayBtn">Today</button>
+      <button class="date-btn" id="nextDay">&#8594;</button>
+    </div>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="Boys">Boys</button>
+    <button class="filter-btn" data-filter="Girls">Girls</button>
+    <button class="filter-btn" data-filter="A">Class A</button>
+    <button class="filter-btn" data-filter="B">Class B</button>
+    <button class="filter-btn" data-filter="C">Class C</button>
+    <button class="filter-btn" data-filter="D">Class D</button>
+    <button class="filter-btn" data-filter="S">Class S</button>
+  </div>
+
+  <div id="gamesContainer"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentDate  = new Date();
+  let allGames     = [];
+  let activeFilter = 'all';
+  let rankMap      = {};
+
+  function toISO(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function fmtHeading(d) {
+    return toISO(d) === toISO(new Date()) ? "Today's Games"
+      : d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  }
+
+  function fmtSub(d) {
+    return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  }
+
+  function fmtTime(t) {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h);
+    return `${hr > 12 ? hr-12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+  }
+
+  function getClass(g) {
+    return g.home_team?.team_classifications?.[0]?.classes?.name || '?';
+  }
+
+  async function loadRanks(dateStr) {
+    rankMap = {};
+    const { data } = await sb
+      .from('rankings_snapshots')
+      .select('team_id, rank_overall')
+      .order('snapshot_date', { ascending: false });
+    if (data) data.forEach(r => { if (!rankMap[r.team_id]) rankMap[r.team_id] = r.rank_overall; });
+  }
+
+  async function loadGames(date) {
+    const ds = toISO(date);
+    document.getElementById('dateHeading').textContent = fmtHeading(date);
+    document.getElementById('gamesContainer').innerHTML =
+      `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
+
+    await loadRanks(ds);
+
+    const { data, error } = await sb.from('games').select(`
+      id, game_date, game_time, location, status,
+      is_neutral_site, is_tournament,
+      home_score, away_score, home_score_live, away_score_live, game_clock,
+      home_team:home_team_id ( id, school_name, gender, logo_url,
+        team_classifications ( classes ( name ) ) ),
+      away_team:away_team_id ( id, school_name, gender, logo_url,
+        team_classifications ( classes ( name ) ) )
+    `).eq('game_date', ds).order('game_time', { ascending: true, nullsFirst: false });
+
+    if (error) {
+      document.getElementById('gamesContainer').innerHTML =
+        `<div class="games-grid"><div class="empty-state"><div class="icon">⚠️</div><h3>Error</h3><p>${error.message}</p></div></div>`;
+      return;
+    }
+
+    allGames = (data || []).filter(g => g.home_team && g.away_team);
+    renderGames();
+  }
+
+  function renderGames() {
+    const container = document.getElementById('gamesContainer');
+    let games = allGames;
+
+    if (activeFilter !== 'all') {
+      games = games.filter(g =>
+        activeFilter === 'Boys' || activeFilter === 'Girls'
+          ? g.home_team?.gender === activeFilter
+          : getClass(g) === activeFilter
+      );
+    }
+
+    if (!games.length) {
+      container.innerHTML = `<div class="games-grid"><div class="empty-state">
+        <div class="icon">🏀</div><h3>No games on this date</h3>
+        <p>Use the arrows to browse other dates.</p></div></div>`;
+      return;
+    }
+
+    const boys  = games.filter(g => g.home_team?.gender === 'Boys');
+    const girls = games.filter(g => g.home_team?.gender === 'Girls');
+    let html = '';
+    if (boys.length  && activeFilter !== 'Girls') html += section('Boys', boys);
+    if (girls.length && activeFilter !== 'Boys')  html += section('Girls', girls);
+    container.innerHTML = html;
+
+    container.querySelectorAll('.submit-btn-inline').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panel = document.getElementById('panel-' + btn.dataset.id);
+        const open  = panel.classList.toggle('open');
+        btn.textContent = open ? 'Cancel' : 'Submit Score';
+      });
+    });
+
+    container.querySelectorAll('.score-form').forEach(f => f.addEventListener('submit', handleSubmit));
+  }
+
+  function section(label, games) {
+    return `<div class="section-label">${label}</div>
+            <div class="games-grid">${games.map(card).join('')}</div>`;
+  }
+
+  function logoEl(team) {
+    if (team.logo_url) {
+      return `<img class="team-logo" src="${team.logo_url}" alt="${team.school_name}"
+                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <div class="logo-initial" style="display:none">${team.school_name[0]}</div>`;
+    }
+    return `<div class="logo-initial">${team.school_name[0]}</div>`;
+  }
+
+  function card(g) {
+    const home    = g.home_team;
+    const away    = g.away_team;
+    const cls     = getClass(g);
+    const isFinal = g.status === 'final';
+    const isLive  = g.status === 'active';
+
+    const hSc = isFinal ? g.home_score : (isLive ? g.home_score_live : null);
+    const aSc = isFinal ? g.away_score : (isLive ? g.away_score_live : null);
+    const has = hSc !== null && aSc !== null;
+
+    const hWin = isFinal && has && hSc > aSc;
+    const aWin = isFinal && has && aSc > hSc;
+
+    const hRnk = rankMap[home.id];
+    const aRnk = rankMap[away.id];
+    const hR   = hRnk ? `<span class="rnk">#${hRnk} </span>` : '';
+    const aR   = aRnk ? `<span class="rnk">#${aRnk} </span>` : '';
+
+    // Top status bar
+    const topBar = isFinal
+      ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span></div>`
+      : isLive
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span></div>`
+        : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
+
+    // Score cells
+    const hScEl = has
+      ? `<div class="team-score ${isFinal ? (hWin?'winner':'loser') : ''}">${hSc}</div>`
+      : `<div class="team-score empty">–</div>`;
+    const aScEl = has
+      ? `<div class="team-score ${isFinal ? (aWin?'winner':'loser') : ''}">${aSc}</div>`
+      : `<div class="team-score empty">–</div>`;
+
+    // Footer location string
+    const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
+    const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
+
+    return `
+    <div class="game-card ${isLive ? 'live' : ''}">
+      ${topBar}
+      <div class="card-body">
+        <div class="team-row">
+          <div class="logo-wrap">${logoEl(home)}</div>
+          <div class="team-name-wrap">
+            <div class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}">${hR}${home.school_name}</div>
+          </div>
+          ${hScEl}
+        </div>
+        <div class="team-row">
+          <div class="logo-wrap">${logoEl(away)}</div>
+          <div class="team-name-wrap">
+            <div class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}">${aR}${away.school_name}</div>
+          </div>
+          ${aScEl}
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>
+        ${!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
+      </div>
+      ${!isFinal ? `
+      <div class="submit-panel" id="panel-${g.id}">
+        <h4>Submit Score</h4>
+        <form class="score-form" data-id="${g.id}">
+          <div class="score-inputs">
+            <div class="si-group">
+              <label>${home.school_name}</label>
+              <input type="number" name="home_score" min="0" max="250" placeholder="0" required />
+            </div>
+            <div class="si-dash">–</div>
+            <div class="si-group">
+              <label>${away.school_name}</label>
+              <input type="number" name="away_score" min="0" max="250" placeholder="0" required />
+            </div>
+          </div>
+          <div class="si-extras">
+            <input type="text" name="game_clock" placeholder="Quarter / time (e.g. Halftime)" />
+            <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)"></textarea>
+          </div>
+          <div class="si-row">
+            <label class="final-label">
+              <input type="checkbox" name="is_final" /> Final score
+            </label>
+            <button type="submit" class="si-submit">Submit</button>
+          </div>
+          <div class="si-success" id="ok-${g.id}">✓ Submitted — thanks!</div>
+        </form>
+      </div>` : ''}
+    </div>`;
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const form   = e.target;
+    const id     = form.dataset.id;
+    const btn    = form.querySelector('.si-submit');
+    const ok     = document.getElementById('ok-' + id);
+
+    const hSc = parseInt(form.home_score.value);
+    const aSc = parseInt(form.away_score.value);
+    if (isNaN(hSc) || isNaN(aSc)) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    const { error } = await sb.from('score_submissions').insert({
+      game_id: id, home_score: hSc, away_score: aSc,
+      is_final: form.is_final.checked,
+      game_clock: form.game_clock.value.trim() || null,
+      notes: form.notes.value.trim() || null,
+      status: 'pending',
+    });
+
+    if (error) {
+      showToast('Failed: ' + error.message, true);
+      btn.disabled = false; btn.textContent = 'Submit';
+      return;
+    }
+
+    ok.style.display = 'block';
+    btn.style.display = 'none';
+    showToast('Score submitted — thanks!');
+
+    if (form.is_final.checked) {
+      await sb.from('games').update({
+        status: 'active', home_score_live: hSc, away_score_live: aSc,
+        game_clock: form.game_clock.value.trim() || null,
+      }).eq('id', id);
+      setTimeout(() => loadGames(currentDate), 1500);
+    }
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className   = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  document.getElementById('prevDay').addEventListener('click', () => {
+    currentDate.setDate(currentDate.getDate() - 1); loadGames(currentDate);
+  });
+  document.getElementById('nextDay').addEventListener('click', () => {
+    currentDate.setDate(currentDate.getDate() + 1); loadGames(currentDate);
+  });
+  document.getElementById('todayBtn').addEventListener('click', () => {
+    currentDate = new Date(); loadGames(currentDate);
+  });
+  document.getElementById('filters').addEventListener('click', e => {
+    if (!e.target.matches('.filter-btn')) return;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    activeFilter = e.target.dataset.filter;
+    renderGames();
+  });
+
+  loadGames(currentDate);
+</script>
+</body>
+</html>

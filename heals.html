@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maine Basketball Rankings — Heal Points</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--black);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--white);
+      border-bottom: 3px solid var(--green);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 66px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+
+    .logo { text-decoration: none; display: flex; align-items: center; }
+    .logo-img { height: 52px; width: auto; }
+
+    nav { display: flex; gap: 2px; }
+    nav a {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 13px; letter-spacing: 0.8px;
+      text-transform: uppercase; color: var(--gray);
+      text-decoration: none; padding: 6px 13px; border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    nav a:hover  { color: var(--black); background: var(--bg); }
+    nav a.active { color: var(--green); background: #e6f4ec; }
+
+    /* PAGE */
+    .page { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900; font-size: 30px; margin-bottom: 2px;
+    }
+
+    .page-sub { font-size: 16px; color: var(--lgray); margin-bottom: 22px; }
+
+    /* REGION SELECTOR */
+    .region-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .region-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 12px; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--lgray);
+    }
+
+    .region-select {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 14px;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--white);
+      color: var(--black);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 34px;
+      transition: border-color 0.15s;
+    }
+
+    .region-select:focus { border-color: var(--green2); }
+
+    /* GENDER TABS */
+    .gender-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .gender-tab {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 14px; letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 10px 24px;
+      border: none; background: transparent;
+      color: var(--lgray); cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s;
+    }
+
+    .gender-tab:hover { color: var(--black); }
+    .gender-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+    /* TABLE */
+    .table-wrap {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead tr {
+      background: #fafafa;
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 11px; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--lgray);
+      padding: 10px 14px; text-align: left;
+      white-space: nowrap;
+    }
+
+    th.num { text-align: right; }
+
+    tbody tr.team-row {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    tbody tr.team-row:last-of-type { border-bottom: none; }
+    tbody tr.team-row:hover { background: #f9fafb; }
+    tbody tr.team-row.expanded { background: #f4fbf7; border-bottom: none; }
+
+    td { padding: 11px 14px; vertical-align: middle; }
+
+    .td-rank {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 16px;
+      color: var(--lgray); width: 36px; text-align: center;
+    }
+
+    .td-team {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .td-logo {
+      width: 30px; height: 30px; object-fit: contain; flex-shrink: 0;
+    }
+
+    .td-logo-init {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 12px; color: var(--lgray);
+      flex-shrink: 0;
+    }
+
+    .team-name-cell {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 16px;
+    }
+
+    .td-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 15px;
+      text-align: right; white-space: nowrap;
+    }
+
+    .td-record {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 15px;
+      text-align: right;
+    }
+
+    .td-chevron {
+      color: var(--lgray); font-size: 12px; width: 20px; text-align: right;
+      transition: transform 0.2s;
+    }
+
+    .expanded .td-chevron { transform: rotate(180deg); color: var(--green); }
+
+    /* EXPANDED DETAIL ROW */
+    tr.detail-row { display: none; }
+    tr.detail-row.open { display: table-row; }
+
+    tr.detail-row td {
+      padding: 0;
+      border-bottom: 1px solid var(--border);
+      background: #f4fbf7;
+    }
+
+    .detail-inner { padding: 16px 20px 20px; }
+
+    .detail-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900; font-size: 22px;
+    }
+
+    .detail-summary {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 16px;
+      color: var(--gray);
+    }
+
+    /* GAME LIST */
+    .game-list { display: flex; flex-direction: column; gap: 3px; }
+
+    .game-line {
+      display: grid;
+      grid-template-columns: 20px 70px 1fr 120px 70px;
+      gap: 8px;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #eef5f0;
+    }
+
+    .game-line:last-child { border-bottom: none; }
+
+    .gl-result {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 15px;
+    }
+
+    .gl-result.W { color: var(--green); }
+    .gl-result.L { color: var(--red); }
+
+    .gl-date {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 14px;
+      color: var(--lgray);
+    }
+
+    .gl-opp {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 15px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .gl-opp .at   { color: var(--lgray); font-weight: 600; }
+    .gl-opp .rank { color: var(--lgray); font-weight: 600; font-size: 12px; }
+
+    /* WIN% BAR */
+    .gl-winpct {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .gl-bar-wrap {
+      height: 7px;
+      background: #ffd5d0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .gl-bar {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--green2);
+      transition: width 0.3s;
+    }
+
+    .gl-bar-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 11px;
+      color: var(--lgray);
+      text-align: center;
+    }
+
+    .gl-score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 15px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .gl-score.W { color: var(--black); }
+    .gl-score.L { color: var(--lgray); }
+
+    .detail-note {
+      font-size: 11px; color: var(--lgray);
+      margin-top: 10px; text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    /* LOADING / EMPTY */
+    .loading {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px; padding: 60px 20px; color: var(--lgray);
+    }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green2);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center; padding: 50px 20px; color: var(--lgray);
+    }
+
+    .empty h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 18px; color: var(--gray); margin-bottom: 4px;
+    }
+
+    @media (max-width: 640px) {
+      nav { display: none; }
+      .game-line { grid-template-columns: 20px 60px 1fr 60px; }
+      .gl-winpct { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html"><img class="logo-img" src="logo.png" alt="Maine Basketball Rankings" /></a>
+  <nav>
+    <a href="index.html">Scoreboard</a>
+    <a href="rankings.html">Rankings</a>
+    <a href="#" class="active">Heal Points</a>
+    <a href="#">Gold Ball Odds</a>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="page-title">Heal Points</div>
+  <div class="page-sub">The Way Heal Points Should Be.</div>
+
+  <div class="region-wrap">
+    <span class="region-label">Region</span>
+    <select class="region-select" id="regionSelect">
+      <option value="">Loading…</option>
+    </select>
+  </div>
+
+  <div class="gender-tabs">
+    <button class="gender-tab active" data-gender="Boys">Boys</button>
+    <button class="gender-tab" data-gender="Girls">Girls</button>
+  </div>
+
+  <div class="table-wrap" id="tableWrap">
+    <div class="loading"><div class="spinner"></div><span>Loading…</span></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Win point values by class
+  const WIN_PTS = { A: 40, B: 38, C: 36, D: 34, S: 32 };
+
+  let activeGender = 'Boys';
+  let activeRegion = null;
+  let allTeams     = [];   // { team, games, pi, heal, wins, losses }
+  let expandedTeam = null;
+
+  // ── Load regions for dropdown ──────────────────────────────────
+  async function loadRegions() {
+    // Get unique class+region combos from team_classifications
+    const { data } = await sb
+      .from('team_classifications')
+      .select('classes ( id, name ), regions ( id, name )')
+      .order('class_id');
+
+    const sel = document.getElementById('regionSelect');
+    sel.innerHTML = '';
+
+    if (data) {
+      // Build unique class+region pairs, sorted
+      const seen = new Set();
+      const combos = [];
+      data.forEach(tc => {
+        if (!tc.classes || !tc.regions) return;
+        const key = `${tc.classes.name}-${tc.regions.id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          combos.push({
+            regionId: tc.regions.id,
+            label: `${tc.classes.name} ${tc.regions.name}`,
+            classOrder: tc.classes.name,
+            regionName: tc.regions.name,
+          });
+        }
+      });
+
+      // Sort: A North, A South, B North, B South, etc.
+      combos.sort((a, b) => {
+        if (a.classOrder !== b.classOrder) return a.classOrder.localeCompare(b.classOrder);
+        return a.regionName.localeCompare(b.regionName);
+      });
+
+      combos.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.regionId;
+        opt.textContent = c.label;
+        sel.appendChild(opt);
+      });
+
+      activeRegion = combos[0]?.regionId;
+      sel.value = activeRegion;
+    }
+
+    sel.addEventListener('change', () => {
+      activeRegion = sel.value;
+      expandedTeam = null;
+      loadData();
+    });
+
+    loadData();
+  }
+
+  // ── Load all teams + games for the selected region/gender ──────
+  async function loadData() {
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="loading"><div class="spinner"></div><span>Calculating…</span></div>';
+
+    // Get teams in this region
+    const { data: tcData } = await sb
+      .from('team_classifications')
+      .select(`
+        team:team_id ( id, school_name, gender, logo_url ),
+        classes ( name ),
+        regions ( id, name, abbreviation )
+      `)
+      .eq('region_id', activeRegion);
+
+    if (!tcData || !tcData.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No teams found</h3><p>No teams in this region.</p></div>';
+      return;
+    }
+
+    const teams = tcData
+      .filter(tc => tc.team?.gender === activeGender)
+      .map(tc => ({ ...tc.team, class: tc.classes?.name, region: tc.regions?.abbreviation }));
+
+    if (!teams.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No teams</h3><p>No ' + activeGender + ' teams in this region.</p></div>';
+      return;
+    }
+
+    const teamIds = teams.map(t => t.id);
+
+    // Get all regular season games involving these teams (exclude tournament/playoff)
+    const { data: gamesData } = await sb
+      .from('games')
+      .select(`
+        id, game_date, game_time, home_score, away_score, is_neutral_site, status,
+        home_team:home_team_id ( id, school_name, logo_url,
+          team_classifications ( classes ( name ) ) ),
+        away_team:away_team_id ( id, school_name, logo_url,
+          team_classifications ( classes ( name ) ) )
+      `)
+      .in('home_team_id', teamIds)
+      .eq('status', 'final')
+      .eq('is_tournament', false)
+      .lte('game_date', '2026-02-05')
+      .order('game_date', { ascending: true });
+
+    const { data: awayGames } = await sb
+      .from('games')
+      .select(`
+        id, game_date, game_time, home_score, away_score, is_neutral_site, status,
+        home_team:home_team_id ( id, school_name, logo_url,
+          team_classifications ( classes ( name ) ) ),
+        away_team:away_team_id ( id, school_name, logo_url,
+          team_classifications ( classes ( name ) ) )
+      `)
+      .in('away_team_id', teamIds)
+      .eq('status', 'final')
+      .eq('is_tournament', false)
+      .lte('game_date', '2026-02-05')
+      .order('game_date', { ascending: true });
+
+    // Merge and deduplicate
+    const seen = new Set();
+    const games = [];
+    for (const g of [...(gamesData || []), ...(awayGames || [])]) {
+      if (!seen.has(g.id)) { seen.add(g.id); games.push(g); }
+    }
+
+    // Also load ALL teams' PI values from rankings_snapshot for opponent PI display
+    const { data: snapData } = await sb
+      .from('rankings_snapshots')
+      .select('team_id, pi, rank_overall')
+      .order('snapshot_date', { ascending: false });
+
+    const snapMap = {}; // team_id -> { pi, rank }
+    if (snapData) {
+      snapData.forEach(s => {
+        if (!snapMap[s.team_id]) snapMap[s.team_id] = { pi: s.pi, rank: s.rank_overall };
+      });
+    }
+
+    // ── Calculate PI and Heal for each team ───────────────────────
+    allTeams = teams.map(team => {
+      const teamGames = games.filter(g =>
+        g.home_team?.id === team.id || g.away_team?.id === team.id
+      ).sort((a, b) => a.game_date.localeCompare(b.game_date));
+
+      const gameDetails = teamGames.map(g => {
+        const isHome    = g.home_team?.id === team.id;
+        const opp       = isHome ? g.away_team : g.home_team;
+        const myScore   = isHome ? g.home_score : g.away_score;
+        const oppScore  = isHome ? g.away_score : g.home_score;
+        const won       = myScore > oppScore;
+        const oppClass  = opp?.team_classifications?.[0]?.classes?.name || 'A';
+        const oppPIData = snapMap[opp?.id];
+        const oppPI     = oppPIData?.pi || 1.0;
+        const oppRank   = oppPIData?.rank || null;
+        const winPts    = WIN_PTS[oppClass] || 36;
+        const atHome    = !isHome && !g.is_neutral_site;
+
+        return { g, opp, myScore, oppScore, won, oppClass, oppPI, oppRank, winPts, atHome, isNeutral: g.is_neutral_site };
+      });
+
+      const wins   = gameDetails.filter(d => d.won).length;
+      const losses = gameDetails.filter(d => !d.won).length;
+      const played = wins + losses;
+      const denom  = Math.max(played, 12);
+
+      // PI = sum of win point values / denom; if 0 wins -> 1.000
+      const sumWinPts = gameDetails.filter(d => d.won).reduce((s, d) => s + d.winPts, 0);
+      const pi = wins === 0 ? 1.0 : sumWinPts / denom;
+
+      // Heal = sum of beaten opponents' PI / denom
+      const sumOppPI = gameDetails.filter(d => d.won).reduce((s, d) => s + d.oppPI, 0);
+      const heal = (sumOppPI / denom) * 10;
+
+      return { team, gameDetails, wins, losses, pi, heal };
+    });
+
+    // Sort by Heal desc
+    allTeams.sort((a, b) => b.heal - a.heal);
+    renderTable();
+  }
+
+  // ── Render table ───────────────────────────────────────────────
+  function renderTable() {
+    if (!allTeams.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No data</h3></div>';
+      return;
+    }
+
+    let html = `<table>
+      <thead><tr>
+        <th>#</th>
+        <th>Team</th>
+        <th class="num">W</th>
+        <th class="num">L</th>
+        <th class="num">PI</th>
+        <th class="num">Heals</th>
+        <th></th>
+      </tr></thead>
+      <tbody>`;
+
+    allTeams.forEach((entry, i) => {
+      const { team, wins, losses, pi, heal } = entry;
+      const isExp = expandedTeam === team.id;
+
+      const logoEl = team.logo_url
+        ? `<img class="td-logo" src="${team.logo_url}" alt="${team.school_name}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+           <div class="td-logo-init" style="display:none">${team.school_name[0]}</div>`
+        : `<div class="td-logo-init">${team.school_name[0]}</div>`;
+
+      html += `
+      <tr class="team-row ${isExp ? 'expanded' : ''}" data-team-id="${team.id}">
+        <td class="td-rank">${i + 1}</td>
+        <td><div class="td-team">${logoEl}<span class="team-name-cell">${team.school_name}</span><a href="team.html?team_id=${team.id}" onclick="event.stopPropagation()" style="margin-left:8px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--green);text-decoration:none;opacity:0.7" title="Team detail">↗</a></div></td>
+        <td class="td-num">${wins}</td>
+        <td class="td-num">${losses}</td>
+        <td class="td-num">${pi.toFixed(3)}</td>
+        <td class="td-num">${heal.toFixed(3)}</td>
+        <td class="td-chevron">▼</td>
+      </tr>
+      <tr class="detail-row ${isExp ? 'open' : ''}" data-detail-id="${team.id}">
+        <td colspan="7">${isExp ? renderDetail(entry) : ''}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tableWrap').innerHTML = html;
+
+    // Row click handlers
+    document.querySelectorAll('.team-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const id = row.dataset.teamId;
+        const detail = document.querySelector(`.detail-row[data-detail-id="${id}"]`);
+        const wasOpen = expandedTeam === id;
+
+        // Close all
+        document.querySelectorAll('.team-row').forEach(r => r.classList.remove('expanded'));
+        document.querySelectorAll('.detail-row').forEach(r => { r.classList.remove('open'); r.querySelector('td').innerHTML = ''; });
+        expandedTeam = null;
+
+        if (!wasOpen) {
+          row.classList.add('expanded');
+          detail.classList.add('open');
+          const entry = allTeams.find(e => e.team.id === id);
+          detail.querySelector('td').innerHTML = renderDetail(entry);
+          expandedTeam = id;
+          // Smooth scroll
+          setTimeout(() => row.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }
+      });
+    });
+  }
+
+  // ── Render expanded game detail ───────────────────────────────
+  function winPct(myScore, oppScore) {
+    if (myScore === null || oppScore === null) return null;
+    const diff = myScore - oppScore;
+    if (diff > 35)  return 1.0;
+    if (diff < -35) return 0.0;
+    const exp = 11;
+    return (Math.pow(myScore, exp)) / (Math.pow(myScore, exp) + Math.pow(oppScore, exp));
+  }
+
+  function renderDetail(entry) {
+    const { team, gameDetails, wins, losses, pi, heal } = entry;
+    const played = wins + losses;
+    const denom  = Math.max(played, 12);
+
+    let lines = '';
+    gameDetails.forEach(d => {
+      const dateObj = new Date(d.g.game_date + 'T12:00:00');
+      const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).replace(' ', '-');
+      const prefix  = d.atHome ? '@ ' : '';
+      const rankStr = d.oppRank ? `#${d.oppRank} ` : '';
+      const piStr   = d.oppPI ? d.oppPI.toFixed(2) : '—';
+      const scoreStr = d.myScore !== null && d.oppScore !== null
+        ? `${d.myScore}-${d.oppScore}` : '—';
+      const res = d.won ? 'W' : 'L';
+
+      const wp = winPct(d.myScore, d.oppScore);
+      const wpPct = wp !== null ? (wp * 100).toFixed(1) : null;
+      const barWidth = wp !== null ? Math.round(wp * 100) : 50;
+
+      lines += `<div class="game-line">
+        <span class="gl-result ${res}">${res}</span>
+        <span class="gl-date">${dateStr}</span>
+        <span class="gl-opp"><span class="at">${prefix}</span><span class="rank">${rankStr}</span>${d.opp?.school_name || '?'}</span>
+        <div class="gl-winpct">
+          <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
+          ${wpPct !== null ? `<div class="gl-bar-label">${wpPct}% &nbsp;·&nbsp; ${piStr} PI</div>` : ''}
+        </div>
+        <span class="gl-score ${res}">${scoreStr}</span>
+      </div>`;
+    });
+
+    const totalPF  = gameDetails.reduce((s, d) => s + (d.myScore || 0), 0);
+    const totalPA  = gameDetails.reduce((s, d) => s + (d.oppScore || 0), 0);
+    const totalDiff = totalPF - totalPA;
+    const diffStr  = (totalDiff >= 0 ? '+' : '') + totalDiff;
+    const diffColor = totalDiff >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+
+    return `<div class="detail-inner">
+      <div class="detail-header">
+        <span class="detail-team-name">${team.school_name}</span>
+        <span class="detail-summary">${wins}-${losses} &nbsp;|&nbsp; ${pi.toFixed(4)} PI &nbsp;|&nbsp; ${heal.toFixed(4)} Heals &nbsp;|&nbsp; <span style="${diffColor};font-weight:700">${diffStr}</span></span>
+      </div>
+      <div class="game-list">${lines}</div>
+      <div class="detail-note">[Win%] · Opp PI in brackets · Denominator: ${denom}</div>
+    </div>`;
+  }
+
+  // ── Gender tabs ───────────────────────────────────────────────
+  document.querySelectorAll('.gender-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.gender-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeGender = btn.dataset.gender;
+      expandedTeam = null;
+      loadData();
+    });
+  });
+
+  loadRegions();
+</script>
+</body>
+</html>

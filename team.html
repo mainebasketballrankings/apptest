@@ -322,26 +322,32 @@ async function load() {
 
       // Determine status
       let status, statusColor;
-      if (byeVal >= 1)       { status = 'BYE';    statusColor = 'var(--green)'; }
-      else if (inVal  >= 1)  { status = 'IN';     statusColor = 'var(--green)'; }
-      else if (outVal >= 1)  { status = 'OUT';    statusColor = 'var(--red)'; }
-      else                   { status = 'BUBBLE'; statusColor = '#f39c12'; }
+      if (byeVal >= 1)                        { status = 'BYE';     statusColor = 'var(--green)'; }
+      else if (inVal >= 1 && !byeVal)         { status = 'PLAY-IN'; statusColor = '#2980b9'; }
+      else if (outVal >= 1)                   { status = 'OUT';     statusColor = 'var(--red)'; }
+      else                                    { status = 'BUBBLE';  statusColor = '#f39c12'; }
 
       const inPct  = inVal  != null ? (inVal  * 100).toFixed(1) : null;
       const outPct = outVal != null ? (outVal * 100).toFixed(1) : null;
 
       // Status badge + in/out display
-      const is100 = inVal >= 1 || byeVal >= 1;
-      const statusBadge = `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;
-        background:${statusColor};color:#fff;padding:3px 10px;border-radius:4px;letter-spacing:1px">${status}</span>`;
+      const statusBadge = `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;background:${statusColor};color:#fff;padding:3px 10px;border-radius:4px;letter-spacing:1px">${status}</span>`;
 
-      const inDisplay = is100
-        ? `${statusBadge} <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;color:${statusColor};margin-left:8px">✓ 100%</span>`
-        : `${statusBadge}
-           <div style="margin-top:10px;display:flex;gap:24px">
-             ${inPct  != null ? `<div><div class="lbl">In</div><div class="val in">${inPct}%</div></div>` : ''}
-             ${outPct != null ? `<div><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
-           </div>`;
+      const is100in  = byeVal >= 1 || inVal >= 1;
+      const is100out = outVal >= 1;
+
+      let inDisplay;
+      if (is100out) {
+        inDisplay = `${statusBadge} <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;color:var(--red);margin-left:8px">Eliminated</span>`;
+      } else if (is100in) {
+        inDisplay = `${statusBadge} <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;color:${statusColor};margin-left:8px">✓ 100%</span>`;
+      } else {
+        inDisplay = `${statusBadge}
+          <div style="margin-top:10px;display:flex;gap:24px">
+            ${inPct  != null ? `<div><div class="lbl">In</div><div class="val in">${inPct}%</div></div>` : ''}
+            ${outPct != null ? `<div><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
+          </div>`;
+      }
 
       // Seed rows — absolute width bars
       const seedRows = [];
@@ -367,7 +373,10 @@ async function load() {
           <div class="section-header">${oddsTitle}</div>
           <div class="odds-card">
             <div class="odds-bucket" style="padding:14px 18px">${inDisplay}</div>
-            ${seedHtml ? `<div class="seed-grid"><div class="seed-grid-lbl">Seed Distribution</div><div class="seed-rows">${seedHtml}</div></div>` : ''}
+            ${seedHtml ? `<div class="seed-grid">
+              <div class="seed-grid-lbl">${is100out ? 'PROJECTED SEEDS (DID NOT QUALIFY)' : 'SEED DISTRIBUTION'}</div>
+              <div class="seed-rows" style="${is100out ? 'opacity:0.45;filter:grayscale(1)' : ''}">${seedHtml}</div>
+            </div>` : ''}
           </div>
         </div>`;
     }

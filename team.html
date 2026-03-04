@@ -39,9 +39,7 @@
     .rank-trio { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; vertical-align: middle; }
     .rank-trio span { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 14px; padding: 3px 10px; background: var(--white); color: var(--black); border-right: 1px solid var(--border); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
     .rank-trio span:last-child { border-right: none; }
-    .rank-trio span.cls { background: var(--green); color: var(--white); }
-    .rtag { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; background: rgba(0,0,0,0.08); padding: 1px 4px; border-radius: 3px; text-transform: uppercase; color: var(--gray); }
-    .rank-trio span.cls .rtag { background: rgba(255,255,255,0.25); color: var(--white); }
+    .rtag { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; text-transform: uppercase; color: var(--gray); }
     .team-meta { font-size: 14px; color: var(--gray); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .gender-current { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; }
     .gender-link { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; color: var(--green); text-decoration: none; padding: 1px 8px; border: 1px solid var(--green); border-radius: 20px; }
@@ -241,7 +239,7 @@ async function load() {
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
       oppIds.length ? sb(`rankings_snapshots?team_id=in.(${idList})&order=snapshot_date.desc&select=team_id,pi,rank_class,rank_overall&limit=2000`) : [],
       oppIds.length ? sb(`team_classifications?team_id=in.(${idList})&select=team_id,classes(name)`) : [],
-      sb(`teams?school_name=eq.${team.school_name.replace(/ /g, '%20')}&gender=eq.${team.gender==='boys'?'girls':'boys'}&select=id,school_name,gender&limit=1`)
+      sb(`teams?school_name=eq.${team.school_name.replace(/ /g, '%20')}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&select=id,school_name,gender&limit=1`)
     ]);
 
     const tmap = {};
@@ -288,8 +286,8 @@ async function load() {
 
     // ── RENDER ──────────────────────────────────
 
-    const gLbl = team.gender === 'boys' ? 'Boys' : 'Girls';
-    const sLbl = team.gender === 'boys' ? 'Girls' : 'Boys';
+    const gLbl = team.gender === 'Boys' ? 'Boys' : 'Girls';
+    const sLbl = team.gender === 'Boys' ? 'Girls' : 'Boys';
     const genderHtml = sibling
       ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="team.html?team_id=${sibling.id}">${sLbl} ↗</a>`
       : `<span class="gender-current">${gLbl}</span>`;
@@ -297,15 +295,14 @@ async function load() {
     const rankHtml = (rState || rClass) ? `
       <span class="rank-trio">
         ${rState  ? `<span><span class="rtag">STATE</span> #${rState}</span>` : ''}
-        ${rClass  ? `<span class="cls"><span class="rtag cls-tag">CLASS</span> #${rClass}</span>` : ''}
-        ${rRegion ? `<span><span class="rtag">REGION</span> #${rRegion}</span>` : ''}
+        ${rClass  ? `<span><span class="rtag">${className}</span> #${rClass}</span>` : ''}
+        ${rRegion ? `<span><span class="rtag">${regionName.toUpperCase()}</span> #${rRegion}</span>` : ''}
       </span>` : '';
 
     // Stat cards
     const cards = `
       <div class="stat-cards">
         <div class="stat-card"><div class="lbl">DIRIGO</div><div class="val grn">${stats ? f2(stats.heal_points) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">PI</div><div class="val">${f2(pi)}</div></div>
         <div class="stat-card"><div class="lbl">SOS</div><div class="val">${stats ? f2(stats.sos) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">Avg PF</div><div class="val">${stats ? f2(stats.avg_pf) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">Avg PA</div><div class="val">${stats ? f2(stats.avg_pa) : '—'}</div></div>

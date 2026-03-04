@@ -296,7 +296,7 @@ async function load() {
       <span class="rank-trio">
         ${rState  ? `<span><span class="rtag">STATE</span> #${rState}</span>` : ''}
         ${rClass  ? `<span><span class="rtag">${className}</span> #${rClass}</span>` : ''}
-        ${rRegion ? `<span><span class="rtag">${regionName.toUpperCase()}</span> #${rRegion}</span>` : ''}
+        ${rRegion ? `<span><span class="rtag">${classReg}</span> #${rRegion}</span>` : ''}
       </span>` : '';
 
     // Stat cards
@@ -315,30 +315,48 @@ async function load() {
     if (odds) {
       const isTourney  = new Date() > new Date('2026-02-20');
       const oddsTitle  = isTourney ? 'Gold Ball Odds' : 'Tournament Odds';
-      const inPct  = odds.in  != null && odds.in  !== '' ? (+odds.in  * 100).toFixed(1) : null;
-      const outPct = odds.out != null && odds.out !== '' ? (+odds.out * 100).toFixed(1) : null;
 
-      // Find seed keys S1..S20
+      const inVal  = odds.in  != null && odds.in  !== '' ? +odds.in  : null;
+      const outVal = odds.out != null && odds.out !== '' ? +odds.out : null;
+      const byeVal = odds.bye != null && odds.bye !== '' ? +odds.bye : null;
+
+      // Determine status
+      let status, statusColor;
+      if (byeVal >= 1)       { status = 'BYE';    statusColor = 'var(--green)'; }
+      else if (inVal  >= 1)  { status = 'IN';     statusColor = 'var(--green)'; }
+      else if (outVal >= 1)  { status = 'OUT';    statusColor = 'var(--red)'; }
+      else                   { status = 'BUBBLE'; statusColor = '#f39c12'; }
+
+      const inPct  = inVal  != null ? (inVal  * 100).toFixed(1) : null;
+      const outPct = outVal != null ? (outVal * 100).toFixed(1) : null;
+
+      // Status badge + in/out display
+      const is100 = inVal >= 1 || byeVal >= 1;
+      const statusBadge = `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;
+        background:${statusColor};color:#fff;padding:3px 10px;border-radius:4px;letter-spacing:1px">${status}</span>`;
+
+      const inDisplay = is100
+        ? `${statusBadge} <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;color:${statusColor};margin-left:8px">✓ 100%</span>`
+        : `${statusBadge}
+           <div style="margin-top:10px;display:flex;gap:24px">
+             ${inPct  != null ? `<div><div class="lbl">In</div><div class="val in">${inPct}%</div></div>` : ''}
+             ${outPct != null ? `<div><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
+           </div>`;
+
+      // Seed rows — absolute width bars
       const seedRows = [];
       for (let i = 1; i <= 20; i++) {
         const v = odds[`S${i}`] ?? odds[`s${i}`] ?? null;
         if (v != null && v !== '' && +v > 0) seedRows.push({ i, v: +v });
       }
-      const maxV = seedRows.length ? Math.max(...seedRows.map(s => s.v)) : 1;
-
-      const topHtml = (inPct || outPct) ? `
-        <div class="odds-top">
-          ${inPct  != null ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
-          ${outPct != null ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
-        </div>` : '';
 
       const seedHtml = seedRows.map(({ i, v }) => {
         const pct  = (v * 100).toFixed(1);
-        const barW = maxV > 0 ? (v / maxV * 100).toFixed(1) : 0;
+        const barW = (v * 100).toFixed(1); // absolute, not relative
         const cls  = i <= 6 ? 'bye' : 'playin';
-        const note = i <= 6 ? '(Bye)' : '(Play-in)';
+        const note = i <= 6 ? 'Bye' : 'Play-in';
         return `<div class="seed-row">
-          <span class="seed-lbl">Seed ${i} <small style="color:var(--lgray);font-size:10px">${note}</small></span>
+          <span class="seed-lbl">Seed ${i} <small style="color:var(--lgray);font-size:10px">(${note})</small></span>
           <div class="seed-bar-wrap"><div class="seed-bar ${cls}" style="width:${barW}%"></div></div>
           <span class="seed-pct">${pct}%</span>
         </div>`;
@@ -348,7 +366,7 @@ async function load() {
         <div class="odds-section">
           <div class="section-header">${oddsTitle}</div>
           <div class="odds-card">
-            ${topHtml}
+            <div class="odds-bucket" style="padding:14px 18px">${inDisplay}</div>
             ${seedHtml ? `<div class="seed-grid"><div class="seed-grid-lbl">Seed Distribution</div><div class="seed-rows">${seedHtml}</div></div>` : ''}
           </div>
         </div>`;

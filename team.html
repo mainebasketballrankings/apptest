@@ -358,11 +358,21 @@ async function load() {
 
       const seedHtml = seedRows.map(({ i, v }) => {
         const pct  = (v * 100).toFixed(1);
-        const barW = (v * 100).toFixed(1); // absolute, not relative
-        const cls  = i <= 6 ? 'bye' : 'playin';
-        const note = i <= 6 ? 'Bye' : 'Play-in';
+        const barW = (v * 100).toFixed(1);
+        // Determine seed zone
+        let cls, note;
+        if (i <= 6) {
+          cls = 'bye'; note = 'Bye';
+        } else if (is100out) {
+          cls = 'playin'; note = 'Did Not Qualify';
+        } else if (status === 'BUBBLE' && outVal > 0 && i > 8) {
+          cls = 'playin'; note = 'Out zone';
+        } else {
+          cls = 'playin'; note = 'Play-in';
+        }
+        const noteColor = note === 'Out zone' ? 'color:var(--red)' : 'color:var(--lgray)';
         return `<div class="seed-row">
-          <span class="seed-lbl">Seed ${i} <small style="color:var(--lgray);font-size:10px">(${note})</small></span>
+          <span class="seed-lbl">Seed ${i} <small style="font-size:10px;${noteColor}">(${note})</small></span>
           <div class="seed-bar-wrap"><div class="seed-bar ${cls}" style="width:${barW}%"></div></div>
           <span class="seed-pct">${pct}%</span>
         </div>`;

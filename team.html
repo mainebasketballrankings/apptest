@@ -356,25 +356,25 @@ async function load() {
         if (v != null && v !== '' && +v > 0) seedRows.push({ i, v: +v });
       }
 
+      const byeCutoff = odds.bye_cutoff || 6;
+      const inCutoff  = odds.in_cutoff  || 8;
+
       const seedHtml = seedRows.map(({ i, v }) => {
         const pct  = (v * 100).toFixed(1);
         const barW = (v * 100).toFixed(1);
-        // Determine seed zone
-        let cls, note;
-        if (i <= 6) {
-          cls = 'bye'; note = 'Bye';
-        } else if (is100out) {
-          cls = 'playin'; note = 'Did Not Qualify';
-        } else if (status === 'BUBBLE' && outVal > 0 && i > 8) {
-          cls = 'playin'; note = 'Out zone';
+        let cls, note, noteColor, barStyle = '';
+        if (i <= byeCutoff) {
+          cls = 'bye'; note = 'Bye'; noteColor = 'color:var(--green)';
+        } else if (i <= inCutoff) {
+          cls = 'playin'; note = 'Play-in'; noteColor = 'color:var(--lgray)';
         } else {
-          cls = 'playin'; note = 'Play-in';
+          cls = 'playin'; note = 'OUT'; noteColor = 'color:var(--red);font-weight:700';
+          barStyle = 'background:var(--red);opacity:0.5';
         }
-        const noteColor = note === 'Out zone' ? 'color:var(--red)' : 'color:var(--lgray)';
         return `<div class="seed-row">
           <span class="seed-lbl">Seed ${i} <small style="font-size:10px;${noteColor}">(${note})</small></span>
-          <div class="seed-bar-wrap"><div class="seed-bar ${cls}" style="width:${barW}%"></div></div>
-          <span class="seed-pct">${pct}%</span>
+          <div class="seed-bar-wrap"><div class="seed-bar ${cls}" style="width:${barW}%;${barStyle}"></div></div>
+          <span class="seed-pct" style="${note==='OUT'?'color:var(--red)':''}">${pct}%</span>
         </div>`;
       }).join('');
 

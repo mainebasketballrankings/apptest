@@ -509,6 +509,7 @@
     <div class="date-nav">
       <button class="date-btn" id="prevDay">&#8592;</button>
       <button class="date-today" id="todayBtn">Today</button>
+      <input type="date" id="datePicker" style="font-family:'Barlow',sans-serif;font-size:13px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--black);background:var(--white);cursor:pointer;">
       <button class="date-btn" id="nextDay">&#8594;</button>
     </div>
   </div>
@@ -581,7 +582,7 @@
     await loadRanks(ds);
 
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, location, status, stax_index, stream_url,
+      id, game_date, game_time, venue, status, stax_index, stream_url,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
       home_team:home_team_id ( id, school_name, gender, logo_url,
@@ -651,6 +652,16 @@
     return `<div class="logo-initial">${team.school_name[0]}</div>`;
   }
 
+  function fmtGameTime(t) {
+    if (!t) return null;
+    if (typeof t === 'string' && t.includes('M')) return t;
+    const [h, m] = String(t).split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const h12  = hour % 12 || 12;
+    return `${h12}:${m} ${ampm}`;
+  }
+
   function staxColor(v) {
     if (v === null || v === undefined) return null;
     if (v >= 80) return '#c0392b';
@@ -702,7 +713,7 @@
       ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span></div>`
       : isLive
         ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span></div>`
-        : `<div class="card-top"><span>${g.game_time ? g.game_time : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
+        : `<div class="card-top"><span>${g.game_time ? fmtGameTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
 
     // Score cells — away on top (visiting team first, standard convention)
     const hScEl = has
@@ -713,21 +724,23 @@
       : `<div class="team-score empty">–</div>`;
 
     // Footer
-    const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
+    const loc = g.venue || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
 
-    // Stax Index
     const stax = g.stax_index;
     const staxHtml = stax != null
       ? `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;color:${staxColor(stax)}" title="Stax Index: how exciting this game should be">⚡${stax.toFixed(1)}</span>`
       : '';
 
-    // Stream icon
     const streamHtml = streamIcon(g.stream_url);
 
-    const footerRight = (staxHtml || streamHtml)
+    const rightIcons = (staxHtml || streamHtml)
       ? `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${staxHtml}${streamHtml}</div>`
-      : (!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : '');
+      : '';
+
+    const submitBtn = !isFinal
+      ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>`
+      : '';
 
     return `
     <div class="game-card ${isLive ? 'live' : ''}">
@@ -749,8 +762,8 @@
         </div>
       </div>
       <div class="card-footer">
-        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + g.game_time : ''}</div>
-        ${footerRight}
+        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtGameTime(g.game_time) : ''}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${rightIcons}${submitBtn}</div>
       </div>
       ${!isFinal ? `
       <div class="submit-panel" id="panel-${g.id}">
@@ -833,13 +846,23 @@
 
   document.getElementById('prevDay').addEventListener('click', () => {
     currentDate.setDate(currentDate.getDate() - 1); loadGames(currentDate);
+    document.getElementById('datePicker').value = toISO(currentDate);
   });
   document.getElementById('nextDay').addEventListener('click', () => {
     currentDate.setDate(currentDate.getDate() + 1); loadGames(currentDate);
+    document.getElementById('datePicker').value = toISO(currentDate);
   });
   document.getElementById('todayBtn').addEventListener('click', () => {
     currentDate = new Date(); loadGames(currentDate);
+    document.getElementById('datePicker').value = toISO(currentDate);
   });
+  document.getElementById('datePicker').addEventListener('change', e => {
+    const [y, m, d] = e.target.value.split('-').map(Number);
+    currentDate = new Date(y, m - 1, d);
+    loadGames(currentDate);
+  });
+  // Init picker to today
+  document.getElementById('datePicker').value = toISO(currentDate);
   document.getElementById('filters').addEventListener('click', e => {
     if (!e.target.matches('.filter-btn')) return;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));

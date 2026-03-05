@@ -194,11 +194,12 @@
       padding: 5px 12px;
       background: #fafafa;
       border-bottom: 1px solid var(--border);
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
       color: var(--lgray);
     }
+    .card-top span:last-child { text-align: right; }
 
     .live-dot {
       display: inline-block;
@@ -745,11 +746,15 @@
     const aR   = aRnk ? `<span class="rnk">#${aRnk} </span>` : '';
 
     // Top status bar
+    const submitIcon = !isFinal
+      ? `<button class="submit-btn-inline" data-id="${g.id}" style="padding:2px 7px;font-size:10px;letter-spacing:0.5px">+ Score</button>`
+      : `<span></span>`;
+
     const topBar = isFinal
-      ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span></div>`
+      ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span><span></span></div>`
       : isLive
-        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span></div>`
-        : `<div class="card-top"><span>${g.game_time ? fmtGameTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span>${submitIcon}</div>`
+        : `<div class="card-top"><span>${g.game_time ? fmtGameTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span>${submitIcon}</div>`;
 
     // Score cells — away on top (visiting team first, standard convention)
     const hScEl = has
@@ -775,10 +780,6 @@
       ? `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${staxHtml}${streamHtml}</div>`
       : '';
 
-    const submitBtn = !isFinal
-      ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>`
-      : '';
-
     return `
     <div class="game-card ${isLive ? 'live' : ''}">
       ${topBar}
@@ -800,7 +801,7 @@
       </div>
       <div class="card-footer">
         <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtGameTime(g.game_time) : ''}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${rightIcons}${submitBtn}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${rightIcons}</div>
       </div>
       ${!isFinal ? `
       <div class="submit-panel" id="panel-${g.id}">

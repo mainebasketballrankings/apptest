@@ -581,7 +581,7 @@
     await loadRanks(ds);
 
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, location, status,
+      id, game_date, game_time, location, status, stax_index, stream_url,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
       home_team:home_team_id ( id, school_name, gender, logo_url,
@@ -651,6 +651,33 @@
     return `<div class="logo-initial">${team.school_name[0]}</div>`;
   }
 
+  function staxColor(v) {
+    if (v === null || v === undefined) return null;
+    if (v >= 80) return '#c0392b';
+    if (v >= 65) return '#e67e22';
+    if (v >= 50) return '#f1c40f';
+    return '#aaa';
+  }
+
+  function streamIcon(url) {
+    if (!url) return '';
+    let logo, label;
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      logo = `<svg viewBox="0 0 24 24" fill="#FF0000" width="28" height="28"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>`;
+      label = 'YouTube';
+    } else if (url.includes('nfhs')) {
+      logo = `<svg viewBox="0 0 24 24" fill="#003087" width="28" height="28"><rect width="24" height="24" rx="4"/><text x="12" y="17" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="Arial">NFHS</text></svg>`;
+      label = 'NFHS';
+    } else if (url.includes('whou')) {
+      logo = `<svg viewBox="0 0 24 24" width="28" height="28"><rect width="24" height="24" rx="4" fill="#1a4a8a"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">WHOU</text></svg>`;
+      label = 'WHOU';
+    } else {
+      logo = `<svg viewBox="0 0 24 24" fill="#555" width="28" height="28"><circle cx="12" cy="12" r="11" fill="#eee" stroke="#ccc" stroke-width="1"/><polygon points="9,7 19,12 9,17" fill="#555"/></svg>`;
+      label = 'Watch';
+    }
+    return `<a href="${url}" target="_blank" title="${label}" style="display:inline-flex;align-items:center;line-height:0">${logo}</a>`;
+  }
+
   function card(g) {
     const home    = g.home_team;
     const away    = g.away_team;
@@ -675,9 +702,9 @@
       ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span></div>`
       : isLive
         ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span></div>`
-        : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
+        : `<div class="card-top"><span>${g.game_time ? g.game_time : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
 
-    // Score cells
+    // Score cells — away on top (visiting team first, standard convention)
     const hScEl = has
       ? `<div class="team-score ${isFinal ? (hWin?'winner':'loser') : ''}">${hSc}</div>`
       : `<div class="team-score empty">–</div>`;
@@ -685,21 +712,27 @@
       ? `<div class="team-score ${isFinal ? (aWin?'winner':'loser') : ''}">${aSc}</div>`
       : `<div class="team-score empty">–</div>`;
 
-    // Footer location string
+    // Footer
     const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
+
+    // Stax Index
+    const stax = g.stax_index;
+    const staxHtml = stax != null
+      ? `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;color:${staxColor(stax)}" title="Stax Index: how exciting this game should be">⚡${stax.toFixed(1)}</span>`
+      : '';
+
+    // Stream icon
+    const streamHtml = streamIcon(g.stream_url);
+
+    const footerRight = (staxHtml || streamHtml)
+      ? `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${staxHtml}${streamHtml}</div>`
+      : (!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : '');
 
     return `
     <div class="game-card ${isLive ? 'live' : ''}">
       ${topBar}
       <div class="card-body">
-        <div class="team-row">
-          <div class="logo-wrap">${logoEl(home)}</div>
-          <div class="team-name-wrap">
-            <div class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}">${hR}${home.school_name}</div>
-          </div>
-          ${hScEl}
-        </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
@@ -707,10 +740,17 @@
           </div>
           ${aScEl}
         </div>
+        <div class="team-row">
+          <div class="logo-wrap">${logoEl(home)}</div>
+          <div class="team-name-wrap">
+            <div class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}">${hR}${home.school_name}</div>
+          </div>
+          ${hScEl}
+        </div>
       </div>
       <div class="card-footer">
-        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>
-        ${!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
+        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + g.game_time : ''}</div>
+        ${footerRight}
       </div>
       ${!isFinal ? `
       <div class="submit-panel" id="panel-${g.id}">
@@ -718,13 +758,13 @@
         <form class="score-form" data-id="${g.id}">
           <div class="score-inputs">
             <div class="si-group">
-              <label>${home.school_name}</label>
-              <input type="number" name="home_score" min="0" max="250" placeholder="0" required />
+              <label>${away.school_name}</label>
+              <input type="number" name="away_score" min="0" max="250" placeholder="0" required />
             </div>
             <div class="si-dash">–</div>
             <div class="si-group">
-              <label>${away.school_name}</label>
-              <input type="number" name="away_score" min="0" max="250" placeholder="0" required />
+              <label>${home.school_name}</label>
+              <input type="number" name="home_score" min="0" max="250" placeholder="0" required />
             </div>
           </div>
           <div class="si-extras">

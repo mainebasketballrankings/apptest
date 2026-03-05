@@ -431,7 +431,18 @@
     }
 
     .si-submit:hover { background: var(--green2); }
-    .si-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .si-clock-row { display: flex; gap: 8px; align-items: center; }
+    .si-select {
+      flex: 1; padding: 7px 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-family: 'Barlow', sans-serif; font-size: 13px;
+      background: var(--white); color: var(--black);
+    }
+    .si-time {
+      width: 70px; padding: 7px 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-family: 'Barlow', sans-serif; font-size: 13px;
+      text-align: center;
+    }
+    .si-time.hidden { display: none; }
 
     .si-success {
       display: none;
@@ -632,11 +643,21 @@
       btn.addEventListener('click', () => {
         const panel = document.getElementById('panel-' + btn.dataset.id);
         const open  = panel.classList.toggle('open');
-        btn.textContent = open ? 'Cancel' : 'Submit Score';
+        btn.textContent = open ? 'Cancel' : '+ Score';
       });
     });
 
-    container.querySelectorAll('.score-form').forEach(f => f.addEventListener('submit', handleSubmit));
+    container.querySelectorAll('.score-form').forEach(f => {
+      f.addEventListener('submit', handleSubmit);
+      const periodSel = f.querySelector('select[name="period"]');
+      const timeInput = f.querySelector('input[name="clock_time"]');
+      if (periodSel && timeInput) {
+        periodSel.addEventListener('change', () => {
+          const noTime = ['Halftime', 'End Q4', 'Final', ''].includes(periodSel.value);
+          timeInput.classList.toggle('hidden', noTime);
+        });
+      }
+    });
   }
 
   function section(label, games) {
@@ -819,7 +840,21 @@
             </div>
           </div>
           <div class="si-extras">
-            <input type="text" name="game_clock" placeholder="Quarter / time (e.g. Halftime)" />
+            <div class="si-clock-row">
+              <select name="period" class="si-select">
+                <option value="">-- Period --</option>
+                <option value="Q1">Q1</option>
+                <option value="Q2">Q2</option>
+                <option value="Halftime">Halftime</option>
+                <option value="Q3">Q3</option>
+                <option value="Q4">Q4</option>
+                <option value="End Q4">End Q4</option>
+                <option value="OT">OT</option>
+                <option value="2OT">2OT</option>
+                <option value="Final">Final</option>
+              </select>
+              <input type="text" name="clock_time" class="si-time" placeholder="4:00" pattern="^([0-9]{1,2}:[0-5][0-9])?$" title="Format: 4:00" />
+            </div>
             <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)"></textarea>
           </div>
           <div class="si-row">
@@ -848,12 +883,19 @@
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
+    const period    = form.period.value;
+    const clockTime = form.clock_time.value.trim();
+    const noTime    = ['Halftime', 'End Q4', 'Final', ''].includes(period);
+    const gameClock = period
+      ? (noTime || !clockTime ? period : `${period} | ${clockTime}`)
+      : null;
     const { error } = await sb.from('score_submissions').insert({
       game_id: id, home_score: hSc, away_score: aSc,
       is_final: form.is_final.checked,
-      game_clock: form.game_clock.value.trim() || null,
+      game_clock: gameClock,
       notes: form.notes.value.trim() || null,
       status: 'pending',
+    });
     });
 
     if (error) {
@@ -869,7 +911,7 @@
     if (form.is_final.checked) {
       await sb.from('games').update({
         status: 'active', home_score_live: hSc, away_score_live: aSc,
-        game_clock: form.game_clock.value.trim() || null,
+        game_clock: gameClock,
       }).eq('id', id);
       setTimeout(() => loadGames(currentDate), 1500);
     }

@@ -585,7 +585,7 @@
       id, game_date, game_time, venue, status, stax_index, stream_url,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
-      home_team:home_team_id ( id, school_name, gender, logo_url,
+      home_team:home_team_id ( id, school_name, gender, logo_url, stream_url,
         team_classifications ( classes ( name ) ) ),
       away_team:away_team_id ( id, school_name, gender, logo_url,
         team_classifications ( classes ( name ) ) )
@@ -674,16 +674,52 @@
     if (!url) return '';
     let logo, label;
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      logo = `<svg viewBox="0 0 24 24" fill="#FF0000" width="28" height="28"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>`;
+      logo = `<svg viewBox="0 0 24 24" fill="#FF0000" width="32" height="32"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>`;
       label = 'YouTube';
-    } else if (url.includes('nfhs')) {
-      logo = `<svg viewBox="0 0 24 24" fill="#003087" width="28" height="28"><rect width="24" height="24" rx="4"/><text x="12" y="17" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="Arial">NFHS</text></svg>`;
+    } else if (url.includes('nfhsnetwork.com') || url.includes('nfhs-network.pxf.io')) {
+      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680700/nfhsnetworklogo2_hcomv2.png" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="NFHS">`;
       label = 'NFHS';
     } else if (url.includes('whou')) {
-      logo = `<svg viewBox="0 0 24 24" width="28" height="28"><rect width="24" height="24" rx="4" fill="#1a4a8a"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">WHOU</text></svg>`;
+      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772678434/whou.live_.square-768x609_nwxdjx.png" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="WHOU">`;
       label = 'WHOU';
+    } else if (url.includes('lctv')) {
+      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680745/lctv_wikpnr.jpg" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="LCTV">`;
+      label = 'LCTV';
+    } else if (url.includes('929theticket') || url.includes('theticket')) {
+      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680872/tickettv_llamh1.jpg" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="929 The Ticket">`;
+      label = '929 The Ticket';
+    } else if (url.includes('hudl')) {
+      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680951/hudl_bq26ed.png" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="Hudl">`;
+      label = 'Hudl';
+    } else if (url.includes('mainecoast.tv')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#005f9e"/><text x="16" y="13" text-anchor="middle" fill="white" font-size="6" font-weight="bold" font-family="Arial">MAINE</text><text x="16" y="21" text-anchor="middle" fill="white" font-size="6" font-weight="bold" font-family="Arial">COAST</text><text x="16" y="28" text-anchor="middle" fill="#7ecfff" font-size="5" font-family="Arial">TV</text></svg>`;
+      label = 'MaineCoast TV';
+    } else if (url.includes('ctv7')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#c0392b"/><text x="16" y="14" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">CTV7</text><text x="16" y="25" text-anchor="middle" fill="white" font-size="6" font-family="Arial">Augusta</text></svg>`;
+      label = 'CTV7 Augusta';
+    } else if (url.includes('gc.com') || url.includes('gc.com/teams')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1a1a2e"/><text x="16" y="14" text-anchor="middle" fill="#00d4ff" font-size="7" font-weight="bold" font-family="Arial">GAME</text><text x="16" y="24" text-anchor="middle" fill="#00d4ff" font-size="7" font-weight="bold" font-family="Arial">CHNGR</text></svg>`;
+      label = 'GameChanger';
+    } else if (url.includes('munzing')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#2c3e50"/><text x="16" y="15" text-anchor="middle" fill="white" font-size="6" font-weight="bold" font-family="Arial">MUNZING</text><text x="16" y="25" text-anchor="middle" fill="#aaa" font-size="5" font-family="Arial">MEDIA</text></svg>`;
+      label = 'Munzing Media';
+    } else if (url.includes('vimeo')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1ab7ea"/><text x="16" y="21" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">V</text></svg>`;
+      label = 'Vimeo';
+    } else if (url.includes('centralmainesports')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1a5276"/><text x="16" y="13" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">CENTRAL</text><text x="16" y="20" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">MAINE</text><text x="16" y="27" text-anchor="middle" fill="#aed6f1" font-size="5" font-family="Arial">SPORTS</text></svg>`;
+      label = 'Central Maine Sports';
+    } else if (url.includes('mainepublic')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#003366"/><text x="16" y="13" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">MAINE</text><text x="16" y="21" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">PUBLIC</text></svg>`;
+      label = 'Maine Public';
+    } else if (url.includes('facebook.com')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1877f2"/><text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="bold" font-family="Arial">f</text></svg>`;
+      label = 'Facebook Live';
+    } else if (url.includes('stream.rsu13')) {
+      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#2e4057"/><text x="16" y="14" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="Arial">RSU</text><text x="16" y="24" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="Arial">13</text></svg>`;
+      label = 'RSU13';
     } else {
-      logo = `<svg viewBox="0 0 24 24" fill="#555" width="28" height="28"><circle cx="12" cy="12" r="11" fill="#eee" stroke="#ccc" stroke-width="1"/><polygon points="9,7 19,12 9,17" fill="#555"/></svg>`;
+      logo = `<svg viewBox="0 0 32 32" fill="#555" width="32" height="32"><circle cx="16" cy="16" r="15" fill="#eee" stroke="#ccc" stroke-width="1"/><polygon points="12,9 25,16 12,23" fill="#555"/></svg>`;
       label = 'Watch';
     }
     return `<a href="${url}" target="_blank" title="${label}" style="display:inline-flex;align-items:center;line-height:0">${logo}</a>`;
@@ -732,7 +768,8 @@
       ? `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;color:${staxColor(stax)}" title="Stax Index: how exciting this game should be">⚡${stax.toFixed(1)}</span>`
       : '';
 
-    const streamHtml = streamIcon(g.stream_url);
+    const streamUrl  = g.stream_url || home.stream_url || null;
+    const streamHtml = streamIcon(streamUrl);
 
     const rightIcons = (staxHtml || streamHtml)
       ? `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${staxHtml}${streamHtml}</div>`

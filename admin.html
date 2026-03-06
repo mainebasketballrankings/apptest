@@ -534,11 +534,11 @@
       .from('score_submissions')
       .select(`
         id, game_id, home_score, away_score, is_final, game_clock,
-        notes, status, created_at,
+        notes, status,
         games ( id, home_team_id, away_team_id, game_date, home_score, away_score,
                 home_score_live, away_score_live, status, game_clock )
       `)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false });
 
     if (error) { showToast('Load error: ' + error.message, true); return; }
     allSubs = data || [];
@@ -584,10 +584,6 @@
       ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       : '';
 
-    const submittedAt = new Date(s.created_at).toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
-
     const isFinalSub = s.is_final;
     const clockLabel = s.game_clock || '';
 
@@ -612,7 +608,7 @@
             <div class="sub-game-info">${awayName} @ ${homeName}</div>
             <div class="sub-meta">${gameDate}</div>
           </div>
-          <div class="sub-time">${submittedAt}</div>
+          <div class="sub-time">#${s.id}</div>
         </div>
         <div class="sub-body">
           <div class="sub-scores">

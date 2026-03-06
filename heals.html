@@ -495,13 +495,35 @@
   let isPaid = false;
 
   async function initAuth() {
+    // Handle magic link token in URL hash (GitHub Pages doesn't auto-process this)
+    if (window.location.hash.includes('access_token')) {
+      const { data, error } = await sb.auth.getSessionFromUrl({ storeSession: true });
+      if (data?.session?.user) {
+        // Clean up the URL
+        history.replaceState(null, '', window.location.pathname);
+        await handleUser(data.session.user);
+        loadRegions();
+        return;
+      }
+    }
+
     const { data: { session } } = await sb.auth.getSession();
-    if (session?.user) await handleUser(session.user);
-    else renderAuthUI(null);
+    if (session?.user) {
+      await handleUser(session.user);
+    } else {
+      renderAuthUI(null);
+      applyGate();
+    }
+    loadRegions();
 
     sb.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) await handleUser(session.user);
-      else { currentUser = null; isPaid = false; renderAuthUI(null); applyGate(); }
+      if (event === 'SIGNED_IN' && session?.user) {
+        await handleUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        currentUser = null; isPaid = false;
+        renderAuthUI(null);
+        applyGate();
+      }
     });
   }
 
@@ -547,7 +569,7 @@
       overlay.innerHTML = `
         <div class="gate-box">
           <h3>Paid Subscribers Only</h3>
-          <p>Heal Points are available to MBR paid subscribers.<br>Get full access for just $6/month.</p>
+          <p>Heal Points are available to Maine Basketball Rankings paid subscribers.<br>Get full access for just $6/month.</p>
           <a class="gate-subscribe" href="https://mainebasketballrankings.com/#/portal/signup" target="_blank">Subscribe</a>
           <button class="gate-login-link" id="gateLoginBtn">Already a subscriber? Sign in</button>
         </div>`;
@@ -943,7 +965,6 @@
   });
 
   initAuth();
-  loadRegions();
 </script>
 </body>
 </html>

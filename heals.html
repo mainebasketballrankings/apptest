@@ -343,6 +343,83 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* AUTH */
+    .auth-btn {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 12px; letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 6px 14px; border-radius: 5px; border: none; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .auth-btn.login  { background: var(--green); color: #fff; }
+    .auth-btn.login:hover { background: var(--green2); }
+    .auth-btn.logout { background: transparent; border: 1px solid var(--border); color: var(--gray); }
+    .auth-btn.logout:hover { border-color: var(--red); color: var(--red); }
+    .auth-user { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--lgray); }
+
+    /* MAGIC LINK MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 500; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: var(--white); border-radius: 12px; padding: 36px 32px; width: 360px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.15); text-align: center;
+    }
+    .modal-box h2 {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px;
+      text-transform: uppercase; letter-spacing: 1px; color: var(--green); margin-bottom: 6px;
+    }
+    .modal-box p { font-size: 13px; color: var(--lgray); margin-bottom: 20px; line-height: 1.5; }
+    .modal-box input {
+      width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 7px;
+      font-family: 'Barlow', sans-serif; font-size: 15px; margin-bottom: 10px;
+      outline: none; transition: border-color 0.15s;
+    }
+    .modal-box input:focus { border-color: var(--green); }
+    .modal-box .modal-submit {
+      width: 100%; padding: 11px; background: var(--green); color: #fff; border: none;
+      border-radius: 7px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 15px; letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .modal-box .modal-submit:hover { background: var(--green2); }
+    .modal-box .modal-submit:disabled { background: #aaa; cursor: default; }
+    .modal-cancel { margin-top: 10px; font-size: 13px; color: var(--lgray); cursor: pointer; background: none; border: none; }
+    .modal-cancel:hover { color: var(--black); }
+
+    /* GATE */
+    .gate-wrap { position: relative; }
+    .gate-blur { filter: blur(5px); pointer-events: none; user-select: none; max-height: 380px; overflow: hidden; }
+    .gate-overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 10; gap: 12px;
+      background: linear-gradient(to bottom, rgba(240,240,240,0) 0%, rgba(240,240,240,0.7) 40%, rgba(240,240,240,0.97) 100%);
+    }
+    .gate-box {
+      background: var(--white); border-radius: 12px; padding: 28px;
+      text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.10); max-width: 320px;
+    }
+    .gate-box h3 {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+    }
+    .gate-box p { font-size: 13px; color: var(--lgray); margin-bottom: 16px; line-height: 1.5; }
+    .gate-subscribe {
+      display: inline-block; padding: 9px 20px; background: var(--green); color: #fff;
+      border-radius: 6px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase;
+      text-decoration: none; transition: background 0.15s; margin-bottom: 8px;
+    }
+    .gate-subscribe:hover { background: var(--green2); }
+    .gate-login-link {
+      display: block; font-size: 12px; color: var(--lgray);
+      cursor: pointer; background: none; border: none; margin-top: 4px;
+    }
+    .gate-login-link:hover { color: var(--green); }
+
     .empty {
       text-align: center; padding: 50px 20px; color: var(--lgray);
     }
@@ -369,7 +446,21 @@
     <a href="#" class="active">Heal Points</a>
     <a href="#">Gold Ball Odds</a>
   </nav>
+  <div id="authArea">
+    <button class="auth-btn login" id="loginBtn">Sign In</button>
+  </div>
 </header>
+
+<!-- MAGIC LINK MODAL -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-box" id="loginModalBox">
+    <h2>Sign In</h2>
+    <p>Enter your email and we'll send you a magic link to sign in instantly.</p>
+    <input type="email" id="loginEmail" placeholder="you@example.com" />
+    <button class="modal-submit" id="loginSubmit">Send Magic Link</button>
+    <button class="modal-cancel" id="loginCancel">Cancel</button>
+  </div>
+</div>
 
 <div class="page">
   <div class="page-title">Heal Points</div>
@@ -387,8 +478,10 @@
     <button class="gender-tab" data-gender="Girls">Girls</button>
   </div>
 
-  <div class="table-wrap" id="tableWrap">
-    <div class="loading"><div class="spinner"></div><span>Loading…</span></div>
+  <div class="gate-wrap" id="gateWrap">
+    <div class="table-wrap" id="tableWrap">
+      <div class="loading"><div class="spinner"></div><span>Loading…</span></div>
+    </div>
   </div>
 </div>
 
@@ -396,6 +489,125 @@
   const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ── AUTH ──────────────────────────────────────────────────────
+  let currentUser = null;
+  let isPaid = false;
+
+  async function initAuth() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) await handleUser(session.user);
+    else renderAuthUI(null);
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) await handleUser(session.user);
+      else { currentUser = null; isPaid = false; renderAuthUI(null); applyGate(); }
+    });
+  }
+
+  async function handleUser(user) {
+    currentUser = user;
+    // Check tier in users table
+    const { data } = await sb.from('users').select('tier').eq('email', user.email).maybeSingle();
+    isPaid = data?.tier === 'paid';
+    renderAuthUI(user);
+    applyGate();
+  }
+
+  function renderAuthUI(user) {
+    const area = document.getElementById('authArea');
+    if (!user) {
+      area.innerHTML = `<button class="auth-btn login" id="loginBtn">Sign In</button>`;
+      document.getElementById('loginBtn').addEventListener('click', () => openModal());
+    } else {
+      area.innerHTML = `<div class="auth-user">
+        <span>${user.email}</span>
+        <button class="auth-btn logout" id="logoutBtn">Sign Out</button>
+      </div>`;
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await sb.auth.signOut();
+      });
+    }
+  }
+
+  function applyGate() {
+    const wrap = document.getElementById('gateWrap');
+    const tableWrap = document.getElementById('tableWrap');
+
+    // Remove any existing gate overlay
+    const existing = document.getElementById('gateOverlay');
+    if (existing) existing.remove();
+    tableWrap.classList.remove('gate-blur');
+
+    if (!isPaid) {
+      tableWrap.classList.add('gate-blur');
+      const overlay = document.createElement('div');
+      overlay.className = 'gate-overlay';
+      overlay.id = 'gateOverlay';
+      overlay.innerHTML = `
+        <div class="gate-box">
+          <h3>Paid Subscribers Only</h3>
+          <p>Heal Points are available to MBR paid subscribers.<br>Get full access for just $6/month.</p>
+          <a class="gate-subscribe" href="https://mainebasketballrankings.com/#/portal/signup" target="_blank">Subscribe</a>
+          <button class="gate-login-link" id="gateLoginBtn">Already a subscriber? Sign in</button>
+        </div>`;
+      wrap.appendChild(overlay);
+      document.getElementById('gateLoginBtn').addEventListener('click', () => openModal());
+    }
+  }
+
+  // ── MODAL ─────────────────────────────────────────────────────
+  function openModal() {
+    document.getElementById('loginModal').classList.add('show');
+    document.getElementById('loginEmail').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('loginModal').classList.remove('show');
+    // Reset modal
+    document.getElementById('loginModalBox').innerHTML = `
+      <h2>Sign In</h2>
+      <p>Enter your email and we'll send you a magic link to sign in instantly.</p>
+      <input type="email" id="loginEmail" placeholder="you@example.com" />
+      <button class="modal-submit" id="loginSubmit">Send Magic Link</button>
+      <button class="modal-cancel" id="loginCancel">Cancel</button>`;
+    bindModalEvents();
+  }
+
+  function bindModalEvents() {
+    document.getElementById('loginCancel')?.addEventListener('click', closeModal);
+    document.getElementById('loginSubmit')?.addEventListener('click', sendMagicLink);
+    document.getElementById('loginEmail')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendMagicLink();
+    });
+    document.getElementById('loginModal')?.addEventListener('click', e => {
+      if (e.target === document.getElementById('loginModal')) closeModal();
+    });
+  }
+
+  async function sendMagicLink() {
+    const email = document.getElementById('loginEmail').value.trim();
+    if (!email) return;
+    const btn = document.getElementById('loginSubmit');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href }
+    });
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Send Magic Link';
+      alert('Error: ' + error.message);
+      return;
+    }
+    document.getElementById('loginModalBox').innerHTML = `
+      <h2>Check Your Email</h2>
+      <p style="color:var(--green);font-weight:600;font-size:15px">Magic link sent!</p>
+      <p>Click the link in your email to sign in. You can close this.</p>
+      <button class="modal-cancel" id="loginCancel">Close</button>`;
+    document.getElementById('loginCancel').addEventListener('click', closeModal);
+  }
+
+  bindModalEvents();
 
   // Win point values by class
   const WIN_PTS = { A: 40, B: 38, C: 36, D: 34, S: 32 };
@@ -585,6 +797,7 @@
     // Sort by Heal desc
     allTeams.sort((a, b) => b.heal - a.heal);
     renderTable();
+    applyGate();
   }
 
   // ── Render table ───────────────────────────────────────────────
@@ -729,6 +942,7 @@
     });
   });
 
+  initAuth();
   loadRegions();
 </script>
 </body>

@@ -1,0 +1,131 @@
+/* ============================================================
+   MBR SHARED NAV — nav.css
+   Include in <head>:  <link rel="stylesheet" href="nav.css" />
+   ============================================================ */
+
+.mbr-header {
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* ── Top bar: logo + auth ── */
+.mbr-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 58px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.mbr-logo {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.mbr-logo img {
+  height: 44px;
+  width: auto;
+}
+
+/* ── Sub-nav bar ── */
+.mbr-nav {
+  border-top: 1px solid #f0f0f0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.mbr-nav::-webkit-scrollbar { display: none; }
+
+.mbr-nav-inner {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.mbr-nav-inner a {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #555;
+  text-decoration: none;
+  padding: 9px 12px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.mbr-nav-inner a:hover {
+  color: #111;
+  border-bottom-color: #ccc;
+}
+
+.mbr-nav-inner a.active {
+  color: #1a7a4a;
+  border-bottom-color: #1a7a4a;
+}
+
+/* ── Auth area ── */
+.mbr-auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.mbr-auth-user {
+  font-family: 'Barlow', sans-serif;
+  font-size: 12px;
+  color: #999;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mbr-btn {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 7px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.mbr-btn-signin {
+  background: #111;
+  color: #fff;
+}
+.mbr-btn-signin:hover { background: #1a7a4a; }
+
+.mbr-btn-signout {
+  background: transparent;
+  border: 1px solid #ddd;
+  color: #777;
+}
+.mbr-btn-signout:hover { border-color: #c0392b; color: #c0392b; }
+
+/* ── Mobile: collapse nav to scrollable strip ── */
+@media (max-width: 700px) {
+  .mbr-topbar { padding: 0 14px; height: 52px; }
+  .mbr-logo img { height: 36px; }
+  .mbr-auth-user { display: none; }
+  .mbr-nav-inner { padding: 0 8px; }
+  .mbr-nav-inner a { font-size: 11.5px; padding: 8px 10px; }
+}

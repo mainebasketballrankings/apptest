@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="nav.css" />
 
   <style>
     :root {
@@ -31,41 +32,6 @@
       min-height: 100vh;
     }
 
-    /* HEADER */
-    header {
-      background: var(--white);
-      border-bottom: 3px solid var(--green);
-      padding: 0 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 66px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-    }
-
-    .logo { text-decoration: none; display: flex; align-items: center; }
-    .logo-img { height: 52px; width: auto; }
-
-    nav { display: flex; gap: 2px; }
-
-    nav a {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--gray);
-      text-decoration: none;
-      padding: 6px 13px;
-      border-radius: 4px;
-      transition: color 0.15s, background 0.15s;
-    }
-
-    nav a:hover  { color: var(--black); background: var(--bg); }
-    nav a.active { color: var(--green); background: #e6f4ec; }
 
     /* PAGE */
     .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
@@ -194,12 +160,11 @@
       padding: 5px 12px;
       background: #fafafa;
       border-bottom: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      display: flex;
       align-items: center;
+      justify-content: space-between;
       color: var(--lgray);
     }
-    .card-top span:last-child { text-align: right; }
 
     .live-dot {
       display: inline-block;
@@ -302,7 +267,7 @@
       background: transparent;
       border: 1px solid var(--green);
       color: var(--green);
-      padding: 4px 6px;
+      padding: 4px 10px;
       border-radius: 5px;
       cursor: pointer;
       white-space: nowrap;
@@ -431,18 +396,7 @@
     }
 
     .si-submit:hover { background: var(--green2); }
-    .si-clock-row { display: flex; gap: 8px; align-items: center; }
-    .si-select {
-      flex: 1; padding: 7px 10px; border: 1px solid var(--border);
-      border-radius: 6px; font-family: 'Barlow', sans-serif; font-size: 13px;
-      background: var(--white); color: var(--black);
-    }
-    .si-time {
-      width: 70px; padding: 7px 10px; border: 1px solid var(--border);
-      border-radius: 6px; font-family: 'Barlow', sans-serif; font-size: 13px;
-      text-align: center;
-    }
-    .si-time.hidden { display: none; }
+    .si-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .si-success {
       display: none;
@@ -503,15 +457,7 @@
 </head>
 <body>
 
-<header>
-  <a class="logo" href="#"><img class="logo-img" src="logo.png" alt="Maine Basketball Rankings" /></a>
-  <nav>
-    <a href="#" class="active">Scoreboard</a>
-    <a href="rankings.html">Rankings</a>
-    <a href="heals.html">Heal Points</a>
-    <a href="#">Gold Ball Odds</a>
-  </nav>
-</header>
+<div id="mbr-header"></div>
 
 <div class="page">
   <div class="date-bar">
@@ -521,7 +467,6 @@
     <div class="date-nav">
       <button class="date-btn" id="prevDay">&#8592;</button>
       <button class="date-today" id="todayBtn">Today</button>
-      <input type="date" id="datePicker" style="font-family:'Barlow',sans-serif;font-size:13px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--black);background:var(--white);cursor:pointer;">
       <button class="date-btn" id="nextDay">&#8594;</button>
     </div>
   </div>
@@ -594,10 +539,10 @@
     await loadRanks(ds);
 
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, venue, status, stax_index, stream_url,
+      id, game_date, game_time, location, status,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
-      home_team:home_team_id ( id, school_name, gender, logo_url, stream_url,
+      home_team:home_team_id ( id, school_name, gender, logo_url,
         team_classifications ( classes ( name ) ) ),
       away_team:away_team_id ( id, school_name, gender, logo_url,
         team_classifications ( classes ( name ) ) )
@@ -643,21 +588,11 @@
       btn.addEventListener('click', () => {
         const panel = document.getElementById('panel-' + btn.dataset.id);
         const open  = panel.classList.toggle('open');
-        btn.textContent = open ? 'Cancel' : '+ Score';
+        btn.textContent = open ? 'Cancel' : 'Submit Score';
       });
     });
 
-    container.querySelectorAll('.score-form').forEach(f => {
-      f.addEventListener('submit', handleSubmit);
-      const periodSel = f.querySelector('select[name="period"]');
-      const timeInput = f.querySelector('input[name="clock_time"]');
-      if (periodSel && timeInput) {
-        periodSel.addEventListener('change', () => {
-          const noTime = ['Halftime', 'End Q4', 'Final', ''].includes(periodSel.value);
-          timeInput.classList.toggle('hidden', noTime);
-        });
-      }
-    });
+    container.querySelectorAll('.score-form').forEach(f => f.addEventListener('submit', handleSubmit));
   }
 
   function section(label, games) {
@@ -672,79 +607,6 @@
               <div class="logo-initial" style="display:none">${team.school_name[0]}</div>`;
     }
     return `<div class="logo-initial">${team.school_name[0]}</div>`;
-  }
-
-  function fmtGameTime(t) {
-    if (!t) return null;
-    if (typeof t === 'string' && t.includes('M')) return t;
-    const [h, m] = String(t).split(':');
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const h12  = hour % 12 || 12;
-    return `${h12}:${m} ${ampm}`;
-  }
-
-  function staxColor(v) {
-    if (v === null || v === undefined) return null;
-    if (v >= 80) return '#c0392b';
-    if (v >= 65) return '#e67e22';
-    if (v >= 50) return '#f1c40f';
-    return '#aaa';
-  }
-
-  function streamIcon(url) {
-    if (!url) return '';
-    let logo, label;
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      logo = `<svg viewBox="0 0 24 24" fill="#FF0000" width="32" height="32"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>`;
-      label = 'YouTube';
-    } else if (url.includes('nfhsnetwork.com') || url.includes('nfhs-network.pxf.io')) {
-      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680700/nfhsnetworklogo2_hcomv2.png" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="NFHS">`;
-      label = 'NFHS';
-    } else if (url.includes('whou')) {
-      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772678434/whou.live_.square-768x609_nwxdjx.png" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="WHOU">`;
-      label = 'WHOU';
-    } else if (url.includes('lctv')) {
-      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680745/lctv_wikpnr.jpg" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="LCTV">`;
-      label = 'LCTV';
-    } else if (url.includes('929theticket') || url.includes('theticket')) {
-      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680872/tickettv_llamh1.jpg" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="929 The Ticket">`;
-      label = '929 The Ticket';
-    } else if (url.includes('hudl')) {
-      logo = `<img src="https://res.cloudinary.com/dulfssb6y/image/upload/v1772680951/hudl_bq26ed.png" width="32" height="32" style="border-radius:6px;object-fit:cover" alt="Hudl">`;
-      label = 'Hudl';
-    } else if (url.includes('mainecoast.tv')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#005f9e"/><text x="16" y="13" text-anchor="middle" fill="white" font-size="6" font-weight="bold" font-family="Arial">MAINE</text><text x="16" y="21" text-anchor="middle" fill="white" font-size="6" font-weight="bold" font-family="Arial">COAST</text><text x="16" y="28" text-anchor="middle" fill="#7ecfff" font-size="5" font-family="Arial">TV</text></svg>`;
-      label = 'MaineCoast TV';
-    } else if (url.includes('ctv7')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#c0392b"/><text x="16" y="14" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">CTV7</text><text x="16" y="25" text-anchor="middle" fill="white" font-size="6" font-family="Arial">Augusta</text></svg>`;
-      label = 'CTV7 Augusta';
-    } else if (url.includes('gc.com') || url.includes('gc.com/teams')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1a1a2e"/><text x="16" y="14" text-anchor="middle" fill="#00d4ff" font-size="7" font-weight="bold" font-family="Arial">GAME</text><text x="16" y="24" text-anchor="middle" fill="#00d4ff" font-size="7" font-weight="bold" font-family="Arial">CHNGR</text></svg>`;
-      label = 'GameChanger';
-    } else if (url.includes('munzing')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#2c3e50"/><text x="16" y="15" text-anchor="middle" fill="white" font-size="6" font-weight="bold" font-family="Arial">MUNZING</text><text x="16" y="25" text-anchor="middle" fill="#aaa" font-size="5" font-family="Arial">MEDIA</text></svg>`;
-      label = 'Munzing Media';
-    } else if (url.includes('vimeo')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1ab7ea"/><text x="16" y="21" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">V</text></svg>`;
-      label = 'Vimeo';
-    } else if (url.includes('centralmainesports')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1a5276"/><text x="16" y="13" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">CENTRAL</text><text x="16" y="20" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">MAINE</text><text x="16" y="27" text-anchor="middle" fill="#aed6f1" font-size="5" font-family="Arial">SPORTS</text></svg>`;
-      label = 'Central Maine Sports';
-    } else if (url.includes('mainepublic')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#003366"/><text x="16" y="13" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">MAINE</text><text x="16" y="21" text-anchor="middle" fill="white" font-size="5.5" font-weight="bold" font-family="Arial">PUBLIC</text></svg>`;
-      label = 'Maine Public';
-    } else if (url.includes('facebook.com')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#1877f2"/><text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="bold" font-family="Arial">f</text></svg>`;
-      label = 'Facebook Live';
-    } else if (url.includes('stream.rsu13')) {
-      logo = `<svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="6" fill="#2e4057"/><text x="16" y="14" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="Arial">RSU</text><text x="16" y="24" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="Arial">13</text></svg>`;
-      label = 'RSU13';
-    } else {
-      logo = `<svg viewBox="0 0 32 32" fill="#555" width="32" height="32"><circle cx="16" cy="16" r="15" fill="#eee" stroke="#ccc" stroke-width="1"/><polygon points="12,9 25,16 12,23" fill="#555"/></svg>`;
-      label = 'Watch';
-    }
-    return `<a href="${url}" target="_blank" title="${label}" style="display:inline-flex;align-items:center;line-height:0">${logo}</a>`;
   }
 
   function card(g) {
@@ -767,17 +629,13 @@
     const aR   = aRnk ? `<span class="rnk">#${aRnk} </span>` : '';
 
     // Top status bar
-    const submitIcon = !isFinal
-      ? `<button class="submit-btn-inline" data-id="${g.id}" >+ Score</button>`
-      : `<span></span>`;
-
     const topBar = isFinal
-      ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span><span></span></div>`
+      ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span></div>`
       : isLive
-        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span>${submitIcon}</div>`
-        : `<div class="card-top"><span>${g.game_time ? fmtGameTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span>${submitIcon}</div>`;
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span></div>`
+        : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
 
-    // Score cells — away on top (visiting team first, standard convention)
+    // Score cells
     const hScEl = has
       ? `<div class="team-score ${isFinal ? (hWin?'winner':'loser') : ''}">${hSc}</div>`
       : `<div class="team-score empty">–</div>`;
@@ -785,33 +643,14 @@
       ? `<div class="team-score ${isFinal ? (aWin?'winner':'loser') : ''}">${aSc}</div>`
       : `<div class="team-score empty">–</div>`;
 
-    // Footer
-    const loc = g.venue || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
+    // Footer location string
+    const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
-
-    const stax = g.stax_index;
-    const staxHtml = stax != null
-      ? `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;color:${staxColor(stax)}" title="Stax Index: how exciting this game should be">⚡${stax.toFixed(1)}</span>`
-      : '';
-
-    const streamUrl  = g.stream_url || home.stream_url || null;
-    const streamHtml = streamIcon(streamUrl);
-
-    const rightIcons = (staxHtml || streamHtml)
-      ? `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${staxHtml}${streamHtml}</div>`
-      : '';
 
     return `
     <div class="game-card ${isLive ? 'live' : ''}">
       ${topBar}
       <div class="card-body">
-        <div class="team-row">
-          <div class="logo-wrap">${logoEl(away)}</div>
-          <div class="team-name-wrap">
-            <div class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}">${aR}${away.school_name}</div>
-          </div>
-          ${aScEl}
-        </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
@@ -819,10 +658,17 @@
           </div>
           ${hScEl}
         </div>
+        <div class="team-row">
+          <div class="logo-wrap">${logoEl(away)}</div>
+          <div class="team-name-wrap">
+            <div class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}">${aR}${away.school_name}</div>
+          </div>
+          ${aScEl}
+        </div>
       </div>
       <div class="card-footer">
-        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtGameTime(g.game_time) : ''}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${rightIcons}</div>
+        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>
+        ${!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
       </div>
       ${!isFinal ? `
       <div class="submit-panel" id="panel-${g.id}">
@@ -830,31 +676,17 @@
         <form class="score-form" data-id="${g.id}">
           <div class="score-inputs">
             <div class="si-group">
-              <label>${away.school_name}</label>
-              <input type="number" name="away_score" min="0" max="250" placeholder="0" required />
-            </div>
-            <div class="si-dash">–</div>
-            <div class="si-group">
               <label>${home.school_name}</label>
               <input type="number" name="home_score" min="0" max="250" placeholder="0" required />
             </div>
+            <div class="si-dash">–</div>
+            <div class="si-group">
+              <label>${away.school_name}</label>
+              <input type="number" name="away_score" min="0" max="250" placeholder="0" required />
+            </div>
           </div>
           <div class="si-extras">
-            <div class="si-clock-row">
-              <select name="period" class="si-select">
-                <option value="">-- Period --</option>
-                <option value="Q1">Q1</option>
-                <option value="Q2">Q2</option>
-                <option value="Halftime">Halftime</option>
-                <option value="Q3">Q3</option>
-                <option value="Q4">Q4</option>
-                <option value="End Q4">End Q4</option>
-                <option value="OT">OT</option>
-                <option value="2OT">2OT</option>
-                <option value="Final">Final</option>
-              </select>
-              <input type="text" name="clock_time" class="si-time" placeholder="4:00" pattern="^([0-9]{1,2}:[0-5][0-9])?$" title="Format: 4:00" />
-            </div>
+            <input type="text" name="game_clock" placeholder="Quarter / time (e.g. Halftime)" />
             <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)"></textarea>
           </div>
           <div class="si-row">
@@ -883,16 +715,10 @@
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
-    const period    = form.period.value;
-    const clockTime = form.clock_time.value.trim();
-    const noTime    = ['Halftime', 'End Q4', 'Final', ''].includes(period);
-    const gameClock = period
-      ? (noTime || !clockTime ? period : `${period} | ${clockTime}`)
-      : null;
     const { error } = await sb.from('score_submissions').insert({
       game_id: id, home_score: hSc, away_score: aSc,
       is_final: form.is_final.checked,
-      game_clock: gameClock,
+      game_clock: form.game_clock.value.trim() || null,
       notes: form.notes.value.trim() || null,
       status: 'pending',
     });
@@ -910,7 +736,7 @@
     if (form.is_final.checked) {
       await sb.from('games').update({
         status: 'active', home_score_live: hSc, away_score_live: aSc,
-        game_clock: gameClock,
+        game_clock: form.game_clock.value.trim() || null,
       }).eq('id', id);
       setTimeout(() => loadGames(currentDate), 1500);
     }
@@ -925,23 +751,13 @@
 
   document.getElementById('prevDay').addEventListener('click', () => {
     currentDate.setDate(currentDate.getDate() - 1); loadGames(currentDate);
-    document.getElementById('datePicker').value = toISO(currentDate);
   });
   document.getElementById('nextDay').addEventListener('click', () => {
     currentDate.setDate(currentDate.getDate() + 1); loadGames(currentDate);
-    document.getElementById('datePicker').value = toISO(currentDate);
   });
   document.getElementById('todayBtn').addEventListener('click', () => {
     currentDate = new Date(); loadGames(currentDate);
-    document.getElementById('datePicker').value = toISO(currentDate);
   });
-  document.getElementById('datePicker').addEventListener('change', e => {
-    const [y, m, d] = e.target.value.split('-').map(Number);
-    currentDate = new Date(y, m - 1, d);
-    loadGames(currentDate);
-  });
-  // Init picker to today
-  document.getElementById('datePicker').value = toISO(currentDate);
   document.getElementById('filters').addEventListener('click', e => {
     if (!e.target.matches('.filter-btn')) return;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -952,5 +768,8 @@
 
   loadGames(currentDate);
 </script>
+
+<script src="nav.js"></script>
+<script>MBRNav.init({ active: 'scoreboard' });</script>
 </body>
 </html>

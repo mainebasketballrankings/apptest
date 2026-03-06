@@ -55,6 +55,7 @@ const MBRNav = (() => {
   <div class="mbr-topbar">
     <a class="mbr-logo" href="index.html">
       <img src="${logoSrc}" alt="Maine Basketball Rankings" />
+      <span class="mbr-wordmark">Maine Basketball<br>Rankings</span>
     </a>
     <div class="mbr-auth" id="mbrAuthArea">
       <button class="mbr-btn mbr-btn-signin" id="mbrSignInBtn">Account</button>

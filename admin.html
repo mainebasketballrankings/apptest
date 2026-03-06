@@ -536,7 +536,9 @@
         id, game_id, home_score, away_score, is_final, game_clock,
         notes, status,
         games ( id, home_team_id, away_team_id, game_date, home_score, away_score,
-                home_score_live, away_score_live, status, game_clock )
+                home_score_live, away_score_live, status, game_clock,
+                home_team:teams!games_home_team_id_fkey ( name ),
+                away_team:teams!games_away_team_id_fkey ( name ) )
       `)
       .order('id', { ascending: false });
 
@@ -577,8 +579,8 @@
 
   function buildCard(s) {
     const g = s.games;
-    const homeName = teamsMap[g?.home_team_id] || 'Home Team';
-    const awayName = teamsMap[g?.away_team_id] || 'Away Team';
+    const homeName = g?.home_team?.name || teamsMap[g?.home_team_id] || 'Home Team';
+    const awayName = g?.away_team?.name || teamsMap[g?.away_team_id] || 'Away Team';
 
     const gameDate = g?.game_date
       ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })

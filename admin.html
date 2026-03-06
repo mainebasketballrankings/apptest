@@ -463,7 +463,7 @@
 
       <div class="tabs">
         <button class="tab active" data-tab="pending">Pending</button>
-        <button class="tab" data-tab="approved">Approved</button>
+        <button class="tab" data-tab="confirmed">Approved</button>
         <button class="tab" data-tab="rejected">Rejected</button>
       </div>
 
@@ -564,7 +564,7 @@
     if (filtered.length === 0) {
       list.innerHTML = `<div class="empty"><strong>All clear</strong>${
         currentTab === 'pending' ? 'No pending submissions.' :
-        currentTab === 'approved' ? 'No approved submissions yet.' :
+        currentTab === 'confirmed' ? 'No approved submissions yet.' :
         'No rejected submissions.'
       }</div>`;
       return;
@@ -594,6 +594,7 @@
       month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
     });
 
+    const cardStatus = s.status === 'confirmed' ? 'approved' : s.status;
     const isFinalSub = s.is_final;
     const clockLabel = s.game_clock || '';
 
@@ -605,14 +606,14 @@
     const actionBtns = s.status === 'pending'
       ? `<button class="approve-btn" data-id="${s.id}">✓ Approve</button>
          <button class="reject-btn" data-id="${s.id}">✕ Reject</button>`
-      : `<span class="status-label ${s.status}">${s.status === 'approved' ? '✓ Approved' : '✕ Rejected'}</span>`;
+      : `<span class="status-label ${s.status === 'confirmed' ? 'approved' : 'rejected'}">${s.status === 'confirmed' ? '✓ Approved' : '✕ Rejected'}</span>`;
 
     const existingNote = hasExisting && s.status === 'pending'
       ? `<div class="sub-notes">Current in DB: ${awayName} ${curAway} – ${homeName} ${curHome} (${g.status}${g.game_clock ? ' · ' + g.game_clock : ''})</div>`
       : '';
 
     return `
-      <div class="sub-card ${s.status !== 'pending' ? s.status : ''}" id="card-${s.id}">
+      <div class="sub-card ${s.status !== 'pending' ? cardStatus : ''}" id="card-${s.id}">
         <div class="sub-top">
           <div>
             <div class="sub-game-info">${awayName} @ ${homeName}</div>
@@ -674,7 +675,7 @@
     const { error: gameErr } = await sb.from('games').update(gameUpdate).eq('id', g.id);
     if (gameErr) { showToast('Game update failed: ' + gameErr.message, true); return; }
 
-    const { error: subErr } = await sb.from('score_submissions').update({ status: 'approved' }).eq('id', subId);
+    const { error: subErr } = await sb.from('score_submissions').update({ status: 'confirmed' }).eq('id', subId);
     if (subErr) { showToast('Submission update failed: ' + subErr.message, true); return; }
 
     showToast(`✓ Approved — ${isFinal ? 'Final score saved' : 'Live score updated'}`);

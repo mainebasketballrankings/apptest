@@ -523,12 +523,6 @@
 
   // --- INIT ---
   async function init() {
-    // Load teams for name lookup
-    const { data: teams } = await sb.from('teams').select('id, name');
-    if (teams) {
-      teams.forEach(t => teamsMap[t.id] = t.name);
-      console.log('teamsMap sample:', Object.entries(teamsMap).slice(0, 3));
-    }
     await loadData();
   }
 
@@ -537,15 +531,23 @@
       .from('score_submissions')
       .select(`
         id, game_id, home_score, away_score, is_final, game_clock,
-        notes, status,
+        notes, status, created_at,
         games ( id, home_team_id, away_team_id, game_date, home_score, away_score,
                 home_score_live, away_score_live, status, game_clock )
       `)
-      .order('id', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) { showToast('Load error: ' + error.message, true); return; }
     allSubs = data || [];
     if (allSubs.length) console.log('first sub game:', allSubs[0].games);
+
+    // Collect all unique team IDs and fetch names in one query
+    const teamIds = [...new Set(allSubs.flatMap(s => [s.games?.home_team_id, s.games?.away_team_id].filter(Boolean)))];
+    if (teamIds.length) {
+      const { data: teams, error: tErr } = await sb.from('teams').select('id, school_name').in('id', teamIds);
+      console.log('teams fetch:', teams, tErr);
+      if (teams) teams.forEach(t => teamsMap[t.id] = t.school_name);
+    }
 
     const pendingCount = allSubs.filter(s => s.status === 'pending').length;
     document.getElementById('pending-count').textContent = pendingCount;
@@ -588,6 +590,10 @@
       ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       : '';
 
+    const submittedAt = new Date(s.created_at).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+
     const isFinalSub = s.is_final;
     const clockLabel = s.game_clock || '';
 
@@ -612,7 +618,7 @@
             <div class="sub-game-info">${awayName} @ ${homeName}</div>
             <div class="sub-meta">${gameDate}</div>
           </div>
-          <div class="sub-time">#${s.id}</div>
+          <div class="sub-time">${submittedAt}</div>
         </div>
         <div class="sub-body">
           <div class="sub-scores">

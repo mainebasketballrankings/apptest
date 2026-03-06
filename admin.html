@@ -523,12 +523,6 @@
 
   // --- INIT ---
   async function init() {
-    // Load teams for name lookup
-    const { data: teams } = await sb.from('teams').select('id, name');
-    if (teams) {
-      teams.forEach(t => teamsMap[t.id] = t.name);
-      console.log('teamsMap sample:', Object.entries(teamsMap).slice(0, 3));
-    }
     await loadData();
   }
 
@@ -546,6 +540,14 @@
     if (error) { showToast('Load error: ' + error.message, true); return; }
     allSubs = data || [];
     if (allSubs.length) console.log('first sub game:', allSubs[0].games);
+
+    // Collect all unique team IDs and fetch names in one query
+    const teamIds = [...new Set(allSubs.flatMap(s => [s.games?.home_team_id, s.games?.away_team_id].filter(Boolean)))];
+    if (teamIds.length) {
+      const { data: teams, error: tErr } = await sb.from('teams').select('id, name').in('id', teamIds);
+      console.log('teams fetch:', teams, tErr);
+      if (teams) teams.forEach(t => teamsMap[t.id] = t.name);
+    }
 
     const pendingCount = allSubs.filter(s => s.status === 'pending').length;
     document.getElementById('pending-count').textContent = pendingCount;

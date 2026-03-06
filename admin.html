@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MBR Admin — Score Queue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --red:    #c0392b;
+      --orange: #e67e22;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--black);
+      min-height: 100vh;
+    }
+
+    /* LOGIN SCREEN */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-box {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 40px 36px;
+      width: 340px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      text-align: center;
+    }
+
+    .login-box h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      color: var(--green);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .login-box p {
+      font-size: 13px;
+      color: var(--lgray);
+      margin-bottom: 28px;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-family: 'Barlow', sans-serif;
+      font-size: 15px;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .login-box input:focus { border-color: var(--green); }
+
+    .login-box button {
+      width: 100%;
+      padding: 11px;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .login-box button:hover { background: var(--green2); }
+
+    .login-error {
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--white);
+      border-bottom: 3px solid var(--green);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+
+    .header-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--green);
+    }
+
+    .header-sub {
+      font-size: 13px;
+      color: var(--lgray);
+    }
+
+    .logout-btn {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--gray);
+      padding: 5px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* MAIN */
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 28px 20px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--orange);
+      color: #fff;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 12px;
+      padding: 0 7px;
+      margin-left: 8px;
+    }
+
+    .refresh-btn {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--gray);
+      padding: 5px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .refresh-btn:hover { border-color: var(--green); color: var(--green); }
+
+    /* TABS */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--gray);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tab.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+    /* SUBMISSION CARD */
+    .sub-card {
+      background: var(--white);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+
+    .sub-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+
+    .sub-card.approved { border-left: 4px solid var(--green); opacity: 0.6; }
+    .sub-card.rejected { border-left: 4px solid var(--red); opacity: 0.6; }
+
+    .sub-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--bg);
+    }
+
+    .sub-game-info {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--black);
+    }
+
+    .sub-meta {
+      font-size: 12px;
+      color: var(--lgray);
+      margin-top: 2px;
+    }
+
+    .sub-time {
+      font-size: 12px;
+      color: var(--lgray);
+      text-align: right;
+    }
+
+    .sub-body {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .sub-scores {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .sub-score-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .sub-score-row .team-name {
+      flex: 1;
+      font-weight: 600;
+    }
+
+    .sub-score-row .score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      min-width: 32px;
+      text-align: right;
+    }
+
+    .sub-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--gray);
+    }
+
+    .pill.final { background: #e8f5ee; color: var(--green); }
+    .pill.live   { background: #fff3e0; color: var(--orange); }
+
+    .sub-notes {
+      font-size: 12px;
+      color: var(--gray);
+      font-style: italic;
+      margin-top: 6px;
+      padding: 0 14px 10px;
+    }
+
+    /* ACTION BUTTONS */
+    .sub-actions {
+      display: flex;
+      gap: 8px;
+      padding: 0 14px 12px;
+    }
+
+    .approve-btn, .reject-btn {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .approve-btn {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .approve-btn:hover { background: var(--green2); }
+    .approve-btn:disabled { background: #aaa; cursor: default; }
+
+    .reject-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--red);
+    }
+
+    .reject-btn:hover { background: #fdf0ee; border-color: var(--red); }
+    .reject-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .status-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 7px 0;
+      color: var(--lgray);
+    }
+
+    .status-label.approved { color: var(--green); }
+    .status-label.rejected { color: var(--red); }
+
+    /* EMPTY / LOADING */
+    .empty {
+      text-align: center;
+      padding: 48px 0;
+      color: var(--lgray);
+      font-size: 15px;
+    }
+
+    .empty strong {
+      display: block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--gray);
+      margin-bottom: 6px;
+    }
+
+    /* TOAST */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--black);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #toast.error { background: var(--red); }
+
+    #admin-app { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login-screen">
+    <div class="login-box">
+      <h1>MBR Admin</h1>
+      <p>Score submission review queue</p>
+      <input type="password" id="pw-input" placeholder="Password" />
+      <button id="pw-btn">Enter</button>
+      <div class="login-error" id="login-error">Incorrect password</div>
+    </div>
+  </div>
+
+  <!-- ADMIN APP -->
+  <div id="admin-app">
+    <header>
+      <div>
+        <div class="header-title">MBR Admin</div>
+        <div class="header-sub">Score submission queue</div>
+      </div>
+      <button class="logout-btn" id="logout-btn">Log out</button>
+    </header>
+
+    <main>
+      <div class="section-header">
+        <div style="display:flex;align-items:center">
+          <span class="section-title">Submissions</span>
+          <span class="badge" id="pending-count">0</span>
+        </div>
+        <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="pending">Pending</button>
+        <button class="tab" data-tab="approved">Approved</button>
+        <button class="tab" data-tab="rejected">Rejected</button>
+      </div>
+
+      <div id="submissions-list"></div>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  const ADMIN_PASSWORD = 'mbr2026';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentTab = 'pending';
+  let allSubs = [];
+  let teamsMap = {};
+
+  // --- LOGIN ---
+  const pwInput = document.getElementById('pw-input');
+  const pwBtn   = document.getElementById('pw-btn');
+
+  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+  pwBtn.addEventListener('click', tryLogin);
+
+  function tryLogin() {
+    if (pwInput.value === ADMIN_PASSWORD) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-app').style.display = 'block';
+      init();
+    } else {
+      document.getElementById('login-error').style.display = 'block';
+      pwInput.value = '';
+      pwInput.focus();
+    }
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('admin-app').style.display = 'none';
+    pwInput.value = '';
+  });
+
+  // --- TABS ---
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      currentTab = t.dataset.tab;
+      render();
+    });
+  });
+
+  document.getElementById('refresh-btn').addEventListener('click', loadData);
+
+  // --- INIT ---
+  async function init() {
+    // Load teams for name lookup
+    const { data: teams } = await sb.from('teams').select('id, name');
+    if (teams) teams.forEach(t => teamsMap[t.id] = t.name);
+    await loadData();
+  }
+
+  async function loadData() {
+    const { data, error } = await sb
+      .from('score_submissions')
+      .select(`
+        id, game_id, home_score, away_score, is_final, game_clock,
+        notes, status, created_at,
+        games ( id, home_team_id, away_team_id, game_date, home_score, away_score,
+                home_score_live, away_score_live, status, game_clock,
+                team_classifications!games_home_team_id_fkey ( classes(name), regions(name) )
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) { showToast('Load error: ' + error.message, true); return; }
+    allSubs = data || [];
+
+    const pendingCount = allSubs.filter(s => s.status === 'pending').length;
+    document.getElementById('pending-count').textContent = pendingCount;
+    document.getElementById('pending-count').style.background =
+      pendingCount > 0 ? 'var(--orange)' : 'var(--lgray)';
+
+    render();
+  }
+
+  function render() {
+    const list = document.getElementById('submissions-list');
+    const filtered = allSubs.filter(s => s.status === currentTab);
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty"><strong>All clear</strong>${
+        currentTab === 'pending' ? 'No pending submissions.' :
+        currentTab === 'approved' ? 'No approved submissions yet.' :
+        'No rejected submissions.'
+      }</div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(s => buildCard(s)).join('');
+
+    // Bind buttons
+    list.querySelectorAll('.approve-btn').forEach(btn => {
+      btn.addEventListener('click', () => approve(btn.dataset.id));
+    });
+    list.querySelectorAll('.reject-btn').forEach(btn => {
+      btn.addEventListener('click', () => reject(btn.dataset.id));
+    });
+  }
+
+  function buildCard(s) {
+    const g = s.games;
+    const homeName = teamsMap[g?.home_team_id] || 'Home Team';
+    const awayName = teamsMap[g?.away_team_id] || 'Away Team';
+
+    // Class / gender tag
+    let classTag = '';
+    try {
+      const tc = g?.team_classifications;
+      if (tc) classTag = `Class ${tc.classes?.name || ''} · `;
+    } catch(e) {}
+
+    const gameDate = g?.game_date
+      ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '';
+
+    const submittedAt = new Date(s.created_at).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+
+    const isFinalSub = s.is_final;
+    const clockLabel = s.game_clock || '';
+
+    // Current game state
+    const curHome = g?.home_score ?? g?.home_score_live ?? '–';
+    const curAway = g?.away_score ?? g?.away_score_live ?? '–';
+    const hasExisting = (g?.home_score !== null || g?.home_score_live !== null);
+
+    const actionBtns = s.status === 'pending'
+      ? `<button class="approve-btn" data-id="${s.id}">✓ Approve</button>
+         <button class="reject-btn" data-id="${s.id}">✕ Reject</button>`
+      : `<span class="status-label ${s.status}">${s.status === 'approved' ? '✓ Approved' : '✕ Rejected'}</span>`;
+
+    const existingNote = hasExisting && s.status === 'pending'
+      ? `<div class="sub-notes">Current in DB: ${awayName} ${curAway} – ${homeName} ${curHome} (${g.status}${g.game_clock ? ' · ' + g.game_clock : ''})</div>`
+      : '';
+
+    return `
+      <div class="sub-card ${s.status !== 'pending' ? s.status : ''}" id="card-${s.id}">
+        <div class="sub-top">
+          <div>
+            <div class="sub-game-info">${awayName} @ ${homeName}</div>
+            <div class="sub-meta">${classTag}${gameDate}</div>
+          </div>
+          <div class="sub-time">${submittedAt}</div>
+        </div>
+        <div class="sub-body">
+          <div class="sub-scores">
+            <div class="sub-score-row">
+              <span class="team-name">${awayName}</span>
+              <span class="score">${s.away_score ?? '–'}</span>
+            </div>
+            <div class="sub-score-row">
+              <span class="team-name">${homeName}</span>
+              <span class="score">${s.home_score ?? '–'}</span>
+            </div>
+          </div>
+          <div class="sub-details">
+            ${clockLabel ? `<span class="pill ${isFinalSub ? 'final' : 'live'}">${clockLabel}</span>` : ''}
+            ${isFinalSub ? '<span class="pill final">Final</span>' : '<span class="pill live">Live</span>'}
+          </div>
+        </div>
+        ${s.notes ? `<div class="sub-notes">"${s.notes}"</div>` : ''}
+        ${existingNote}
+        <div class="sub-actions">${actionBtns}</div>
+      </div>`;
+  }
+
+  async function approve(subId) {
+    const s = allSubs.find(x => x.id === subId);
+    if (!s) return;
+
+    const btn = document.querySelector(`#card-${subId} .approve-btn`);
+    const rej = document.querySelector(`#card-${subId} .reject-btn`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    if (rej) rej.disabled = true;
+
+    const g = s.games;
+    const isFinal = s.is_final;
+
+    // Build game update
+    const gameUpdate = isFinal
+      ? {
+          status: 'final',
+          home_score: s.home_score,
+          away_score: s.away_score,
+          home_score_live: null,
+          away_score_live: null,
+          game_clock: s.game_clock,
+        }
+      : {
+          status: 'active',
+          home_score_live: s.home_score,
+          away_score_live: s.away_score,
+          game_clock: s.game_clock,
+        };
+
+    const { error: gameErr } = await sb.from('games').update(gameUpdate).eq('id', g.id);
+    if (gameErr) { showToast('Game update failed: ' + gameErr.message, true); return; }
+
+    const { error: subErr } = await sb.from('score_submissions').update({ status: 'approved' }).eq('id', subId);
+    if (subErr) { showToast('Submission update failed: ' + subErr.message, true); return; }
+
+    showToast(`✓ Approved — ${isFinal ? 'Final score saved' : 'Live score updated'}`);
+    await loadData();
+  }
+
+  async function reject(subId) {
+    const btn = document.querySelector(`#card-${subId} .reject-btn`);
+    const apr = document.querySelector(`#card-${subId} .approve-btn`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Rejecting…'; }
+    if (apr) apr.disabled = true;
+
+    const { error } = await sb.from('score_submissions').update({ status: 'rejected' }).eq('id', subId);
+    if (error) { showToast('Failed: ' + error.message, true); return; }
+
+    showToast('Submission rejected');
+    await loadData();
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = isError ? 'error' : '';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>

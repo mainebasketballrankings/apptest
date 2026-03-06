@@ -618,7 +618,13 @@
     });
     if (error) {
       btn.disabled = false; btn.textContent = 'Send Magic Link';
-      alert('Error: ' + error.message);
+      const msg = error.message.includes('rate limit')
+        ? 'Too many requests — please wait a few minutes and try again.'
+        : 'Error: ' + error.message;
+      const errEl = document.createElement('p');
+      errEl.style.cssText = 'color:var(--red);font-size:13px;margin-top:8px';
+      errEl.textContent = msg;
+      btn.parentNode.insertBefore(errEl, btn.nextSibling);
       return;
     }
     document.getElementById('loginModalBox').innerHTML = `

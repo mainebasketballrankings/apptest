@@ -495,18 +495,27 @@
   let isPaid = false;
 
   async function initAuth() {
-    // Handle magic link token in URL hash (GitHub Pages doesn't auto-process this)
+    // Start loading data immediately — don't wait for auth
+    loadRegions();
+
+    // Handle magic link token in URL hash
     if (window.location.hash.includes('access_token')) {
-      const { data, error } = await sb.auth.getSessionFromUrl({ storeSession: true });
-      if (data?.session?.user) {
-        // Clean up the URL
-        history.replaceState(null, '', window.location.pathname);
-        await handleUser(data.session.user);
-        loadRegions();
-        return;
-      }
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { data } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (data?.session?.user) {
+            history.replaceState(null, '', window.location.pathname);
+            await handleUser(data.session.user);
+            return;
+          }
+        }
+      } catch (e) { console.warn('Hash token error:', e); }
     }
 
+    // Check for existing session
     const { data: { session } } = await sb.auth.getSession();
     if (session?.user) {
       await handleUser(session.user);
@@ -514,7 +523,6 @@
       renderAuthUI(null);
       applyGate();
     }
-    loadRegions();
 
     sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {

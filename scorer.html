@@ -39,104 +39,127 @@
   .team-score.home { align-items: flex-start; }
   .team-score.away { align-items: flex-end; }
   .team-name {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700; font-size: 11px;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px;
     letter-spacing: 0.08em; text-transform: uppercase;
   }
   .team-score.home .team-name { color: var(--home-light); }
   .team-score.away .team-name { color: var(--away-light); }
   .score-row { display: flex; align-items: baseline; gap: 8px; }
   .team-score.away .score-row { flex-direction: row-reverse; }
-  .score-num {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900; font-size: 38px; line-height: 1;
-  }
+  .score-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 38px; line-height: 1; }
   .team-score.home .score-num { color: var(--home-light); }
   .team-score.away .score-num { color: var(--away-light); }
-  .foul-to {
-    display: flex; flex-direction: column;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 10px; color: var(--text-dim); gap: 1px;
-  }
+  .foul-to { display: flex; flex-direction: column; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; color: var(--text-dim); gap: 1px; }
   .foul-to span { display: flex; gap: 3px; align-items: center; }
   .foul-to strong { color: var(--text); font-size: 12px; }
 
   #clock-center { display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .period-nav { display: flex; align-items: center; gap: 4px; }
   .period-nav button {
-    background: none; border: 1px solid var(--border);
-    color: var(--text-dim); border-radius: 4px;
-    width: 20px; height: 20px; font-size: 13px; cursor: pointer;
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 4px; width: 20px; height: 20px; font-size: 13px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
-  #period-display {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 11px;
-    font-weight: 600; letter-spacing: 0.15em; color: var(--text-dim);
-    min-width: 28px; text-align: center;
-  }
+  #period-display { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.15em; color: var(--text-dim); min-width: 28px; text-align: center; }
   #clock-btn {
-    background: var(--surface2); border: 2px solid var(--border);
-    border-radius: 8px; color: var(--text);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700; font-size: 26px;
-    padding: 2px 14px; cursor: pointer;
-    min-width: 100px; text-align: center;
+    background: var(--surface2); border: 2px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 26px;
+    padding: 2px 14px; cursor: pointer; min-width: 100px; text-align: center;
     transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
   }
   #clock-btn.running { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(39,174,96,0.25); }
-  .poss-arrow {
-    font-size: 10px; letter-spacing: 0.08em; color: var(--text-dim);
-    display: flex; align-items: center; gap: 5px; cursor: pointer;
-  }
+  .poss-arrow { font-size: 10px; letter-spacing: 0.08em; color: var(--text-dim); display: flex; align-items: center; gap: 5px; cursor: pointer; }
   .poss-arrow .arr { font-size: 14px; }
   .poss-arrow.home .arr { color: var(--home-light); }
   .poss-arrow.away .arr { color: var(--away-light); }
 
   /* MIDDLE */
-  #middle {
-    display: grid; grid-template-columns: 118px 1fr 118px;
-    flex: 1; min-height: 0; overflow: hidden;
-  }
+  #middle { display: grid; grid-template-columns: 148px 1fr 148px; flex: 1; min-height: 0; overflow: hidden; }
 
   /* PLAYER PANELS */
-  .player-panel {
-    display: flex; flex-direction: column;
-    gap: 3px; padding: 5px; overflow-y: auto;
-    background: var(--surface);
-  }
+  .player-panel { display: flex; flex-direction: column; gap: 3px; padding: 5px; overflow-y: auto; background: var(--surface); }
   .player-panel.home-panel { border-right: 2px solid var(--border); }
   .player-panel.away-panel { border-left: 2px solid var(--border); }
+
   .player-card {
-    border-radius: 8px; padding: 6px 8px; cursor: pointer;
-    transition: transform 0.1s; border: 2px solid transparent; flex-shrink: 0;
+    border-radius: 8px; padding: 7px 8px; cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s; border: 2px solid transparent; flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
   }
   .home-panel .player-card { background: rgba(45,125,210,0.1); border-color: rgba(45,125,210,0.2); }
   .away-panel .player-card { background: rgba(192,57,43,0.1); border-color: rgba(192,57,43,0.2); }
   .player-card.selected { border-color: var(--gold) !important; background: rgba(243,156,18,0.18) !important; box-shadow: 0 0 14px rgba(243,156,18,0.35); }
   .player-card.on-bench { opacity: 0.38; }
-  .player-card:active { transform: scale(0.96); }
-  .player-number { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 24px; line-height: 1; }
+  .player-card:active { transform: scale(0.97); }
+
+  .card-num-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .player-number { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 30px; line-height: 1; }
   .home-panel .player-number { color: var(--home-light); }
   .away-panel .player-number { color: var(--away-light); }
-  .player-name { font-size: 10px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .player-pts { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+
+  .card-info-col { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .player-name { font-size: 11px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em; }
+  .player-stats-row { display: flex; gap: 6px; }
+  .pstat { display: flex; flex-direction: column; align-items: center; }
+  .pstat-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; line-height: 1; color: var(--text); }
+  .pstat-lbl { font-size: 8px; color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; }
+
   .foul-dots { display: flex; gap: 2px; margin-top: 2px; }
-  .foul-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+  .foul-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
   .foul-dot.active { background: var(--gold); }
-  .bench-label {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 9px;
-    letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase;
-    text-align: center; padding: 3px 0 1px;
-    border-top: 1px solid var(--border); margin-top: 1px;
-  }
+
+  .bench-label { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; text-align: center; padding: 3px 0 1px; border-top: 1px solid var(--border); margin-top: 1px; }
 
   /* COURT */
   #court-container { position: relative; display: flex; background: #1a1208; overflow: hidden; }
   #court-svg { width: 100%; height: 100%; display: block; cursor: crosshair; }
 
+  /* SWIPE DIRECTION OVERLAY */
+  #swipe-overlay {
+    position: absolute; inset: 0;
+    display: none; align-items: center; justify-content: center;
+    pointer-events: none; z-index: 15;
+  }
+  #swipe-overlay.show { display: flex; }
+  .swipe-directions {
+    position: relative; width: 160px; height: 160px;
+  }
+  .swipe-dir {
+    position: absolute; display: flex; flex-direction: column; align-items: center;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    transition: opacity 0.15s, transform 0.15s;
+    opacity: 0.6;
+  }
+  .swipe-dir.highlighted { opacity: 1; transform: scale(1.2); }
+  .swipe-dir .darrow { font-size: 28px; line-height: 1; }
+  .swipe-dir .dlabel { font-size: 11px; letter-spacing: 0.06em; }
+
+  /* UP = make */
+  .dir-up { top: 0; left: 50%; transform: translateX(-50%); color: var(--green); }
+  .dir-up.highlighted { transform: translateX(-50%) scale(1.2); }
+  /* RIGHT = putback make */
+  .dir-right { right: 0; top: 50%; transform: translateY(-50%); color: #a78bfa; }
+  .dir-right.highlighted { transform: translateY(-50%) scale(1.2); }
+  /* LEFT = putback miss */
+  .dir-left { left: 0; top: 50%; transform: translateY(-50%); color: var(--away-light); }
+  .dir-left.highlighted { transform: translateY(-50%) scale(1.2); }
+  /* DOWN = cancel */
+  .dir-down { bottom: 0; left: 50%; transform: translateX(-50%); color: var(--text-dim); }
+  .dir-down.highlighted { transform: translateX(-50%) scale(1.2); }
+
+  .swipe-circle {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 54px; height: 54px; border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: 2px solid rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 11px;
+    color: var(--text-dim); letter-spacing: 0.05em;
+  }
+
   #gesture-hint {
-    position: absolute; bottom: 7px; left: 50%;
-    transform: translateX(-50%);
+    position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,0.65); color: var(--text-dim);
     font-family: 'Barlow Condensed', sans-serif; font-size: 10px;
     letter-spacing: 0.06em; padding: 3px 10px; border-radius: 20px;
@@ -145,26 +168,22 @@
 
   #log-toggle-btn {
     position: absolute; top: 6px; right: 6px;
-    background: rgba(22,25,38,0.88); border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text-dim);
-    font-family: 'Barlow Condensed', sans-serif; font-size: 11px;
+    background: rgba(22,25,38,0.88); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-dim); font-family: 'Barlow Condensed', sans-serif; font-size: 11px;
     letter-spacing: 0.08em; padding: 4px 8px; cursor: pointer; z-index: 10;
   }
 
   #log-panel {
-    position: absolute; top: 6px; right: 6px;
-    width: 215px; max-height: 210px;
-    background: rgba(12,14,22,0.96); border: 1px solid var(--border);
-    border-radius: var(--radius); overflow-y: auto;
-    font-size: 10px; z-index: 20; display: none;
+    position: absolute; top: 6px; right: 6px; width: 215px; max-height: 220px;
+    background: rgba(12,14,22,0.96); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow-y: auto; font-size: 10px; z-index: 20; display: none;
   }
   #log-panel.open { display: block; }
   .log-header {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 11px;
-    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);
-    padding: 6px 8px 4px; border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
-    position: sticky; top: 0; background: rgba(12,14,22,0.98);
+    font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-dim); padding: 6px 8px 4px;
+    border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
+    align-items: center; position: sticky; top: 0; background: rgba(12,14,22,0.98);
   }
   .log-header button { background: none; border: none; color: var(--text-dim); font-size: 14px; cursor: pointer; }
   .log-entry { display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-bottom: 1px solid rgba(46,50,80,0.4); }
@@ -177,21 +196,15 @@
 
   /* STAT BAR */
   #stat-bar { background: var(--surface); border-top: 2px solid var(--border); padding: 5px 8px 6px; flex-shrink: 0; }
-  #sel-display {
-    text-align: center; font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px; color: var(--text-dim); margin-bottom: 4px;
-    min-height: 16px; letter-spacing: 0.05em;
-  }
+  #sel-display { text-align: center; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; min-height: 16px; letter-spacing: 0.05em; }
   #sel-display .sn { font-weight: 700; font-size: 14px; }
   .stat-grid { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; }
   .stat-btn {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text);
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 10px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 10px;
     padding: 6px 2px; text-align: center; cursor: pointer;
-    transition: transform 0.08s, background 0.08s;
-    line-height: 1.2; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 1px;
+    transition: transform 0.08s, background 0.08s; line-height: 1.2;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   }
   .stat-btn .si { font-size: 13px; line-height: 1; }
   .stat-btn:active { transform: scale(0.91); background: var(--border); }
@@ -217,17 +230,16 @@
   /* FLASH */
   #flash {
     position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.85);
+    transform: translate(-50%,-50%) scale(0.85);
     background: rgba(243,156,18,0.95); color: #000;
     font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 20px;
-    padding: 9px 22px; border-radius: 10px;
-    pointer-events: none; opacity: 0;
-    transition: opacity 0.12s, transform 0.12s;
-    z-index: 200; letter-spacing: 0.05em; white-space: nowrap;
+    padding: 9px 22px; border-radius: 10px; pointer-events: none; opacity: 0;
+    transition: opacity 0.12s, transform 0.12s; z-index: 200; letter-spacing: 0.05em; white-space: nowrap;
   }
-  #flash.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #flash.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
   #flash.made { background: rgba(39,174,96,0.95); color: #fff; }
   #flash.miss-fl { background: rgba(192,57,43,0.88); color: #fff; }
+  #flash.cancel-fl { background: rgba(80,80,100,0.9); color: var(--text-dim); }
 
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -246,7 +258,6 @@
       </div>
     </div>
   </div>
-
   <div id="clock-center">
     <div class="period-nav">
       <button onclick="changePeriod(-1)">‹</button>
@@ -255,11 +266,9 @@
     </div>
     <button id="clock-btn" onclick="toggleClock()">8:00</button>
     <div class="poss-arrow home" id="poss-display" onclick="flipPossession()">
-      <span class="arr">▶</span>
-      <span id="poss-label">CAMDEN</span>
+      <span class="arr">▶</span><span id="poss-label">CAMDEN</span>
     </div>
   </div>
-
   <div class="team-score away">
     <div class="team-name">Cape Elizabeth Boys</div>
     <div class="score-row">
@@ -276,47 +285,229 @@
   <div class="player-panel home-panel" id="home-panel"></div>
 
   <div id="court-container">
-    <svg id="court-svg" viewBox="0 0 500 400" preserveAspectRatio="xMidYMid meet">
-      <!-- Floor -->
-      <rect width="500" height="400" fill="#c9a96e"/>
-      <!-- Out of bounds border -->
-      <rect x="15" y="15" width="470" height="375" fill="none" stroke="#7a5c1e" stroke-width="3" rx="2"/>
-      <!-- Paint -->
-      <rect x="175" y="15" width="150" height="170" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- Lane lines -->
-      <line x1="200" y1="15" x2="200" y2="185" stroke="#7a5c1e" stroke-width="1.5"/>
-      <line x1="300" y1="15" x2="300" y2="185" stroke="#7a5c1e" stroke-width="1.5"/>
-      <!-- Backboard -->
-      <rect x="218" y="17" width="64" height="7" fill="#7a5c1e" rx="1"/>
-      <!-- Basket -->
-      <circle cx="250" cy="38" r="11" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-      <circle cx="250" cy="38" r="3" fill="#7a5c1e"/>
-      <!-- Restricted arc -->
-      <path d="M 218 15 A 32 32 0 0 1 282 15" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- FT circle top (solid) -->
-      <path d="M 175 185 A 75 75 0 0 1 325 185" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- FT circle bottom (dashed) -->
-      <path d="M 175 185 A 75 75 0 0 0 325 185" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="8,7"/>
-      <!-- FT line -->
-      <line x1="175" y1="185" x2="325" y2="185" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- 3pt corner lines -->
-      <line x1="42" y1="15" x2="42" y2="168" stroke="#7a5c1e" stroke-width="2"/>
-      <line x1="458" y1="15" x2="458" y2="168" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- 3pt arc -->
-      <path d="M 42 168 A 212 212 0 0 1 458 168" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- Half court line -->
-      <line x1="15" y1="390" x2="485" y2="390" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- Half court circle -->
-      <circle cx="250" cy="390" r="55" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+    <!--
+      Court geometry (viewBox 500 x 420):
+      Scale: 1 SVG unit ≈ 0.5 ft  (so full court ~94ft = 470px, half = ~47ft = 235px)
+      Basket at (250, 40).
+      Key: 12ft wide = 60px, 19ft deep = 95px  → rect x=220, y=15, w=60, h=95  (FT line at y=110... wait)
 
-      <!-- Shot dots -->
+      Maine HS uses NCAA women dimensions (similar to NFHS):
+      - Key: 12ft wide, lane 15ft to FT line
+      - FT line: 15ft from backboard → y = 15 + 75 = 90... let's use real proportions.
+
+      Let's set:
+        Basket centre: (250, 45)
+        1 px = 0.4 ft  (court 50ft wide = 500px... but viewBox only 500, side margins 20 = 460 playable)
+        Actually: playable width 460px / 50ft = 9.2px/ft
+        Basket at y=45 (near top)
+        FT line: 15ft from basket → 15 * 9.2 = 138px → y = 45 + 138 = 183... too deep
+        Let's just use 8px/ft
+          FT: 15ft * 8 = 120 → y = 45 + 120 = 165
+          Key width: 12ft * 8 = 96px → x = 250-48=202, w=96
+          3pt: 20.75ft * 8 = 166px from basket
+          Corner 3pt: 22ft from sideline... side at x=20, so corner at x=20+6=26... too tight
+          
+      Let me just use a clean proportional system that looks right:
+        ViewBox: 0 0 460 400
+        Basket: (230, 38)
+        Key: width=88px (centered), top at y=15, FT line at y=155
+        3pt arc radius: 150px from basket
+        Corner 3: at x=50 (left) and x=410 (right), up to y=130
+        Half court line at y=385
+    -->
+    <svg id="court-svg" viewBox="0 0 460 400" preserveAspectRatio="xMidYMid meet">
+      <!-- Floor -->
+      <rect width="460" height="400" fill="#c9a96e"/>
+      <!-- Boundary -->
+      <rect x="15" y="15" width="430" height="375" fill="none" stroke="#7a5c1e" stroke-width="3" rx="2"/>
+
+      <!-- KEY / PAINT: 12ft wide, centered, FT line at y=155 -->
+      <rect x="186" y="15" width="88" height="140" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- Lane lines inside key -->
+      <line x1="208" y1="15" x2="208" y2="155" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+      <line x1="252" y1="15" x2="252" y2="155" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+
+      <!-- BACKBOARD: 6ft wide = ~48px, at y=18 -->
+      <rect x="206" y="17" width="48" height="6" fill="#7a5c1e" rx="1"/>
+
+      <!-- BASKET: centre (230, 40), radius ~9px -->
+      <circle cx="230" cy="40" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <circle cx="230" cy="40" r="3" fill="#7a5c1e"/>
+
+      <!-- RESTRICTED AREA ARC: 4ft radius = ~32px -->
+      <path d="M 198 15 A 32 32 0 0 0 262 15" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
+
+      <!-- FT CIRCLE: radius 6ft = 48px, centre at (230, 155) -->
+      <!-- Top half solid -->
+      <path d="M 182 155 A 48 48 0 0 1 278 155" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- Bottom half dashed -->
+      <path d="M 182 155 A 48 48 0 0 0 278 155" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
+
+      <!-- FT LINE -->
+      <line x1="186" y1="155" x2="274" y2="155" stroke="#7a5c1e" stroke-width="2"/>
+
+      <!--
+        3-POINT LINE (NFHS / Maine HS):
+        - Arc: 19ft 9in = 19.75ft from basket centre
+        - Corner: straight lines at 3ft from sideline, up to where arc begins
+        - Basket at (230, 40)
+        - Scale 8px/ft: radius = 19.75 * 8 = 158px
+        - Sideline at x=15, corner line at x=15+24=39 (3ft = 24px)
+        - Corner line runs from y=15 to where arc intersects x=39:
+            (x-230)^2 + (y-40)^2 = 158^2
+            (39-230)^2 + (y-40)^2 = 158^2
+            (-191)^2 + (y-40)^2 = 24964
+            36481 + (y-40)^2 = 24964  → negative, so corner is beyond arc radius
+            That means at 3ft from sideline, we're always inside the arc.
+            Let's use 63px from sideline (7.875ft) which is the NCAA value... 
+            
+            Actually NFHS corner 3pt line: the straight part is at the sideline extended,
+            and runs from baseline up to ~63" (5.25ft) from baseline.
+            So corner line goes from y=15 to y=15+42=57 (5.25ft * 8px)
+            at x=15 (left sideline) and x=445 (right sideline)
+            
+            Then arc from (15, 57) sweeps around to (445, 57) with radius 158px from basket.
+            
+            Let me verify: basket=(230,40), point=(15,57)
+            dist = sqrt((230-15)^2 + (40-57)^2) = sqrt(215^2 + 17^2) = sqrt(46225+289) = sqrt(46514) ≈ 215.7
+            That's 215.7/8 = 26.9ft — too far. The corner straight lines aren't on the arc.
+            
+            In reality the NFHS 3pt line:
+            - Straight lines parallel to sidelines at 63" FROM SIDELINE = 5.25ft from sideline
+            - Those straight lines run from baseline to a point where the arc begins
+            - Arc radius 19ft 9in from basket
+            
+            Sideline at x=15, so straight line at x = 15 + 5.25*8 = 15+42 = 57 (left)
+            and x = 445 - 42 = 403 (right)
+            
+            Where does arc (r=158 from basket (230,40)) intersect x=57?
+            (57-230)^2 + (y-40)^2 = 158^2
+            (-173)^2 + (y-40)^2 = 24964
+            29929 + (y-40)^2 = 24964  → still negative (29929 > 24964)
+            
+            So x=57 is still outside the arc. The corners ARE entirely straight lines
+            and the arc only exists in the middle portion.
+            
+            The straight corner lines span x=57 (left) from y=15 to where the arc hits them.
+            But since x=57 > the arc reach... let me try a smaller scale.
+            
+            Use 6px/ft:
+            Basket at (230, 40)
+            Arc radius: 19.75 * 6 = 118.5 ≈ 119px
+            Corner line at: 5.25ft * 6 = 31.5 ≈ 32px from sideline
+            Left corner: x = 15+32 = 47
+            Right corner: x = 445-32 = 413
+            
+            Arc intersects x=47:
+            (47-230)^2 + (y-40)^2 = 119^2
+            (-183)^2 = 33489; 119^2 = 14161  → 33489 > 14161, still outside
+            
+            The problem is basket is too close to centre of court width.
+            Basket (230) is near centre (230). Sideline at 15. Distance = 215px.
+            At 6px/ft that's 215/6 = 35.8ft — but court is only 25ft wide to sideline from basket!
+            
+            So viewbox is too narrow for proper scaling relative to basket position.
+            
+            FIX: The basket ISN'T at the center horizontally - it IS centered left-right.
+            The court is 50ft wide. Basket is at centre = 25ft from each sideline.
+            ViewBox 460, margins 15 each side, playable = 430px for 50ft → 8.6px/ft
+            Basket x = 15 + 215 = 230 ✓
+            
+            Arc radius 19.75ft * 8.6 = 169.8 ≈ 170px
+            Corner line at 3ft * 8.6 = 25.8 ≈ 26px from sideline → x=41 (left), x=419 (right)
+            
+            Arc intersects x=41:
+            (41-230)^2 + (y-40)^2 = 170^2
+            189^2 + (y-40)^2 = 28900
+            35721 + (y-40)^2 = 28900 → negative, outside arc
+            
+            Hmm. 25ft from basket to sideline > 19.75ft arc radius.
+            So the 3pt arc NEVER reaches the sideline corners.
+            The corner 3pt lines are separate straight sections that connect to the arc.
+            
+            The arc runs from the point where it hits the corner lines.
+            Corner line x=41: we need the arc to reach x=41.
+            Max x reach of arc from basket (230,40) with r=170: x = 230-170 = 60.
+            So arc LEFT end is at x=60, not x=41.
+            The corner straight line runs from x=41, y=15 DOWN to x=41, y=? 
+            Then connects to arc at x=60... but that's not how it works geometrically.
+            
+            Actually the NFHS corner line is NOT at the sideline extended.
+            It's perpendicular to the BASELINE (parallel to sideline), and it ENDS where the arc begins.
+            
+            At x=41 the arc would need: (41-230)^2+(y-40)^2=170^2 → y is imaginary.
+            So the corner line must be CLOSER to centre than x=41 for the arc to reach it.
+            
+            Corner line connects to arc where: x_corner = 230 - 170 = 60 is max left extent.
+            
+            For NFHS: the corner line is at the lane line extended... actually let me just
+            draw it correctly: corner lines at ~x=50 (left), x=410 (right), from y=15
+            down to where arc hits them.
+            
+            Arc hits x=50: (50-230)^2+(y-40)^2=170^2 → 32400+(y-40)^2=28900 → negative
+            
+            The arc radius (170px = 19.75ft) is LESS than the distance from basket to sideline (215px = 25ft).
+            So the arc never touches the sideline area at all!
+            
+            This means: in NFHS, the 3pt line corners are defined by where the arc 
+            intersects a line parallel to the baseline at a certain depth.
+            
+            For NFHS: the 3pt arc is a full semicircle from corner to corner.
+            The "straight parts" are at the BASELINE level on each side.
+            The arc start/end points are: at the baseline (y=15), tangent from basket.
+            
+            At y=15 (baseline): (x-230)^2 + (15-40)^2 = 170^2
+            (x-230)^2 + 625 = 28900
+            (x-230)^2 = 28275
+            x-230 = ±168.2
+            x = 230 ± 168 → x=62 (left) and x=398 (right)
+            
+            So the arc goes from (62, 15) to (398, 15), sweeping through bottom.
+            No straight corner pieces needed — the arc endpoints ARE on the baseline.
+            
+            Let me draw this properly now.
+      -->
+
+      <!-- 3-POINT ARC: radius=170, centre=(230,40), from (62,15) to (398,15) sweeping down -->
+      <!-- Arc end points: x = 230 ± 168, y=15 -->
+      <path d="M 62 15 A 170 170 0 0 0 398 15" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+
+      <!-- HALF COURT LINE -->
+      <line x1="15" y1="385" x2="445" y2="385" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- HALF COURT CIRCLE (radius ~6ft = 51px) -->
+      <circle cx="230" cy="385" r="51" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+
+      <!-- Shot dots layer -->
       <g id="shot-dots"></g>
 
-      <!-- Touch indicator -->
-      <circle id="touch-ring" cx="0" cy="0" r="20" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2" opacity="0" pointer-events="none"/>
+      <!-- Touch ring indicator -->
+      <circle id="touch-ring" cx="0" cy="0" r="20" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.3)" stroke-width="2" opacity="0" pointer-events="none"/>
     </svg>
 
-    <div id="gesture-hint">TAP = miss · HOLD+SWIPE ↑ = make · SWIPE → = putback ✓ · SWIPE ← = putback ✗</div>
+    <!-- Swipe direction overlay (shows on swipe start) -->
+    <div id="swipe-overlay">
+      <div class="swipe-directions">
+        <div class="swipe-dir dir-up" id="dir-up">
+          <span class="darrow">↑</span>
+          <span class="dlabel">MAKE</span>
+        </div>
+        <div class="swipe-dir dir-right" id="dir-right">
+          <span class="darrow">→</span>
+          <span class="dlabel">PB ✓</span>
+        </div>
+        <div class="swipe-dir dir-left" id="dir-left">
+          <span class="darrow">←</span>
+          <span class="dlabel">PB ✗</span>
+        </div>
+        <div class="swipe-dir dir-down" id="dir-down">
+          <span class="darrow">↓</span>
+          <span class="dlabel">CANCEL</span>
+        </div>
+        <div class="swipe-circle">SWIPE</div>
+      </div>
+    </div>
+
+    <div id="gesture-hint">TAP = miss · SWIPE ↑ = make · → putback ✓ · ← putback ✗ · ↓ cancel</div>
     <button id="log-toggle-btn" onclick="toggleLog()">LOG ▾</button>
     <div id="log-panel">
       <div class="log-header">
@@ -347,30 +538,32 @@
 <div id="flash"></div>
 
 <script>
+// ── DATA ──
 const GAME = {
   home: { name:'Camden Boys', short:'CAMDEN', score:0, fouls:0, toFull:3, to30:2 },
   away: { name:'Cape Elizabeth Boys', short:'CAP.ELI', score:0, fouls:0, toFull:3, to30:2 },
   period:1, clockSec:480, clockRunning:false, possession:'home'
 };
 
+// Player stats tracked in-memory: pts, reb (total), ast
 const PLAYERS = {
   home:[
-    {id:'h1',name:'Harris Stewart',   short:'Harris',  num:4,  pts:0,fouls:0,onFloor:true},
-    {id:'h2',name:'Soren Johnson',    short:'Soren',   num:10, pts:0,fouls:0,onFloor:true},
-    {id:'h3',name:'Kale Melquist',    short:'Kale',    num:11, pts:0,fouls:0,onFloor:true},
-    {id:'h4',name:'Hollis Schwalm',   short:'Hollis',  num:12, pts:0,fouls:0,onFloor:true},
-    {id:'h5',name:'Thomas Leadbetter',short:'Thomas',  num:15, pts:0,fouls:0,onFloor:true},
-    {id:'h6',name:'Eli Stearns',      short:'Eli S',   num:22, pts:0,fouls:0,onFloor:false},
-    {id:'h7',name:'Marcus Webb',      short:'Marcus',  num:3,  pts:0,fouls:0,onFloor:false},
+    {id:'h1', first:'H', last:'Stewart',    num:4,  pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'h2', first:'S', last:'Johnson',    num:10, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'h3', first:'K', last:'Melquist',   num:11, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'h4', first:'H', last:'Schwalm',    num:12, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'h5', first:'T', last:'Leadbetter', num:15, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'h6', first:'E', last:'Stearns',    num:22, pts:0,reb:0,ast:0,fouls:0,onFloor:false},
+    {id:'h7', first:'M', last:'Webb',       num:3,  pts:0,reb:0,ast:0,fouls:0,onFloor:false},
   ],
   away:[
-    {id:'a1',name:'Luke Lombardo',       short:'Luke',    num:10,pts:0,fouls:0,onFloor:true},
-    {id:'a2',name:'Charlie Wannemacher', short:'Charlie', num:11,pts:0,fouls:0,onFloor:true},
-    {id:'a3',name:'Josh Rosen',          short:'Josh',    num:14,pts:0,fouls:0,onFloor:true},
-    {id:'a4',name:'Eli Morse',           short:'Eli M',   num:20,pts:0,fouls:0,onFloor:true},
-    {id:'a5',name:'Owen Beaureguard',    short:'Owen',    num:23,pts:0,fouls:0,onFloor:true},
-    {id:'a6',name:'Finn Casey',          short:'Finn',    num:5, pts:0,fouls:0,onFloor:false},
-    {id:'a7',name:'Dylan Park',          short:'Dylan',   num:33,pts:0,fouls:0,onFloor:false},
+    {id:'a1', first:'L', last:'Lombardo',      num:10, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'a2', first:'C', last:'Wannemacher',   num:11, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'a3', first:'J', last:'Rosen',         num:14, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'a4', first:'E', last:'Morse',         num:20, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'a5', first:'O', last:'Beaureguard',   num:23, pts:0,reb:0,ast:0,fouls:0,onFloor:true },
+    {id:'a6', first:'F', last:'Casey',         num:5,  pts:0,reb:0,ast:0,fouls:0,onFloor:false},
+    {id:'a7', first:'D', last:'Park',          num:33, pts:0,reb:0,ast:0,fouls:0,onFloor:false},
   ]
 };
 
@@ -387,28 +580,27 @@ const STAT_DEFS = [
   {key:'foul_offensive',   label:'O.Foul',   icon:'⚠',  type:'foul'},
   {key:'foul_flagrant',    label:'Flagrant', icon:'🚨', type:'foul'},
   {key:'foul_intentional', label:'Int.Foul', icon:'⚠',  type:'foul'},
-  {key:'foul_technical',   label:'Tech',     icon:'📋', type:'foul',     teamStat:true},
-  {key:'timeout_full',     label:'TO Full',  icon:'⏸',  type:'team-stat',teamStat:true},
-  {key:'timeout_30sec',    label:'TO 30s',   icon:'⏸',  type:'team-stat',teamStat:true},
+  {key:'foul_technical',   label:'Tech',     icon:'📋', type:'foul',      teamStat:true},
+  {key:'timeout_full',     label:'TO Full',  icon:'⏸',  type:'team-stat', teamStat:true},
+  {key:'timeout_30sec',    label:'TO 30s',   icon:'⏸',  type:'team-stat', teamStat:true},
   {key:'ft_made',          label:'FT Made',  icon:'🟢', type:'scoring'},
   {key:'ft_miss',          label:'FT Miss',  icon:'🔴', type:'miss'},
-  {key:'possession_flip',  label:'Arrow',    icon:'⇄',  type:'team-stat',teamStat:true},
+  {key:'possession_flip',  label:'Arrow',    icon:'⇄',  type:'team-stat', teamStat:true},
 ];
 
-// STATE
+// ── STATE ──
 let selPlayer=null, selTeam=null;
 let events=[], shotDots=[];
-let clockInterval=null;
-let holdTimer=null, subTarget=null, logOpen=false;
-let flashTimer=null;
+let clockInterval=null, holdTimer=null, subTarget=null, logOpen=false, flashTimer=null;
 
-// Touch gesture
-let tStartX=0,tStartY=0,tHolding=false,tHoldTimer=null;
-const HOLD_MS=280, SWIPE_PX=32;
+// Gesture state
+let tStartX=0, tStartY=0;
+let tMoving=false, tOverlayShown=false;
+const SWIPE_PX=28;  // min px to trigger directional overlay
+const COMMIT_PX=55; // min px to commit a direction
 
 // ── CLOCK ──
-const fmtClock=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
-
+const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 function toggleClock(){
   if(GAME.clockRunning){clearInterval(clockInterval);GAME.clockRunning=false;}
   else{
@@ -422,28 +614,27 @@ function toggleClock(){
 }
 function updateClockUI(){
   const b=document.getElementById('clock-btn');
-  b.textContent=fmtClock(GAME.clockSec);
+  b.textContent=fmt(GAME.clockSec);
   b.classList.toggle('running',GAME.clockRunning);
 }
 function changePeriod(d){
   GAME.period=Math.max(1,Math.min(4,GAME.period+d));
-  GAME.clockSec=480;GAME.clockRunning=false;
-  clearInterval(clockInterval);updateClockUI();
-  const lbl=['1ST','2ND','3RD','4TH'];
-  document.getElementById('period-display').textContent=lbl[GAME.period-1]||'OT';
+  GAME.clockSec=480; GAME.clockRunning=false;
+  clearInterval(clockInterval); updateClockUI();
+  document.getElementById('period-display').textContent=['1ST','2ND','3RD','4TH'][GAME.period-1]||'OT';
 }
 function flipPossession(){
   GAME.possession=GAME.possession==='home'?'away':'home';
   updatePossUI();
-  pushEvent(null,GAME.possession,'possession_flip',null);
+  pushEvent(null,GAME.possession,'possession_flip',null,null);
 }
 function updatePossUI(){
   const el=document.getElementById('poss-display');
   el.className=`poss-arrow ${GAME.possession}`;
-  document.getElementById('poss-label').textContent=GAME.possession==='home'?GAME.home.short:GAME.away.short;
+  document.getElementById('poss-label').textContent=GAME[GAME.possession].short;
 }
 
-// ── PLAYERS ──
+// ── PLAYER PANELS ──
 function renderPlayers(){
   ['home','away'].forEach(side=>{
     const panel=document.getElementById(`${side}-panel`);
@@ -452,7 +643,7 @@ function renderPlayers(){
     const bench=PLAYERS[side].filter(p=>!p.onFloor);
     if(bench.length){
       const lbl=document.createElement('div');
-      lbl.className='bench-label';lbl.textContent='Bench';
+      lbl.className='bench-label'; lbl.textContent='Bench';
       panel.appendChild(lbl);
       bench.forEach(p=>panel.appendChild(makeCard(p,side)));
     }
@@ -462,37 +653,46 @@ function renderPlayers(){
 function makeCard(player,side){
   const div=document.createElement('div');
   div.className='player-card'+(player.onFloor?'':' on-bench')+(selPlayer?.id===player.id?' selected':'');
-  const dots=Array.from({length:5},(_,i)=>`<div class="foul-dot${i<player.fouls?' active':''}"></div>`).join('');
-  div.innerHTML=`<div class="player-number">${player.num}</div><div class="player-name">${player.short}</div><div class="player-pts">${player.pts} pts</div><div class="foul-dots">${dots}</div>`;
 
-  let pointerDownTime=0;
-  div.addEventListener('pointerdown',()=>{
-    pointerDownTime=Date.now();
-    holdTimer=setTimeout(()=>{holdTimer=null;openSubModal(player,side);},600);
+  const dots=Array.from({length:5},(_,i)=>`<div class="foul-dot${i<player.fouls?' active':''}"></div>`).join('');
+
+  div.innerHTML=`
+    <div class="card-num-col">
+      <div class="player-number">${player.num}</div>
+      <div class="foul-dots">${dots}</div>
+    </div>
+    <div class="card-info-col">
+      <div class="player-name">${player.first}. ${player.last}</div>
+      <div class="player-stats-row">
+        <div class="pstat"><div class="pstat-val">${player.pts}</div><div class="pstat-lbl">PTS</div></div>
+        <div class="pstat"><div class="pstat-val">${player.reb}</div><div class="pstat-lbl">REB</div></div>
+        <div class="pstat"><div class="pstat-val">${player.ast}</div><div class="pstat-lbl">AST</div></div>
+      </div>
+    </div>`;
+
+  // Tap to select / deselect
+  div.addEventListener('pointerup', ()=>{
+    if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; selectPlayer(player,side); }
   });
-  div.addEventListener('pointerup',()=>{
-    if(holdTimer){
-      clearTimeout(holdTimer);holdTimer=null;
-      selectPlayer(player,side);
-    }
+  div.addEventListener('pointerdown', ()=>{
+    holdTimer=setTimeout(()=>{ holdTimer=null; openSubModal(player,side); },600);
   });
   ['pointerleave','pointercancel'].forEach(ev=>
-    div.addEventListener(ev,()=>{if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}})
+    div.addEventListener(ev,()=>{ if(holdTimer){clearTimeout(holdTimer);holdTimer=null;} })
   );
   return div;
 }
 
-function selectPlayer(player,side){
-  if(selPlayer?.id===player.id){selPlayer=null;selTeam=null;}
-  else{selPlayer=player;selTeam=side;}
-  renderPlayers();updateSelDisplay();updateStatBtns();
+function selectPlayer(p,side){
+  if(selPlayer?.id===p.id){ selPlayer=null; selTeam=null; }
+  else { selPlayer=p; selTeam=side; }
+  renderPlayers(); updateSelDisplay(); updateStatBtns();
 }
-
 function updateSelDisplay(){
   const el=document.getElementById('sel-display');
   if(selPlayer){
     const c=selTeam==='home'?'var(--home-light)':'var(--away-light)';
-    el.innerHTML=`<span class="sn" style="color:${c}">#${selPlayer.num} ${selPlayer.name}</span>`;
+    el.innerHTML=`<span class="sn" style="color:${c}">#${selPlayer.num} ${selPlayer.first}. ${selPlayer.last}</span>`;
   } else { el.textContent='Tap a player to select'; }
 }
 
@@ -513,25 +713,27 @@ function renderStatButtons(){
 function updateStatBtns(){
   document.querySelectorAll('.stat-btn').forEach(btn=>{
     const def=STAT_DEFS.find(s=>s.key===btn.dataset.key);
-    if(!def)return;
+    if(!def) return;
     btn.classList.toggle('needs-player',!def.teamStat&&!selPlayer);
   });
 }
 
 function handleStat(def){
   const isTeam=!!def.teamStat;
-  if(!isTeam&&!selPlayer)return;
+  if(!isTeam&&!selPlayer) return;
   const player=isTeam?null:selPlayer;
   const side=isTeam?(selTeam||'home'):selTeam;
 
   let pts=0;
-  if(def.key==='ft_made')pts=1;
+  if(def.key==='ft_made') pts=1;
   if(pts&&player){
-    player.pts+=pts;GAME[side].score+=pts;
+    player.pts+=pts; GAME[side].score+=pts;
     document.getElementById(`${side}-score`).textContent=GAME[side].score;
   }
+  if(def.key==='assist'&&player) player.ast++;
+  if((def.key==='o_reb'||def.key==='d_reb')&&player) player.reb++;
   if(def.key.startsWith('foul_')&&!isTeam&&player){
-    player.fouls++;GAME[side].fouls++;
+    player.fouls++; GAME[side].fouls++;
     document.getElementById(`${side}-fouls`).textContent=GAME[side].fouls;
   }
   if(def.key==='timeout_full'&&GAME[side].toFull>0){
@@ -542,7 +744,7 @@ function handleStat(def){
     GAME[side].to30--;
     document.getElementById(`${side}-to-30`).textContent=GAME[side].to30;
   }
-  pushEvent(player,side,def.key,null);
+  pushEvent(player,side,def.key,null,null);
   renderPlayers();
   showFlash(def.label+(player?` — #${player.num}`:''), def.type==='scoring'?'made':'');
 }
@@ -550,107 +752,112 @@ function handleStat(def){
 // ── COURT GESTURES ──
 const svg=document.getElementById('court-svg');
 const touchRing=document.getElementById('touch-ring');
+const swipeOverlay=document.getElementById('swipe-overlay');
 
 function svgPt(e){
-  const rect=svg.getBoundingClientRect();
-  const vb=svg.viewBox.baseVal;
-  const src=e.touches?e.touches[0]:e;
-  return{x:((src.clientX-rect.left)/rect.width)*vb.width,
-         y:((src.clientY-rect.top)/rect.height)*vb.height};
+  const r=svg.getBoundingClientRect(), vb=svg.viewBox.baseVal;
+  const s=e.touches?e.touches[0]:e;
+  return{x:((s.clientX-r.left)/r.width)*vb.width, y:((s.clientY-r.top)/r.height)*vb.height};
 }
 
-// 3pt detection: arc centre at basket (250,38), radius ~212
-// Corner cutoffs at x=42 / x=458 up to y=168
+// 3pt detection — basket at (230,40), arc radius=170, arc from x=62 to x=398 at y=15
+// Corner rule: if y < ~15 + something or just use distance from basket
 function is3pt(pt){
-  if(pt.y<15||pt.y>385)return false;
-  if(pt.x<42||pt.x>458){
-    return pt.y<168; // corner 3
-  }
-  const dx=pt.x-250,dy=pt.y-38;
-  return Math.sqrt(dx*dx+dy*dy)>212;
+  const dx=pt.x-230, dy=pt.y-40;
+  return Math.sqrt(dx*dx+dy*dy) > 170;
+}
+
+function getSwipeDir(dx,dy){
+  const ax=Math.abs(dx), ay=Math.abs(dy);
+  if(ax<SWIPE_PX&&ay<SWIPE_PX) return null;
+  if(ay>ax){ return dy<0?'up':'down'; }
+  else { return dx>0?'right':'left'; }
+}
+
+function highlightDir(dir){
+  ['up','down','left','right'].forEach(d=>{
+    document.getElementById(`dir-${d}`).classList.toggle('highlighted',d===dir);
+  });
 }
 
 svg.addEventListener('pointerdown',e=>{
-  if(!selPlayer)return;
+  if(!selPlayer) return;
   e.preventDefault();
   const pt=svgPt(e);
-  tStartX=pt.x;tStartY=pt.y;tHolding=false;
-  touchRing.setAttribute('cx',pt.x);touchRing.setAttribute('cy',pt.y);
-  touchRing.setAttribute('opacity','0.55');
-  tHoldTimer=setTimeout(()=>{
-    tHolding=true;
-    touchRing.setAttribute('stroke','rgba(39,174,96,0.7)');
-    touchRing.setAttribute('r','22');
-  },HOLD_MS);
+  tStartX=pt.x; tStartY=pt.y;
+  tMoving=false; tOverlayShown=false;
+  touchRing.setAttribute('cx',pt.x); touchRing.setAttribute('cy',pt.y);
+  touchRing.setAttribute('opacity','0.5');
+  highlightDir(null);
 },{passive:false});
 
 svg.addEventListener('pointermove',e=>{
-  if(!selPlayer)return;
+  if(!selPlayer) return;
   e.preventDefault();
   const pt=svgPt(e);
-  touchRing.setAttribute('cx',pt.x);touchRing.setAttribute('cy',pt.y);
+  const dx=pt.x-tStartX, dy=pt.y-tStartY;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+
+  touchRing.setAttribute('cx',pt.x); touchRing.setAttribute('cy',pt.y);
+
+  if(dist>SWIPE_PX){
+    tMoving=true;
+    if(!tOverlayShown){ swipeOverlay.classList.add('show'); tOverlayShown=true; }
+    touchRing.setAttribute('stroke','rgba(255,255,255,0.6)');
+    highlightDir(getSwipeDir(dx,dy));
+  }
 },{passive:false});
 
 svg.addEventListener('pointerup',e=>{
-  if(!selPlayer)return;
+  if(!selPlayer) return;
   e.preventDefault();
-  clearTimeout(tHoldTimer);
   touchRing.setAttribute('opacity','0');
-  touchRing.setAttribute('r','20');
-  touchRing.setAttribute('stroke','rgba(255,255,255,0.35)');
+  touchRing.setAttribute('stroke','rgba(255,255,255,0.3)');
+  swipeOverlay.classList.remove('show');
 
   const pt=svgPt(e);
   const dx=pt.x-tStartX, dy=pt.y-tStartY;
   const dist=Math.sqrt(dx*dx+dy*dy);
   const startPt={x:tStartX,y:tStartY};
 
-  if(!tHolding){
-    // Quick tap = miss
-    recordShot(startPt,false,'normal');
-  } else if(dist<SWIPE_PX){
-    // Held but no swipe — ignore
+  if(!tMoving || dist<SWIPE_PX){
+    // Tap = miss
+    recordShot(startPt, false, 'normal');
   } else {
-    const absX=Math.abs(dx),absY=Math.abs(dy);
-    if(dy<-SWIPE_PX&&absY>absX){
-      // Swipe UP = make
-      recordShot(startPt,true,'normal');
-    } else if(dx>SWIPE_PX&&absX>absY){
-      // Swipe RIGHT = putback made
-      recordShot(startPt,true,'putback');
-    } else if(dx<-SWIPE_PX&&absX>absY){
-      // Swipe LEFT = putback miss
-      recordShot(startPt,false,'putback');
-    }
+    const dir=getSwipeDir(dx,dy);
+    if(dir==='up')    recordShot(startPt, true,  'normal');
+    else if(dir==='right') recordShot(startPt, true,  'putback');
+    else if(dir==='left')  recordShot(startPt, false, 'putback');
+    else if(dir==='down')  showFlash('Cancelled','cancel-fl');
+    // else ignore
   }
-  tHolding=false;
+  tMoving=false; tOverlayShown=false;
 },{passive:false});
 
 svg.addEventListener('pointercancel',()=>{
-  clearTimeout(tHoldTimer);
   touchRing.setAttribute('opacity','0');
-  tHolding=false;
+  swipeOverlay.classList.remove('show');
+  tMoving=false; tOverlayShown=false;
 });
 
-function recordShot(pt,made,shotType){
-  const three=shotType==='normal'&&is3pt(pt);
-  let key,pts=0,flashMsg,flashType='';
+function recordShot(pt, made, shotType){
+  const three = shotType==='normal' && is3pt(pt);
+  let key, pts=0, flashMsg, flashType='';
 
   if(shotType==='putback'){
     key=made?'putback_made':'putback_miss';
     pts=made?2:0;
     flashMsg=(made?'PUTBACK ✓':'PUTBACK ✗')+` — #${selPlayer.num}`;
     flashType=made?'made':'miss-fl';
+  } else if(made){
+    key=three?'3pt_made':'2pt_made';
+    pts=three?3:2;
+    flashMsg=`${pts} PTS${three?' (3)':''} — #${selPlayer.num}`;
+    flashType='made';
   } else {
-    if(made){
-      key=three?'3pt_made':'2pt_made';
-      pts=three?3:2;
-      flashMsg=`${pts} PTS — #${selPlayer.num}`;
-      flashType='made';
-    } else {
-      key=three?'3pt_miss':'2pt_miss';
-      flashMsg=`Miss${three?' (3)':''} — #${selPlayer.num}`;
-      flashType='miss-fl';
-    }
+    key=three?'3pt_miss':'2pt_miss';
+    flashMsg=`Miss${three?' (3)':''} — #${selPlayer.num}`;
+    flashType='miss-fl';
   }
 
   if(pts>0){
@@ -661,104 +868,114 @@ function recordShot(pt,made,shotType){
     updatePossUI();
   }
 
-  addDot(pt,made,three,shotType==='putback');
-  pushEvent(selPlayer,selTeam,key,pt,three);
+  addDot(pt, made, three, shotType==='putback');
+  pushEvent(selPlayer, selTeam, key, pt, three);
   renderPlayers();
-  showFlash(flashMsg,flashType);
+  showFlash(flashMsg, flashType);
 }
 
 // ── SHOT DOTS ──
-function addDot(pt,made,is3,isPutback){
+function addDot(pt, made, is3, isPutback){
   const g=document.getElementById('shot-dots');
   const id='dot-'+Date.now()+Math.random().toString(36).slice(2,5);
-
   if(made){
     const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('cx',pt.x);c.setAttribute('cy',pt.y);c.setAttribute('r','7');
-    c.setAttribute('fill',isPutback?'#9b59b6':is3?'#f39c12':'#27ae60');
-    c.setAttribute('fill-opacity','0.8');
-    c.setAttribute('stroke','rgba(255,255,255,0.6)');c.setAttribute('stroke-width','1.5');
-    c.setAttribute('id',id);g.appendChild(c);
+    c.setAttribute('cx',pt.x); c.setAttribute('cy',pt.y); c.setAttribute('r','7');
+    c.setAttribute('fill', isPutback?'#a78bfa' : is3?'#f39c12':'#27ae60');
+    c.setAttribute('fill-opacity','0.85');
+    c.setAttribute('stroke','rgba(255,255,255,0.65)'); c.setAttribute('stroke-width','1.5');
+    c.setAttribute('id',id); g.appendChild(c);
   } else {
     const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x',pt.x);t.setAttribute('y',pt.y+5);
-    t.setAttribute('text-anchor','middle');t.setAttribute('font-size','16');
-    t.setAttribute('fill',isPutback?'#9b59b6':'#e05c52');
-    t.setAttribute('font-weight','bold');t.setAttribute('id',id);
-    t.textContent='×';g.appendChild(t);
+    t.setAttribute('x',pt.x); t.setAttribute('y',pt.y+5.5);
+    t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','17');
+    t.setAttribute('fill', isPutback?'#a78bfa':'#e05c52');
+    t.setAttribute('font-weight','bold'); t.setAttribute('id',id);
+    t.textContent='×'; g.appendChild(t);
   }
-  shotDots.push({id,eventId:null});
-  // Link to next pushed event
-  shotDots[shotDots.length-1]._pending=true;
+  shotDots.push({id, eventId:null, pending:true});
 }
 
 // ── EVENTS ──
-function pushEvent(player,side,key,pt,is3){
+function pushEvent(player, side, key, pt, is3){
   const evt={
-    id:Date.now()+'_'+Math.random().toString(36).slice(2,5),
-    playerId:player?.id, playerNum:player?.num, playerShort:player?.short,
+    id: Date.now()+'_'+Math.random().toString(36).slice(2,5),
+    playerId:player?.id, playerNum:player?.num, playerLast:player?.last,
     side, key, period:GAME.period, clockSec:GAME.clockSec,
-    pts:getPts(key)
+    pts:getPts(key), is3
   };
   events.unshift(evt);
-  // Link pending dot
-  const pending=shotDots.find(d=>d._pending);
-  if(pending){pending.eventId=evt.id;delete pending._pending;}
+  const pending=shotDots.find(d=>d.pending);
+  if(pending){ pending.eventId=evt.id; delete pending.pending; }
   renderLog();
   return evt;
 }
 
 function getPts(k){
-  if(k==='2pt_made'||k==='putback_made')return 2;
-  if(k==='3pt_made')return 3;
-  if(k==='ft_made')return 1;
+  if(k==='2pt_made'||k==='putback_made') return 2;
+  if(k==='3pt_made') return 3;
+  if(k==='ft_made') return 1;
   return 0;
 }
 function getLabel(k){
-  const d=STAT_DEFS.find(s=>s.key===k);if(d)return d.label;
+  const d=STAT_DEFS.find(s=>s.key===k); if(d) return d.label;
   const m={'2pt_made':'2 PTS','2pt_miss':'2 Miss','3pt_made':'3 PTS','3pt_miss':'3 Miss',
            'putback_made':'Putback ✓','putback_miss':'Putback ✗'};
   return m[k]||k;
 }
 
 function deleteEvent(id){
-  const evt=events.find(e=>e.id===id);if(!evt)return;
+  const evt=events.find(e=>e.id===id); if(!evt) return;
+  // Reverse score
   if(evt.pts>0&&evt.side){
     GAME[evt.side].score=Math.max(0,GAME[evt.side].score-evt.pts);
     document.getElementById(`${evt.side}-score`).textContent=GAME[evt.side].score;
-    if(evt.playerId){const p=findP(evt.playerId,evt.side);if(p)p.pts=Math.max(0,p.pts-evt.pts);}
+    if(evt.playerId){
+      const p=findP(evt.playerId,evt.side);
+      if(p) p.pts=Math.max(0,p.pts-evt.pts);
+    }
   }
+  // Reverse reb/ast
+  if(evt.playerId){
+    const p=findP(evt.playerId,evt.side);
+    if(p){
+      if(evt.key==='o_reb'||evt.key==='d_reb') p.reb=Math.max(0,p.reb-1);
+      if(evt.key==='assist') p.ast=Math.max(0,p.ast-1);
+    }
+  }
+  // Reverse foul
   if(evt.key.startsWith('foul_')&&evt.playerId){
     const def=STAT_DEFS.find(s=>s.key===evt.key);
     if(!def?.teamStat){
       const p=findP(evt.playerId,evt.side);
-      if(p&&p.fouls>0)p.fouls--;
-      if(GAME[evt.side].fouls>0)GAME[evt.side].fouls--;
+      if(p&&p.fouls>0) p.fouls--;
+      if(GAME[evt.side].fouls>0) GAME[evt.side].fouls--;
       document.getElementById(`${evt.side}-fouls`).textContent=GAME[evt.side].fouls;
     }
   }
+  // Remove dot
   const dot=shotDots.find(d=>d.eventId===id);
-  if(dot){document.getElementById(dot.id)?.remove();shotDots=shotDots.filter(d=>d.eventId!==id);}
+  if(dot){ document.getElementById(dot.id)?.remove(); shotDots=shotDots.filter(d=>d.eventId!==id); }
   events=events.filter(e=>e.id!==id);
-  renderLog();renderPlayers();
+  renderLog(); renderPlayers();
 }
 
-function findP(pid,side){return PLAYERS[side]?.find(p=>p.id===pid);}
+function findP(pid,side){ return PLAYERS[side]?.find(p=>p.id===pid); }
 
 function renderLog(){
-  const c=document.getElementById('log-entries');if(!c)return;
+  const c=document.getElementById('log-entries'); if(!c) return;
   c.innerHTML='';
-  events.slice(0,40).forEach(evt=>{
-    const row=document.createElement('div');row.className='log-entry';
-    const dot=document.createElement('div');dot.className='log-dot';
+  events.slice(0,50).forEach(evt=>{
+    const row=document.createElement('div'); row.className='log-entry';
+    const dot=document.createElement('div'); dot.className='log-dot';
     dot.style.background=evt.side==='home'?'var(--home-light)':'var(--away-light)';
-    const txt=document.createElement('div');txt.className='log-txt';
+    const txt=document.createElement('div'); txt.className='log-txt';
     txt.textContent=evt.playerNum?`#${evt.playerNum} ${getLabel(evt.key)}`:getLabel(evt.key);
-    const clk=document.createElement('div');clk.className='log-clk';
-    clk.textContent=`Q${evt.period} ${fmtClock(evt.clockSec)}`;
-    const del=document.createElement('button');del.className='log-del';del.textContent='✕';
+    const clk=document.createElement('div'); clk.className='log-clk';
+    clk.textContent=`Q${evt.period} ${fmt(evt.clockSec)}`;
+    const del=document.createElement('button'); del.className='log-del'; del.textContent='✕';
     del.addEventListener('click',()=>deleteEvent(evt.id));
-    row.appendChild(dot);row.appendChild(txt);row.appendChild(clk);row.appendChild(del);
+    row.appendChild(dot); row.appendChild(txt); row.appendChild(clk); row.appendChild(del);
     c.appendChild(row);
   });
 }
@@ -766,20 +983,20 @@ function renderLog(){
 function toggleLog(){
   logOpen=!logOpen;
   document.getElementById('log-panel').classList.toggle('open',logOpen);
-  if(logOpen)renderLog();
+  if(logOpen) renderLog();
 }
 
 // ── SUB MODAL ──
 function openSubModal(player,side){
   const bench=PLAYERS[side].filter(p=>!p.onFloor);
-  if(!bench.length){showFlash('No bench');return;}
+  if(!bench.length){ showFlash('No bench players'); return; }
   subTarget={player,side};
-  document.getElementById('sub-title').textContent=`Sub out #${player.num} ${player.short}`;
-  const list=document.getElementById('sub-list');list.innerHTML='';
+  document.getElementById('sub-title').textContent=`Sub out #${player.num} ${player.first}. ${player.last}`;
+  const list=document.getElementById('sub-list'); list.innerHTML='';
   const ac=side==='home'?'var(--home-light)':'var(--away-light)';
   bench.forEach(bp=>{
-    const row=document.createElement('div');row.className='sub-row';
-    row.innerHTML=`<div class="sub-num" style="color:${ac}">${bp.num}</div><div><div class="sub-name">${bp.name}</div><div class="sub-sm">${bp.pts} pts · ${bp.fouls} fouls</div></div>`;
+    const row=document.createElement('div'); row.className='sub-row';
+    row.innerHTML=`<div class="sub-num" style="color:${ac}">${bp.num}</div><div><div class="sub-name">${bp.first}. ${bp.last}</div><div class="sub-sm">${bp.pts} pts · ${bp.reb} reb · ${bp.fouls} fouls</div></div>`;
     row.addEventListener('click',()=>completeSub(bp));
     list.appendChild(row);
   });
@@ -787,16 +1004,16 @@ function openSubModal(player,side){
 }
 
 function completeSub(incoming){
-  if(!subTarget)return;
+  if(!subTarget) return;
   const{player:out,side}=subTarget;
-  out.onFloor=false;incoming.onFloor=true;
-  pushEvent(out,side,'sub_out',null);
-  pushEvent(incoming,side,'sub_in',null);
-  if(selPlayer?.id===out.id){selPlayer=incoming;}
-  closeSubModal();renderPlayers();updateSelDisplay();
+  out.onFloor=false; incoming.onFloor=true;
+  pushEvent(out,side,'sub_out',null,null);
+  pushEvent(incoming,side,'sub_in',null,null);
+  if(selPlayer?.id===out.id){ selPlayer=incoming; }
+  closeSubModal(); renderPlayers(); updateSelDisplay();
   showFlash(`#${incoming.num} IN / #${out.num} OUT`);
 }
-function closeSubModal(){document.getElementById('sub-modal').classList.remove('show');subTarget=null;}
+function closeSubModal(){ document.getElementById('sub-modal').classList.remove('show'); subTarget=null; }
 
 // ── FLASH ──
 function showFlash(msg,type){
@@ -804,11 +1021,11 @@ function showFlash(msg,type){
   el.textContent=msg;
   el.className='show'+(type?' '+type:'');
   clearTimeout(flashTimer);
-  flashTimer=setTimeout(()=>el.className='',800);
+  flashTimer=setTimeout(()=>el.className='',850);
 }
 
 // ── INIT ──
-renderPlayers();renderStatButtons();updateClockUI();updatePossUI();
+renderPlayers(); renderStatButtons(); updateClockUI(); updatePossUI();
 </script>
 </body>
 </html>

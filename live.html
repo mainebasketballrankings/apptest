@@ -30,46 +30,42 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 /* SCOREBOARD */
 #scoreboard{background:var(--paper2);border-bottom:1.5px solid var(--rule);padding:10px 16px 8px;flex-shrink:0;}
 .sb-inner{max-width:1100px;margin:0 auto;}
+/* 3-col grid mirrors the main layout: home side | clock centre | away side */
 .sb-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;}
-.sb-team{display:flex;align-items:center;gap:10px;}
+/* Each team block is itself split: logo+name left, big score right (for home) or reversed for away */
+.sb-team{display:flex;align-items:center;gap:12px;}
 .sb-team.home{justify-content:flex-end;}
-.sb-logo{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:16px;overflow:hidden;flex-shrink:0;border:1.5px solid var(--rule);}
-.sb-team.home .sb-logo{color:var(--home);background:var(--home-lt);}
-.sb-team.away .sb-logo{color:var(--away);background:var(--away-lt);}
+.sb-team.away{justify-content:flex-start;}
+.sb-logo{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:17px;overflow:hidden;flex-shrink:0;border:1.5px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
 .sb-team-info{display:flex;flex-direction:column;gap:2px;}
 .sb-team.home .sb-team-info{align-items:flex-end;text-align:right;}
-.sb-name{font-family:'Playfair Display',serif;font-weight:700;font-size:14px;color:var(--ink);line-height:1.2;}
+.sb-name{font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:var(--ink);line-height:1.2;}
 .sb-meta{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);flex-wrap:wrap;}
 .sb-team.home .sb-meta{justify-content:flex-end;}
 .sb-foul{padding:1px 6px;border-radius:10px;}
 .sb-foul.bonus{background:var(--live);color:#fff;font-weight:600;}
+/* Big score sits outside team-info, right next to logo */
+.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:58px;line-height:1;color:var(--ink);flex-shrink:0;}
+/* Clock centre block */
 .sb-centre{display:flex;flex-direction:column;align-items:center;gap:3px;}
-.sb-scores-row{display:flex;align-items:baseline;gap:6px;}
-.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:52px;line-height:1;min-width:64px;text-align:center;}
-.sb-pts.home{color:var(--home);}
-.sb-pts.away{color:var(--away);}
-.sb-dash{font-family:'DM Mono',monospace;font-size:22px;color:var(--rule);line-height:1;}
-.sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:18px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:2px 10px;letter-spacing:.04em;min-width:70px;text-align:center;}
+.sb-dash{font-family:'DM Mono',monospace;font-size:24px;color:var(--rule);line-height:1;}
+.sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:17px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:2px 10px;letter-spacing:.04em;min-width:68px;text-align:center;}
 .sb-clock.running{border-color:var(--green);color:var(--green);background:#f0fdf4;}
 .sb-period{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;margin-top:1px;}
-.sb-poss{font-size:10px;font-weight:600;letter-spacing:.05em;padding:1px 7px;border-radius:20px;font-family:'DM Mono',monospace;margin-top:2px;}
-.sb-poss.home{background:var(--home-lt);color:var(--home);}
+.sb-poss{font-size:9px;font-weight:600;letter-spacing:.05em;padding:1px 6px;border-radius:20px;font-family:'DM Mono',monospace;margin-top:2px;background:var(--rule2);color:var(--ink2);}
 .sb-poss.home::before{content:'◀  ';}
-.sb-poss.away{background:var(--away-lt);color:var(--away);}
 .sb-poss.away::after{content:'  ▶';}
-.sb-qtrs{max-width:460px;margin:7px auto 0;border-top:1px solid var(--rule2);padding-top:6px;}
-.qtr-grid{display:grid;grid-template-columns:72px repeat(4,1fr) 6px 1fr;gap:0;font-family:'DM Mono',monospace;font-size:11px;}
-.qc{padding:2px 5px;text-align:center;color:var(--ink3);}
-.qc.lbl{text-align:left;font-size:10px;letter-spacing:.06em;}
-.qc.tn{font-weight:600;font-size:10px;color:var(--ink2);}
-.qc.hs{color:var(--home);font-weight:600;}
-.qc.as{color:var(--away);font-weight:600;}
+/* Quarter grid — compact, below main row */
+.sb-qtrs{max-width:380px;margin:5px auto 0;border-top:1px solid var(--rule2);padding-top:4px;}
+.qtr-grid{display:grid;grid-template-columns:60px repeat(4,1fr) 4px 1fr;gap:0;font-family:'DM Mono',monospace;font-size:10px;}
+.qc{padding:1px 4px;text-align:center;color:var(--ink3);}
+.qc.lbl{text-align:left;font-size:9px;letter-spacing:.06em;}
+.qc.tn{font-weight:600;font-size:9px;color:var(--ink2);}
+.qc.hs,.qc.as{font-weight:600;color:var(--ink2);}
 .qc.tot{font-weight:700;color:var(--ink);}
-.qc.hs.tot{color:var(--home);}
-.qc.as.tot{color:var(--away);}
 .qc.sep{background:var(--rule);width:2px;padding:0;}
-.qc.aq{background:var(--rule2);border-radius:4px;color:var(--ink)!important;font-weight:700!important;}
+.qc.aq{background:var(--rule2);border-radius:3px;color:var(--ink)!important;font-weight:700!important;}
 
 /* MAIN 3-COL */
 #main{display:grid;grid-template-columns:210px 1fr 210px;gap:0;flex:1;min-height:0;max-width:1100px;margin:0 auto;width:100%;padding:12px 12px 12px;box-sizing:border-box;align-items:start;}
@@ -77,8 +73,8 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 /* STAT PANELS */
 .stat-panel{display:flex;flex-direction:column;overflow-y:auto;max-height:calc(100dvh - 280px);border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;}
 .panel-hdr{font-family:'Playfair Display',serif;font-weight:700;font-size:12px;padding:8px 10px 5px;border-bottom:1.5px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--paper2);}
-.panel-hdr.hh{color:var(--home);}
-.panel-hdr.ah{color:var(--away);}
+.panel-hdr.hh{color:var(--ink);}
+.panel-hdr.ah{color:var(--ink);}
 .panel-hdr-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);font-weight:400;}
 .team-summary{display:flex;padding:5px 6px;background:var(--paper);border-bottom:1px solid var(--rule2);}
 .ts-stat{display:flex;flex-direction:column;align-items:center;flex:1;}
@@ -91,9 +87,9 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .pl-ident{display:flex;align-items:baseline;gap:3px;min-width:0;overflow:hidden;}
 .pl-num{font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);flex-shrink:0;}
 .pl-name{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pl-pts{font-family:'Playfair Display',serif;font-weight:700;font-size:17px;line-height:1;flex-shrink:0;}
-.home .pl-pts{color:var(--home);}
-.away .pl-pts{color:var(--away);}
+.pl-pts{font-family:'Playfair Display',serif;font-weight:700;font-size:17px;line-height:1;flex-shrink:0;color:var(--ink);}
+.home .pl-pts{color:var(--ink);}
+.away .pl-pts{color:var(--ink);}
 .pl-stats{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);margin-bottom:3px;}
 .pl-stats span{color:var(--ink2);}
 .pl-fouls{display:flex;gap:2px;}
@@ -103,7 +99,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 /* COURT */
 #court-col{display:flex;flex-direction:column;gap:10px;}
 #court-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;}
-#court-svg-wrap{width:100%;aspect-ratio:800/380;padding:6px;}
+#court-svg-wrap{width:100%;aspect-ratio:800/440;padding:6px;}
 #fsvg{width:100%;height:100%;display:block;}
 #court-legend{display:flex;align-items:center;justify-content:center;gap:16px;padding:5px 10px;border-top:1px solid var(--rule2);font-size:10px;color:var(--ink3);font-family:'DM Mono',monospace;}
 .leg{display:flex;align-items:center;gap:4px;}
@@ -158,18 +154,16 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
           </div>
         </div>
         <div class="sb-logo" id="home-logo">C</div>
+        <div class="sb-pts" id="home-score">0</div>
       </div>
       <div class="sb-centre">
-        <div class="sb-scores-row">
-          <div class="sb-pts home" id="home-score">0</div>
-          <div class="sb-dash">–</div>
-          <div class="sb-pts away" id="away-score">0</div>
-        </div>
+        <div class="sb-dash">–</div>
         <div class="sb-clock" id="fan-clock">8:00</div>
         <div class="sb-period" id="fan-period">1st Quarter</div>
         <div class="sb-poss home" id="poss-disp">CAM</div>
       </div>
       <div class="sb-team away">
+        <div class="sb-pts" id="away-score">0</div>
         <div class="sb-logo" id="away-logo">C</div>
         <div class="sb-team-info">
           <div class="sb-name" id="away-name">Cape Elizabeth</div>
@@ -213,59 +207,64 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
     <div id="court-wrap">
       <div id="court-svg-wrap">
         <!--
-          FULL COURT: 800×380 viewBox
-          Left half  — HOME attacks LEFT basket (cx=23, cy=190)
-          Right half — AWAY attacks RIGHT basket (cx=777, cy=190)
+          FULL COURT: 800×440 viewBox
+          Court boundary: x=10–790 (780 wide), y=10–430 (420 tall)
+          Left half  — HOME attacks LEFT basket (cx=36, cy=220)
+          Right half — AWAY attacks RIGHT basket (cx=764, cy=220)
           Centre line: x=400
 
-          Shot coordinate transform from scorer (460×380, basket at top y≈25, x=230):
-            HOME → LEFT:  fan_x = (sy/380)*400    fan_y = (sx/460)*380
-            AWAY → RIGHT: fan_x = 800-(sy/380)*400  fan_y = (sx/460)*380
+          All geometry derived from scorer's locked 460×380 space via:
+            HOME → LEFT:  fan_x = 10+(sy/380)*390,   fan_y = 10+(sx/460)*420
+            AWAY → RIGHT: fan_x = 790-(sy/380)*390,  fan_y = 10+(sx/460)*420
+          3pt arcs use the same polyline technique as the scorer (clipped).
         -->
-        <svg id="fsvg" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
-          <!-- Floor -->
-          <rect width="800" height="380" fill="#c9a96e"/>
+        <svg id="fsvg" viewBox="0 0 800 440" preserveAspectRatio="xMidYMid meet">
+          <!-- Floor — lighter, more muted -->
+          <rect width="800" height="440" fill="#d4b483"/>
           <!-- Boundary -->
-          <rect x="8" y="8" width="784" height="364" fill="none" stroke="#7a5c1e" stroke-width="3" rx="2"/>
+          <rect x="10" y="10" width="780" height="420" fill="none" stroke="#8a6830" stroke-width="3" rx="2"/>
           <!-- Centre line + circle -->
-          <line x1="400" y1="8" x2="400" y2="372" stroke="#7a5c1e" stroke-width="2"/>
-          <circle cx="400" cy="190" r="44" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-          <circle cx="400" cy="190" r="3" fill="#7a5c1e"/>
+          <line x1="400" y1="10" x2="400" y2="430" stroke="#8a6830" stroke-width="2"/>
+          <circle cx="400" cy="220" r="50" fill="none" stroke="#8a6830" stroke-width="2"/>
+          <circle cx="400" cy="220" r="3" fill="#8a6830"/>
 
-          <!-- HOME HALF (left, basket on left wall) -->
-          <!-- Paint: key is 163px deep, 122px wide, centred at y=190 -->
-          <rect x="8" y="129" width="163" height="122" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
-          <line x1="8" y1="152" x2="171" y2="152" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-          <line x1="8" y1="228" x2="171" y2="228" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-          <rect x="8" y="167" width="5" height="46" fill="#7a5c1e" rx="1"/><!-- backboard -->
-          <circle cx="23" cy="190" r="10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-          <circle cx="23" cy="190" r="3" fill="#7a5c1e"/>
-          <line x1="171" y1="129" x2="171" y2="251" stroke="#7a5c1e" stroke-width="2"/><!-- FT line -->
-          <!-- FT circle: centre (171,190) r=59. Right arc solid, left dashed -->
-          <path d="M 171 131 A 59 59 0 0 1 171 249" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-          <path d="M 171 131 A 59 59 0 0 0 171 249" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
-          <!-- 3pt arc: full circle clipped to left half. Centre offset so arc matches scorer geometry. -->
-          <!-- Scorer: basket at (230,25), arc r=176.1 from centre (230,55.9). -->
-          <!-- Transformed to left half: basket at (23,190). Arc centre maps from (230,55.9): -->
-          <!--   fan_x = (55.9/380)*400 = 58.8   fan_y = (230/460)*380 = 190  -->
-          <clipPath id="hclip"><rect x="8" y="8" width="392" height="364"/></clipPath>
-          <circle cx="59" cy="190" r="176" fill="none" stroke="#7a5c1e" stroke-width="2.5" clip-path="url(#hclip)"/>
-          <!-- Restricted area arc -->
-          <path d="M 23 157 A 33 33 0 0 1 23 223" fill="none" stroke="#7a5c1e" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <!-- ═══ HOME HALF (left, basket on left wall) ═══ -->
+          <!-- Key/Paint: depth=167px (x: 10→177), width=111px (y: 165→276), fill lighter -->
+          <rect x="10" y="165" width="167" height="111" fill="#c4a060" stroke="#8a6830" stroke-width="2"/>
+          <!-- Lane dashes (horizontal): at y=164.3 and y=275.7 running x=10→177 -->
+          <line x1="10" y1="187" x2="177" y2="187" stroke="#8a6830" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <line x1="10" y1="253" x2="177" y2="253" stroke="#8a6830" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <!-- Backboard: x=10→15, centred at y=220 (±23) -->
+          <rect x="10" y="197" width="5" height="46" fill="#8a6830" rx="1"/>
+          <!-- Basket ring -->
+          <circle cx="36" cy="220" r="10" fill="none" stroke="#8a6830" stroke-width="2.5"/>
+          <circle cx="36" cy="220" r="3" fill="#8a6830"/>
+          <!-- FT line: x=188, y=165→276 -->
+          <line x1="188" y1="165" x2="188" y2="276" stroke="#8a6830" stroke-width="2"/>
+          <!-- FT circle: centre (188,220), rx=61 ry=54. Right half solid, left dashed -->
+          <path d="M 188 166 A 61 54 0 0 1 188 274" fill="none" stroke="#8a6830" stroke-width="2"/>
+          <path d="M 188 166 A 61 54 0 0 0 188 274" fill="none" stroke="#8a6830" stroke-width="2" stroke-dasharray="7,6"/>
+          <!-- Restricted area: r=33 from basket (36,220) -->
+          <path d="M 36 187 A 33 33 0 0 1 36 253" fill="none" stroke="#8a6830" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <!-- 3pt arc polyline (computed from scorer geometry, clipped to left half) -->
+          <clipPath id="hclip"><rect x="10" y="10" width="390" height="420"/></clipPath>
+          <polyline clip-path="url(#hclip)" fill="none" stroke="#8a6830" stroke-width="2.5"
+            points="-36.3,88.3 -32.4,85.9 -28.4,83.6 -24.4,81.5 -20.3,79.4 -16.1,77.4 -11.9,75.5 -7.6,73.7 -3.2,72.0 1.1,70.4 5.6,68.9 10.0,67.5 14.5,66.2 19.1,65.1 23.6,64.0 28.3,63.0 32.9,62.2 37.5,61.4 42.2,60.8 46.9,60.2 51.6,59.8 56.3,59.5 61.1,59.3 65.8,59.2 70.5,59.2 75.3,59.4 80.0,59.6 84.7,60.0 89.4,60.4 94.1,61.0 98.8,61.7 103.4,62.4 108.0,63.3 112.6,64.3 117.2,65.4 121.7,66.7 126.2,68.0 130.7,69.4 135.1,70.9 139.4,72.5 143.8,74.3 148.0,76.1 152.2,78.0 156.4,80.1 160.5,82.2 164.5,84.4 168.4,86.7 172.3,89.1 176.1,91.6 179.9,94.2 183.5,96.8 187.1,99.6 190.6,102.4 194.0,105.3 197.4,108.3 200.6,111.4 203.8,114.5 206.8,117.7 209.8,121.0 212.7,124.4 215.4,127.8 218.1,131.3 220.6,134.8 223.1,138.4 225.4,142.0 227.7,145.8 229.8,149.5 231.8,153.3 233.7,157.2 235.5,161.1 237.2,165.0 238.8,169.0 240.2,173.0 241.5,177.0 242.7,181.1 243.8,185.2 244.8,189.3 245.6,193.5 246.3,197.6 246.9,201.8 247.4,206.0 247.8,210.2 248.0,214.4 248.1,218.6 248.1,222.8 247.9,227.0 247.7,231.2 247.3,235.4 246.8,239.6 246.1,243.8 245.4,247.9 244.5,252.1 243.5,256.2 242.3,260.3 241.1,264.3 239.7,268.3 238.3,272.3 236.7,276.3 234.9,280.2 233.1,284.1 231.2,288.0 229.1,291.7 226.9,295.5 224.7,299.2 222.3,302.8 219.8,306.4 217.2,309.9 214.5,313.4 211.7,316.8 208.8,320.1 205.8,323.4 202.7,326.5 199.6,329.7 196.3,332.7 192.9,335.7 189.5,338.5 185.9,341.3 182.3,344.1 178.6,346.7 174.9,349.2 171.0,351.7 167.1,354.1 163.1,356.4 159.1,358.5 155.0,360.6 150.8,362.6 146.6,364.5 142.3,366.3 138.0,368.0 133.6,369.6 129.2,371.1 124.7,372.5 120.2,373.8 115.7,374.9 111.1,376.0 106.5,377.0 101.9,377.8 97.2,378.6 92.5,379.2 87.8,379.8 83.1,380.2 78.4,380.5 73.7,380.7 68.9,380.8 64.2,380.8 59.5,380.6 54.8,380.4 50.0,380.0 45.3,379.6 40.7,379.0 36.0,378.3 31.3,377.6 26.7,376.7 22.1,375.7 17.6,374.6 13.0,373.3 8.5,372.0 4.1,370.6 -0.3,369.1 -4.7,367.5 -9.0,365.7 -13.3,363.9 -17.5,362.0 -21.6,359.9 -25.7,357.8 -29.7,355.6 -33.7,353.3"/>
 
-          <!-- AWAY HALF (right, basket on right wall — mirror of home) -->
-          <rect x="629" y="129" width="163" height="122" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
-          <line x1="629" y1="152" x2="792" y2="152" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-          <line x1="629" y1="228" x2="792" y2="228" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-          <rect x="787" y="167" width="5" height="46" fill="#7a5c1e" rx="1"/>
-          <circle cx="777" cy="190" r="10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-          <circle cx="777" cy="190" r="3" fill="#7a5c1e"/>
-          <line x1="629" y1="129" x2="629" y2="251" stroke="#7a5c1e" stroke-width="2"/>
-          <path d="M 629 131 A 59 59 0 0 0 629 249" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-          <path d="M 629 131 A 59 59 0 0 1 629 249" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
-          <clipPath id="aclip"><rect x="400" y="8" width="392" height="364"/></clipPath>
-          <circle cx="741" cy="190" r="176" fill="none" stroke="#7a5c1e" stroke-width="2.5" clip-path="url(#aclip)"/>
-          <path d="M 777 157 A 33 33 0 0 0 777 223" fill="none" stroke="#7a5c1e" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <!-- ═══ AWAY HALF (right, basket on right wall — mirror) ═══ -->
+          <rect x="623" y="165" width="167" height="111" fill="#c4a060" stroke="#8a6830" stroke-width="2"/>
+          <line x1="623" y1="187" x2="790" y2="187" stroke="#8a6830" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <line x1="623" y1="253" x2="790" y2="253" stroke="#8a6830" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <rect x="785" y="197" width="5" height="46" fill="#8a6830" rx="1"/>
+          <circle cx="764" cy="220" r="10" fill="none" stroke="#8a6830" stroke-width="2.5"/>
+          <circle cx="764" cy="220" r="3" fill="#8a6830"/>
+          <line x1="612" y1="165" x2="612" y2="276" stroke="#8a6830" stroke-width="2"/>
+          <path d="M 612 166 A 61 54 0 0 0 612 274" fill="none" stroke="#8a6830" stroke-width="2"/>
+          <path d="M 612 166 A 61 54 0 0 1 612 274" fill="none" stroke="#8a6830" stroke-width="2" stroke-dasharray="7,6"/>
+          <path d="M 764 187 A 33 33 0 0 0 764 253" fill="none" stroke="#8a6830" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <clipPath id="aclip"><rect x="400" y="10" width="390" height="420"/></clipPath>
+          <polyline clip-path="url(#aclip)" fill="none" stroke="#8a6830" stroke-width="2.5"
+            points="836.3,88.3 832.4,85.9 828.4,83.6 824.4,81.5 820.3,79.4 816.1,77.4 811.9,75.5 807.6,73.7 803.2,72.0 798.9,70.4 794.4,68.9 790.0,67.5 785.5,66.2 780.9,65.1 776.4,64.0 771.7,63.0 767.1,62.2 762.5,61.4 757.8,60.8 753.1,60.2 748.4,59.8 743.7,59.5 738.9,59.3 734.2,59.2 729.5,59.2 724.7,59.4 720.0,59.6 715.3,60.0 710.6,60.4 705.9,61.0 701.2,61.7 696.6,62.4 692.0,63.3 687.4,64.3 682.8,65.4 678.3,66.7 673.8,68.0 669.3,69.4 664.9,70.9 660.6,72.5 656.2,74.3 652.0,76.1 647.8,78.0 643.6,80.1 639.5,82.2 635.5,84.4 631.6,86.7 627.7,89.1 623.9,91.6 620.1,94.2 616.5,96.8 612.9,99.6 609.4,102.4 606.0,105.3 602.6,108.3 599.4,111.4 596.2,114.5 593.2,117.7 590.2,121.0 587.3,124.4 584.6,127.8 581.9,131.3 579.4,134.8 576.9,138.4 574.6,142.0 572.3,145.8 570.2,149.5 568.2,153.3 566.3,157.2 564.5,161.1 562.8,165.0 561.2,169.0 559.8,173.0 558.5,177.0 557.3,181.1 556.2,185.2 555.2,189.3 554.4,193.5 553.7,197.6 553.1,201.8 552.6,206.0 552.2,210.2 552.0,214.4 551.9,218.6 551.9,222.8 552.1,227.0 552.3,231.2 552.7,235.4 553.2,239.6 553.9,243.8 554.6,247.9 555.5,252.1 556.5,256.2 557.7,260.3 558.9,264.3 560.3,268.3 561.7,272.3 563.3,276.3 565.1,280.2 566.9,284.1 568.8,288.0 570.9,291.7 573.1,295.5 575.3,299.2 577.7,302.8 580.2,306.4 582.8,309.9 585.5,313.4 588.3,316.8 591.2,320.1 594.2,323.4 597.3,326.5 600.4,329.7 603.7,332.7 607.1,335.7 610.5,338.5 614.1,341.3 617.7,344.1 621.4,346.7 625.1,349.2 629.0,351.7 632.9,354.1 636.9,356.4 640.9,358.5 645.0,360.6 649.2,362.6 653.4,364.5 657.7,366.3 662.0,368.0 666.4,369.6 670.8,371.1 675.3,372.5 679.8,373.8 684.3,374.9 688.9,376.0 693.5,377.0 698.1,377.8 702.8,378.6 707.5,379.2 712.2,379.8 716.9,380.2 721.6,380.5 726.3,380.7 731.1,380.8 735.8,380.8 740.5,380.6 745.2,380.4 750.0,380.0 754.7,379.6 759.3,379.0 764.0,378.3 768.7,377.6 773.3,376.7 777.9,375.7 782.4,374.6 787.0,373.3 791.5,372.0 795.9,370.6 800.3,369.1 804.7,367.5 809.0,365.7 813.3,363.9 817.5,362.0 821.6,359.9 825.7,357.8 829.7,355.6 833.7,353.3"/>
 
           <!-- Shot dots -->
           <g id="home-dots"></g>
@@ -358,14 +357,14 @@ const KLBL = {
 
 // ── COORDINATE TRANSFORM ──────────────────────────────
 // Scorer: 460×380, basket at top (y≈25, x=230).
-// Fan court: 800×380. Home basket left (x=8), away basket right (x=792).
-// HOME → LEFT:  fan_x=(sy/380)*400,       fan_y=(sx/460)*380
-// AWAY → RIGHT: fan_x=800-(sy/380)*400,   fan_y=(sx/460)*380
+// Fan court: 800×440. Court boundary x=10-790, y=10-430.
+// HOME → LEFT:  fan_x = 10+(sy/380)*390,   fan_y = 10+(sx/460)*420
+// AWAY → RIGHT: fan_x = 790-(sy/380)*390,  fan_y = 10+(sx/460)*420
 function xfm(pt, side) {
   if(!pt) return null;
   return side==='home'
-    ? { x:(pt.y/380)*400,       y:(pt.x/460)*380 }
-    : { x:800-(pt.y/380)*400,   y:(pt.x/460)*380 };
+    ? { x: 10+(pt.y/380)*390,      y: 10+(pt.x/460)*420 }
+    : { x: 790-(pt.y/380)*390,     y: 10+(pt.x/460)*420 };
 }
 
 function addDot(pt, made, three, isPb, side) {

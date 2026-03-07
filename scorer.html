@@ -687,12 +687,13 @@ function svgP(e){
   const s=e.touches?e.touches[0]:e;
   return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
 }
-// Basket at (230,52), arc r=158px
+// Basket at (230,25). Arc: centre (230,55.9), r=176.1px
+// Corner 3pt zones: straight sideline segments where x < ~60 or x > ~400, y < 232 (arc bottom)
 function is3(pt){
-  // Corner straight zones (sideline 3pt segments, y < 46)
-  if(pt.y < 46 && (pt.x < 50 || pt.x > 410)) return true;
-  // Arc zone: basket at (230,30), arc bottom ~y=154, radius ≈ 154-30=124
-  const dx=pt.x-230, dy=pt.y-30;
+  // Corner straight zones: sideline 3pt runs from baseline to where arc starts (~y=232)
+  if(pt.y < 232 && (pt.x < 60 || pt.x > 400)) return true;
+  // Arc zone: distance from basket centre > 171px
+  const dx=pt.x-230, dy=pt.y-25;
   return Math.sqrt(dx*dx+dy*dy) > 171;
 }
 

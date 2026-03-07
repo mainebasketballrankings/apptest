@@ -35,9 +35,7 @@
     .rank-trio { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; vertical-align: middle; }
     .rank-trio span { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 14px; padding: 3px 10px; background: var(--white); color: var(--black); border-right: 1px solid var(--border); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
     .rank-trio span:last-child { border-right: none; }
-    .rank-trio span.cls { background: var(--green); color: var(--white); }
     .rtag { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; background: rgba(0,0,0,0.08); padding: 1px 4px; border-radius: 3px; text-transform: uppercase; color: var(--gray); }
-    .rank-trio span.cls .rtag { background: rgba(255,255,255,0.25); color: var(--white); }
     .team-meta { font-size: 14px; color: var(--gray); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .gender-current { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; }
     .gender-link { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; color: var(--green); text-decoration: none; padding: 1px 8px; border: 1px solid var(--green); border-radius: 20px; }
@@ -93,6 +91,14 @@
     .seed-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
     .seed-bar.bye    { background: var(--green); }
     .seed-bar.playin { background: #f39c12; }
+    .seed-bar.out    { background: var(--red); opacity: 0.6; }
+
+    .status-badge { display: inline-block; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 5px; margin-right: 12px; vertical-align: middle; }
+    .status-badge.bye    { background: var(--green); color: #fff; }
+    .status-badge.playin { background: #1565c0; color: #fff; }
+    .status-badge.bubble { background: #e67e22; color: #fff; }
+    .status-badge.out    { background: var(--red); color: #fff; }
+    .odds-bucket .val.bye-val { color: var(--green); }
     .seed-pct { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; width: 44px; text-align: right; }
 
     /* COMBINED GAMES TABLE */
@@ -241,7 +247,7 @@ async function load() {
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
       oppIds.length ? sb(`rankings_snapshots?team_id=in.(${idList})&order=snapshot_date.desc&select=team_id,pi,rank_class,rank_overall&limit=2000`) : [],
       oppIds.length ? sb(`team_classifications?team_id=in.(${idList})&select=team_id,classes(name)`) : [],
-      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&select=id,school_name,gender&limit=1`)
+      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='boys'?'girls':'boys'}&select=id,school_name,gender&limit=1`)
     ]);
 
     const tmap = {};
@@ -290,8 +296,8 @@ async function load() {
 
     // ── RENDER ──────────────────────────────────
 
-    const gLbl = team.gender === 'Boys' ? 'Boys' : 'Girls';
-    const sLbl = team.gender === 'Boys' ? 'Girls' : 'Boys';
+    const gLbl = team.gender === 'boys' ? 'Boys' : 'Girls';
+    const sLbl = team.gender === 'boys' ? 'Girls' : 'Boys';
     const genderHtml = sibling
       ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="team.html?team_id=${sibling.id}">${sLbl} ↗</a>`
       : `<span class="gender-current">${gLbl}</span>`;
@@ -299,7 +305,7 @@ async function load() {
     const rankHtml = (rState || rClass) ? `
       <span class="rank-trio">
         ${rState  ? `<span><span class="rtag">ST</span>#${rState}</span>`  : ''}
-        ${rClass  ? `<span class="cls"><span class="rtag cls-tag">${classReg}</span>#${rClass}</span>` : ''}
+        ${rClass  ? `<span><span class="rtag">${classReg}</span>#${rClass}</span>` : ''}
         ${rRegion ? `<span><span class="rtag">${regionName.toUpperCase()}</span>#${rRegion}</span>` : ''}
       </span>` : '';
 
@@ -307,7 +313,6 @@ async function load() {
     const cards = `
       <div class="stat-cards">
         <div class="stat-card"><div class="lbl">DIRIGO</div><div class="val grn">${stats ? f2(stats.heal_points) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">PI</div><div class="val">${f2(pi)}</div></div>
         <div class="stat-card"><div class="lbl">SOS</div><div class="val">${stats ? f2(stats.sos) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">Avg PF</div><div class="val">${stats ? f2(stats.avg_pf) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">Avg PA</div><div class="val">${stats ? f2(stats.avg_pa) : '—'}</div></div>
@@ -315,33 +320,90 @@ async function load() {
       </div>`;
 
     // Tournament odds
+    const REGION_CUTOFFS = {
+  "A North|Boys": { bye: 8, inCutoff: 8 },
+  "A South|Boys": { bye: 5, inCutoff: 11 },
+  "B North|Boys": { bye: 7, inCutoff: 9 },
+  "B South|Boys": { bye: 6, inCutoff: 10 },
+  "C North|Boys": { bye: 6, inCutoff: 10 },
+  "C South|Boys": { bye: 6, inCutoff: 10 },
+  "D North|Boys": { bye: 5, inCutoff: 11 },
+  "D South|Boys": { bye: 8, inCutoff: 8 },
+  "S North|Boys": { bye: 8, inCutoff: 8 },
+  "S South|Boys": { bye: 8, inCutoff: 8 },
+  "A North|Girls": { bye: 8, inCutoff: 8 },
+  "A South|Girls": { bye: 5, inCutoff: 11 },
+  "B North|Girls": { bye: 7, inCutoff: 9 },
+  "B South|Girls": { bye: 6, inCutoff: 10 },
+  "C North|Girls": { bye: 6, inCutoff: 10 },
+  "C South|Girls": { bye: 6, inCutoff: 10 },
+  "D North|Girls": { bye: 6, inCutoff: 10 },
+  "D South|Girls": { bye: 8, inCutoff: 8 },
+  "S North|Girls": { bye: 8, inCutoff: 8 },
+  "S South|Girls": { bye: 8, inCutoff: 8 }
+};
+
     let oddsHtml = '';
     const odds = stats?.tournament_odds || null;
     if (odds) {
       const isTourney  = new Date() > new Date('2026-02-20');
       const oddsTitle  = isTourney ? 'Gold Ball Odds' : 'Tournament Odds';
-      const inPct  = odds.in  != null && odds.in  !== '' ? (+odds.in  * 100).toFixed(1) : null;
-      const outPct = odds.out != null && odds.out !== '' ? (+odds.out * 100).toFixed(1) : null;
 
-      // Find seed keys S1..S20
+      // Get cutoffs for this team's region
+      const cutoffKey = `${classReg}|${team.gender}`;
+      const cutoff    = REGION_CUTOFFS[cutoffKey] || { bye: 6, inCutoff: 10 };
+      const byeCutoff = cutoff.bye;
+      const inCutoff  = cutoff.inCutoff;
+
+      // Compute overall IN% = sum of all seed probabilities within inCutoff
       const seedRows = [];
       for (let i = 1; i <= 20; i++) {
         const v = odds[`S${i}`] ?? odds[`s${i}`] ?? null;
         if (v != null && v !== '' && +v > 0) seedRows.push({ i, v: +v });
       }
+
+      const inTotal  = seedRows.filter(s => s.i <= inCutoff).reduce((a,s) => a+s.v, 0);
+      const outTotal = seedRows.filter(s => s.i >  inCutoff).reduce((a,s) => a+s.v, 0);
+      const byeTotal = seedRows.filter(s => s.i <= byeCutoff).reduce((a,s) => a+s.v, 0);
+
+      const inPct  = inTotal  > 0 ? (inTotal  * 100).toFixed(1) : null;
+      const outPct = outTotal > 0 ? (outTotal * 100).toFixed(1) : null;
+      const byePct = byeTotal > 0 ? (byeTotal * 100).toFixed(1) : null;
+
+      // Status badge: BYE / PLAY-IN / BUBBLE / OUT
+      // Use the highest-probability seed to determine status
+      const topSeed   = seedRows.length ? seedRows.reduce((a,b) => a.v>b.v?a:b) : null;
+      let statusBadge = '';
+      if (topSeed) {
+        if (topSeed.i <= byeCutoff)  statusBadge = '<span class="status-badge bye">BYE</span>';
+        else if (topSeed.i <= inCutoff) {
+          // Check if on the bubble: within 1 seed of cutoff
+          const isBubble = topSeed.i === inCutoff || topSeed.i === inCutoff - 1;
+          statusBadge = isBubble
+            ? '<span class="status-badge bubble">BUBBLE</span>'
+            : '<span class="status-badge playin">PLAY-IN</span>';
+        } else {
+          statusBadge = '<span class="status-badge out">OUT</span>';
+        }
+      }
+
       const maxV = seedRows.length ? Math.max(...seedRows.map(s => s.v)) : 1;
 
-      const topHtml = (inPct || outPct) ? `
+      const topHtml = `
         <div class="odds-top">
-          ${inPct  != null ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
-          ${outPct != null ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
-        </div>` : '';
+          ${statusBadge}
+          ${byePct  ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
+          ${inPct   ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
+          ${outPct  ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
+        </div>`;
 
       const seedHtml = seedRows.map(({ i, v }) => {
         const pct  = (v * 100).toFixed(1);
         const barW = maxV > 0 ? (v / maxV * 100).toFixed(1) : 0;
-        const cls  = i <= 6 ? 'bye' : 'playin';
-        const note = i <= 6 ? '(Bye)' : '(Play-in)';
+        let cls, note;
+        if (i <= byeCutoff)       { cls = 'bye';    note = '(Bye)'; }
+        else if (i <= inCutoff)   { cls = 'playin'; note = '(Play-in)'; }
+        else                      { cls = 'out';    note = '(Out)'; }
         return `<div class="seed-row">
           <span class="seed-lbl">Seed ${i} <small style="color:var(--lgray);font-size:10px">${note}</small></span>
           <div class="seed-bar-wrap"><div class="seed-bar ${cls}" style="width:${barW}%"></div></div>
@@ -412,7 +474,7 @@ async function load() {
             <span class="wp-txt">${wpPct} · ${f2(hd?.oppPI)} PI</span>
           </div>`:''}
         </td>
-        <td class="hc ${hd&&hd.contrib?'':'none'}">${hd?(hd.contrib?'+'+f2(hd.contrib):'—'):''}</td>
+        <td class="hc ${hd&&hd.contrib?'':'none'}">${hd?(hd.contrib?'+'+f2(hd.contrib*10):'—'):''}</td>
       </tr>`;
     }).join('');
 

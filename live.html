@@ -28,36 +28,32 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 #live-pill.final{background:var(--ink3);}
 
 /* SCOREBOARD */
-#scoreboard{background:var(--paper2);border-bottom:1.5px solid var(--rule);padding:10px 16px 8px;flex-shrink:0;}
+#scoreboard{background:var(--paper2);border-bottom:1.5px solid var(--rule);padding:12px 12px 8px;flex-shrink:0;}
 .sb-inner{max-width:1100px;margin:0 auto;}
-/* 3-col grid mirrors the main layout: home side | clock centre | away side */
-.sb-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;}
-/* Each team block is itself split: logo+name left, big score right (for home) or reversed for away */
-.sb-team{display:flex;align-items:center;gap:12px;}
-.sb-team.home{justify-content:flex-end;}
-.sb-team.away{justify-content:flex-start;}
-.sb-logo{width:48px;height:48px;min-width:48px;max-width:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:17px;overflow:hidden;flex-shrink:0;border:1.5px solid var(--rule);background:var(--rule2);color:var(--ink2);}
+/* Mirror the 3-col main layout exactly */
+.sb-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0;}
+
+/* Team half — fills its column, centred */
+.sb-team{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 8px;}
+.sb-logo{width:64px;height:64px;min-width:64px;max-width:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:22px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
-.sb-team-info{display:flex;flex-direction:column;gap:2px;}
-.sb-team.home .sb-team-info{align-items:flex-end;text-align:right;}
-.sb-name{font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:var(--ink);line-height:1.2;}
-.sb-meta{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);flex-wrap:wrap;}
-.sb-team.home .sb-meta{justify-content:flex-end;}
+.sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;color:var(--ink);line-height:1.1;text-align:center;}
+.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:62px;line-height:1;color:var(--ink);text-align:center;}
+.sb-meta{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);justify-content:center;}
 .sb-foul{padding:1px 6px;border-radius:10px;}
 .sb-foul.bonus{background:var(--live);color:#fff;font-weight:600;}
-/* Big score sits outside team-info, right next to logo */
-.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:58px;line-height:1;color:var(--ink);flex-shrink:0;min-width:52px;text-align:center;}
+
 /* Clock centre block */
-.sb-centre{display:flex;flex-direction:column;align-items:center;gap:3px;}
-.sb-dash{font-family:'DM Mono',monospace;font-size:24px;color:var(--rule);line-height:1;}
-.sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:17px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:2px 10px;letter-spacing:.04em;min-width:68px;text-align:center;}
+.sb-centre{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 12px;}
+.sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:20px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:3px 12px;letter-spacing:.04em;min-width:78px;text-align:center;}
 .sb-clock.running{border-color:var(--green);color:var(--green);background:#f0fdf4;}
-.sb-period{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;margin-top:1px;}
-.sb-poss{font-size:9px;font-weight:600;letter-spacing:.05em;padding:1px 6px;border-radius:20px;font-family:'DM Mono',monospace;margin-top:2px;background:var(--rule2);color:var(--ink2);}
+.sb-period{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;}
+.sb-poss{font-size:9px;font-weight:600;letter-spacing:.05em;padding:1px 6px;border-radius:20px;font-family:'DM Mono',monospace;background:var(--rule2);color:var(--ink2);}
 .sb-poss.home::before{content:'◀  ';}
 .sb-poss.away::after{content:'  ▶';}
+
 /* Quarter grid — compact, below main row */
-.sb-qtrs{max-width:380px;margin:5px auto 0;border-top:1px solid var(--rule2);padding-top:4px;}
+.sb-qtrs{max-width:380px;margin:6px auto 0;border-top:1px solid var(--rule2);padding-top:4px;}
 .qtr-grid{display:grid;grid-template-columns:60px repeat(4,1fr) 4px 1fr;gap:0;font-family:'DM Mono',monospace;font-size:10px;}
 .qc{padding:1px 4px;text-align:center;color:var(--ink3);}
 .qc.lbl{text-align:left;font-size:9px;letter-spacing:.06em;}
@@ -146,31 +142,26 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   <div class="sb-inner">
     <div class="sb-row">
       <div class="sb-team home">
-        <div class="sb-team-info">
-          <div class="sb-name" id="home-name">Camden Hills</div>
-          <div class="sb-meta">
-            <span class="sb-foul" id="home-foul-lbl">0 fouls</span>
-            <span id="home-to-lbl">5 TO left</span>
-          </div>
-        </div>
         <div class="sb-logo" id="home-logo">C</div>
+        <div class="sb-name" id="home-name">Camden Hills</div>
         <div class="sb-pts" id="home-score">0</div>
+        <div class="sb-meta">
+          <span class="sb-foul" id="home-foul-lbl">0 fouls</span>
+          <span id="home-to-lbl">5 TO left</span>
+        </div>
       </div>
       <div class="sb-centre">
-        <div class="sb-dash">–</div>
         <div class="sb-clock" id="fan-clock">8:00</div>
         <div class="sb-period" id="fan-period">1st Quarter</div>
         <div class="sb-poss home" id="poss-disp">CAM</div>
       </div>
       <div class="sb-team away">
-        <div class="sb-pts" id="away-score">0</div>
         <div class="sb-logo" id="away-logo">C</div>
-        <div class="sb-team-info">
-          <div class="sb-name" id="away-name">Cape Elizabeth</div>
-          <div class="sb-meta">
-            <span class="sb-foul" id="away-foul-lbl">0 fouls</span>
-            <span id="away-to-lbl">5 TO left</span>
-          </div>
+        <div class="sb-name" id="away-name">Cape Elizabeth</div>
+        <div class="sb-pts" id="away-score">0</div>
+        <div class="sb-meta">
+          <span class="sb-foul" id="away-foul-lbl">0 fouls</span>
+          <span id="away-to-lbl">5 TO left</span>
         </div>
       </div>
     </div>

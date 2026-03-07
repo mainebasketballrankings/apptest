@@ -418,10 +418,10 @@ body{
       <!-- BACKBOARD: 48px wide, at y=13 -->
       <rect x="206" y="13" width="48" height="5" fill="#7a5c1e" rx="1"/>
       <!-- Neck: connects backboard centre to basket -->
-      <line x1="230" y1="18" x2="230" y2="43" stroke="#7a5c1e" stroke-width="2.5"/>
+      <line x1="230" y1="18" x2="230" y2="25" stroke="#7a5c1e" stroke-width="2.5"/>
       <!-- BASKET centre (230,52) r=9 -->
-      <circle cx="230" cy="52" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-      <circle cx="230" cy="52" r="3" fill="#7a5c1e"/>
+      <circle cx="230" cy="29" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <circle cx="230" cy="29" r="3" fill="#7a5c1e"/>
 
       <!-- RESTRICTED AREA ARC -->
       <path d="M 198 10 A 32 32 0 0 1 262 10" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
@@ -700,7 +700,7 @@ function svgP(e){
   return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
 }
 // Basket at (230,52), arc r=158px
-function is3(pt){const dx=pt.x-230,dy=pt.y-52;return Math.sqrt(dx*dx+dy*dy)>170;}
+function is3(pt){const dx=pt.x-230,dy=pt.y-29;return Math.sqrt(dx*dx+dy*dy)>170;}
 
 function swDir(dx,dy){
   const ax=Math.abs(dx),ay=Math.abs(dy);

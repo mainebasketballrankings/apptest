@@ -433,7 +433,10 @@ body{
 
       <!-- 3-POINT ARC: r=158, centre (230,52)
            endpoints (78,10) and (382,10). sweep=0 bows downward into court. -->
-      <path d="M 78 10 A 158 158 0 0 1 382 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- 3pt arc: r=210 from basket (230,52). sweep=0 bows downward.
+           Endpoints at y=10: x=230±sqrt(210²-42²)=230±sqrt(44100-1764)=230±sqrt(42336)=230±206 → x=24, x=436
+           Arc bottom: y=52+210=262. Extends well past FT circle. -->
+      <path d="M 24 10 A 210 210 0 0 0 436 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>
@@ -700,7 +703,7 @@ function svgP(e){
   return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
 }
 // Basket at (230,52), arc r=158px
-function is3(pt){const dx=pt.x-230,dy=pt.y-52;return Math.sqrt(dx*dx+dy*dy)>158;}
+function is3(pt){const dx=pt.x-230,dy=pt.y-52;return Math.sqrt(dx*dx+dy*dy)>210;}
 
 function swDir(dx,dy){
   const ax=Math.abs(dx),ay=Math.abs(dy);

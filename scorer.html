@@ -433,16 +433,10 @@ body{
 
       <!-- 3-POINT ARC: r=158, centre (230,52)
            endpoints (78,10) and (382,10). sweep=0 bows downward into court. -->
-      <!-- 3pt line: NFHS style.
-           Basket at (230,52). Use r=260px so arc bottom hits y=52+260=312 (~70% court depth).
-           Arc intersects sidelines at x=15 and x=445:
-             Left:  (15-230)²+(y-52)²=260² → 46225+(y-52)²=67600 → (y-52)²=21375 → y=52+146=198
-             Right: same by symmetry → y=198
-           So: straight lines from (15,10)→(15,198) and (445,10)→(445,198),
-           then arc from (15,198) sweep to (445,198) with r=260, sweep=0 bows down. -->
-      <line x1="15" y1="10" x2="15" y2="198" stroke="#7a5c1e" stroke-width="2.5"/>
-      <line x1="445" y1="10" x2="445" y2="198" stroke="#7a5c1e" stroke-width="2.5"/>
-      <path d="M 15 198 A 260 260 0 0 0 445 198" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- 3pt arc: r=170 from basket (230,52). No corner lines — arc endpoints land on baseline.
+           At y=10: (x-230)²+(10-52)²=170² → (x-230)²=28900-1764=27136 → x=230±165 → x=65, x=395
+           Arc bottom: y=52+170=222 (~60% court depth). sweep=0 bows downward. -->
+      <path d="M 65 10 A 170 170 0 0 0 395 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>
@@ -709,13 +703,7 @@ function svgP(e){
   return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
 }
 // Basket at (230,52), arc r=158px
-function is3(pt){
-  const dx=pt.x-230,dy=pt.y-52;
-  const dist=Math.sqrt(dx*dx+dy*dy);
-  // Corner 3: inside the straight sideline portions (y<198, near sideline)
-  const inCorner=(pt.x<60||pt.x>400)00260026pt.y<198;
-  return dist>260||inCorner;
-}
+function is3(pt){const dx=pt.x-230,dy=pt.y-52;return Math.sqrt(dx*dx+dy*dy)>170;}
 
 function swDir(dx,dy){
   const ax=Math.abs(dx),ay=Math.abs(dy);

@@ -415,26 +415,25 @@ body{
       <line x1="202" y1="10" x2="202" y2="162" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
       <line x1="258" y1="10" x2="258" y2="162" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
 
-      <!-- BACKBOARD: 6ft=48px wide, at y=13 -->
-      <rect x="206" y="13" width="48" height="6" fill="#7a5c1e" rx="1"/>
-
-      <!-- BASKET centre (230, 52) r=9 -->
+      <!-- BACKBOARD: 48px wide, at y=13 -->
+      <rect x="206" y="13" width="48" height="5" fill="#7a5c1e" rx="1"/>
+      <!-- Neck: connects backboard centre to basket -->
+      <line x1="230" y1="18" x2="230" y2="43" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- BASKET centre (230,52) r=9 -->
       <circle cx="230" cy="52" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
       <circle cx="230" cy="52" r="3" fill="#7a5c1e"/>
 
-      <!-- RESTRICTED AREA ARC: r=32 from (230,52), tangent to baseline -->
+      <!-- RESTRICTED AREA ARC -->
       <path d="M 198 10 A 32 32 0 0 1 262 10" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
 
       <!-- FT LINE at y=162 -->
       <line x1="182" y1="162" x2="278" y2="162" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- FT CIRCLE: centre (230,162) r=48. Top half solid (toward basket), bottom dashed -->
+      <!-- FT CIRCLE: top half solid, bottom dashed -->
       <path d="M 182 162 A 48 48 0 0 0 278 162" fill="none" stroke="#7a5c1e" stroke-width="2"/>
       <path d="M 182 162 A 48 48 0 0 1 278 162" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
 
-      <!-- 3-POINT ARC: r=158, centre (230,52)
-           endpoints (78,10) and (382,10). sweep=0 bows downward into court. -->
-      <!-- 3pt line: bezier endpoints at sidelines, control point pulls arc down to ~60% court depth -->
-      <path d="M 15 10 Q 230 320 445 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- 3pt line: bezier, control point y=380 deepens arc to ~58% court depth -->
+      <path d="M 15 10 Q 230 380 445 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>

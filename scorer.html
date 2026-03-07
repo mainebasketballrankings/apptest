@@ -379,25 +379,10 @@ body{
     -->
     <svg id="csvg" viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet">
       <!--
-        NFHS half court: 50ft wide × 47ft deep (baseline to half court).
-        ViewBox 460×380. Margins 15px each side → playable 430×362.
-        Scale: 430/50 = 8.6px/ft horizontal, 362/47 = 7.7px/ft vertical.
-        Use 8.0px/ft as a round uniform scale (slight letterbox is fine).
-
-        Origin: top-left of playable area = (15, 10).
-        Basket: 5.25ft from baseline → y = 10 + 5.25*8 = 52. Centre (230, 52).
-        Key (paint): 12ft wide, 19ft deep.
-          x: 230 ± 6*8 = 230±48 → x=182 to 278. y: 10 to 10+19*8=162.
-        FT line: y=162. FT circle: centre (230,162), r=6*8=48px.
-        Restricted arc: r=4*8=32px from basket (230,52).
-          At y=10: (x-230)²+(10-52)²=32² → 1764+1024=2788 > 1024 → arc starts below baseline.
-          Just draw from x=230-32=198 to 262 tangent to baseline.
-        3pt arc: r=19.75*8=158px from basket (230,52).
-          At y=10 (baseline): (x-230)²+(10-52)²=158²
-          (x-230)²=24964-1764=23200 → x=230±152 → x=78, x=382.
-          Arc from (78,10) to (382,10) sweeping DOWN into court: sweep=0, large-arc=0.
-          Arc bottom: y = 52+158 = 210. Extends to halfway between FT line (162) and half court.
-          ✓ Matches reference image proportions.
+        All coordinates traced directly from Hachisoft reference screenshot.
+        Playable area: x=15–445 (430px wide), y=10–372 (362px tall).
+        Basket: (231,34). Key: x=169–291, y=10–173. FT line: y=173. FT circle r=59.
+        3pt: straight segments at sidelines y=10 to y=74, arc from (15,74) to (445,74) bottom y=195.
       -->
 
       <!-- Floor -->
@@ -407,33 +392,35 @@ body{
 
       <!-- HALF COURT line + circle at bottom -->
       <line x1="15" y1="372" x2="445" y2="372" stroke="#7a5c1e" stroke-width="2"/>
-      <circle cx="230" cy="372" r="48" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+      <circle cx="230" cy="372" r="44" fill="none" stroke="#7a5c1e" stroke-width="2"/>
 
-      <!-- KEY / PAINT: x=182–278, y=10–162 -->
-      <rect x="182" y="10" width="96" height="152" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- KEY / PAINT: x=169–291, y=10–173 -->
+      <rect x="169" y="10" width="122" height="163" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
       <!-- Lane tick marks -->
-      <line x1="202" y1="10" x2="202" y2="162" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-      <line x1="258" y1="10" x2="258" y2="162" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+      <line x1="192" y1="10" x2="192" y2="173" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+      <line x1="268" y1="10" x2="268" y2="173" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
 
-      <!-- BACKBOARD: 48px wide, at y=13 -->
-      <rect x="206" y="13" width="48" height="5" fill="#7a5c1e" rx="1"/>
-      <!-- Neck: connects backboard centre to basket -->
-      <line x1="230" y1="18" x2="230" y2="25" stroke="#7a5c1e" stroke-width="2.5"/>
-      <!-- BASKET centre (230,52) r=9 -->
-      <circle cx="230" cy="29" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-      <circle cx="230" cy="29" r="3" fill="#7a5c1e"/>
+      <!-- BACKBOARD flush at baseline -->
+      <rect x="207" y="10" width="46" height="5" fill="#7a5c1e" rx="1"/>
+      <!-- BASKET: directly below backboard, centre (230,30) -->
+      <circle cx="230" cy="30" r="10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <circle cx="230" cy="30" r="3" fill="#7a5c1e"/>
 
-      <!-- RESTRICTED AREA ARC -->
-      <path d="M 198 10 A 32 32 0 0 1 262 10" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
+      <!-- FT LINE at y=173 -->
+      <line x1="169" y1="173" x2="291" y2="173" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- FT CIRCLE: centre (230,173) r=59. Top half solid, bottom dashed -->
+      <path d="M 171 173 A 59 59 0 0 0 289 173" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+      <path d="M 171 173 A 59 59 0 0 1 289 173" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
 
-      <!-- FT LINE at y=162 -->
-      <line x1="182" y1="162" x2="278" y2="162" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- FT CIRCLE: top half solid, bottom dashed -->
-      <path d="M 182 162 A 48 48 0 0 0 278 162" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-      <path d="M 182 162 A 48 48 0 0 1 278 162" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
-
-      <!-- 3pt line: bezier, control point y=380 deepens arc to ~58% court depth -->
-      <path d="M 15 10 Q 230 380 445 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- 3pt line: straight segments at sidelines, then bezier arc
+           Straight: sideline x=15 and x=445, from y=10 down to y=74
+           Arc: from (15,74) to (445,74), bottom at y=195 (traced from reference)
+           Bezier control: midpoint y=195 means control y = 4*195 - 74 - 74 - ... 
+           Q control y: actual bottom of quadratic = 0.5*start + control + 0.5*end... 
+           At t=0.5: y = 0.25*74 + 0.5*cy + 0.25*74 = 0.5*cy + 37 = 195 → cy = 316 -->
+      <line x1="15" y1="10" x2="15" y2="74" stroke="#7a5c1e" stroke-width="2.5"/>
+      <line x1="445" y1="10" x2="445" y2="74" stroke="#7a5c1e" stroke-width="2.5"/>
+      <path d="M 15 74 Q 230 316 445 74" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>
@@ -700,7 +687,13 @@ function svgP(e){
   return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
 }
 // Basket at (230,52), arc r=158px
-function is3(pt){const dx=pt.x-230,dy=pt.y-29;return Math.sqrt(dx*dx+dy*dy)>170;}
+function is3(pt){
+  // Corner straight segments match sideline 3pt lines (y < 74)
+  if(pt.y < 74 && (pt.x < 50 || pt.x > 410)) return true;
+  // Arc: basket at (230,30). 3pt arc bottom traced to y=195, so radius ≈ 195-30=165
+  const dx=pt.x-230, dy=pt.y-30;
+  return Math.sqrt(dx*dx+dy*dy) > 165;
+}
 
 function swDir(dx,dy){
   const ax=Math.abs(dx),ay=Math.abs(dy);

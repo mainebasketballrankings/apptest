@@ -414,9 +414,9 @@ async function load() {
             ${statusBadge2}
             ${is100 ? `<span class="odds-check-pct">${outTotal<0.999?'<span class="odds-check">✓</span>':''}<span class="odds-big-num ${pct100col}">${pct100}%</span></span>` : ''}
           </div>
-          ${showBye  ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
-          ${showIn && inTotal < 0.999 ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
-          ${showOut  ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
+          ${!is100 && showBye ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
+          ${!is100 && showIn  ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
+          ${!is100 && showOut ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
         </div>`;
 
       const seedHtml = seedRows.map(({ i, v }) => {

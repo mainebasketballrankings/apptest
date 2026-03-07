@@ -27,8 +27,8 @@
 
     /* HEADER */
     .team-header { background: var(--white); border-radius: 10px; border: 1px solid var(--border); padding: 24px; display: flex; align-items: center; gap: 20px; margin-bottom: 16px; }
-    .team-logo-lg { width: 72px; height: 72px; border-radius: 50%; object-fit: contain; background: var(--bg); border: 2px solid var(--border); flex-shrink: 0; }
-    .team-logo-fallback { width: 72px; height: 72px; border-radius: 50%; background: var(--green); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 26px; flex-shrink: 0; }
+    .team-logo-lg { width: 96px; height: 96px; border-radius: 50%; object-fit: contain; background: var(--bg); border: 2px solid var(--border); flex-shrink: 0; }
+    .team-logo-fallback { width: 96px; height: 96px; border-radius: 50%; background: var(--green); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 32px; flex-shrink: 0; }
     .team-header-info { flex: 1; min-width: 0; }
     .team-name-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
     .team-name-lg { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 34px; line-height: 1; }
@@ -99,6 +99,9 @@
     .status-badge.bubble { background: #e67e22; color: #fff; }
     .status-badge.out    { background: var(--red); color: #fff; }
     .odds-bucket .val.bye-val { color: var(--green); }
+    .odds-pct-big { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 36px; vertical-align: middle; margin-left: 4px; }
+    .odds-pct-big.bye-col { color: var(--green); }
+    .odds-pct-big.in-col  { color: var(--green); }
     .seed-pct { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; width: 44px; text-align: right; }
 
     /* COMBINED GAMES TABLE */
@@ -146,6 +149,14 @@
     .loading-state, .error-state { text-align: center; padding: 60px 20px; color: var(--lgray); font-family: 'Barlow Condensed', sans-serif; font-size: 18px; }
     .error-state { color: var(--red); }
 
+    @media (max-width: 640px) {
+      .team-header { flex-direction: column; align-items: center; text-align: center; }
+      .team-header-info { align-items: center; display: flex; flex-direction: column; }
+      .team-name-row { justify-content: center; flex-wrap: wrap; }
+      .rank-trio { margin-top: 6px; }
+      .team-meta { justify-content: center; }
+      .team-inline-stats { justify-content: center; }
+    }
     @media (max-width: 640px) {
       .team-header { flex-direction: column; text-align: center; }
       .team-meta { justify-content: center; }
@@ -247,7 +258,7 @@ async function load() {
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
       oppIds.length ? sb(`rankings_snapshots?team_id=in.(${idList})&order=snapshot_date.desc&select=team_id,pi,rank_class,rank_overall&limit=2000`) : [],
       oppIds.length ? sb(`team_classifications?team_id=in.(${idList})&select=team_id,classes(name)`) : [],
-      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='boys'?'girls':'boys'}&select=id,school_name,gender&limit=1`)
+      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&select=id,school_name,gender&limit=1`)
     ]);
 
     const tmap = {};
@@ -296,8 +307,8 @@ async function load() {
 
     // ── RENDER ──────────────────────────────────
 
-    const gLbl = team.gender === 'boys' ? 'Boys' : 'Girls';
-    const sLbl = team.gender === 'boys' ? 'Girls' : 'Boys';
+    const gLbl = team.gender === 'Boys' ? 'Boys' : 'Girls';
+    const sLbl = team.gender === 'Boys' ? 'Girls' : 'Boys';
     const genderHtml = sibling
       ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="team.html?team_id=${sibling.id}">${sLbl} ↗</a>`
       : `<span class="gender-current">${gLbl}</span>`;
@@ -370,31 +381,31 @@ async function load() {
       const outPct = outTotal > 0 ? (outTotal * 100).toFixed(1) : null;
       const byePct = byeTotal > 0 ? (byeTotal * 100).toFixed(1) : null;
 
-      // Status badge: BYE / PLAY-IN / BUBBLE / OUT
-      // Use the highest-probability seed to determine status
-      const topSeed   = seedRows.length ? seedRows.reduce((a,b) => a.v>b.v?a:b) : null;
-      let statusBadge = '';
-      if (topSeed) {
-        if (topSeed.i <= byeCutoff)  statusBadge = '<span class="status-badge bye">BYE</span>';
-        else if (topSeed.i <= inCutoff) {
-          // Check if on the bubble: within 1 seed of cutoff
-          const isBubble = topSeed.i === inCutoff || topSeed.i === inCutoff - 1;
-          statusBadge = isBubble
-            ? '<span class="status-badge bubble">BUBBLE</span>'
-            : '<span class="status-badge playin">PLAY-IN</span>';
-        } else {
-          statusBadge = '<span class="status-badge out">OUT</span>';
-        }
-      }
-
       const maxV = seedRows.length ? Math.max(...seedRows.map(s => s.v)) : 1;
+
+      // Build status badge based on bye/in/out
+      let statusBadge2 = '';
+      if (byeTotal >= 0.999)       statusBadge2 = '<span class="status-badge bye">BYE ✓</span>';
+      else if (byeTotal > 0)       statusBadge2 = '<span class="status-badge bye">BYE</span>';
+      else if (inTotal >= 0.999)   statusBadge2 = '<span class="status-badge playin">PLAY-IN ✓</span>';
+      else if (inTotal > 0.5)      statusBadge2 = '<span class="status-badge playin">PLAY-IN</span>';
+      else if (inTotal > 0)        statusBadge2 = '<span class="status-badge bubble">BUBBLE</span>';
+      else                         statusBadge2 = '<span class="status-badge out">OUT</span>';
+
+      // If BYE is 100%, just show BYE badge + pct. Otherwise show relevant buckets.
+      const showBye = byeTotal > 0 && byeTotal < 0.999;
+      const showIn  = inTotal  > 0 && byeTotal < 0.999;
+      const showOut = outTotal > 0;
 
       const topHtml = `
         <div class="odds-top">
-          ${statusBadge}
-          ${byePct  ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
-          ${inPct   ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
-          ${outPct  ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
+          ${statusBadge2}
+          <span class="odds-pct-big ${byeTotal>=0.999?'bye-col':inTotal>=0.999?'in-col':''}">
+            ${byeTotal>=0.999 ? byePct+'%' : inTotal>=0.999 ? inPct+'%' : ''}
+          </span>
+          ${showBye  ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
+          ${showIn   ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
+          ${showOut  ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
         </div>`;
 
       const seedHtml = seedRows.map(({ i, v }) => {

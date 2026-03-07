@@ -433,9 +433,8 @@ body{
 
       <!-- 3-POINT ARC: r=158, centre (230,52)
            endpoints (78,10) and (382,10). sweep=0 bows downward into court. -->
-      <!-- 3pt line: quadratic bezier, endpoints (65,10) and (395,10),
-           control point at (230, 240) pulls arc downward into court. -->
-      <path d="M 65 10 Q 230 240 395 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- 3pt line: bezier endpoints at sidelines, control point pulls arc down to ~60% court depth -->
+      <path d="M 15 10 Q 230 320 445 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>

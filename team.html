@@ -401,9 +401,17 @@ async function load() {
       else                                                  statusBadge2 = '<span class="status-badge bubble">BUBBLE</span>';
 
       // If BYE is 100%, just show BYE badge + pct. Otherwise show relevant buckets.
-      const showBye = byeTotal > 0 && byeTotal < 0.999;
-      const showIn  = inTotal  > 0 && byeTotal < 0.999;
-      const showOut = outTotal > 0;
+      const playInTotal = inTotal - byeTotal;
+      const playInPct   = playInTotal > 0 ? (playInTotal * 100).toFixed(1) : null;
+
+      // Sub-buckets: shown when IN=100% but seed still uncertain
+      const showByeSub    = inTotal >= 0.999 && byeTotal > 0.001 && byeTotal < 0.999;
+      const showPlayInSub = inTotal >= 0.999 && playInTotal > 0.001;
+
+      // Normal buckets: shown when nothing is 100%
+      const showBye = !is100 && byeTotal > 0;
+      const showIn  = !is100 && inTotal  > 0 && byeTotal < 0.999;
+      const showOut = !is100 && outTotal > 0;
 
       const is100  = byeTotal >= 0.999 || inTotal >= 0.999 || outTotal >= 0.999;
       const pct100 = byeTotal >= 0.999 ? byePct : inTotal >= 0.999 ? inPct : outTotal >= 0.999 ? outPct : null;
@@ -414,9 +422,11 @@ async function load() {
             ${statusBadge2}
             ${is100 ? `<span class="odds-check-pct">${outTotal<0.999?'<span class="odds-check">✓</span>':''}<span class="odds-big-num ${pct100col}">${pct100}%</span></span>` : ''}
           </div>
-          ${!is100 && showBye ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
-          ${!is100 && showIn  ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
-          ${!is100 && showOut ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
+          ${showBye ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
+          ${showIn  ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
+          ${showOut ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
+          ${showByeSub    ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
+          ${showPlayInSub ? `<div class="odds-bucket"><div class="lbl">Play-In</div><div class="val in">${playInPct}%</div></div>` : ''}
         </div>`;
 
       const seedHtml = seedRows.map(({ i, v }) => {

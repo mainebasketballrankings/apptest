@@ -417,9 +417,7 @@ async function load() {
       const showIn  = !is100 && inTotal  > 0 && byeTotal < 0.999;
       const showOut = !is100 && outTotal > 0;
 
-      const is100  = byeTotal >= 0.999 || inTotal >= 0.999 || outTotal >= 0.999;
-      const pct100 = byeTotal >= 0.999 ? byePct : inTotal >= 0.999 ? inPct : outTotal >= 0.999 ? outPct : null;
-      const pct100col = outTotal >= 0.999 ? 'out-col' : 'green-col';
+
       const topHtml = `
         <div class="odds-top">
           <div class="odds-hero">

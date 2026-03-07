@@ -53,28 +53,41 @@
   .foul-to span { display: flex; gap: 3px; align-items: center; }
   .foul-to strong { color: var(--text); font-size: 12px; }
 
-  #clock-center { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .period-nav { display: flex; align-items: center; gap: 4px; }
-  .period-nav button {
-    background: none; border: 1px solid var(--border); color: var(--text-dim);
-    border-radius: 4px; width: 20px; height: 20px; font-size: 13px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  #period-display { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.15em; color: var(--text-dim); min-width: 28px; text-align: center; }
+  /* Clock area: clock button centre, period controls BELOW it, possession arrows BIG on sides */
+  #clock-center { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   #clock-btn {
     background: var(--surface2); border: 2px solid var(--border); border-radius: 8px;
-    color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 26px;
-    padding: 2px 14px; cursor: pointer; min-width: 100px; text-align: center;
+    color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 28px;
+    padding: 2px 16px; cursor: pointer; min-width: 108px; text-align: center;
     transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
   }
   #clock-btn.running { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(39,174,96,0.25); }
-  .poss-arrow { font-size: 10px; letter-spacing: 0.08em; color: var(--text-dim); display: flex; align-items: center; gap: 5px; cursor: pointer; }
-  .poss-arrow .arr { font-size: 14px; }
+
+  /* Period row: sits below clock, well away from iPad notch */
+  #period-row { display: flex; align-items: center; gap: 5px; }
+  #period-row button {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 5px; width: 26px; height: 26px; font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  #period-row button:active { background: var(--border); }
+  #period-display { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.15em; color: var(--text); min-width: 32px; text-align: center; }
+
+  /* Possession arrows — much bigger, inside team score areas */
+  .poss-arrow {
+    font-size: 11px; letter-spacing: 0.06em; color: var(--text-dim);
+    display: flex; align-items: center; gap: 4px; cursor: pointer; margin-top: 2px;
+    padding: 3px 6px; border-radius: 5px; border: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .poss-arrow:active { background: var(--surface2); }
+  .poss-arrow .arr { font-size: 20px; line-height: 1; }
   .poss-arrow.home .arr { color: var(--home-light); }
   .poss-arrow.away .arr { color: var(--away-light); }
+  .poss-arrow.active-poss { border-color: var(--border); }
 
   /* MIDDLE */
-  #middle { display: grid; grid-template-columns: 148px 1fr 148px; flex: 1; min-height: 0; overflow: hidden; }
+  #middle { display: grid; grid-template-columns: 165px 1fr 165px; flex: 1; min-height: 0; overflow: hidden; }
 
   /* PLAYER PANELS */
   .player-panel { display: flex; flex-direction: column; gap: 3px; padding: 5px; overflow-y: auto; background: var(--surface); }
@@ -82,7 +95,7 @@
   .player-panel.away-panel { border-left: 2px solid var(--border); }
 
   .player-card {
-    border-radius: 8px; padding: 7px 8px; cursor: pointer;
+    border-radius: 8px; padding: 10px 10px; cursor: pointer;
     transition: transform 0.1s, box-shadow 0.1s; border: 2px solid transparent; flex-shrink: 0;
     display: flex; align-items: center; gap: 8px;
   }
@@ -93,15 +106,15 @@
   .player-card:active { transform: scale(0.97); }
 
   .card-num-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-  .player-number { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 30px; line-height: 1; }
+  .player-number { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 34px; line-height: 1; }
   .home-panel .player-number { color: var(--home-light); }
   .away-panel .player-number { color: var(--away-light); }
 
-  .card-info-col { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-  .player-name { font-size: 11px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em; }
-  .player-stats-row { display: flex; gap: 6px; }
+  .card-info-col { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .player-name { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em; }
+  .player-stats-row { display: flex; gap: 8px; }
   .pstat { display: flex; flex-direction: column; align-items: center; }
-  .pstat-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; line-height: 1; color: var(--text); }
+  .pstat-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; line-height: 1; color: var(--text); }
   .pstat-lbl { font-size: 8px; color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; }
 
   .foul-dots { display: flex; gap: 2px; margin-top: 2px; }
@@ -257,18 +270,20 @@
         <span>TO <strong id="home-to-full">3</strong>/<strong id="home-to-30">2</strong></span>
       </div>
     </div>
+    <div class="poss-arrow home" id="poss-home" onclick="setPossession('home')">
+      <span class="arr">▶</span><span>POSS</span>
+    </div>
   </div>
+
   <div id="clock-center">
-    <div class="period-nav">
+    <button id="clock-btn" onclick="toggleClock()">8:00</button>
+    <div id="period-row">
       <button onclick="changePeriod(-1)">‹</button>
       <div id="period-display">1ST</div>
       <button onclick="changePeriod(1)">›</button>
     </div>
-    <button id="clock-btn" onclick="toggleClock()">8:00</button>
-    <div class="poss-arrow home" id="poss-display" onclick="flipPossession()">
-      <span class="arr">▶</span><span id="poss-label">CAMDEN</span>
-    </div>
   </div>
+
   <div class="team-score away">
     <div class="team-name">Cape Elizabeth Boys</div>
     <div class="score-row">
@@ -277,6 +292,9 @@
         <span>FOULS <strong id="away-fouls">0</strong></span>
         <span>TO <strong id="away-to-full">3</strong>/<strong id="away-to-30">2</strong></span>
       </div>
+    </div>
+    <div class="poss-arrow away" id="poss-away" onclick="setPossession('away')">
+      <span class="arr">▶</span><span>POSS</span>
     </div>
   </div>
 </div>
@@ -315,171 +333,51 @@
         Corner 3: at x=50 (left) and x=410 (right), up to y=130
         Half court line at y=385
     -->
-    <svg id="court-svg" viewBox="0 0 460 400" preserveAspectRatio="xMidYMid meet">
+    <svg id="court-svg" viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet">
+      <!-- GEOMETRY: basket at BOTTOM, attack upward
+           Scale 8.6px/ft. Basket (230,340). Baseline y=365. Half court top.
+           Key: 12ft=103px wide, 15ft=129px deep → x=179–281, y=236–365
+           FT line: y=236. FT circle r=52px centre (230,236).
+           3pt r=170px. At baseline y=365: x=230±sqrt(170²-25²)=230±168=62,398
+           Arc sweeps from (62,365) to (398,365) through the court (large arc, CCW) -->
+
       <!-- Floor -->
-      <rect width="460" height="400" fill="#c9a96e"/>
+      <rect width="460" height="380" fill="#c9a96e"/>
       <!-- Boundary -->
-      <rect x="15" y="15" width="430" height="375" fill="none" stroke="#7a5c1e" stroke-width="3" rx="2"/>
+      <rect x="15" y="8" width="430" height="364" fill="none" stroke="#7a5c1e" stroke-width="3" rx="2"/>
+      <!-- Half court line at top -->
+      <line x1="15" y1="8" x2="445" y2="8" stroke="#7a5c1e" stroke-width="2"/>
+      <circle cx="230" cy="8" r="48" fill="none" stroke="#7a5c1e" stroke-width="2"/>
 
-      <!-- KEY / PAINT: 12ft wide, centered, FT line at y=155 -->
-      <rect x="186" y="15" width="88" height="140" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- Lane lines inside key -->
-      <line x1="208" y1="15" x2="208" y2="155" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-      <line x1="252" y1="15" x2="252" y2="155" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-
-      <!-- BACKBOARD: 6ft wide = ~48px, at y=18 -->
-      <rect x="206" y="17" width="48" height="6" fill="#7a5c1e" rx="1"/>
-
-      <!-- BASKET: centre (230, 40), radius ~9px -->
-      <circle cx="230" cy="40" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-      <circle cx="230" cy="40" r="3" fill="#7a5c1e"/>
-
-      <!-- RESTRICTED AREA ARC: 4ft radius = ~32px -->
-      <path d="M 198 15 A 32 32 0 0 0 262 15" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
-
-      <!-- FT CIRCLE: radius 6ft = 48px, centre at (230, 155) -->
-      <!-- Top half solid -->
-      <path d="M 182 155 A 48 48 0 0 1 278 155" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- Bottom half dashed -->
-      <path d="M 182 155 A 48 48 0 0 0 278 155" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
+      <!-- KEY / PAINT -->
+      <rect x="179" y="236" width="102" height="136" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
+      <line x1="200" y1="236" x2="200" y2="372" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+      <line x1="260" y1="236" x2="260" y2="372" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
 
       <!-- FT LINE -->
-      <line x1="186" y1="155" x2="274" y2="155" stroke="#7a5c1e" stroke-width="2"/>
+      <line x1="179" y1="236" x2="281" y2="236" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- FT CIRCLE: solid half toward court (upward), dashed half toward basket -->
+      <path d="M 178 236 A 52 52 0 0 0 282 236" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+      <path d="M 178 236 A 52 52 0 0 1 282 236" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
 
-      <!--
-        3-POINT LINE (NFHS / Maine HS):
-        - Arc: 19ft 9in = 19.75ft from basket centre
-        - Corner: straight lines at 3ft from sideline, up to where arc begins
-        - Basket at (230, 40)
-        - Scale 8px/ft: radius = 19.75 * 8 = 158px
-        - Sideline at x=15, corner line at x=15+24=39 (3ft = 24px)
-        - Corner line runs from y=15 to where arc intersects x=39:
-            (x-230)^2 + (y-40)^2 = 158^2
-            (39-230)^2 + (y-40)^2 = 158^2
-            (-191)^2 + (y-40)^2 = 24964
-            36481 + (y-40)^2 = 24964  → negative, so corner is beyond arc radius
-            That means at 3ft from sideline, we're always inside the arc.
-            Let's use 63px from sideline (7.875ft) which is the NCAA value... 
-            
-            Actually NFHS corner 3pt line: the straight part is at the sideline extended,
-            and runs from baseline up to ~63" (5.25ft) from baseline.
-            So corner line goes from y=15 to y=15+42=57 (5.25ft * 8px)
-            at x=15 (left sideline) and x=445 (right sideline)
-            
-            Then arc from (15, 57) sweeps around to (445, 57) with radius 158px from basket.
-            
-            Let me verify: basket=(230,40), point=(15,57)
-            dist = sqrt((230-15)^2 + (40-57)^2) = sqrt(215^2 + 17^2) = sqrt(46225+289) = sqrt(46514) ≈ 215.7
-            That's 215.7/8 = 26.9ft — too far. The corner straight lines aren't on the arc.
-            
-            In reality the NFHS 3pt line:
-            - Straight lines parallel to sidelines at 63" FROM SIDELINE = 5.25ft from sideline
-            - Those straight lines run from baseline to a point where the arc begins
-            - Arc radius 19ft 9in from basket
-            
-            Sideline at x=15, so straight line at x = 15 + 5.25*8 = 15+42 = 57 (left)
-            and x = 445 - 42 = 403 (right)
-            
-            Where does arc (r=158 from basket (230,40)) intersect x=57?
-            (57-230)^2 + (y-40)^2 = 158^2
-            (-173)^2 + (y-40)^2 = 24964
-            29929 + (y-40)^2 = 24964  → still negative (29929 > 24964)
-            
-            So x=57 is still outside the arc. The corners ARE entirely straight lines
-            and the arc only exists in the middle portion.
-            
-            The straight corner lines span x=57 (left) from y=15 to where the arc hits them.
-            But since x=57 > the arc reach... let me try a smaller scale.
-            
-            Use 6px/ft:
-            Basket at (230, 40)
-            Arc radius: 19.75 * 6 = 118.5 ≈ 119px
-            Corner line at: 5.25ft * 6 = 31.5 ≈ 32px from sideline
-            Left corner: x = 15+32 = 47
-            Right corner: x = 445-32 = 413
-            
-            Arc intersects x=47:
-            (47-230)^2 + (y-40)^2 = 119^2
-            (-183)^2 = 33489; 119^2 = 14161  → 33489 > 14161, still outside
-            
-            The problem is basket is too close to centre of court width.
-            Basket (230) is near centre (230). Sideline at 15. Distance = 215px.
-            At 6px/ft that's 215/6 = 35.8ft — but court is only 25ft wide to sideline from basket!
-            
-            So viewbox is too narrow for proper scaling relative to basket position.
-            
-            FIX: The basket ISN'T at the center horizontally - it IS centered left-right.
-            The court is 50ft wide. Basket is at centre = 25ft from each sideline.
-            ViewBox 460, margins 15 each side, playable = 430px for 50ft → 8.6px/ft
-            Basket x = 15 + 215 = 230 ✓
-            
-            Arc radius 19.75ft * 8.6 = 169.8 ≈ 170px
-            Corner line at 3ft * 8.6 = 25.8 ≈ 26px from sideline → x=41 (left), x=419 (right)
-            
-            Arc intersects x=41:
-            (41-230)^2 + (y-40)^2 = 170^2
-            189^2 + (y-40)^2 = 28900
-            35721 + (y-40)^2 = 28900 → negative, outside arc
-            
-            Hmm. 25ft from basket to sideline > 19.75ft arc radius.
-            So the 3pt arc NEVER reaches the sideline corners.
-            The corner 3pt lines are separate straight sections that connect to the arc.
-            
-            The arc runs from the point where it hits the corner lines.
-            Corner line x=41: we need the arc to reach x=41.
-            Max x reach of arc from basket (230,40) with r=170: x = 230-170 = 60.
-            So arc LEFT end is at x=60, not x=41.
-            The corner straight line runs from x=41, y=15 DOWN to x=41, y=? 
-            Then connects to arc at x=60... but that's not how it works geometrically.
-            
-            Actually the NFHS corner line is NOT at the sideline extended.
-            It's perpendicular to the BASELINE (parallel to sideline), and it ENDS where the arc begins.
-            
-            At x=41 the arc would need: (41-230)^2+(y-40)^2=170^2 → y is imaginary.
-            So the corner line must be CLOSER to centre than x=41 for the arc to reach it.
-            
-            Corner line connects to arc where: x_corner = 230 - 170 = 60 is max left extent.
-            
-            For NFHS: the corner line is at the lane line extended... actually let me just
-            draw it correctly: corner lines at ~x=50 (left), x=410 (right), from y=15
-            down to where arc hits them.
-            
-            Arc hits x=50: (50-230)^2+(y-40)^2=170^2 → 32400+(y-40)^2=28900 → negative
-            
-            The arc radius (170px = 19.75ft) is LESS than the distance from basket to sideline (215px = 25ft).
-            So the arc never touches the sideline area at all!
-            
-            This means: in NFHS, the 3pt line corners are defined by where the arc 
-            intersects a line parallel to the baseline at a certain depth.
-            
-            For NFHS: the 3pt arc is a full semicircle from corner to corner.
-            The "straight parts" are at the BASELINE level on each side.
-            The arc start/end points are: at the baseline (y=15), tangent from basket.
-            
-            At y=15 (baseline): (x-230)^2 + (15-40)^2 = 170^2
-            (x-230)^2 + 625 = 28900
-            (x-230)^2 = 28275
-            x-230 = ±168.2
-            x = 230 ± 168 → x=62 (left) and x=398 (right)
-            
-            So the arc goes from (62, 15) to (398, 15), sweeping through bottom.
-            No straight corner pieces needed — the arc endpoints ARE on the baseline.
-            
-            Let me draw this properly now.
-      -->
+      <!-- BACKBOARD -->
+      <rect x="204" y="357" width="52" height="6" fill="#7a5c1e" rx="1"/>
+      <!-- BASKET centre (230,340) -->
+      <circle cx="230" cy="340" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <circle cx="230" cy="340" r="3" fill="#7a5c1e"/>
 
-      <!-- 3-POINT ARC: radius=170, centre=(230,40), from (62,15) to (398,15) sweeping down -->
-      <!-- Arc end points: x = 230 ± 168, y=15 -->
-      <path d="M 62 15 A 170 170 0 0 0 398 15" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- RESTRICTED AREA ARC: r=34, centre (230,340), bows upward toward court -->
+      <!-- At y=372: x=230±sqrt(34²-32²)=230±sqrt(1156-1024)=230±11=219,241 -->
+      <path d="M 219 372 A 34 34 0 0 0 241 372" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
 
-      <!-- HALF COURT LINE -->
-      <line x1="15" y1="385" x2="445" y2="385" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- HALF COURT CIRCLE (radius ~6ft = 51px) -->
-      <circle cx="230" cy="385" r="51" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+
+      <!-- 3-POINT ARC: r=170, centre=(230,340), endpoints at baseline y=372
+           x=230±sqrt(170²-32²)=230±sqrt(28900-1024)=230±167=63,397
+           Large arc sweeping CCW (sweep=0, large-arc=1) bows toward half court (upward) -->
+      <path d="M 63 372 A 170 170 0 1 0 397 372" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots layer -->
       <g id="shot-dots"></g>
-
       <!-- Touch ring indicator -->
       <circle id="touch-ring" cx="0" cy="0" r="20" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.3)" stroke-width="2" opacity="0" pointer-events="none"/>
     </svg>
@@ -623,15 +521,22 @@ function changePeriod(d){
   clearInterval(clockInterval); updateClockUI();
   document.getElementById('period-display').textContent=['1ST','2ND','3RD','4TH'][GAME.period-1]||'OT';
 }
+function setPossession(side){
+  GAME.possession=side;
+  updatePossUI();
+  pushEvent(null,side,'possession_flip',null,null);
+}
 function flipPossession(){
   GAME.possession=GAME.possession==='home'?'away':'home';
   updatePossUI();
   pushEvent(null,GAME.possession,'possession_flip',null,null);
 }
 function updatePossUI(){
-  const el=document.getElementById('poss-display');
-  el.className=`poss-arrow ${GAME.possession}`;
-  document.getElementById('poss-label').textContent=GAME[GAME.possession].short;
+  document.getElementById('poss-home').classList.toggle('active-poss', GAME.possession==='home');
+  document.getElementById('poss-away').classList.toggle('active-poss', GAME.possession==='away');
+  // Dim the inactive one
+  document.getElementById('poss-home').style.opacity = GAME.possession==='home' ? '1' : '0.3';
+  document.getElementById('poss-away').style.opacity = GAME.possession==='away' ? '1' : '0.3';
 }
 
 // ── PLAYER PANELS ──
@@ -639,14 +544,8 @@ function renderPlayers(){
   ['home','away'].forEach(side=>{
     const panel=document.getElementById(`${side}-panel`);
     panel.innerHTML='';
+    // Only show on-floor players in the panel
     PLAYERS[side].filter(p=>p.onFloor).forEach(p=>panel.appendChild(makeCard(p,side)));
-    const bench=PLAYERS[side].filter(p=>!p.onFloor);
-    if(bench.length){
-      const lbl=document.createElement('div');
-      lbl.className='bench-label'; lbl.textContent='Bench';
-      panel.appendChild(lbl);
-      bench.forEach(p=>panel.appendChild(makeCard(p,side)));
-    }
   });
 }
 
@@ -760,10 +659,9 @@ function svgPt(e){
   return{x:((s.clientX-r.left)/r.width)*vb.width, y:((s.clientY-r.top)/r.height)*vb.height};
 }
 
-// 3pt detection — basket at (230,40), arc radius=170, arc from x=62 to x=398 at y=15
-// Corner rule: if y < ~15 + something or just use distance from basket
+// 3pt: basket (230,340), arc r=170
 function is3pt(pt){
-  const dx=pt.x-230, dy=pt.y-40;
+  const dx=pt.x-230, dy=pt.y-340;
   return Math.sqrt(dx*dx+dy*dy) > 170;
 }
 
@@ -867,6 +765,8 @@ function recordShot(pt, made, shotType){
     GAME.possession=selTeam==='home'?'away':'home';
     updatePossUI();
   }
+  // Putbacks count as offensive rebounds
+  if(shotType==='putback') selPlayer.reb++;
 
   addDot(pt, made, three, shotType==='putback');
   pushEvent(selPlayer, selTeam, key, pt, three);

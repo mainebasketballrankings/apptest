@@ -33,17 +33,17 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .sb-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:0;}
 
 /* Team half — logo beside name+score stack */
-.sb-team{display:flex;align-items:center;gap:14px;padding:4px 12px 0;}
+.sb-team{display:flex;align-items:center;gap:14px;padding:6px 16px 6px;}
 .sb-team.home{justify-content:flex-start;}
 .sb-team.away{justify-content:flex-end;}
 .sb-logo{width:64px;height:64px;min-width:64px;max-width:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:22px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
-.sb-team-stack{display:flex;flex-direction:column;gap:1px;}
+.sb-team-stack{display:flex;flex-direction:column;gap:0;}
 .sb-team.home .sb-team-stack{align-items:flex-start;}
 .sb-team.away .sb-team-stack{align-items:flex-end;}
-.sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:20px;color:var(--ink);line-height:1.1;}
-.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:56px;line-height:1;color:var(--ink);}
-.sb-meta{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);margin-top:2px;}
+.sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:20px;color:var(--ink);line-height:1.15;}
+.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:54px;line-height:1;color:var(--ink);}
+.sb-meta{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);margin-top:3px;}
 .sb-team.away .sb-meta{justify-content:flex-end;}
 .sb-foul{padding:1px 6px;border-radius:10px;}
 .sb-foul.bonus{background:var(--live);color:#fff;font-weight:600;}
@@ -130,13 +130,37 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 .tp{display:inline-block;background:rgba(255,255,255,.18);border-radius:20px;padding:1px 8px;margin-left:6px;font-family:'DM Mono',monospace;font-size:11px;font-weight:600;}
 
+/* MOBILE STATS STRIP — shown only on mobile instead of shot chart */
+#mobile-stats{display:none;background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;margin-bottom:10px;}
+.mstat-row{display:grid;grid-template-columns:1fr 80px 1fr;border-bottom:1px solid var(--rule2);}
+.mstat-row:last-child{border-bottom:none;}
+.mstat-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);text-align:center;padding:4px 0 3px;background:var(--paper);grid-column:2;}
+.mstat-h,.mstat-a{font-family:'DM Mono',monospace;font-weight:700;font-size:16px;color:var(--ink);text-align:center;padding:4px 8px;display:flex;align-items:center;justify-content:center;}
+.mstat-h{justify-content:flex-end;}
+.mstat-a{justify-content:flex-start;}
+
 /* RESPONSIVE */
-@media(max-width:860px){#main{grid-template-columns:160px 1fr 160px;padding:8px;}}
-@media(max-width:640px){
-  #main{grid-template-columns:1fr;padding:8px;}
-  #court-col{order:1;}#home-panel{order:2;}#away-panel{order:3;}
+@media(max-width:900px){
+  #main{grid-template-columns:180px 1fr 180px;padding:8px;}
+}
+@media(max-width:680px){
+  /* Scoreboard: stack team blocks, smaller text */
+  .sb-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
+  .sb-team.home{grid-column:1;grid-row:1;padding:8px 8px 0;}
+  .sb-team.away{grid-column:2;grid-row:1;padding:8px 8px 0;justify-content:flex-end;}
+  .sb-centre{grid-column:1/-1;grid-row:2;padding:6px 12px 4px;}
+  .sb-logo{width:44px;height:44px;min-width:44px;max-width:44px;font-size:16px;}
+  .sb-name{font-size:15px;}
+  .sb-pts{font-size:42px;}
+  .sb-meta{font-size:9px;}
+
+  /* Main: single column, court hidden, mobile strip shown */
+  #main{grid-template-columns:1fr;padding:8px;gap:8px;}
+  #court-col{display:none;}
+  #mobile-stats{display:block;}
+  #home-panel{order:1;}
+  #away-panel{order:2;}
   .stat-panel{max-height:none;}
-  .sb-pts{font-size:38px;min-width:50px;}
 }
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--rule);border-radius:2px;}
@@ -176,6 +200,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
             <button class="qtab" onclick="setQtab('reb',this)">REB</button>
             <button class="qtab" onclick="setQtab('to',this)">TO</button>
             <button class="qtab" onclick="setQtab('fg',this)">FG%</button>
+            <button class="qtab" onclick="setQtab('3p',this)">3PT%</button>
           </div>
           <div class="qtr-grid">
             <div class="qc lbl"></div>
@@ -213,6 +238,40 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 </div>
 
 <div id="main">
+
+  <!-- MOBILE STATS STRIP (shown instead of court on small screens) -->
+  <div id="mobile-stats">
+    <div class="mstat-row">
+      <div class="mstat-h" id="ms-h-pts">0</div>
+      <div class="mstat-lbl">PTS</div>
+      <div class="mstat-a" id="ms-a-pts">0</div>
+    </div>
+    <div class="mstat-row">
+      <div class="mstat-h" id="ms-h-fg">—</div>
+      <div class="mstat-lbl">FG%</div>
+      <div class="mstat-a" id="ms-a-fg">—</div>
+    </div>
+    <div class="mstat-row">
+      <div class="mstat-h" id="ms-h-3p">—</div>
+      <div class="mstat-lbl">3PT%</div>
+      <div class="mstat-a" id="ms-a-3p">—</div>
+    </div>
+    <div class="mstat-row">
+      <div class="mstat-h" id="ms-h-reb">0</div>
+      <div class="mstat-lbl">REB</div>
+      <div class="mstat-a" id="ms-a-reb">0</div>
+    </div>
+    <div class="mstat-row">
+      <div class="mstat-h" id="ms-h-to">0</div>
+      <div class="mstat-lbl">TO</div>
+      <div class="mstat-a" id="ms-a-to">0</div>
+    </div>
+    <div class="mstat-row">
+      <div class="mstat-h" id="ms-h-fouls">0</div>
+      <div class="mstat-lbl">FOULS</div>
+      <div class="mstat-a" id="ms-a-fouls">0</div>
+    </div>
+  </div>
 
   <!-- HOME STATS (left) -->
   <div class="stat-panel home" id="home-panel">
@@ -338,6 +397,8 @@ const GAME = {
   qto:{  home:[0,0,0,0], away:[0,0,0,0] },
   qfgm:{ home:[0,0,0,0], away:[0,0,0,0] },
   qfga:{ home:[0,0,0,0], away:[0,0,0,0] },
+  qtpm:{ home:[0,0,0,0], away:[0,0,0,0] },
+  qtpa:{ home:[0,0,0,0], away:[0,0,0,0] },
   ts:{ // cumulative team stats
     home:{reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0},
     away:{reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0}
@@ -440,22 +501,27 @@ function renderQtrGrid() {
         el.textContent = GAME.qreb[side][qi];
       } else if (activeQtab==='to') {
         el.textContent = GAME.qto[side][qi];
-      } else { // fg%
+      } else if (activeQtab==='fg') {
         const m=GAME.qfgm[side][qi], a=GAME.qfga[side][qi];
+        el.textContent = a ? Math.round(100*m/a)+'%' : '—';
+      } else { // 3p%
+        const m=GAME.qtpm[side][qi], a=GAME.qtpa[side][qi];
         el.textContent = a ? Math.round(100*m/a)+'%' : '—';
       }
     }
     // Total column
     const totEl = document.getElementById(`q${pre}-tot`);
+    const ts = GAME.ts[side];
     if (activeQtab==='pts') {
       totEl.textContent = GAME[side].score;
     } else if (activeQtab==='reb') {
-      totEl.textContent = GAME.ts[side].reb;
+      totEl.textContent = ts.reb;
     } else if (activeQtab==='to') {
-      totEl.textContent = GAME.ts[side].to;
-    } else {
-      const ts=GAME.ts[side];
+      totEl.textContent = ts.to;
+    } else if (activeQtab==='fg') {
       totEl.textContent = ts.fga ? Math.round(100*ts.fgm/ts.fga)+'%' : '—';
+    } else { // 3p%
+      totEl.textContent = ts.tpa ? Math.round(100*ts.tpm/ts.tpa)+'%' : '—';
     }
   });
 }
@@ -513,6 +579,17 @@ function updPanels(){
       cont.appendChild(div);
     });
   });
+  // Update mobile stats strip
+  const h=GAME.ts.home, a=GAME.ts.away;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('ms-h-pts', GAME.home.score);  set('ms-a-pts', GAME.away.score);
+  set('ms-h-fg',  h.fga?Math.round(100*h.fgm/h.fga)+'%':'—');
+  set('ms-a-fg',  a.fga?Math.round(100*a.fgm/a.fga)+'%':'—');
+  set('ms-h-3p',  h.tpa?Math.round(100*h.tpm/h.tpa)+'%':'—');
+  set('ms-a-3p',  a.tpa?Math.round(100*a.tpm/a.tpa)+'%':'—');
+  set('ms-h-reb', h.reb); set('ms-a-reb', a.reb);
+  set('ms-h-to',  h.to);  set('ms-a-to',  a.to);
+  set('ms-h-fouls', GAME.home.fouls); set('ms-a-fouls', GAME.away.fouls);
 }
 
 function updFeed(){
@@ -563,6 +640,7 @@ function onEvent(e){
   } else if(e.key==='3pt_made'){
     GAME[s].score+=3; GAME.qtrs[s][qi]+=3;
     GAME.qfgm[s][qi]++; GAME.qfga[s][qi]++;
+    GAME.qtpm[s][qi]++; GAME.qtpa[s][qi]++;
     if(p){p.pts+=3;p.fgm++;p.fga++;p.tpm++;p.tpa++;} ts.fgm++;ts.fga++;ts.tpm++;ts.tpa++;
     GAME.possession=opp;
     e.scoreSnap={home:GAME.home.score,away:GAME.away.score};
@@ -576,6 +654,7 @@ function onEvent(e){
     if(p) p.fga++; ts.fga++;
   } else if(e.key==='3pt_miss'){
     GAME.qfga[s][qi]++;
+    GAME.qtpa[s][qi]++;
     if(p){p.fga++;p.tpa++;} ts.fga++;ts.tpa++;
   } else if(e.key==='assist'){
     if(p) p.ast++; ts.ast++;

@@ -7,1016 +7,711 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --ink:#0d1117;
-  --ink2:#2a2f3d;
-  --ink3:#5a6075;
-  --rule:#d8dce8;
-  --rule2:#eceef5;
-  --paper:#f7f8fc;
-  --paper2:#ffffff;
-  --home:#1a56db;
-  --home-lt:#dbeafe;
-  --away:#c0392b;
-  --away-lt:#fee2e2;
-  --green:#15803d;
-  --green-lt:#dcfce7;
-  --gold:#b45309;
-  --gold-lt:#fef3c7;
-  --live:#dc2626;
-  --radius:10px;
+  --ink:#0d1117; --ink2:#2a2f3d; --ink3:#5a6075;
+  --rule:#d8dce8; --rule2:#eceef5;
+  --paper:#f4f5f9; --paper2:#ffffff;
+  --home:#1a56db; --home-lt:#dbeafe;
+  --away:#c0392b; --away-lt:#fee2e2;
+  --green:#15803d; --gold:#b45309;
+  --live:#dc2626; --r:10px;
 }
-
 *{box-sizing:border-box;margin:0;padding:0;}
-body{
-  background:var(--paper);
-  color:var(--ink);
-  font-family:'DM Sans',sans-serif;
-  min-height:100dvh;
-}
+html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;}
 
-/* ── HEADER BAR ── */
-#site-header{
-  background:var(--paper2);
-  border-bottom:2px solid var(--ink);
-  padding:10px 20px;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.mbr-wordmark{
-  font-family:'Playfair Display',serif;
-  font-weight:900;font-size:18px;
-  letter-spacing:-.02em;color:var(--ink);
-  text-decoration:none;
-}
+/* HEADER */
+#site-header{background:var(--paper2);border-bottom:2px solid var(--ink);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.mbr-wordmark{font-family:'Playfair Display',serif;font-weight:900;font-size:17px;color:var(--ink);text-decoration:none;letter-spacing:-.02em;}
 .mbr-wordmark span{color:var(--home);}
-#live-pill{
-  display:flex;align-items:center;gap:6px;
-  background:var(--live);color:#fff;
-  font-size:10px;font-weight:600;letter-spacing:.12em;
-  padding:4px 10px;border-radius:20px;
-  font-family:'DM Mono',monospace;
-}
-#live-dot{
-  width:6px;height:6px;border-radius:50%;
-  background:#fff;
-  animation:pulse 1.4s ease-in-out infinite;
-}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-#live-pill.stale{background:var(--ink3);}
+#live-pill{display:flex;align-items:center;gap:5px;background:var(--live);color:#fff;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;}
+#live-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:blink 1.4s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+#live-pill.final{background:var(--ink3);}
 
-/* ── SCOREBOARD ── */
-#scoreboard{
-  background:var(--paper2);
-  border-bottom:2px solid var(--rule);
-  padding:16px 20px 12px;
-}
-.sb-inner{max-width:900px;margin:0 auto;}
-
-.sb-game-info{
-  text-align:center;margin-bottom:10px;
-  font-family:'DM Mono',monospace;font-size:10px;
-  letter-spacing:.1em;color:var(--ink3);text-transform:uppercase;
-}
-
-.sb-teams{
-  display:grid;
-  grid-template-columns:1fr auto 1fr;
-  align-items:center;
-  gap:12px;
-}
-
-.sb-team{display:flex;flex-direction:column;align-items:center;gap:6px;}
-.sb-team.home{align-items:flex-end;}
-.sb-team.away{align-items:flex-start;}
-
-.sb-logo{
-  width:56px;height:56px;border-radius:50%;
-  object-fit:contain;background:var(--rule2);
-  border:2px solid var(--rule);
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;flex-shrink:0;
-}
-.sb-logo-placeholder{
-  width:56px;height:56px;border-radius:50%;
-  background:var(--rule2);border:2px solid var(--rule);
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Playfair Display',serif;font-weight:700;font-size:18px;
-}
-.sb-team.home .sb-logo-placeholder{color:var(--home);background:var(--home-lt);}
-.sb-team.away .sb-logo-placeholder{color:var(--away);background:var(--away-lt);}
-
-.sb-name{
-  font-family:'Playfair Display',serif;
-  font-weight:700;font-size:13px;
-  text-align:center;color:var(--ink);
-  max-width:130px;line-height:1.2;
-}
-.sb-team.home .sb-name{text-align:right;}
-.sb-team.away .sb-name{text-align:left;}
-
-.sb-fouls{
-  font-family:'DM Mono',monospace;font-size:10px;
-  color:var(--ink3);letter-spacing:.06em;
-}
-.sb-fouls.bonus{color:var(--live);font-weight:600;}
-
-/* Score block */
-.sb-scores{
-  display:flex;flex-direction:column;align-items:center;gap:4px;
-}
-.sb-score-row{
-  display:flex;align-items:center;gap:0;
-}
-.sb-pts{
-  font-family:'Playfair Display',serif;
-  font-weight:900;font-size:64px;line-height:1;
-  min-width:72px;text-align:center;
-}
+/* SCOREBOARD */
+#scoreboard{background:var(--paper2);border-bottom:1.5px solid var(--rule);padding:10px 16px 8px;flex-shrink:0;}
+.sb-inner{max-width:1100px;margin:0 auto;}
+.sb-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;}
+.sb-team{display:flex;align-items:center;gap:10px;}
+.sb-team.home{justify-content:flex-end;}
+.sb-logo{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:16px;overflow:hidden;flex-shrink:0;border:1.5px solid var(--rule);}
+.sb-team.home .sb-logo{color:var(--home);background:var(--home-lt);}
+.sb-team.away .sb-logo{color:var(--away);background:var(--away-lt);}
+.sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
+.sb-team-info{display:flex;flex-direction:column;gap:2px;}
+.sb-team.home .sb-team-info{align-items:flex-end;text-align:right;}
+.sb-name{font-family:'Playfair Display',serif;font-weight:700;font-size:14px;color:var(--ink);line-height:1.2;}
+.sb-meta{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);flex-wrap:wrap;}
+.sb-team.home .sb-meta{justify-content:flex-end;}
+.sb-foul{padding:1px 6px;border-radius:10px;}
+.sb-foul.bonus{background:var(--live);color:#fff;font-weight:600;}
+.sb-centre{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.sb-scores-row{display:flex;align-items:baseline;gap:6px;}
+.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:52px;line-height:1;min-width:64px;text-align:center;}
 .sb-pts.home{color:var(--home);}
 .sb-pts.away{color:var(--away);}
-.sb-sep{
-  font-family:'DM Mono',monospace;
-  font-size:24px;color:var(--rule);
-  padding:0 4px;line-height:1;
-  align-self:center;
-}
-.sb-clock-block{
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-}
-.sb-clock{
-  font-family:'DM Mono',monospace;font-weight:500;
-  font-size:22px;color:var(--ink);
-  background:var(--paper);border:1.5px solid var(--rule);
-  border-radius:6px;padding:3px 12px;letter-spacing:.04em;
-  min-width:80px;text-align:center;
-}
-.sb-clock.running{
-  border-color:var(--green);color:var(--green);
-  background:var(--green-lt);
-}
-.sb-period{
-  font-family:'DM Mono',monospace;font-size:10px;
-  letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;
-}
-.sb-poss{
-  font-size:11px;font-weight:600;letter-spacing:.05em;
-  padding:2px 8px;border-radius:20px;
-  font-family:'DM Mono',monospace;
-}
+.sb-dash{font-family:'DM Mono',monospace;font-size:22px;color:var(--rule);line-height:1;}
+.sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:18px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:2px 10px;letter-spacing:.04em;min-width:70px;text-align:center;}
+.sb-clock.running{border-color:var(--green);color:var(--green);background:#f0fdf4;}
+.sb-period{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;margin-top:1px;}
+.sb-poss{font-size:10px;font-weight:600;letter-spacing:.05em;padding:1px 7px;border-radius:20px;font-family:'DM Mono',monospace;margin-top:2px;}
 .sb-poss.home{background:var(--home-lt);color:var(--home);}
-.sb-poss.home::before{content:'▶  ';}
+.sb-poss.home::before{content:'◀  ';}
 .sb-poss.away{background:var(--away-lt);color:var(--away);}
-.sb-poss.away::after{content:'  ◀';}
+.sb-poss.away::after{content:'  ▶';}
+.sb-qtrs{max-width:460px;margin:7px auto 0;border-top:1px solid var(--rule2);padding-top:6px;}
+.qtr-grid{display:grid;grid-template-columns:72px repeat(4,1fr) 6px 1fr;gap:0;font-family:'DM Mono',monospace;font-size:11px;}
+.qc{padding:2px 5px;text-align:center;color:var(--ink3);}
+.qc.lbl{text-align:left;font-size:10px;letter-spacing:.06em;}
+.qc.tn{font-weight:600;font-size:10px;color:var(--ink2);}
+.qc.hs{color:var(--home);font-weight:600;}
+.qc.as{color:var(--away);font-weight:600;}
+.qc.tot{font-weight:700;color:var(--ink);}
+.qc.hs.tot{color:var(--home);}
+.qc.as.tot{color:var(--away);}
+.qc.sep{background:var(--rule);width:2px;padding:0;}
+.qc.aq{background:var(--rule2);border-radius:4px;color:var(--ink)!important;font-weight:700!important;}
 
-/* Quarter scores */
-.sb-qtrs{
-  max-width:500px;margin:10px auto 0;
-  border-top:1px solid var(--rule2);padding-top:8px;
-}
-.qtr-grid{
-  display:grid;
-  grid-template-columns:auto repeat(5, 1fr);
-  gap:0;font-family:'DM Mono',monospace;font-size:11px;
-}
-.qtr-cell{
-  padding:3px 8px;text-align:center;color:var(--ink3);
-}
-.qtr-cell.label{text-align:left;font-size:10px;letter-spacing:.08em;}
-.qtr-cell.team{font-weight:600;color:var(--ink);font-size:10px;letter-spacing:.06em;}
-.qtr-cell.home-score{color:var(--home);font-weight:600;}
-.qtr-cell.away-score{color:var(--away);font-weight:600;}
-.qtr-cell.total{font-weight:700;border-left:1px solid var(--rule);color:var(--ink);}
-.qtr-cell.home-score.total{color:var(--home);}
-.qtr-cell.away-score.total{color:var(--away);}
-.qtr-cell.active-q{
-  background:var(--rule2);border-radius:4px;
-  color:var(--ink)!important;font-weight:700!important;
-}
+/* MAIN 3-COL */
+#main{display:grid;grid-template-columns:210px 1fr 210px;gap:0;flex:1;min-height:0;max-width:1100px;margin:0 auto;width:100%;padding:12px 12px 12px;box-sizing:border-box;align-items:start;}
 
-/* ── MAIN LAYOUT ── */
-#main{
-  max-width:900px;margin:0 auto;
-  padding:16px;
-  display:grid;
-  grid-template-columns:1fr 340px;
-  grid-template-rows:auto 1fr;
-  gap:16px;
-}
+/* STAT PANELS */
+.stat-panel{display:flex;flex-direction:column;overflow-y:auto;max-height:calc(100dvh - 280px);border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;}
+.panel-hdr{font-family:'Playfair Display',serif;font-weight:700;font-size:12px;padding:8px 10px 5px;border-bottom:1.5px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--paper2);}
+.panel-hdr.hh{color:var(--home);}
+.panel-hdr.ah{color:var(--away);}
+.panel-hdr-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);font-weight:400;}
+.team-summary{display:flex;padding:5px 6px;background:var(--paper);border-bottom:1px solid var(--rule2);}
+.ts-stat{display:flex;flex-direction:column;align-items:center;flex:1;}
+.ts-val{font-weight:700;font-size:13px;color:var(--ink);}
+.ts-lbl{font-size:8px;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;}
+.pl-rows{overflow-y:auto;flex:1;}
+.pl-row{padding:6px 10px;border-bottom:1px solid var(--rule2);background:var(--paper2);}
+.pl-row.bench{opacity:.5;}
+.pl-top{display:flex;align-items:baseline;justify-content:space-between;gap:4px;margin-bottom:2px;}
+.pl-ident{display:flex;align-items:baseline;gap:3px;min-width:0;overflow:hidden;}
+.pl-num{font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);flex-shrink:0;}
+.pl-name{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pl-pts{font-family:'Playfair Display',serif;font-weight:700;font-size:17px;line-height:1;flex-shrink:0;}
+.home .pl-pts{color:var(--home);}
+.away .pl-pts{color:var(--away);}
+.pl-stats{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);margin-bottom:3px;}
+.pl-stats span{color:var(--ink2);}
+.pl-fouls{display:flex;gap:2px;}
+.pl-fd{width:6px;height:6px;border-radius:50%;background:var(--rule);}
+.pl-fd.on{background:var(--gold);}
 
-/* ── COURT ── */
-#court-section{
-  background:var(--paper2);
-  border:1.5px solid var(--rule);
-  border-radius:var(--radius);
-  overflow:hidden;
-  grid-column:1;grid-row:1 / 3;
-}
-.section-hdr{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:10px 14px;border-bottom:1.5px solid var(--rule);
-}
-.section-title{
-  font-family:'Playfair Display',serif;font-weight:700;
-  font-size:13px;color:var(--ink);letter-spacing:.01em;
-}
-.shot-legend{
-  display:flex;gap:10px;align-items:center;
-  font-size:10px;color:var(--ink3);font-family:'DM Mono',monospace;
-}
-.leg-item{display:flex;align-items:center;gap:4px;}
-.leg-dot{width:8px;height:8px;border-radius:50%;border:1px solid rgba(0,0,0,.2);}
-
-#court-svg-wrap{
-  padding:10px;
-  aspect-ratio:460/380;
-}
+/* COURT */
+#court-col{display:flex;flex-direction:column;gap:10px;}
+#court-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;}
+#court-svg-wrap{width:100%;aspect-ratio:800/380;padding:6px;}
 #fsvg{width:100%;height:100%;display:block;}
+#court-legend{display:flex;align-items:center;justify-content:center;gap:16px;padding:5px 10px;border-top:1px solid var(--rule2);font-size:10px;color:var(--ink3);font-family:'DM Mono',monospace;}
+.leg{display:flex;align-items:center;gap:4px;}
+.leg-dot{width:8px;height:8px;border-radius:50%;border:1px solid rgba(0,0,0,.12);}
 
-/* ── SIDE COLUMN ── */
-#side-col{
-  grid-column:2;
-  display:flex;flex-direction:column;gap:16px;
-  min-height:0;
-}
+/* FEED */
+#feed-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;max-height:190px;}
+.feed-hdr{font-family:'Playfair Display',serif;font-weight:700;font-size:12px;padding:7px 12px;border-bottom:1px solid var(--rule2);flex-shrink:0;color:var(--ink);}
+#feed-list{overflow-y:auto;flex:1;}
+.fr{display:flex;align-items:flex-start;gap:8px;padding:5px 12px;border-bottom:1px solid var(--rule2);transition:background .5s;}
+.fr.new{background:#fefce8;}
+.fr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.fr-body{flex:1;}
+.fr-desc{font-size:11px;color:var(--ink);line-height:1.3;}
+.fr-desc b{font-weight:600;}
+.fr-meta{font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);margin-top:1px;}
+.fr-score{font-family:'DM Mono',monospace;font-size:10px;font-weight:600;align-self:center;flex-shrink:0;white-space:nowrap;}
 
-/* Box score */
-#box-section{
-  background:var(--paper2);
-  border:1.5px solid var(--rule);
-  border-radius:var(--radius);
-  overflow:hidden;
-  flex:1;
-  min-height:0;
-  display:flex;flex-direction:column;
-}
-.box-tabs{
-  display:flex;border-bottom:1.5px solid var(--rule);
-}
-.btab{
-  flex:1;padding:8px;text-align:center;
-  font-family:'DM Mono',monospace;font-size:10px;
-  letter-spacing:.08em;text-transform:uppercase;
-  cursor:pointer;border:none;background:none;
-  color:var(--ink3);font-weight:500;
-  border-bottom:2px solid transparent;
-  transition:color .15s;
-  margin-bottom:-1.5px;
-}
-.btab.home.active{color:var(--home);border-bottom-color:var(--home);}
-.btab.away.active{color:var(--away);border-bottom-color:var(--away);}
-.btab:not(.active):hover{color:var(--ink);}
+/* TOAST */
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--ink);color:#fff;font-size:13px;font-weight:500;padding:9px 18px;border-radius:30px;box-shadow:0 4px 18px rgba(0,0,0,.22);z-index:300;transition:transform .3s cubic-bezier(.34,1.35,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.tp{display:inline-block;background:rgba(255,255,255,.18);border-radius:20px;padding:1px 8px;margin-left:6px;font-family:'DM Mono',monospace;font-size:11px;font-weight:600;}
 
-.box-scroll{overflow-y:auto;flex:1;min-height:0;}
-.box-table{width:100%;border-collapse:collapse;font-size:11px;}
-.box-table th{
-  position:sticky;top:0;
-  background:var(--paper);
-  font-family:'DM Mono',monospace;font-size:9px;
-  letter-spacing:.08em;text-transform:uppercase;
-  color:var(--ink3);padding:5px 6px;
-  text-align:right;border-bottom:1px solid var(--rule);
-  font-weight:500;
+/* RESPONSIVE */
+@media(max-width:860px){#main{grid-template-columns:160px 1fr 160px;padding:8px;}}
+@media(max-width:640px){
+  #main{grid-template-columns:1fr;padding:8px;}
+  #court-col{order:1;}#home-panel{order:2;}#away-panel{order:3;}
+  .stat-panel{max-height:none;}
+  .sb-pts{font-size:38px;min-width:50px;}
 }
-.box-table th:first-child{text-align:left;}
-.box-table td{
-  padding:5px 6px;text-align:right;
-  border-bottom:1px solid var(--rule2);
-  color:var(--ink2);font-family:'DM Mono',monospace;
-}
-.box-table td:first-child{text-align:left;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--ink);}
-.box-table tr:last-child td{border-bottom:none;font-weight:700;background:var(--rule2);}
-.box-table td.hi{color:var(--home);font-weight:700;}
-.box-table td.ha{color:var(--away);font-weight:700;}
-.box-bench td{opacity:.55;}
-.box-bench td:first-child{font-weight:500;}
-
-/* Play by play */
-#feed-section{
-  background:var(--paper2);
-  border:1.5px solid var(--rule);
-  border-radius:var(--radius);
-  overflow:hidden;
-  display:flex;flex-direction:column;
-  max-height:260px;
-}
-.feed-scroll{overflow-y:auto;flex:1;}
-.feed-row{
-  display:flex;align-items:flex-start;gap:8px;
-  padding:7px 12px;border-bottom:1px solid var(--rule2);
-  transition:background .3s;
-}
-.feed-row.new-evt{background:var(--gold-lt);}
-.feed-dot{
-  width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px;
-}
-.feed-body{flex:1;}
-.feed-desc{font-size:12px;color:var(--ink);line-height:1.35;}
-.feed-desc strong{font-weight:600;}
-.feed-meta{
-  font-family:'DM Mono',monospace;font-size:9px;
-  color:var(--ink3);margin-top:1px;letter-spacing:.04em;
-}
-.feed-pts{
-  font-family:'DM Mono',monospace;font-size:10px;
-  font-weight:600;flex-shrink:0;white-space:nowrap;
-  align-self:center;
-}
-
-/* ── LAST PLAY TOAST ── */
-#last-play{
-  position:fixed;bottom:20px;left:50%;
-  transform:translateX(-50%) translateY(80px);
-  background:var(--ink);color:#fff;
-  font-size:13px;font-weight:500;
-  padding:10px 20px;border-radius:30px;
-  box-shadow:0 4px 20px rgba(0,0,0,.25);
-  z-index:200;
-  transition:transform .3s cubic-bezier(.34,1.4,.64,1), opacity .3s;
-  opacity:0;pointer-events:none;
-  white-space:nowrap;max-width:90vw;
-  text-overflow:ellipsis;overflow:hidden;
-  font-family:'DM Sans',sans-serif;
-}
-#last-play.show{
-  transform:translateX(-50%) translateY(0);
-  opacity:1;
-}
-#last-play .lp-pts{
-  display:inline-block;
-  background:rgba(255,255,255,.18);
-  border-radius:20px;padding:1px 8px;margin-left:6px;
-  font-family:'DM Mono',monospace;font-size:11px;font-weight:600;
-}
-
-/* ── RESPONSIVE ── */
-@media(max-width:720px){
-  #main{
-    grid-template-columns:1fr;
-    grid-template-rows:auto auto auto;
-    padding:10px;gap:12px;
-  }
-  #court-section{grid-column:1;grid-row:1;}
-  #side-col{grid-column:1;grid-row:2 / 4;max-height:none;}
-  #feed-section{max-height:200px;}
-  .sb-pts{font-size:48px;}
-  .sb-logo-placeholder{width:44px;height:44px;font-size:14px;}
-  .sb-name{font-size:12px;}
-}
-
-@media(max-width:420px){
-  .sb-pts{font-size:38px;}
-  .sb-name{max-width:100px;font-size:11px;}
-  .sb-logo-placeholder{width:36px;height:36px;font-size:12px;}
-  #scoreboard{padding:12px 12px 10px;}
-}
-
-/* Scrollbars */
-::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--rule);border-radius:2px;}
 </style>
 </head>
-<body>
+<body style="display:flex;flex-direction:column;min-height:100dvh;">
 
-<!-- SITE HEADER -->
 <header id="site-header">
   <a class="mbr-wordmark" href="#">MBR<span>·</span>LIVE</a>
-  <div id="live-pill">
-    <div id="live-dot"></div>
-    <span id="live-label">LIVE</span>
-  </div>
+  <div id="live-pill"><div id="live-dot"></div><span id="live-lbl">LIVE</span></div>
 </header>
 
-<!-- SCOREBOARD -->
 <div id="scoreboard">
   <div class="sb-inner">
-    <div class="sb-game-info" id="game-info">Class B Boys · Regional Final</div>
-    <div class="sb-teams">
-      <!-- Home -->
+    <div class="sb-row">
       <div class="sb-team home">
-        <div class="sb-logo-placeholder" id="home-logo">C</div>
-        <div class="sb-name" id="home-name">Camden Hills</div>
-        <div class="sb-fouls" id="home-fouls-display">0 fouls</div>
+        <div class="sb-team-info">
+          <div class="sb-name" id="home-name">Camden Hills</div>
+          <div class="sb-meta">
+            <span class="sb-foul" id="home-foul-lbl">0 fouls</span>
+            <span id="home-to-lbl">5 TO left</span>
+          </div>
+        </div>
+        <div class="sb-logo" id="home-logo">C</div>
       </div>
-
-      <!-- Score + clock -->
-      <div class="sb-scores">
-        <div class="sb-score-row">
+      <div class="sb-centre">
+        <div class="sb-scores-row">
           <div class="sb-pts home" id="home-score">0</div>
-          <div class="sb-sep">–</div>
+          <div class="sb-dash">–</div>
           <div class="sb-pts away" id="away-score">0</div>
         </div>
-        <div class="sb-clock-block">
-          <div class="sb-clock" id="fan-clock">8:00</div>
-          <div class="sb-period" id="fan-period">1st Quarter</div>
-        </div>
-        <div class="sb-poss home" id="poss-display">CAMDEN</div>
+        <div class="sb-clock" id="fan-clock">8:00</div>
+        <div class="sb-period" id="fan-period">1st Quarter</div>
+        <div class="sb-poss home" id="poss-disp">CAM</div>
       </div>
-
-      <!-- Away -->
       <div class="sb-team away">
-        <div class="sb-logo-placeholder" id="away-logo">C</div>
-        <div class="sb-name" id="away-name">Cape Elizabeth</div>
-        <div class="sb-fouls" id="away-fouls-display">0 fouls</div>
+        <div class="sb-logo" id="away-logo">C</div>
+        <div class="sb-team-info">
+          <div class="sb-name" id="away-name">Cape Elizabeth</div>
+          <div class="sb-meta">
+            <span class="sb-foul" id="away-foul-lbl">0 fouls</span>
+            <span id="away-to-lbl">5 TO left</span>
+          </div>
+        </div>
       </div>
     </div>
-
-    <!-- Quarter scores -->
     <div class="sb-qtrs">
-      <div class="qtr-grid" id="qtr-grid">
-        <div class="qtr-cell label"></div>
-        <div class="qtr-cell">Q1</div>
-        <div class="qtr-cell">Q2</div>
-        <div class="qtr-cell">Q3</div>
-        <div class="qtr-cell">Q4</div>
-        <div class="qtr-cell total">TOT</div>
-        <!-- home row -->
-        <div class="qtr-cell team" id="qtr-home-label">CAM</div>
-        <div class="qtr-cell home-score" id="qh1">—</div>
-        <div class="qtr-cell home-score" id="qh2">—</div>
-        <div class="qtr-cell home-score" id="qh3">—</div>
-        <div class="qtr-cell home-score" id="qh4">—</div>
-        <div class="qtr-cell home-score total" id="qh-tot">0</div>
-        <!-- away row -->
-        <div class="qtr-cell team" id="qtr-away-label">CAP</div>
-        <div class="qtr-cell away-score" id="qa1">—</div>
-        <div class="qtr-cell away-score" id="qa2">—</div>
-        <div class="qtr-cell away-score" id="qa3">—</div>
-        <div class="qtr-cell away-score" id="qa4">—</div>
-        <div class="qtr-cell away-score total" id="qa-tot">0</div>
+      <div class="qtr-grid">
+        <div class="qc lbl"></div>
+        <div class="qc">Q1</div><div class="qc">Q2</div><div class="qc">Q3</div><div class="qc">Q4</div>
+        <div class="qc sep"></div><div class="qc lbl" style="font-weight:700;color:var(--ink2)">TOT</div>
+        <div class="qc tn" id="qhl">CAM</div>
+        <div class="qc hs" id="qh1">—</div><div class="qc hs" id="qh2">—</div><div class="qc hs" id="qh3">—</div><div class="qc hs" id="qh4">—</div>
+        <div class="qc sep"></div><div class="qc hs tot" id="qh-tot">0</div>
+        <div class="qc tn" id="qal">CAP</div>
+        <div class="qc as" id="qa1">—</div><div class="qc as" id="qa2">—</div><div class="qc as" id="qa3">—</div><div class="qc as" id="qa4">—</div>
+        <div class="qc sep"></div><div class="qc as tot" id="qa-tot">0</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MAIN CONTENT -->
 <div id="main">
 
-  <!-- SHOT CHART -->
-  <div id="court-section">
-    <div class="section-hdr">
-      <div class="section-title">Shot Chart</div>
-      <div class="shot-legend">
-        <div class="leg-item"><div class="leg-dot" style="background:#15803d"></div>2PT</div>
-        <div class="leg-item"><div class="leg-dot" style="background:#b45309"></div>3PT</div>
-        <div class="leg-item"><div class="leg-dot" style="background:#a78bfa"></div>PB</div>
-        <div class="leg-item"><div style="color:#c0392b;font-size:13px;line-height:1;">×</div>Miss</div>
+  <!-- HOME STATS (left) -->
+  <div class="stat-panel home" id="home-panel">
+    <div class="panel-hdr hh">
+      <span id="home-panel-name">Camden Hills</span>
+      <span class="panel-hdr-sub" id="home-fg-sub">0/0 FG</span>
+    </div>
+    <div class="team-summary" id="home-team-sum"></div>
+    <div class="pl-rows" id="home-pl-rows"></div>
+  </div>
+
+  <!-- COURT + FEED -->
+  <div id="court-col">
+    <div id="court-wrap">
+      <div id="court-svg-wrap">
+        <!--
+          FULL COURT: 800×380 viewBox
+          Left half  — HOME attacks LEFT basket (cx=23, cy=190)
+          Right half — AWAY attacks RIGHT basket (cx=777, cy=190)
+          Centre line: x=400
+
+          Shot coordinate transform from scorer (460×380, basket at top y≈25, x=230):
+            HOME → LEFT:  fan_x = (sy/380)*400    fan_y = (sx/460)*380
+            AWAY → RIGHT: fan_x = 800-(sy/380)*400  fan_y = (sx/460)*380
+        -->
+        <svg id="fsvg" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+          <!-- Floor -->
+          <rect width="800" height="380" fill="#c9a96e"/>
+          <!-- Boundary -->
+          <rect x="8" y="8" width="784" height="364" fill="none" stroke="#7a5c1e" stroke-width="3" rx="2"/>
+          <!-- Centre line + circle -->
+          <line x1="400" y1="8" x2="400" y2="372" stroke="#7a5c1e" stroke-width="2"/>
+          <circle cx="400" cy="190" r="44" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+          <circle cx="400" cy="190" r="3" fill="#7a5c1e"/>
+
+          <!-- HOME HALF (left, basket on left wall) -->
+          <!-- Paint: key is 163px deep, 122px wide, centred at y=190 -->
+          <rect x="8" y="129" width="163" height="122" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
+          <line x1="8" y1="152" x2="171" y2="152" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <line x1="8" y1="228" x2="171" y2="228" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <rect x="8" y="167" width="5" height="46" fill="#7a5c1e" rx="1"/><!-- backboard -->
+          <circle cx="23" cy="190" r="10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+          <circle cx="23" cy="190" r="3" fill="#7a5c1e"/>
+          <line x1="171" y1="129" x2="171" y2="251" stroke="#7a5c1e" stroke-width="2"/><!-- FT line -->
+          <!-- FT circle: centre (171,190) r=59. Right arc solid, left dashed -->
+          <path d="M 171 131 A 59 59 0 0 1 171 249" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+          <path d="M 171 131 A 59 59 0 0 0 171 249" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
+          <!-- 3pt arc: full circle clipped to left half. Centre offset so arc matches scorer geometry. -->
+          <!-- Scorer: basket at (230,25), arc r=176.1 from centre (230,55.9). -->
+          <!-- Transformed to left half: basket at (23,190). Arc centre maps from (230,55.9): -->
+          <!--   fan_x = (55.9/380)*400 = 58.8   fan_y = (230/460)*380 = 190  -->
+          <clipPath id="hclip"><rect x="8" y="8" width="392" height="364"/></clipPath>
+          <circle cx="59" cy="190" r="176" fill="none" stroke="#7a5c1e" stroke-width="2.5" clip-path="url(#hclip)"/>
+          <!-- Restricted area arc -->
+          <path d="M 23 157 A 33 33 0 0 1 23 223" fill="none" stroke="#7a5c1e" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+          <!-- AWAY HALF (right, basket on right wall — mirror of home) -->
+          <rect x="629" y="129" width="163" height="122" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
+          <line x1="629" y1="152" x2="792" y2="152" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <line x1="629" y1="228" x2="792" y2="228" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+          <rect x="787" y="167" width="5" height="46" fill="#7a5c1e" rx="1"/>
+          <circle cx="777" cy="190" r="10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+          <circle cx="777" cy="190" r="3" fill="#7a5c1e"/>
+          <line x1="629" y1="129" x2="629" y2="251" stroke="#7a5c1e" stroke-width="2"/>
+          <path d="M 629 131 A 59 59 0 0 0 629 249" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+          <path d="M 629 131 A 59 59 0 0 1 629 249" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
+          <clipPath id="aclip"><rect x="400" y="8" width="392" height="364"/></clipPath>
+          <circle cx="741" cy="190" r="176" fill="none" stroke="#7a5c1e" stroke-width="2.5" clip-path="url(#aclip)"/>
+          <path d="M 777 157 A 33 33 0 0 0 777 223" fill="none" stroke="#7a5c1e" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+          <!-- Shot dots -->
+          <g id="home-dots"></g>
+          <g id="away-dots"></g>
+        </svg>
+      </div>
+      <div id="court-legend">
+        <div class="leg"><div class="leg-dot" style="background:#15803d"></div>2pt made</div>
+        <div class="leg"><div class="leg-dot" style="background:#b45309"></div>3pt made</div>
+        <div class="leg"><div class="leg-dot" style="background:#a78bfa"></div>Putback</div>
+        <div class="leg" style="gap:3px"><span style="font-size:14px;color:#c0392b;line-height:1">×</span>Miss</div>
       </div>
     </div>
-    <div id="court-svg-wrap">
-      <svg id="fsvg" viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet">
-        <!-- Floor -->
-        <rect width="460" height="380" fill="#c9a96e"/>
-        <!-- Boundary -->
-        <rect x="15" y="10" width="430" height="362" fill="none" stroke="#7a5c1e" stroke-width="3" rx="2"/>
-        <!-- Half court -->
-        <line x1="15" y1="372" x2="445" y2="372" stroke="#7a5c1e" stroke-width="2"/>
-        <circle cx="230" cy="372" r="44" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-        <!-- Key -->
-        <rect x="169" y="10" width="122" height="163" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
-        <line x1="192" y1="10" x2="192" y2="173" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-        <line x1="268" y1="10" x2="268" y2="173" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-        <!-- Backboard + basket -->
-        <rect x="207" y="10" width="46" height="5" fill="#7a5c1e" rx="1"/>
-        <circle cx="230" cy="25" r="10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-        <circle cx="230" cy="25" r="3" fill="#7a5c1e"/>
-        <!-- FT line + circle -->
-        <line x1="169" y1="173" x2="291" y2="173" stroke="#7a5c1e" stroke-width="2"/>
-        <path d="M 171 173 A 59 59 0 0 0 289 173" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-        <path d="M 171 173 A 59 59 0 0 1 289 173" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
-        <!-- 3pt arc (locked polyline from scorer) -->
-        <clipPath id="fc-clip"><rect x="15" y="10" width="430" height="362"/></clipPath>
-        <polyline clip-path="url(#fc-clip)" points="85.7,-45.1 83.2,-41.3 80.7,-37.4 78.3,-33.5 76.0,-29.5 73.8,-25.4 71.7,-21.3 69.8,-17.1 67.9,-12.9 66.2,-8.6 64.5,-4.3 63.0,0.0 61.6,4.4 60.3,8.8 59.1,13.3 58.1,17.8 57.1,22.3 56.3,26.8 55.6,31.4 55.0,36.0 54.6,40.6 54.2,45.1 54.0,49.8 53.9,54.4 53.9,59.0 54.1,63.6 54.3,68.2 54.7,72.8 55.2,77.4 55.8,81.9 56.6,86.5 57.4,91.0 58.4,95.5 59.5,100.0 60.7,104.4 62.1,108.9 63.5,113.2 65.1,117.6 66.7,121.9 68.5,126.1 70.4,130.3 72.4,134.5 74.5,138.6 76.7,142.6 79.1,146.6 81.5,150.5 84.0,154.4 86.6,158.2 89.4,161.9 92.2,165.5 95.1,169.1 98.1,172.6 101.2,176.0 104.4,179.3 107.7,182.6 111.0,185.7 114.5,188.8 118.0,191.8 121.6,194.7 125.3,197.5 129.0,200.2 132.8,202.7 136.7,205.2 140.6,207.6 144.6,209.9 148.7,212.1 152.8,214.2 157.0,216.1 161.2,218.0 165.5,219.7 169.8,221.4 174.1,222.9 178.5,224.3 182.9,225.6 187.4,226.8 191.9,227.8 196.4,228.8 200.9,229.6 205.5,230.3 210.1,230.9 214.7,231.3 219.2,231.7 223.9,231.9 228.5,232.0 233.1,232.0 237.7,231.8 242.3,231.6 246.9,231.2 251.5,230.7 256.0,230.1 260.6,229.3 265.1,228.5 269.6,227.5 274.1,226.4 278.5,225.2 283.0,223.8 287.3,222.4 291.7,220.8 296.0,219.2 300.2,217.4 304.4,215.5 308.6,213.5 312.7,211.4 316.7,209.2 320.7,206.8 324.6,204.4 328.5,201.9 332.3,199.3 336.0,196.5 339.6,193.7 343.2,190.8 346.7,187.8 350.1,184.7 353.4,181.5 356.7,178.2 359.8,174.9 362.9,171.4 365.9,167.9 368.8,164.3 371.6,160.6 374.3,156.9 376.8,153.1 379.3,149.2 381.7,145.3 384.0,141.3 386.2,137.2 388.3,133.1 390.2,128.9 392.1,124.7 393.8,120.4 395.5,116.1 397.0,111.8 398.4,107.4 399.7,103.0 400.9,98.5 401.9,94.0 402.9,89.5 403.7,85.0 404.4,80.4 405.0,75.8 405.4,71.2 405.8,66.7 406.0,62.0 406.1,57.4 406.1,52.8 405.9,48.2 405.7,43.6 405.3,39.0 404.8,34.4 404.2,29.9 403.4,25.3 402.6,20.8 401.6,16.3 400.5,11.8 399.3,7.4 397.9,2.9 396.5,-1.4 394.9,-5.8 393.3,-10.1 391.5,-14.3 389.6,-18.5 387.6,-22.7 385.5,-26.8 383.3,-30.8 380.9,-34.8 378.5,-38.7 376.0,-42.6" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-        <!-- Shot dots populated by JS -->
-        <g id="fan-dots"></g>
-      </svg>
+    <div id="feed-wrap">
+      <div class="feed-hdr">Play by Play</div>
+      <div id="feed-list"></div>
     </div>
   </div>
 
-  <!-- SIDE COLUMN -->
-  <div id="side-col">
-
-    <!-- BOX SCORE -->
-    <div id="box-section">
-      <div class="box-tabs">
-        <button class="btab home active" onclick="showBox('home')">Camden Hills</button>
-        <button class="btab away" onclick="showBox('away')">Cape Elizabeth</button>
-      </div>
-      <div class="box-scroll">
-        <table class="box-table" id="box-table">
-          <thead>
-            <tr>
-              <th>Player</th><th>PTS</th><th>REB</th><th>AST</th><th>FG</th><th>3P</th><th>FLS</th>
-            </tr>
-          </thead>
-          <tbody id="box-body"></tbody>
-        </table>
-      </div>
+  <!-- AWAY STATS (right) -->
+  <div class="stat-panel away" id="away-panel">
+    <div class="panel-hdr ah">
+      <span id="away-panel-name">Cape Elizabeth</span>
+      <span class="panel-hdr-sub" id="away-fg-sub">0/0 FG</span>
     </div>
-
-    <!-- PLAY BY PLAY -->
-    <div id="feed-section">
-      <div class="section-hdr" style="flex-shrink:0;">
-        <div class="section-title">Play by Play</div>
-      </div>
-      <div class="feed-scroll" id="feed-scroll">
-        <div id="feed-list"></div>
-      </div>
-    </div>
-
+    <div class="team-summary" id="away-team-sum"></div>
+    <div class="pl-rows" id="away-pl-rows"></div>
   </div>
+
 </div>
 
-<!-- LAST PLAY TOAST -->
-<div id="last-play"></div>
+<div id="toast"></div>
 
 <script>
-// ════════════════════════════════════════════════
-//  DATA SEAM — swap connectGame() for Supabase
-//  realtime subscription when scorer integration
-//  is ready. Shape of onEvent(evt) is identical
-//  to the scorer's pushEvt() event object.
-// ════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  DATA SEAM — onEvent(e) is the single intake point.
+//  Replace runSim() with connectGame(gameId) → Supabase
+//  realtime subscription when scorer integration is ready.
+//  Event object shape is identical to scorer's pushEvt.
+// ══════════════════════════════════════════════════════
 
-// ── GAME STATE ──────────────────────────────────
 const GAME = {
-  home: { name:'Camden Hills', short:'CAM', score:0, fouls:0, tof:3, to3:2 },
-  away: { name:'Cape Elizabeth', short:'CAP', score:0, fouls:0, tof:3, to3:2 },
-  period: 1,
-  clockSec: 480,
-  running: false,
-  possession: 'home',
-  // quarter scores: qtrs[side][1..4]
-  qtrs: { home:[0,0,0,0], away:[0,0,0,0] },
-  prevQtrs: { home:[0,0,0,0], away:[0,0,0,0] }
+  home:{ name:'Camden Hills', short:'CAM', score:0, fouls:0, tof:3, to3:2 },
+  away:{ name:'Cape Elizabeth', short:'CAP', score:0, fouls:0, tof:3, to3:2 },
+  period:1, clockSec:480, running:false, possession:'home',
+  qtrs:{ home:[0,0,0,0], away:[0,0,0,0] },
+  ts:{ // team stats
+    home:{reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0},
+    away:{reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0}
+  }
 };
 
 const PL = {
   home:[
-    {id:'h1',fi:'H',last:'Stewart',   num:4,  pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'h2',fi:'S',last:'Johnson',   num:10, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'h3',fi:'K',last:'Melquist',  num:11, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'h4',fi:'H',last:'Schwalm',   num:12, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'h5',fi:'T',last:'Leadbetter',num:15, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'h6',fi:'E',last:'Stearns',   num:22, pts:0,reb:0,ast:0,fouls:0,on:false, fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'h7',fi:'M',last:'Webb',      num:3,  pts:0,reb:0,ast:0,fouls:0,on:false, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'h1',fi:'H',last:'Stewart',   num:4,  pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'h2',fi:'S',last:'Johnson',   num:10, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'h3',fi:'K',last:'Melquist',  num:11, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'h4',fi:'H',last:'Schwalm',   num:12, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'h5',fi:'T',last:'Leadbetter',num:15, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'h6',fi:'E',last:'Stearns',   num:22, pts:0,reb:0,ast:0,fouls:0,on:false,fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'h7',fi:'M',last:'Webb',      num:3,  pts:0,reb:0,ast:0,fouls:0,on:false,fgm:0,fga:0,tpm:0,tpa:0},
   ],
   away:[
-    {id:'a1',fi:'L',last:'Lombardo',   num:10, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'a2',fi:'C',last:'Wannemacher',num:11, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'a3',fi:'J',last:'Rosen',      num:14, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'a4',fi:'E',last:'Morse',      num:20, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'a5',fi:'O',last:'Beaureguard',num:23, pts:0,reb:0,ast:0,fouls:0,on:true,  fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'a6',fi:'F',last:'Casey',      num:5,  pts:0,reb:0,ast:0,fouls:0,on:false, fgm:0,fga:0,tpm:0,tpa:0},
-    {id:'a7',fi:'D',last:'Park',       num:33, pts:0,reb:0,ast:0,fouls:0,on:false, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'a1',fi:'L',last:'Lombardo',   num:10, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'a2',fi:'C',last:'Wannemacher',num:11, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'a3',fi:'J',last:'Rosen',      num:14, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'a4',fi:'E',last:'Morse',      num:20, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'a5',fi:'O',last:'Beaureguard',num:23, pts:0,reb:0,ast:0,fouls:0,on:true, fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'a6',fi:'F',last:'Casey',      num:5,  pts:0,reb:0,ast:0,fouls:0,on:false,fgm:0,fga:0,tpm:0,tpa:0},
+    {id:'a7',fi:'D',last:'Park',       num:33, pts:0,reb:0,ast:0,fouls:0,on:false,fgm:0,fga:0,tpm:0,tpa:0},
   ]
 };
 
-let evts = [];
-let boxSide = 'home';
-let toastTimer = null;
-
-// ── HELPERS ─────────────────────────────────────
-const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
-const findP = (pid, side) => PL[side]?.find(p => p.id === pid);
+let evts=[], toastTmr=null;
+const fmt = s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const findP = (pid,side)=>PL[side]?.find(p=>p.id===pid);
 const PERIODS = ['1st Quarter','2nd Quarter','3rd Quarter','4th Quarter','Overtime'];
 const KLBL = {
-  '2pt_made':'2-pt basket','2pt_miss':'2-pt miss','3pt_made':'3-pt basket','3pt_miss':'3-pt miss',
+  '2pt_made':'2-pt basket','2pt_miss':'2-pt miss','3pt_made':'3-pointer','3pt_miss':'3-pt miss',
   'putback_made':'Putback','putback_miss':'Putback miss',
-  'o_reb':'Offensive rebound','d_reb':'Defensive rebound',
-  'assist':'Assist','steal':'Steal','block':'Block',
-  'turnover':'Turnover','foul_personal':'Personal foul',
-  'foul_offensive':'Offensive foul','foul_flagrant':'Flagrant foul',
-  'foul_technical':'Technical foul','foul_intentional':'Intentional foul',
-  'charge_taken':'Charge taken','deflection':'Deflection',
+  'o_reb':'Off. rebound','d_reb':'Def. rebound','assist':'Assist',
+  'steal':'Steal','block':'Block','turnover':'Turnover',
+  'foul_personal':'Personal foul','foul_offensive':'Offensive foul',
+  'foul_flagrant':'Flagrant foul','foul_technical':'Technical foul',
+  'foul_intentional':'Intentional foul','charge_taken':'Charge taken','deflection':'Deflection',
   'timeout_full':'Full timeout','timeout_30sec':'30-sec timeout',
-  'ft_made':'Free throw made','ft_miss':'Free throw missed',
-  'sub_in':'Substitution in','sub_out':'Substitution out',
-  'possession_flip':'Ball possession',
+  'ft_made':'Free throw made','ft_miss':'FT missed',
+  'sub_in':'Sub in','sub_out':'Sub out','possession_flip':'Ball possession',
 };
-function describeEvt(e) {
-  const who = e.pnum ? `#${e.pnum} ${e.pfi}.${e.plast}` : GAME[e.side]?.name || '';
-  if (e.key === 'possession_flip') return `${GAME[e.side]?.name} ball`;
-  const action = KLBL[e.key] || e.key;
-  return who ? `${who} — ${action}` : action;
+
+// ── COORDINATE TRANSFORM ──────────────────────────────
+// Scorer: 460×380, basket at top (y≈25, x=230).
+// Fan court: 800×380. Home basket left (x=8), away basket right (x=792).
+// HOME → LEFT:  fan_x=(sy/380)*400,       fan_y=(sx/460)*380
+// AWAY → RIGHT: fan_x=800-(sy/380)*400,   fan_y=(sx/460)*380
+function xfm(pt, side) {
+  if(!pt) return null;
+  return side==='home'
+    ? { x:(pt.y/380)*400,       y:(pt.x/460)*380 }
+    : { x:800-(pt.y/380)*400,   y:(pt.x/460)*380 };
 }
 
-// ── DOM UPDATES ─────────────────────────────────
-function updScoreboard() {
-  document.getElementById('home-score').textContent = GAME.home.score;
-  document.getElementById('away-score').textContent = GAME.away.score;
-  document.getElementById('fan-clock').textContent = fmt(GAME.clockSec);
-  document.getElementById('fan-clock').className = 'sb-clock' + (GAME.running ? ' running' : '');
-  document.getElementById('fan-period').textContent = PERIODS[Math.min(GAME.period-1, 4)];
-
-  // Fouls + bonus
-  const hf = GAME.home.fouls, af = GAME.away.fouls;
-  const hBonus = hf >= 7, aBonus = af >= 7;
-  document.getElementById('home-fouls-display').textContent = `${hf} foul${hf!==1?'s':''}${hBonus?' · BONUS':''}`;
-  document.getElementById('home-fouls-display').className = `sb-fouls${hBonus?' bonus':''}`;
-  document.getElementById('away-fouls-display').textContent = `${af} foul${af!==1?'s':''}${aBonus?' · BONUS':''}`;
-  document.getElementById('away-fouls-display').className = `sb-fouls${aBonus?' bonus':''}`;
-
-  // Possession
-  const poss = document.getElementById('poss-display');
-  poss.textContent = GAME[GAME.possession].short;
-  poss.className = `sb-poss ${GAME.possession}`;
-
-  // Quarter scores
-  const q = GAME.period;
-  ['home','away'].forEach(side => {
-    for (let i=1;i<=4;i++) {
-      const el = document.getElementById(`q${side==='home'?'h':'a'}${i}`);
-      const val = GAME.qtrs[side][i-1];
-      el.textContent = i < q ? val : i === q ? val : '—';
-      el.classList.toggle('active-q', i === q);
-    }
-    document.getElementById(`q${side==='home'?'h':'a'}-tot`).textContent = GAME[side].score;
-  });
-}
-
-function updBox() {
-  const tbody = document.getElementById('box-body');
-  tbody.innerHTML = '';
-  const side = boxSide;
-  const players = PL[side].filter(p => p.on || p.pts > 0 || p.reb > 0 || p.ast > 0);
-  const bench = PL[side].filter(p => !p.on && p.pts === 0 && p.reb === 0 && p.ast === 0);
-
-  let tPts=0,tReb=0,tAst=0,tFgm=0,tFga=0,tTpm=0,tTpa=0,tFls=0;
-  const colorClass = side === 'home' ? 'hi' : 'ha';
-
-  players.forEach(p => {
-    const fg = `${p.fgm}/${p.fga}`;
-    const tp = `${p.tpm}/${p.tpa}`;
-    const tr = document.createElement('tr');
-    if(!p.on) tr.className = 'box-bench';
-    tr.innerHTML = `<td>#${p.num} ${p.fi}.${p.last}</td>
-      <td class="${p.pts>0?colorClass:''}">${p.pts}</td>
-      <td>${p.reb||'—'}</td><td>${p.ast||'—'}</td>
-      <td>${p.fga>0?fg:'—'}</td><td>${p.tpa>0?tp:'—'}</td>
-      <td>${p.fouls||'—'}</td>`;
-    tbody.appendChild(tr);
-    tPts+=p.pts;tReb+=p.reb;tAst+=p.ast;tFgm+=p.fgm;tFga+=p.fga;tTpm+=p.tpm;tTpa+=p.tpa;tFls+=p.fouls;
-  });
-
-  // Totals
-  const tr = document.createElement('tr');
-  tr.innerHTML = `<td>TEAM</td>
-    <td class="${colorClass}">${tPts}</td>
-    <td>${tReb}</td><td>${tAst}</td>
-    <td>${tFga>0?tFgm+'/'+tFga:'—'}</td>
-    <td>${tTpa>0?tTpm+'/'+tTpa:'—'}</td>
-    <td>${tFls||'—'}</td>`;
-  tbody.appendChild(tr);
-}
-
-function updFeed() {
-  const list = document.getElementById('feed-list');
-  list.innerHTML = '';
-  evts.slice(0, 40).forEach((e, i) => {
-    const row = document.createElement('div');
-    row.className = 'feed-row' + (i === 0 ? ' new-evt' : '');
-    const dot = document.createElement('div');
-    dot.className = 'feed-dot';
-    dot.style.background = e.side === 'home' ? 'var(--home)' : 'var(--away)';
-    const body = document.createElement('div');
-    body.className = 'feed-body';
-    body.innerHTML = `<div class="feed-desc">${describeEvt(e)}</div>
-      <div class="feed-meta">Q${e.period} · ${fmt(e.clk)}</div>`;
-    const pts = document.createElement('div');
-    pts.className = 'feed-pts';
-    pts.style.color = e.side === 'home' ? 'var(--home)' : 'var(--away)';
-    // Show running score for scoring events
-    if (e.scoreSnap) pts.textContent = `${e.scoreSnap.home}–${e.scoreSnap.away}`;
-    row.appendChild(dot); row.appendChild(body); row.appendChild(pts);
-    list.appendChild(row);
-    // Remove highlight after animation
-    if(i===0) setTimeout(()=>row.classList.remove('new-evt'), 1500);
-  });
-}
-
-function addDot(pt, made, three, isPb) {
-  const g = document.getElementById('fan-dots');
+function addDot(pt, made, three, isPb, side) {
+  const tp = xfm(pt, side);
+  if(!tp) return;
+  const g = document.getElementById(side+'-dots');
   const id = 'd'+Date.now()+Math.random().toString(36).slice(2,4);
-  if(made) {
+  if(made){
     const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('cx', pt.x); c.setAttribute('cy', pt.y); c.setAttribute('r', '7');
-    c.setAttribute('fill', isPb ? '#a78bfa' : three ? '#b45309' : '#15803d');
-    c.setAttribute('fill-opacity','.8');
-    c.setAttribute('stroke','rgba(255,255,255,.5)'); c.setAttribute('stroke-width','1.5');
-    c.setAttribute('id', id); g.appendChild(c);
+    c.setAttribute('cx',tp.x); c.setAttribute('cy',tp.y); c.setAttribute('r','7');
+    c.setAttribute('fill', isPb?'#a78bfa':three?'#b45309':'#15803d');
+    c.setAttribute('fill-opacity','.82');
+    c.setAttribute('stroke','rgba(255,255,255,.55)'); c.setAttribute('stroke-width','1.5');
+    c.setAttribute('id',id); g.appendChild(c);
   } else {
     const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x', pt.x); t.setAttribute('y', pt.y+5.5);
+    t.setAttribute('x',tp.x); t.setAttribute('y',tp.y+5.5);
     t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','17');
-    t.setAttribute('fill', isPb ? '#a78bfa' : '#c0392b');
-    t.setAttribute('font-weight','bold'); t.setAttribute('id', id);
-    t.textContent = '×'; g.appendChild(t);
+    t.setAttribute('fill',isPb?'#a78bfa':'#c0392b'); t.setAttribute('font-weight','bold');
+    t.setAttribute('id',id); t.textContent='×'; g.appendChild(t);
   }
 }
 
-function showToast(msg, side) {
-  const el = document.getElementById('last-play');
-  el.innerHTML = msg;
-  el.className = 'show';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.className = '', 3500);
-}
-
-function showBox(side) {
-  boxSide = side;
-  document.querySelectorAll('.btab').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.btab.${side}`).classList.add('active');
-  updBox();
-}
-
-// ── PROCESS INCOMING EVENT ──────────────────────
-// This is the main intake function — same shape as scorer's pushEvt event object.
-// When Supabase realtime is wired in, each INSERT on game_events calls this.
-function onEvent(e) {
-  // Snapshot running score onto event for feed display
-  e.scoreSnap = { home: GAME.home.score, away: GAME.away.score };
-
-  evts.unshift(e);
-
-  const side = e.side;
-  const p = e.pid ? findP(e.pid, side) : null;
-
-  // Update clock / period state
-  GAME.clockSec = e.clk;
-  GAME.period = e.period;
-
-  // Score updates
-  if (e.key === '2pt_made' || e.key === 'putback_made') {
-    GAME[side].score += 2;
-    GAME.qtrs[side][e.period-1] += 2;
-    if(p){ p.pts += 2; p.fgm++; p.fga++; }
-    GAME.possession = side === 'home' ? 'away' : 'home';
-    e.scoreSnap = { home: GAME.home.score, away: GAME.away.score };
-    showToast(`<strong>#${e.pnum} ${e.pfi}.${e.plast}</strong> — 2 pts<span class="lp-pts">${GAME.home.score}–${GAME.away.score}</span>`, side);
-  } else if (e.key === '3pt_made') {
-    GAME[side].score += 3;
-    GAME.qtrs[side][e.period-1] += 3;
-    if(p){ p.pts += 3; p.fgm++; p.fga++; p.tpm++; p.tpa++; }
-    GAME.possession = side === 'home' ? 'away' : 'home';
-    e.scoreSnap = { home: GAME.home.score, away: GAME.away.score };
-    showToast(`<strong>#${e.pnum} ${e.pfi}.${e.plast}</strong> — 3-pointer! 🔥<span class="lp-pts">${GAME.home.score}–${GAME.away.score}</span>`, side);
-  } else if (e.key === 'ft_made') {
-    GAME[side].score += 1;
-    GAME.qtrs[side][e.period-1] += 1;
-    if(p) p.pts += 1;
-    e.scoreSnap = { home: GAME.home.score, away: GAME.away.score };
-  } else if (e.key === '2pt_miss' || e.key === 'putback_miss') {
-    if(p) p.fga++;
-  } else if (e.key === '3pt_miss') {
-    if(p){ p.fga++; p.tpa++; }
-  } else if (e.key === 'assist') {
-    if(p) p.ast++;
-  } else if (e.key === 'o_reb' || e.key === 'd_reb') {
-    if(p) p.reb++;
-    if(e.key === 'o_reb') showToast(`<strong>#${e.pnum} ${e.pfi}.${e.plast}</strong> — offensive rebound`, side);
-  } else if (e.key === 'steal') {
-    showToast(`<strong>#${e.pnum} ${e.pfi}.${e.plast}</strong> — steal ⚡`, side);
-  } else if (e.key === 'block') {
-    showToast(`<strong>#${e.pnum} ${e.pfi}.${e.plast}</strong> — block ✋`, side);
-  } else if (e.key === 'turnover') {
-    if(p) {} // tracked in feed
-    showToast(`<strong>#${e.pnum} ${e.pfi}.${e.plast}</strong> — turnover`, side);
-  } else if (e.key.startsWith('foul_')) {
-    if(p && !GAME[side]?.team) p.fouls++;
-    GAME[side].fouls++;
-    const bonus = GAME[side].fouls >= 7;
-    if(bonus) showToast(`${GAME[side].name} in the bonus`, side);
-  } else if (e.key === 'timeout_full') {
-    GAME[side].tof = Math.max(0, GAME[side].tof - 1);
-    showToast(`${GAME[side].name} full timeout`, side);
-  } else if (e.key === 'timeout_30sec') {
-    GAME[side].to3 = Math.max(0, GAME[side].to3 - 1);
-    showToast(`${GAME[side].name} 30-second timeout`, side);
-  } else if (e.key === 'possession_flip') {
-    GAME.possession = side;
-  } else if (e.key === 'sub_in') {
-    if(p) p.on = true;
-  } else if (e.key === 'sub_out') {
-    if(p) p.on = false;
-  }
-
-  // Shot dots on chart
-  if (['2pt_made','3pt_made','2pt_miss','3pt_miss','putback_made','putback_miss'].includes(e.key) && e.pt) {
-    const made = e.key.endsWith('_made');
-    const three = e.key.startsWith('3pt');
-    const isPb = e.key.startsWith('putback');
-    addDot(e.pt, made, three, isPb);
-  }
-
-  updScoreboard();
-  updBox();
-  updFeed();
-}
-
-// ── CLOCK SIM ────────────────────────────────────
-// The fan view doesn't own the clock — it reflects what the scorer sends.
-// But in demo mode we tick locally to show a live clock feel.
-let demoClkInt = null;
-function startDemoClock() {
-  if(demoClkInt) return;
-  demoClkInt = setInterval(() => {
-    if(GAME.clockSec > 0) {
-      GAME.clockSec--;
-      GAME.running = true;
-      document.getElementById('fan-clock').textContent = fmt(GAME.clockSec);
-      document.getElementById('fan-clock').className = 'sb-clock running';
+function updScoreboard(){
+  document.getElementById('home-score').textContent=GAME.home.score;
+  document.getElementById('away-score').textContent=GAME.away.score;
+  document.getElementById('fan-clock').textContent=fmt(GAME.clockSec);
+  document.getElementById('fan-clock').className='sb-clock'+(GAME.running?' running':'');
+  document.getElementById('fan-period').textContent=PERIODS[Math.min(GAME.period-1,4)];
+  const pd=document.getElementById('poss-disp');
+  pd.textContent=GAME[GAME.possession].short; pd.className='sb-poss '+GAME.possession;
+  ['home','away'].forEach(s=>{
+    const f=GAME[s].fouls, bonus=f>=7;
+    const fl=document.getElementById(s+'-foul-lbl');
+    fl.textContent=`${f} foul${f!==1?'s':''}${bonus?' · BONUS':''}`;
+    fl.className='sb-foul'+(bonus?' bonus':'');
+    document.getElementById(s+'-to-lbl').textContent=`${GAME[s].tof+GAME[s].to3} TO left`;
+  });
+  const q=GAME.period;
+  ['home','away'].forEach(side=>{
+    for(let i=1;i<=4;i++){
+      const el=document.getElementById(`q${side==='home'?'h':'a'}${i}`);
+      el.textContent=i<q?GAME.qtrs[side][i-1]:i===q?GAME.qtrs[side][i-1]:'—';
+      el.classList.toggle('aq',i===q);
     }
-  }, 1000);
+    document.getElementById(`q${side==='home'?'h':'a'}-tot`).textContent=GAME[side].score;
+  });
 }
 
-// ════════════════════════════════════════════════
+function updPanels(){
+  ['home','away'].forEach(side=>{
+    const ts=GAME.ts[side];
+    const fgpct=ts.fga?Math.round(100*ts.fgm/ts.fga)+'%':'—';
+    const tppct=ts.tpa?Math.round(100*ts.tpm/ts.tpa)+'%':'—';
+    document.getElementById(side+'-fg-sub').textContent=`${ts.fgm}/${ts.fga} FG · ${tppct} 3P`;
+    document.getElementById(side+'-team-sum').innerHTML=`
+      <div class="ts-stat"><div class="ts-val">${ts.reb}</div><div class="ts-lbl">REB</div></div>
+      <div class="ts-stat"><div class="ts-val">${ts.ast}</div><div class="ts-lbl">AST</div></div>
+      <div class="ts-stat"><div class="ts-val">${ts.stl}</div><div class="ts-lbl">STL</div></div>
+      <div class="ts-stat"><div class="ts-val">${ts.blk}</div><div class="ts-lbl">BLK</div></div>
+      <div class="ts-stat"><div class="ts-val">${ts.to}</div><div class="ts-lbl">TO</div></div>`;
+    const on=PL[side].filter(p=>p.on).sort((a,b)=>b.pts-a.pts);
+    const bench=PL[side].filter(p=>!p.on);
+    const cont=document.getElementById(side+'-pl-rows');
+    cont.innerHTML='';
+    [...on,...bench].forEach(p=>{
+      const div=document.createElement('div');
+      div.className='pl-row'+(p.on?'':' bench');
+      const dots=Array.from({length:5},(_,i)=>`<div class="pl-fd${i<p.fouls?' on':''}"></div>`).join('');
+      div.innerHTML=`
+        <div class="pl-top">
+          <div class="pl-ident"><span class="pl-num">#${p.num}</span><span class="pl-name">${p.fi}.${p.last}</span></div>
+          <div class="pl-pts">${p.pts||0}</div>
+        </div>
+        <div class="pl-stats">
+          <span>${p.reb} <span>REB</span></span>
+          <span>${p.ast} <span>AST</span></span>
+          <span>${p.fga?p.fgm+'/'+p.fga:'—'} <span>FG</span></span>
+          <span>${p.tpa?p.tpm+'/'+p.tpa:'—'} <span>3P</span></span>
+        </div>
+        <div class="pl-fouls">${dots}</div>`;
+      cont.appendChild(div);
+    });
+  });
+}
+
+function updFeed(){
+  const list=document.getElementById('feed-list');
+  list.innerHTML='';
+  evts.slice(0,50).forEach((e,i)=>{
+    const row=document.createElement('div'); row.className='fr'+(i===0?' new':'');
+    const dot=document.createElement('div'); dot.className='fr-dot';
+    dot.style.background=e.side==='home'?'var(--home)':'var(--away)';
+    const body=document.createElement('div'); body.className='fr-body';
+    const who=e.pnum?`<b>#${e.pnum} ${e.pfi}.${e.plast}</b>`:`<b>${GAME[e.side]?.name||''}</b>`;
+    const action=KLBL[e.key]||e.key;
+    const desc=e.key==='possession_flip'?`${GAME[e.side]?.name||''} ball`:`${who} — ${action}`;
+    body.innerHTML=`<div class="fr-desc">${desc}</div><div class="fr-meta">Q${e.period} · ${fmt(e.clk)}</div>`;
+    const sc=document.createElement('div'); sc.className='fr-score';
+    sc.style.color=e.side==='home'?'var(--home)':'var(--away)';
+    if(e.scoreSnap) sc.textContent=`${e.scoreSnap.home}–${e.scoreSnap.away}`;
+    row.appendChild(dot); row.appendChild(body); row.appendChild(sc);
+    list.appendChild(row);
+    if(i===0) setTimeout(()=>row.classList.remove('new'),1800);
+  });
+}
+
+function toast(html){
+  const el=document.getElementById('toast');
+  el.innerHTML=html; el.className='show';
+  clearTimeout(toastTmr); toastTmr=setTimeout(()=>el.className='',3500);
+}
+
+// ── MAIN EVENT INTAKE ─────────────────────────────────
+function onEvent(e){
+  const s=e.side, opp=s==='home'?'away':'home';
+  const p=e.pid?findP(e.pid,s):null;
+  const ts=GAME.ts[s];
+  GAME.clockSec=e.clk; GAME.period=e.period;
+  e.scoreSnap={home:GAME.home.score,away:GAME.away.score};
+
+  const shotKeys=['2pt_made','3pt_made','2pt_miss','3pt_miss','putback_made','putback_miss'];
+
+  if(e.key==='2pt_made'||e.key==='putback_made'){
+    GAME[s].score+=2; GAME.qtrs[s][e.period-1]+=2;
+    if(p){p.pts+=2;p.fgm++;p.fga++;} ts.fgm++;ts.fga++;
+    GAME.possession=opp;
+    e.scoreSnap={home:GAME.home.score,away:GAME.away.score};
+    toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — 2 pts<span class="tp">${e.scoreSnap.home}–${e.scoreSnap.away}</span>`);
+  } else if(e.key==='3pt_made'){
+    GAME[s].score+=3; GAME.qtrs[s][e.period-1]+=3;
+    if(p){p.pts+=3;p.fgm++;p.fga++;p.tpm++;p.tpa++;} ts.fgm++;ts.fga++;ts.tpm++;ts.tpa++;
+    GAME.possession=opp;
+    e.scoreSnap={home:GAME.home.score,away:GAME.away.score};
+    toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — 3-pointer! 🔥<span class="tp">${e.scoreSnap.home}–${e.scoreSnap.away}</span>`);
+  } else if(e.key==='ft_made'){
+    GAME[s].score+=1; GAME.qtrs[s][e.period-1]+=1;
+    if(p) p.pts++;
+    e.scoreSnap={home:GAME.home.score,away:GAME.away.score};
+  } else if(e.key==='2pt_miss'||e.key==='putback_miss'){
+    if(p) p.fga++; ts.fga++;
+  } else if(e.key==='3pt_miss'){
+    if(p){p.fga++;p.tpa++;} ts.fga++;ts.tpa++;
+  } else if(e.key==='assist'){
+    if(p) p.ast++; ts.ast++;
+  } else if(e.key==='o_reb'||e.key==='d_reb'){
+    if(p) p.reb++; ts.reb++;
+    if(e.key==='o_reb') toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — offensive rebound`);
+  } else if(e.key==='steal'){
+    ts.stl++; toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — steal ⚡`);
+  } else if(e.key==='block'){
+    ts.blk++; toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — block ✋`);
+  } else if(e.key==='turnover'){
+    ts.to++; toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — turnover`);
+  } else if(e.key.startsWith('foul_')){
+    if(p) p.fouls++; GAME[s].fouls++;
+    if(GAME[s].fouls===7) toast(`${GAME[s].name} in the bonus`);
+    else if(GAME[s].fouls===10) toast(`${GAME[s].name} double bonus`);
+  } else if(e.key==='timeout_full'){
+    GAME[s].tof=Math.max(0,GAME[s].tof-1); toast(`${GAME[s].name} — full timeout`);
+  } else if(e.key==='timeout_30sec'){
+    GAME[s].to3=Math.max(0,GAME[s].to3-1); toast(`${GAME[s].name} — 30-sec timeout`);
+  } else if(e.key==='possession_flip'){
+    GAME.possession=s;
+  } else if(e.key==='sub_in'){ if(p) p.on=true; }
+  else if(e.key==='sub_out'){ if(p) p.on=false; }
+
+  if(shotKeys.includes(e.key)&&e.pt){
+    addDot(e.pt,e.key.endsWith('_made'),e.key.startsWith('3pt'),e.key.startsWith('putback'),s);
+  }
+  evts.unshift(e);
+  updScoreboard(); updPanels(); updFeed();
+}
+
+// ── DEMO CLOCK ────────────────────────────────────────
+let demoClk=null;
+function startClock(){
+  if(demoClk) return;
+  GAME.running=true;
+  demoClk=setInterval(()=>{
+    if(GAME.clockSec>0){ GAME.clockSec--; document.getElementById('fan-clock').textContent=fmt(GAME.clockSec); document.getElementById('fan-clock').className='sb-clock running'; }
+  },1000);
+}
+
+// ══════════════════════════════════════════════════════
 //  SUPABASE SWAP POINT
-//  Replace everything below in this block with:
-//
-//  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-//  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+//  Replace runSim() call at bottom with:
 //
 //  async function connectGame(gameId) {
-//    // Load existing events first
-//    const { data } = await supabase
-//      .from('game_events')
-//      .select('*')
-//      .eq('game_id', gameId)
+//    const { data } = await supabase.from('game_events')
+//      .select('*').eq('game_id', gameId)
 //      .order('inserted_at', { ascending: true });
 //    data.forEach(row => onEvent(rowToEvt(row)));
-//
-//    // Subscribe to new events
-//    supabase.channel('game_events')
-//      .on('postgres_changes', {
-//        event: 'INSERT', schema: 'public',
-//        table: 'game_events', filter: `game_id=eq.${gameId}`
-//      }, payload => onEvent(rowToEvt(payload.new)))
-//      .subscribe();
-//
-//    // Also subscribe to game row for clock sync
-//    supabase.channel('game_clock')
-//      .on('postgres_changes', {
-//        event: 'UPDATE', schema: 'public',
-//        table: 'games', filter: `id=eq.${gameId}`
-//      }, payload => syncClock(payload.new))
+//    supabase.channel('live:'+gameId)
+//      .on('postgres_changes',{ event:'INSERT', schema:'public',
+//        table:'game_events', filter:`game_id=eq.${gameId}` },
+//        payload => onEvent(rowToEvt(payload.new)))
 //      .subscribe();
 //  }
-// ════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 
-// ── DEMO SIMULATOR ──────────────────────────────
-// Replays a realistic simulated game, one event every ~2.5s.
-// Uses the exact same event object shape as the scorer.
-
-const SIM_EVENTS = (()=>{
-  const h = (pid,num,fi,last) => ({pid:`h${pid}`,pnum:num,pfi:fi,plast:last,side:'home'});
-  const a = (pid,num,fi,last) => ({pid:`a${pid}`,pnum:num,pfi:fi,plast:last,side:'away'});
-  const mk = (who, key, clk, period, pt, extra) => ({
-    id: Date.now()+Math.random(),
-    ...who, key, clk, period: period||1,
-    pts: key==='2pt_made'||key==='putback_made'?2:key==='3pt_made'?3:key==='ft_made'?1:0,
-    three: key==='3pt_made'||key==='3pt_miss',
-    pt: pt || null,
-    ...extra
-  });
-
-  // Helper to make shot point (x,y in SVG coords)
-  const pt=(x,y)=>({x,y});
-
+// ── SIMULATOR ─────────────────────────────────────────
+const SIM=(()=>{
+  const h=(id,num,fi,last)=>({pid:`h${id}`,pnum:num,pfi:fi,plast:last,side:'home'});
+  const a=(id,num,fi,last)=>({pid:`a${id}`,pnum:num,pfi:fi,plast:last,side:'away'});
+  const mk=(who,key,clk,period,pt)=>({id:Date.now()+Math.random(),...who,key,clk,period:period||1,pts:0,three:false,pt:pt||null});
+  const p=(x,y)=>({x,y});
   return [
-    mk(h(2,10,'S','Johnson'),    '2pt_made',   470,1, pt(200,120)),
-    mk(a(1,10,'L','Lombardo'),   'd_reb',      455,1),
-    mk(a(3,14,'J','Rosen'),      '3pt_made',   440,1, pt(90,100)),
-    mk(h(4,12,'H','Schwalm'),    'd_reb',      428,1),
-    mk(h(5,15,'T','Leadbetter'), '2pt_miss',   415,1, pt(240,80)),
-    mk(a(5,23,'O','Beaureguard'),'o_reb',      408,1),
-    mk(a(5,23,'O','Beaureguard'),'putback_made',400,1,pt(235,40)),
-    mk(h(1,4,'H','Stewart'),     'd_reb',      395,1),
-    mk(h(3,11,'K','Melquist'),   '2pt_made',   380,1, pt(180,165)),
-    mk(h(1,4,'H','Stewart'),     'assist',     380,1),
-    mk(a(2,11,'C','Wannemacher'),'steal',      370,1),
-    mk(a(2,11,'C','Wannemacher'),'2pt_made',   362,1, pt(270,200)),
-    mk(h(2,10,'S','Johnson'),    'turnover',   350,1),
-    mk(a(4,20,'E','Morse'),      '3pt_miss',   338,1, pt(360,145)),
-    mk(h(4,12,'H','Schwalm'),    'd_reb',      330,1),
-    mk(h(5,15,'T','Leadbetter'), 'foul_personal',320,1),
-    mk(a(3,14,'J','Rosen'),      'ft_made',    315,1),
-    mk(a(3,14,'J','Rosen'),      'ft_made',    310,1),
-    mk(h(1,4,'H','Stewart'),     '3pt_made',   295,1, pt(80,85)),
-    mk(a(1,10,'L','Lombardo'),   'foul_personal',285,1),
-    mk(h(3,11,'K','Melquist'),   'ft_made',    280,1),
-    mk(h(3,11,'K','Melquist'),   'ft_miss',    275,1),
-    mk(a(5,23,'O','Beaureguard'),'d_reb',      268,1),
-    mk(a(4,20,'E','Morse'),      '2pt_made',   252,1, pt(220,160)),
-    mk(h(4,12,'H','Schwalm'),    'block',      240,1),
-    mk(h(4,12,'H','Schwalm'),    'd_reb',      235,1),
-    mk(h(2,10,'S','Johnson'),    '2pt_made',   220,1, pt(195,55)),
-    mk(a(2,11,'C','Wannemacher'),'timeout_full',210,1),
-    mk(a(3,14,'J','Rosen'),      '2pt_made',   195,1, pt(250,130)),
-    mk(h(5,15,'T','Leadbetter'), '2pt_miss',   182,1, pt(215,200)),
-    mk(a(2,11,'C','Wannemacher'),'o_reb',      175,1),
-    mk(a(1,10,'L','Lombardo'),   '3pt_miss',   165,1, pt(395,110)),
-    mk(h(1,4,'H','Stewart'),     'd_reb',      158,1),
-    mk(h(3,11,'K','Melquist'),   '2pt_made',   140,1, pt(230,60)),
-    mk(h(1,4,'H','Stewart'),     'assist',     140,1),
-    mk(a(4,20,'E','Morse'),      '2pt_made',   125,1, pt(260,175)),
-    mk(h(2,10,'S','Johnson'),    '3pt_miss',   112,1, pt(75,90)),
-    mk(a(5,23,'O','Beaureguard'),'d_reb',      104,1),
-    mk(a(2,11,'C','Wannemacher'),'2pt_made',    88,1, pt(285,200)),
-    mk(h(4,12,'H','Schwalm'),    'foul_personal', 80,1),
-    mk(a(3,14,'J','Rosen'),      'ft_made',     75,1),
-    mk(a(3,14,'J','Rosen'),      'ft_miss',     70,1),
-    mk(h(3,11,'K','Melquist'),   'd_reb',       62,1),
-    mk(h(1,4,'H','Stewart'),     '2pt_made',    45,1, pt(225,90)),
-    mk(a(1,10,'L','Lombardo'),   '3pt_made',    30,1, pt(400,120)),
-    mk(h(2,10,'S','Johnson'),    '2pt_miss',    18,1, pt(200,55)),
-    mk(a(5,23,'O','Beaureguard'),'d_reb',       10,1),
-    mk(a(4,20,'E','Morse'),      '2pt_miss',     4,1, pt(245,70)),
+    mk(h(2,10,'S','Johnson'),     '2pt_made',   470,1,p(200,120)),
+    mk(a(1,10,'L','Lombardo'),    'd_reb',       455,1),
+    mk(a(3,14,'J','Rosen'),       '3pt_made',    440,1,p(90,100)),
+    mk(h(4,12,'H','Schwalm'),     'd_reb',       428,1),
+    mk(h(5,15,'T','Leadbetter'),  '2pt_miss',    415,1,p(240,80)),
+    mk(a(5,23,'O','Beaureguard'), 'o_reb',       408,1),
+    mk(a(5,23,'O','Beaureguard'), 'putback_made',400,1,p(235,40)),
+    mk(h(1,4,'H','Stewart'),      'd_reb',       395,1),
+    mk(h(3,11,'K','Melquist'),    '2pt_made',    380,1,p(180,165)),
+    mk(h(1,4,'H','Stewart'),      'assist',      380,1),
+    mk(a(2,11,'C','Wannemacher'), 'steal',       370,1),
+    mk(a(2,11,'C','Wannemacher'), '2pt_made',    362,1,p(270,200)),
+    mk(h(2,10,'S','Johnson'),     'turnover',    350,1),
+    mk(a(4,20,'E','Morse'),       '3pt_miss',    338,1,p(360,145)),
+    mk(h(4,12,'H','Schwalm'),     'd_reb',       330,1),
+    mk(h(5,15,'T','Leadbetter'),  'foul_personal',320,1),
+    mk(a(3,14,'J','Rosen'),       'ft_made',     315,1),
+    mk(a(3,14,'J','Rosen'),       'ft_made',     310,1),
+    mk(h(1,4,'H','Stewart'),      '3pt_made',    295,1,p(80,85)),
+    mk(a(1,10,'L','Lombardo'),    'foul_personal',285,1),
+    mk(h(3,11,'K','Melquist'),    'ft_made',     280,1),
+    mk(h(3,11,'K','Melquist'),    'ft_miss',     275,1),
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',       268,1),
+    mk(a(4,20,'E','Morse'),       '2pt_made',    252,1,p(220,160)),
+    mk(h(4,12,'H','Schwalm'),     'block',       240,1),
+    mk(h(4,12,'H','Schwalm'),     'd_reb',       235,1),
+    mk(h(2,10,'S','Johnson'),     '2pt_made',    220,1,p(195,55)),
+    mk(a(2,11,'C','Wannemacher'), 'timeout_full',210,1),
+    mk(a(3,14,'J','Rosen'),       '2pt_made',    195,1,p(250,130)),
+    mk(h(5,15,'T','Leadbetter'),  '2pt_miss',    182,1,p(215,200)),
+    mk(a(2,11,'C','Wannemacher'), 'o_reb',       175,1),
+    mk(a(1,10,'L','Lombardo'),    '3pt_miss',    165,1,p(395,110)),
+    mk(h(1,4,'H','Stewart'),      'd_reb',       158,1),
+    mk(h(3,11,'K','Melquist'),    '2pt_made',    140,1,p(230,60)),
+    mk(h(1,4,'H','Stewart'),      'assist',      140,1),
+    mk(a(4,20,'E','Morse'),       '2pt_made',    125,1,p(260,175)),
+    mk(h(2,10,'S','Johnson'),     '3pt_miss',    112,1,p(75,90)),
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',       104,1),
+    mk(a(2,11,'C','Wannemacher'), '2pt_made',     88,1,p(285,200)),
+    mk(h(4,12,'H','Schwalm'),     'foul_personal', 80,1),
+    mk(a(3,14,'J','Rosen'),       'ft_made',      75,1),
+    mk(a(3,14,'J','Rosen'),       'ft_miss',      70,1),
+    mk(h(3,11,'K','Melquist'),    'd_reb',        62,1),
+    mk(h(1,4,'H','Stewart'),      '2pt_made',     45,1,p(225,90)),
+    mk(a(1,10,'L','Lombardo'),    '3pt_made',     30,1,p(400,120)),
+    mk(h(2,10,'S','Johnson'),     '2pt_miss',     18,1,p(200,55)),
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',        10,1),
     // Q2
-    mk(h(1,4,'H','Stewart'),     '2pt_made',   478,2, pt(190,140)),
-    mk(a(2,11,'C','Wannemacher'),'steal',      468,2),
-    mk(a(3,14,'J','Rosen'),      '3pt_made',   460,2, pt(85,110)),
-    mk(h(3,11,'K','Melquist'),   '2pt_made',   445,2, pt(230,55)),
-    mk(a(1,10,'L','Lombardo'),   'foul_personal',435,2),
-    mk(h(3,11,'K','Melquist'),   'ft_made',    430,2),
-    mk(h(3,11,'K','Melquist'),   'ft_made',    425,2),
-    mk(a(4,20,'E','Morse'),      '2pt_made',   410,2, pt(260,165)),
-    mk(h(5,15,'T','Leadbetter'), '3pt_miss',   398,2, pt(380,140)),
-    mk(a(5,23,'O','Beaureguard'),'d_reb',      390,2),
-    mk(a(2,11,'C','Wannemacher'),'2pt_made',   375,2, pt(200,200)),
+    mk(h(1,4,'H','Stewart'),      '2pt_made',    478,2,p(190,140)),
+    mk(a(2,11,'C','Wannemacher'), 'steal',       468,2),
+    mk(a(3,14,'J','Rosen'),       '3pt_made',    460,2,p(85,110)),
+    mk(h(3,11,'K','Melquist'),    '2pt_made',    445,2,p(230,55)),
+    mk(a(1,10,'L','Lombardo'),    'foul_personal',435,2),
+    mk(h(3,11,'K','Melquist'),    'ft_made',     430,2),
+    mk(h(3,11,'K','Melquist'),    'ft_made',     425,2),
+    mk(a(4,20,'E','Morse'),       '2pt_made',    410,2,p(260,165)),
+    mk(h(5,15,'T','Leadbetter'),  '3pt_miss',    398,2,p(380,140)),
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',       390,2),
+    mk(a(2,11,'C','Wannemacher'), '2pt_made',    375,2,p(200,200)),
+    mk(h(4,12,'H','Schwalm'),     '3pt_made',    360,2,p(70,95)),
+    mk(a(3,14,'J','Rosen'),       'turnover',    348,2),
+    mk(h(2,10,'S','Johnson'),     'steal',       342,2),
+    mk(h(2,10,'S','Johnson'),     '2pt_made',    335,2,p(225,145)),
+    mk(a(4,20,'E','Morse'),       '2pt_miss',    320,2,p(255,75)),
+    mk(h(1,4,'H','Stewart'),      'd_reb',       312,2),
+    mk(h(5,15,'T','Leadbetter'),  '2pt_made',    298,2,p(195,175)),
+    mk(a(1,10,'L','Lombardo'),    '3pt_miss',    284,2,p(395,120)),
+    mk(h(3,11,'K','Melquist'),    'd_reb',       276,2),
+    mk(h(1,4,'H','Stewart'),      '3pt_miss',    262,2,p(80,100)),
+    mk(a(5,23,'O','Beaureguard'), 'o_reb',       254,2),
+    mk(a(5,23,'O','Beaureguard'), '2pt_made',    248,2,p(240,45)),
+    mk(h(2,10,'S','Johnson'),     'foul_personal',238,2),
+    mk(a(2,11,'C','Wannemacher'), 'ft_made',     233,2),
+    mk(a(2,11,'C','Wannemacher'), 'ft_made',     228,2),
+    mk(h(4,12,'H','Schwalm'),     '2pt_made',    215,2,p(185,100)),
+    mk(a(3,14,'J','Rosen'),       '3pt_miss',    200,2,p(390,105)),
+    mk(h(1,4,'H','Stewart'),      'd_reb',       192,2),
+    mk(h(2,10,'S','Johnson'),     '2pt_miss',    178,2,p(210,60)),
+    mk(a(4,20,'E','Morse'),       'd_reb',       170,2),
+    mk(a(1,10,'L','Lombardo'),    '2pt_made',    155,2,p(255,140)),
+    mk(h(3,11,'K','Melquist'),    'steal',       142,2),
+    mk(h(3,11,'K','Melquist'),    '3pt_made',    136,2,p(85,92)),
+    mk(a(2,11,'C','Wannemacher'), 'timeout_full',125,2),
+    mk(a(5,23,'O','Beaureguard'), '2pt_miss',    110,2,p(230,50)),
+    mk(h(4,12,'H','Schwalm'),     'd_reb',       102,2),
+    mk(h(5,15,'T','Leadbetter'),  '2pt_made',     88,2,p(195,170)),
+    mk(a(3,14,'J','Rosen'),       '2pt_made',     72,2,p(265,125)),
+    mk(h(1,4,'H','Stewart'),      'foul_personal', 62,2),
+    mk(a(4,20,'E','Morse'),       'ft_made',      57,2),
+    mk(a(4,20,'E','Morse'),       'ft_made',      52,2),
+    mk(h(2,10,'S','Johnson'),     '2pt_made',     38,2,p(200,145)),
+    mk(h(3,11,'K','Melquist'),    'assist',       38,2),
+    mk(a(1,10,'L','Lombardo'),    '3pt_miss',     22,2,p(400,100)),
+    mk(h(5,15,'T','Leadbetter'),  'd_reb',        14,2),
+    mk(h(1,4,'H','Stewart'),      '2pt_miss',      6,2,p(225,70)),
+    mk(a(2,11,'C','Wannemacher'), 'd_reb',         2,2),
   ];
 })();
 
-let simIdx = 0;
-function runSimulator() {
-  if(simIdx >= SIM_EVENTS.length) {
-    document.getElementById('live-pill').classList.add('stale');
-    document.getElementById('live-label').textContent = 'FINAL';
-    if(demoClkInt){ clearInterval(demoClkInt); demoClkInt=null; }
+let simIdx=0;
+function runSim(){
+  if(simIdx>=SIM.length){
+    document.getElementById('live-pill').classList.add('final');
+    document.getElementById('live-lbl').textContent='FINAL';
+    GAME.running=false; if(demoClk){clearInterval(demoClk);demoClk=null;}
     return;
   }
-  const e = SIM_EVENTS[simIdx++];
-  onEvent(e);
-
-  // Simulate clock running between events
-  if(!demoClkInt && GAME.clockSec > 0) startDemoClock();
-
-  // Vary pace — scoring plays get a short pause for drama
-  const delay = ['2pt_made','3pt_made','putback_made'].includes(e.key) ? 3200 : 2200;
-  setTimeout(runSimulator, delay + Math.random()*800);
+  const evt=SIM[simIdx++];
+  onEvent(evt);
+  if(!demoClk) startClock();
+  const big=['2pt_made','3pt_made','putback_made'].includes(evt.key);
+  setTimeout(runSim,(big?3000:2000)+Math.random()*900);
 }
 
-// ── INIT ────────────────────────────────────────
-function initView(homeTeam, awayTeam) {
-  GAME.home.name = homeTeam.name;
-  GAME.home.short = homeTeam.short;
-  GAME.away.name = awayTeam.name;
-  GAME.away.short = awayTeam.short;
-
-  document.getElementById('home-name').textContent = homeTeam.name;
-  document.getElementById('away-name').textContent = awayTeam.name;
-  document.getElementById('qtr-home-label').textContent = homeTeam.short;
-  document.getElementById('qtr-away-label').textContent = awayTeam.short;
-  document.querySelector('.btab.home').textContent = homeTeam.name;
-  document.querySelector('.btab.away').textContent = awayTeam.name;
-
-  // Logo placeholder initials
-  document.getElementById('home-logo').textContent = homeTeam.name.charAt(0);
-  document.getElementById('away-logo').textContent = awayTeam.name.charAt(0);
-
-  // Try Cloudinary logos (gracefully falls back to placeholder)
-  if(homeTeam.logoUrl) {
-    const img = document.createElement('img');
-    img.src = homeTeam.logoUrl;
-    img.style.cssText = 'width:100%;height:100%;object-fit:contain;border-radius:50%;';
-    img.onerror = () => {};
-    const el = document.getElementById('home-logo');
-    el.innerHTML = '';
-    el.appendChild(img);
-  }
-  if(awayTeam.logoUrl) {
-    const img = document.createElement('img');
-    img.src = awayTeam.logoUrl;
-    img.style.cssText = 'width:100%;height:100%;object-fit:contain;border-radius:50%;';
-    img.onerror = () => {};
-    const el = document.getElementById('away-logo');
-    el.innerHTML = '';
-    el.appendChild(img);
-  }
-
-  updScoreboard();
-  updBox();
-  updFeed();
+// ── INIT ──────────────────────────────────────────────
+function initView(home,away){
+  ['home','away'].forEach(s=>{
+    const t=s==='home'?home:away;
+    GAME[s].name=t.name; GAME[s].short=t.short;
+    document.getElementById(s+'-name').textContent=t.name;
+    document.getElementById(s+'-panel-name').textContent=t.name;
+    document.getElementById(s==='home'?'qhl':'qal').textContent=t.short;
+    document.getElementById(s+'-logo').textContent=t.name.charAt(0);
+    if(t.logoUrl){
+      const img=document.createElement('img');
+      img.src=t.logoUrl; img.alt=t.name; img.onerror=()=>{};
+      const el=document.getElementById(s+'-logo');
+      el.textContent=''; el.appendChild(img);
+    }
+  });
+  updScoreboard(); updPanels(); updFeed();
 }
 
-// Boot
 initView(
-  { name:'Camden Hills', short:'CAM',
-    logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/camden-hills.png' },
-  { name:'Cape Elizabeth', short:'CAP',
-    logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/cape-elizabeth.png' }
+  {name:'Camden Hills',  short:'CAM', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/camden-hills.png'},
+  {name:'Cape Elizabeth',short:'CAP', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/cape-elizabeth.png'}
 );
-
-// Start sim after a short delay
-setTimeout(runSimulator, 1200);
+setTimeout(runSim, 1000);
 </script>
 </body>
 </html>

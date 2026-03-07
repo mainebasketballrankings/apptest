@@ -27,8 +27,8 @@
 
     /* HEADER */
     .team-header { background: var(--white); border-radius: 10px; border: 1px solid var(--border); padding: 24px; display: flex; align-items: center; gap: 20px; margin-bottom: 16px; }
-    .team-logo-lg { width: 96px; height: 96px; border-radius: 50%; object-fit: contain; background: var(--bg); border: 2px solid var(--border); flex-shrink: 0; }
-    .team-logo-fallback { width: 96px; height: 96px; border-radius: 50%; background: var(--green); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 32px; flex-shrink: 0; }
+    .team-logo-lg { width: 72px; height: 72px; border-radius: 50%; object-fit: contain; background: var(--bg); border: 2px solid var(--border); flex-shrink: 0; }
+    .team-logo-fallback { width: 72px; height: 72px; border-radius: 50%; background: var(--green); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 26px; flex-shrink: 0; }
     .team-header-info { flex: 1; min-width: 0; }
     .team-name-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
     .team-name-lg { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 34px; line-height: 1; }
@@ -241,7 +241,7 @@ async function load() {
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
       oppIds.length ? sb(`rankings_snapshots?team_id=in.(${idList})&order=snapshot_date.desc&select=team_id,pi,rank_class,rank_overall&limit=2000`) : [],
       oppIds.length ? sb(`team_classifications?team_id=in.(${idList})&select=team_id,classes(name)`) : [],
-      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='boys'?'girls':'boys'}&select=id,school_name,gender&limit=1`)
+      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&select=id,school_name,gender&limit=1`)
     ]);
 
     const tmap = {};
@@ -290,8 +290,8 @@ async function load() {
 
     // ── RENDER ──────────────────────────────────
 
-    const gLbl = team.gender === 'boys' ? 'Boys' : 'Girls';
-    const sLbl = team.gender === 'boys' ? 'Girls' : 'Boys';
+    const gLbl = team.gender === 'Boys' ? 'Boys' : 'Girls';
+    const sLbl = team.gender === 'Boys' ? 'Girls' : 'Boys';
     const genderHtml = sibling
       ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="team.html?team_id=${sibling.id}">${sLbl} ↗</a>`
       : `<span class="gender-current">${gLbl}</span>`;
@@ -307,7 +307,7 @@ async function load() {
     const cards = `
       <div class="stat-cards">
         <div class="stat-card"><div class="lbl">DIRIGO</div><div class="val grn">${stats ? f2(stats.heal_points) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">Heal Pts</div><div class="val">${f2(heals)}<span style="font-size:11px;color:var(--lgray);font-weight:400;margin-left:2px">live</span></div></div>
+        <div class="stat-card"><div class="lbl">PI</div><div class="val">${f2(pi)}</div></div>
         <div class="stat-card"><div class="lbl">SOS</div><div class="val">${stats ? f2(stats.sos) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">Avg PF</div><div class="val">${stats ? f2(stats.avg_pf) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">Avg PA</div><div class="val">${stats ? f2(stats.avg_pa) : '—'}</div></div>
@@ -412,7 +412,7 @@ async function load() {
             <span class="wp-txt">${wpPct} · ${f2(hd?.oppPI)} PI</span>
           </div>`:''}
         </td>
-        <td class="hc ${hd&&hd.contrib?'':'none'}">${hd?(hd.contrib?'+'+f2(hd.contrib*10):'—'):''}</td>
+        <td class="hc ${hd&&hd.contrib?'':'none'}">${hd?(hd.contrib?'+'+f2(hd.contrib):'—'):''}</td>
       </tr>`;
     }).join('');
 

@@ -135,13 +135,13 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .mob-tabs{display:flex;border-bottom:1.5px solid var(--rule);}
 .mob-tab{flex:1;font-family:'Playfair Display',serif;font-weight:700;font-size:13px;padding:9px 8px;background:none;border:none;color:var(--ink3);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;margin-bottom:-2px;}
 .mob-tab.active{color:var(--ink);border-bottom-color:var(--ink);}
-.mob-side{overflow:hidden;}
+.mob-side{overflow-y:auto;}
 
 /* RESPONSIVE */
 @media(max-width:900px){
   #main{grid-template-columns:180px 1fr 180px;padding:8px;}
 }
-@media(max-width:680px){
+@media(max-width:500px){
   .sb-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
   .sb-team.home{grid-column:1;grid-row:1;border-right:1px solid var(--rule2);border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
   .sb-team.away{grid-column:2;grid-row:1;border-left:none;border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
@@ -455,6 +455,7 @@ function addDot(pt, made, three, isPb, side) {
 }
 
 let activeMobTab = 'home';
+let activeQtab = 'pts';
 function setMobTab(side, btn) {
   activeMobTab = side;
   document.querySelectorAll('.mob-tab').forEach(b=>b.classList.remove('active'));

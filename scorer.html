@@ -21,36 +21,40 @@ body{
 
 /* ── TOP BAR ── */
 #topbar{
-  display:grid;grid-template-columns:1fr auto 1fr;
+  display:grid;grid-template-columns:auto 1fr auto 1fr auto;
   align-items:stretch;
   background:var(--surface);border-bottom:2px solid var(--border);
-  padding:0 10px;gap:6px;flex-shrink:0;min-height:72px;
+  padding:0 10px;gap:0;flex-shrink:0;min-height:72px;
 }
-.tscore{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:6px 0;}
-.tscore.home{align-items:flex-start;}
-.tscore.away{align-items:flex-end;}
+/* Fouls/TO blocks on far left/right */
+.side-block{
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  padding:6px 12px;border-right:1px solid var(--border);
+}
+.side-block.away-side{border-right:none;border-left:1px solid var(--border);}
+.side-lbl{font-family:'Barlow Condensed',sans-serif;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.side-val{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;color:var(--text);}
+.side-to{display:flex;gap:4px;align-items:baseline;}
+.side-to .side-val{font-size:16px;}
+.side-to .side-sep{color:var(--dim);font-size:12px;}
+
+/* Score+name blocks */
+.tscore{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;padding:4px 8px;}
 .tname{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;}
 .tscore.home .tname{color:var(--hl);}
 .tscore.away .tname{color:var(--al);}
-.srow{display:flex;align-items:baseline;gap:7px;}
-.tscore.away .srow{flex-direction:row-reverse;}
-.snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:40px;line-height:1;}
+.snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:42px;line-height:1;}
 .tscore.home .snum{color:var(--hl);}
 .tscore.away .snum{color:var(--al);}
-.ftol{display:flex;flex-direction:column;font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--dim);gap:1px;}
-.ftol span{display:flex;gap:3px;align-items:center;}
-.ftol strong{color:var(--text);font-size:12px;}
-
-/* Possession tap button lives inside team score area */
 .poss-btn{
-  display:inline-flex;align-items:center;gap:4px;
-  font-family:'Barlow Condensed',sans-serif;font-size:11px;
+  display:inline-flex;align-items:center;gap:3px;
+  font-family:'Barlow Condensed',sans-serif;font-size:10px;
   letter-spacing:.06em;color:var(--dim);
   border:1px solid transparent;border-radius:5px;
-  padding:2px 5px;cursor:pointer;margin-top:2px;
+  padding:1px 5px;cursor:pointer;margin-top:1px;
   transition:opacity .15s;
 }
-.poss-btn .pa{font-size:18px;line-height:1;}
+.poss-btn .pa{font-size:16px;line-height:1;}
 .tscore.home .poss-btn .pa{color:var(--hl);}
 .tscore.away .poss-btn .pa{color:var(--al);}
 .poss-btn.has-poss{border-color:var(--border);opacity:1;}
@@ -245,7 +249,7 @@ body{
   letter-spacing:.06em;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;
 }
 .bs-close{background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;}
-.bs-team{margin-bottom:14px;}
+.bs-team{margin-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .bs-tname{
   font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;
   letter-spacing:.1em;text-transform:uppercase;padding:3px 0;
@@ -253,7 +257,7 @@ body{
 }
 .bs-tname.hn{color:var(--hl);}
 .bs-tname.an{color:var(--al);}
-.bs-table{width:100%;border-collapse:collapse;font-size:11px;}
+.bs-table{border-collapse:collapse;font-size:11px;min-width:560px;width:100%;}
 .bs-table th{
   font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--dim);text-align:right;padding:2px 5px;
@@ -296,22 +300,30 @@ body{
 </head>
 <body>
 
-<!-- TOP BAR -->
+<!-- TOP BAR: [Fouls/TO] [Home Score+Name] [Clock/Period] [Away Score+Name] [Fouls/TO] -->
 <div id="topbar">
+  <!-- Home fouls/TO -->
+  <div class="side-block">
+    <div class="side-lbl">Fouls</div>
+    <div class="side-val" id="home-fouls">0</div>
+    <div class="side-lbl" style="margin-top:4px">Timeouts</div>
+    <div class="side-to">
+      <div class="side-val" id="home-tof">3</div>
+      <div class="side-sep">/</div>
+      <div class="side-val" id="home-to3">2</div>
+    </div>
+  </div>
+
+  <!-- Home score + name -->
   <div class="tscore home">
     <div class="tname">Camden Boys</div>
-    <div class="srow">
-      <div class="snum" id="home-score">0</div>
-      <div class="ftol">
-        <span>FOULS <strong id="home-fouls">0</strong></span>
-        <span>TO <strong id="home-tof">3</strong>/<strong id="home-to3">2</strong></span>
-      </div>
-    </div>
+    <div class="snum" id="home-score">0</div>
     <div class="poss-btn has-poss" id="poss-home" onclick="setPoss('home')">
       <span class="pa">▶</span><span>POSS</span>
     </div>
   </div>
 
+  <!-- Clock centre -->
   <div id="clk-col">
     <button id="clock-btn" onclick="toggleClock()">8:00</button>
     <div id="period-row">
@@ -321,17 +333,24 @@ body{
     </div>
   </div>
 
+  <!-- Away score + name -->
   <div class="tscore away">
     <div class="tname">Cape Elizabeth Boys</div>
-    <div class="srow">
-      <div class="snum" id="away-score">0</div>
-      <div class="ftol">
-        <span>FOULS <strong id="away-fouls">0</strong></span>
-        <span>TO <strong id="away-tof">3</strong>/<strong id="away-to3">2</strong></span>
-      </div>
-    </div>
+    <div class="snum" id="away-score">0</div>
     <div class="poss-btn no-poss" id="poss-away" onclick="setPoss('away')">
       <span class="pa">▶</span><span>POSS</span>
+    </div>
+  </div>
+
+  <!-- Away fouls/TO -->
+  <div class="side-block away-side">
+    <div class="side-lbl">Fouls</div>
+    <div class="side-val" id="away-fouls">0</div>
+    <div class="side-lbl" style="margin-top:4px">Timeouts</div>
+    <div class="side-to">
+      <div class="side-val" id="away-tof">3</div>
+      <div class="side-sep">/</div>
+      <div class="side-val" id="away-to3">2</div>
     </div>
   </div>
 </div>
@@ -397,7 +416,7 @@ body{
            endpoints (61,10) and (399,10) at baseline
            Sweeps through court (downward = large arc going away from basket baseline)
            large-arc=1, sweep=1 -->
-      <path d="M 61 10 A 170 170 0 0 1 399 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <path d="M 61 10 A 170 170 0 0 0 399 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>
@@ -822,7 +841,7 @@ function renderFeed(){
     const dot=document.createElement('div');dot.className='ef-dot';
     dot.style.background=e.side==='home'?'var(--hl)':'var(--al)';
     const txt=document.createElement('div');txt.className='ef-txt';
-    txt.textContent=e.pnum?`#${e.pnum} ${getLabel(e.key)}`:getLabel(e.key);
+    txt.textContent=e.pnum?`#${e.pnum} ${e.plast||''} ${getLabel(e.key)}`:getLabel(e.key);
     const clk=document.createElement('div');clk.className='ef-clk';
     clk.textContent=`Q${e.period} ${fmt(e.clk)}`;
     row.appendChild(dot);row.appendChild(txt);row.appendChild(clk);
@@ -839,7 +858,7 @@ function renderLog(){
     const dot=document.createElement('div');dot.className='ldot';
     dot.style.background=e.side==='home'?'var(--hl)':'var(--al)';
     const txt=document.createElement('div');txt.className='ltxt';
-    txt.textContent=e.pnum?`#${e.pnum} ${getLabel(e.key)}`:getLabel(e.key);
+    txt.textContent=e.pnum?`#${e.pnum} ${e.plast||''} — ${getLabel(e.key)}`:getLabel(e.key);
     const clk=document.createElement('div');clk.className='lclk';
     clk.textContent=`Q${e.period} ${fmt(e.clk)}`;
     const del=document.createElement('button');del.className='ldel';del.textContent='✕';
@@ -866,31 +885,38 @@ function openBoxScore(){
 
     const tbl=document.createElement('table');tbl.className='bs-table';
     tbl.innerHTML=`<thead><tr>
-      <th>Player</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>FLS</th>
+      <th>Player</th><th>PTS</th><th>FG</th><th>FG%</th><th>3P</th><th>3P%</th><th>FT</th><th>FT%</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>FLS</th>
     </tr></thead>`;
     const tbody=document.createElement('tbody');
 
-    // Calc steals/blocks/TOs from events
     const allP=PL[side];
+    let totals={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0};
+
     allP.filter(p=>p.on||p.pts>0||p.reb>0||p.ast>0).forEach(p=>{
       const stl=evts.filter(e=>e.pid===p.id&&e.key==='steal').length;
       const blk=evts.filter(e=>e.pid===p.id&&e.key==='block').length;
       const to=evts.filter(e=>e.pid===p.id&&e.key==='turnover').length;
+      const fgm=evts.filter(e=>e.pid===p.id&&(e.key==='2pt_made'||e.key==='putback_made'||e.key==='3pt_made')).length;
+      const fga=fgm+evts.filter(e=>e.pid===p.id&&(e.key==='2pt_miss'||e.key==='putback_miss'||e.key==='3pt_miss')).length;
+      const tpm=evts.filter(e=>e.pid===p.id&&e.key==='3pt_made').length;
+      const tpa=tpm+evts.filter(e=>e.pid===p.id&&e.key==='3pt_miss').length;
+      const ftm=evts.filter(e=>e.pid===p.id&&e.key==='ft_made').length;
+      const fta=ftm+evts.filter(e=>e.pid===p.id&&e.key==='ft_miss').length;
+      const pct=n=>n===0?'—':`${Math.round(100*n)}%`;
+      const fgpct=fga?pct(fgm/fga):'—';
+      const tppct=tpa?pct(tpm/tpa):'—';
+      const ftpct=fta?pct(ftm/fta):'—';
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>#${p.num} ${p.fi}. ${p.last}</td><td>${p.pts}</td><td>${p.reb}</td><td>${p.ast}</td><td>${stl}</td><td>${blk}</td><td>${to}</td><td>${p.fouls}</td>`;
+      tr.innerHTML=`<td>#${p.num} ${p.fi}. ${p.last}</td><td>${p.pts}</td><td>${fgm}/${fga}</td><td>${fgpct}</td><td>${tpm}/${tpa}</td><td>${tppct}</td><td>${ftm}/${fta}</td><td>${ftpct}</td><td>${p.reb}</td><td>${p.ast}</td><td>${stl}</td><td>${blk}</td><td>${to}</td><td>${p.fouls}</td>`;
       tbody.appendChild(tr);
+      totals.pts+=p.pts;totals.fgm+=fgm;totals.fga+=fga;totals.tpm+=tpm;totals.tpa+=tpa;
+      totals.ftm+=ftm;totals.fta+=fta;totals.reb+=p.reb;totals.ast+=p.ast;
+      totals.stl+=stl;totals.blk+=blk;totals.to+=to;totals.fls+=p.fouls;
     });
 
-    // Totals row
-    const tots=allP.reduce((acc,p)=>({
-      pts:acc.pts+p.pts,reb:acc.reb+p.reb,ast:acc.ast+p.ast,
-      stl:acc.stl+evts.filter(e=>e.pid===p.id&&e.key==='steal').length,
-      blk:acc.blk+evts.filter(e=>e.pid===p.id&&e.key==='block').length,
-      to:acc.to+evts.filter(e=>e.pid===p.id&&e.key==='turnover').length,
-      fls:acc.fls+p.fouls
-    }),{pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0});
+    const pct=n=>n===0?'—':`${Math.round(100*n)}%`;
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>TOTALS</td><td>${tots.pts}</td><td>${tots.reb}</td><td>${tots.ast}</td><td>${tots.stl}</td><td>${tots.blk}</td><td>${tots.to}</td><td>${tots.fls}</td>`;
+    tr.innerHTML=`<td>TOTALS</td><td>${totals.pts}</td><td>${totals.fgm}/${totals.fga}</td><td>${totals.fga?pct(totals.fgm/totals.fga):'—'}</td><td>${totals.tpm}/${totals.tpa}</td><td>${totals.tpa?pct(totals.tpm/totals.tpa):'—'}</td><td>${totals.ftm}/${totals.fta}</td><td>${totals.fta?pct(totals.ftm/totals.fta):'—'}</td><td>${totals.reb}</td><td>${totals.ast}</td><td>${totals.stl}</td><td>${totals.blk}</td><td>${totals.to}</td><td>${totals.fls}</td>`;
     tbody.appendChild(tr);
     tbl.appendChild(tbody);div.appendChild(tbl);content.appendChild(div);
   });

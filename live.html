@@ -28,29 +28,29 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 #live-pill.final{background:var(--ink3);}
 
 /* SCOREBOARD */
-#scoreboard{background:var(--paper2);border-bottom:1.5px solid var(--rule);padding:12px 12px 8px;flex-shrink:0;}
+#scoreboard{background:var(--paper2);border-bottom:1.5px solid var(--rule);padding:10px 16px 8px;flex-shrink:0;}
 .sb-inner{max-width:1100px;margin:0 auto;}
-.sb-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:0;}
+.sb-row{display:grid;grid-template-columns:1fr 280px 1fr;align-items:start;gap:0;}
 
-/* Team half — logo beside name+score stack */
-.sb-team{display:flex;align-items:center;gap:14px;padding:6px 16px 6px;}
-.sb-team.home{justify-content:flex-start;}
-.sb-team.away{justify-content:flex-end;}
-.sb-logo{width:64px;height:64px;min-width:64px;max-width:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:22px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
+/* Team half — fills its 1fr column, logo + text spread with space-between */
+.sb-team{display:flex;align-items:center;gap:0;padding:4px 20px 4px;width:100%;box-sizing:border-box;}
+.sb-team.home{flex-direction:row;justify-content:flex-start;gap:18px;}
+.sb-team.away{flex-direction:row-reverse;justify-content:flex-start;gap:18px;}
+.sb-logo{width:72px;height:72px;min-width:72px;max-width:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:24px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
-.sb-team-stack{display:flex;flex-direction:column;gap:0;}
+.sb-team-stack{display:flex;flex-direction:column;gap:0;flex:1;min-width:0;}
 .sb-team.home .sb-team-stack{align-items:flex-start;}
 .sb-team.away .sb-team-stack{align-items:flex-end;}
-.sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:20px;color:var(--ink);line-height:1.15;}
-.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:54px;line-height:1;color:var(--ink);}
-.sb-meta{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);margin-top:3px;}
+.sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;color:var(--ink);line-height:1.15;white-space:nowrap;}
+.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:58px;line-height:1;color:var(--ink);}
+.sb-meta{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);margin-top:3px;flex-wrap:wrap;}
 .sb-team.away .sb-meta{justify-content:flex-end;}
 .sb-foul{padding:1px 6px;border-radius:10px;}
 .sb-foul.bonus{background:var(--live);color:#fff;font-weight:600;}
 
-/* Clock centre — clock+period+poss+qtr grid all stacked here */
-.sb-centre{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 10px;}
-.sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:20px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:3px 12px;letter-spacing:.04em;min-width:78px;text-align:center;}
+/* Clock centre — fixed 280px column, everything centred inside */
+.sb-centre{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 12px 4px;border-left:1px solid var(--rule2);border-right:1px solid var(--rule2);}
+.sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:20px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:3px 14px;letter-spacing:.04em;min-width:80px;text-align:center;}
 .sb-clock.running{border-color:var(--green);color:var(--green);background:#f0fdf4;}
 .sb-period{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;}
 .sb-poss{font-size:9px;font-weight:600;letter-spacing:.05em;padding:1px 8px;border-radius:20px;font-family:'DM Mono',monospace;background:var(--rule2);color:var(--ink2);}

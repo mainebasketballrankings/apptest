@@ -32,19 +32,23 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .sb-inner{max-width:1100px;margin:0 auto;}
 .sb-row{display:grid;grid-template-columns:1fr 280px 1fr;align-items:stretch;gap:0;}
 
-/* Team half — logo fills top, name/score centered below */
-.sb-team{display:flex;flex-direction:column;align-items:center;padding:14px 24px 10px;width:100%;box-sizing:border-box;gap:4px;}
+/* Team half — logo+name on top row, score centred below */
+.sb-team{display:flex;flex-direction:column;align-items:center;padding:12px 20px 10px;width:100%;box-sizing:border-box;gap:0;}
 .sb-team.home{border-right:1px solid var(--rule2);}
 .sb-team.away{border-left:1px solid var(--rule2);}
-.sb-logo{width:72px;height:72px;min-width:72px;max-width:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:24px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);margin-bottom:6px;}
+/* Top lockup: logo beside team name */
+.sb-identity{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
+.sb-team.away .sb-identity{flex-direction:row-reverse;}
+.sb-logo{width:56px;height:56px;min-width:56px;max-width:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:20px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
-.sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;color:var(--ink);line-height:1.1;text-align:center;}
-.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:62px;line-height:1;color:var(--ink);text-align:center;}
-.sb-meta{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);margin-top:2px;justify-content:center;flex-wrap:wrap;}
+.sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;color:var(--ink);line-height:1.1;}
+/* Big score centred under the identity lockup */
+.sb-pts{font-family:'DM Mono',monospace;font-weight:700;font-size:64px;line-height:1;color:var(--ink);text-align:center;letter-spacing:-.02em;}
+.sb-meta{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);margin-top:4px;justify-content:center;flex-wrap:wrap;}
 .sb-foul{padding:1px 6px;border-radius:10px;}
 .sb-foul.bonus{background:var(--live);color:#fff;font-weight:600;}
 
-/* Clock centre — fixed 280px column, everything centred inside */
+/* Clock centre */
 .sb-centre{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 12px 10px;}
 .sb-clock{font-family:'DM Mono',monospace;font-weight:500;font-size:20px;background:var(--paper);border:1.5px solid var(--rule);border-radius:6px;padding:3px 14px;letter-spacing:.04em;min-width:80px;text-align:center;}
 .sb-clock.running{border-color:var(--green);color:var(--green);background:#f0fdf4;}
@@ -74,7 +78,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 #main{display:grid;grid-template-columns:210px 1fr 210px;gap:0;flex:1;min-height:0;max-width:1100px;margin:0 auto;width:100%;padding:12px 12px 12px;box-sizing:border-box;align-items:start;}
 
 /* STAT PANELS */
-.stat-panel{display:flex;flex-direction:column;overflow-y:auto;max-height:calc(100dvh - 280px);border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;}
+.stat-panel{display:flex;flex-direction:column;border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;max-height:calc(100dvh - 220px);}
 .panel-hdr{font-family:'Playfair Display',serif;font-weight:700;font-size:12px;padding:8px 10px 5px;border-bottom:1.5px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--paper2);}
 .panel-hdr.hh{color:var(--ink);}
 .panel-hdr.ah{color:var(--ink);}
@@ -138,17 +142,16 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   #main{grid-template-columns:180px 1fr 180px;padding:8px;}
 }
 @media(max-width:680px){
-  /* Scoreboard: each team col stacks vertically, centre col full-width below */
   .sb-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
-  .sb-team.home{grid-column:1;grid-row:1;border-right:1px solid var(--rule2);border-bottom:1px solid var(--rule2);padding:10px 12px 8px;}
-  .sb-team.away{grid-column:2;grid-row:1;border-left:none;border-bottom:1px solid var(--rule2);padding:10px 12px 8px;}
+  .sb-team.home{grid-column:1;grid-row:1;border-right:1px solid var(--rule2);border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
+  .sb-team.away{grid-column:2;grid-row:1;border-left:none;border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
   .sb-centre{grid-column:1/-1;grid-row:2;padding:8px 12px 6px;}
-  .sb-logo{width:48px;height:48px;min-width:48px;max-width:48px;font-size:18px;margin-bottom:4px;}
-  .sb-name{font-size:15px;}
-  .sb-pts{font-size:44px;}
+  .sb-logo{width:36px;height:36px;min-width:36px;max-width:36px;font-size:14px;}
+  .sb-name{font-size:14px;}
+  .sb-pts{font-size:40px;}
   .sb-meta{font-size:9px;}
+  .sb-identity{gap:8px;}
 
-  /* Main: single column, court hidden, mobile panel shown */
   #main{grid-template-columns:1fr;padding:8px;gap:8px;}
   #court-col{display:none;}
   #mobile-panel{display:block;}
@@ -171,8 +174,10 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
     <div class="sb-row">
       <!-- HOME: logo + name/score stack -->
       <div class="sb-team home">
-        <div class="sb-logo" id="home-logo">C</div>
-        <div class="sb-name" id="home-name">Camden Hills</div>
+        <div class="sb-identity">
+          <div class="sb-logo" id="home-logo">C</div>
+          <div class="sb-name" id="home-name">Camden Hills</div>
+        </div>
         <div class="sb-pts" id="home-score">0</div>
         <div class="sb-meta">
           <span class="sb-foul" id="home-foul-lbl">0 fouls</span>
@@ -214,8 +219,10 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 
       <!-- AWAY: score/name stack + logo -->
       <div class="sb-team away">
-        <div class="sb-logo" id="away-logo">C</div>
-        <div class="sb-name" id="away-name">Cape Elizabeth</div>
+        <div class="sb-identity">
+          <div class="sb-logo" id="away-logo">C</div>
+          <div class="sb-name" id="away-name">Cape Elizabeth</div>
+        </div>
         <div class="sb-pts" id="away-score">0</div>
         <div class="sb-meta">
           <span class="sb-foul" id="away-foul-lbl">0 fouls</span>

@@ -378,6 +378,28 @@ body{
         Arc sweeps DOWN into court = sweep=1, large-arc=0
     -->
     <svg id="csvg" viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet">
+      <!--
+        NFHS half court: 50ft wide × 47ft deep (baseline to half court).
+        ViewBox 460×380. Margins 15px each side → playable 430×362.
+        Scale: 430/50 = 8.6px/ft horizontal, 362/47 = 7.7px/ft vertical.
+        Use 8.0px/ft as a round uniform scale (slight letterbox is fine).
+
+        Origin: top-left of playable area = (15, 10).
+        Basket: 5.25ft from baseline → y = 10 + 5.25*8 = 52. Centre (230, 52).
+        Key (paint): 12ft wide, 19ft deep.
+          x: 230 ± 6*8 = 230±48 → x=182 to 278. y: 10 to 10+19*8=162.
+        FT line: y=162. FT circle: centre (230,162), r=6*8=48px.
+        Restricted arc: r=4*8=32px from basket (230,52).
+          At y=10: (x-230)²+(10-52)²=32² → 1764+1024=2788 > 1024 → arc starts below baseline.
+          Just draw from x=230-32=198 to 262 tangent to baseline.
+        3pt arc: r=19.75*8=158px from basket (230,52).
+          At y=10 (baseline): (x-230)²+(10-52)²=158²
+          (x-230)²=24964-1764=23200 → x=230±152 → x=78, x=382.
+          Arc from (78,10) to (382,10) sweeping DOWN into court: sweep=0, large-arc=0.
+          Arc bottom: y = 52+158 = 210. Extends to halfway between FT line (162) and half court.
+          ✓ Matches reference image proportions.
+      -->
+
       <!-- Floor -->
       <rect width="460" height="380" fill="#c9a96e"/>
       <!-- Boundary -->
@@ -387,36 +409,31 @@ body{
       <line x1="15" y1="372" x2="445" y2="372" stroke="#7a5c1e" stroke-width="2"/>
       <circle cx="230" cy="372" r="48" fill="none" stroke="#7a5c1e" stroke-width="2"/>
 
-      <!-- KEY / PAINT: x=179–281, y=18–147 -->
-      <rect x="179" y="10" width="102" height="137" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- KEY / PAINT: x=182–278, y=10–162 -->
+      <rect x="182" y="10" width="96" height="152" fill="#b8955a" stroke="#7a5c1e" stroke-width="2"/>
       <!-- Lane tick marks -->
-      <line x1="200" y1="10" x2="200" y2="147" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
-      <line x1="260" y1="10" x2="260" y2="147" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+      <line x1="202" y1="10" x2="202" y2="162" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
+      <line x1="258" y1="10" x2="258" y2="162" stroke="#7a5c1e" stroke-width="1.2" stroke-dasharray="5,5"/>
 
-      <!-- BACKBOARD at y=12, 52px wide -->
-      <rect x="204" y="12" width="52" height="6" fill="#7a5c1e" rx="1"/>
+      <!-- BACKBOARD: 6ft=48px wide, at y=13 -->
+      <rect x="206" y="13" width="48" height="6" fill="#7a5c1e" rx="1"/>
 
-      <!-- BASKET centre (230,40) r=9 -->
-      <circle cx="230" cy="40" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
-      <circle cx="230" cy="40" r="3" fill="#7a5c1e"/>
+      <!-- BASKET centre (230, 52) r=9 -->
+      <circle cx="230" cy="52" r="9" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <circle cx="230" cy="52" r="3" fill="#7a5c1e"/>
 
-      <!-- RESTRICTED AREA ARC: r=34, centre (230,40)
-           endpoints x=204,256 at y=10. Sweeps DOWN into court. -->
-      <path d="M 204 10 A 34 34 0 0 1 256 10" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
+      <!-- RESTRICTED AREA ARC: r=32 from (230,52), tangent to baseline -->
+      <path d="M 198 10 A 32 32 0 0 1 262 10" fill="none" stroke="#7a5c1e" stroke-width="1.8"/>
 
-      <!-- FT LINE at y=147 -->
-      <line x1="179" y1="147" x2="281" y2="147" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- FT CIRCLE centre (230,147) r=52
-           Top half (toward basket) = solid, sweep toward basket = arc goes UP = sweep=0 -->
-      <path d="M 178 147 A 52 52 0 0 0 282 147" fill="none" stroke="#7a5c1e" stroke-width="2"/>
-      <!-- Bottom half (toward court) = dashed -->
-      <path d="M 178 147 A 52 52 0 0 1 282 147" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
+      <!-- FT LINE at y=162 -->
+      <line x1="182" y1="162" x2="278" y2="162" stroke="#7a5c1e" stroke-width="2"/>
+      <!-- FT CIRCLE: centre (230,162) r=48. Top half solid (toward basket), bottom dashed -->
+      <path d="M 182 162 A 48 48 0 0 0 278 162" fill="none" stroke="#7a5c1e" stroke-width="2"/>
+      <path d="M 182 162 A 48 48 0 0 1 278 162" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
 
-      <!-- 3-POINT ARC: r=170, centre (230,40)
-           endpoints (61,10) and (399,10) at baseline
-           Sweeps through court (downward = large arc going away from basket baseline)
-           large-arc=1, sweep=1 -->
-      <path d="M 61 10 A 170 170 0 0 0 399 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- 3-POINT ARC: r=158, centre (230,52)
+           endpoints (78,10) and (382,10). sweep=0 bows downward into court. -->
+      <path d="M 78 10 A 158 158 0 0 0 382 10" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>
@@ -536,7 +553,7 @@ const SDEFS=[
 const KLBL={
   '2pt_made':'2 PTS','2pt_miss':'2 Miss','3pt_made':'3 PTS','3pt_miss':'3 Miss',
   'putback_made':'Putback ✓','putback_miss':'Putback ✗',
-  'sub_in':'Sub IN','sub_out':'Sub OUT','possession_flip':'Arrow flip',
+  'sub_in':'Sub IN','sub_out':'Sub OUT',
 };
 
 // ══ STATE ═════════════════════════════════════
@@ -682,8 +699,8 @@ function svgP(e){
   const s=e.touches?e.touches[0]:e;
   return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
 }
-// Basket at (230,40), arc r=170
-function is3(pt){const dx=pt.x-230,dy=pt.y-40;return Math.sqrt(dx*dx+dy*dy)>170;}
+// Basket at (230,52), arc r=158px
+function is3(pt){const dx=pt.x-230,dy=pt.y-52;return Math.sqrt(dx*dx+dy*dy)>158;}
 
 function swDir(dx,dy){
   const ax=Math.abs(dx),ay=Math.abs(dy);
@@ -803,7 +820,7 @@ function getPts(k){
   if(k==='ft_made')return 1;
   return 0;
 }
-function getLabel(k){return KLBL[k]||(SDEFS.find(s=>s.key===k)?.lbl)||k;}
+function getLabel(k,side){if(k==='possession_flip'){return (side?GAME[side].name:'')+' ball';}return KLBL[k]||(SDEFS.find(s=>s.key===k)?.lbl)||k;}
 
 function delEvt(id){
   const e=evts.find(x=>x.id===id);if(!e)return;
@@ -841,7 +858,7 @@ function renderFeed(){
     const dot=document.createElement('div');dot.className='ef-dot';
     dot.style.background=e.side==='home'?'var(--hl)':'var(--al)';
     const txt=document.createElement('div');txt.className='ef-txt';
-    txt.textContent=e.pnum?`#${e.pnum} ${e.plast||''} ${getLabel(e.key)}`:getLabel(e.key);
+    txt.textContent=e.pnum?`#${e.pnum} ${e.pfi||''}.${e.plast||''} — ${getLabel(e.key,e.side)}`:getLabel(e.key,e.side);
     const clk=document.createElement('div');clk.className='ef-clk';
     clk.textContent=`Q${e.period} ${fmt(e.clk)}`;
     row.appendChild(dot);row.appendChild(txt);row.appendChild(clk);
@@ -858,7 +875,7 @@ function renderLog(){
     const dot=document.createElement('div');dot.className='ldot';
     dot.style.background=e.side==='home'?'var(--hl)':'var(--al)';
     const txt=document.createElement('div');txt.className='ltxt';
-    txt.textContent=e.pnum?`#${e.pnum} ${e.plast||''} — ${getLabel(e.key)}`:getLabel(e.key);
+    txt.textContent=e.pnum?`#${e.pnum} ${e.pfi||''}.${e.plast||''} — ${getLabel(e.key,e.side)}`:getLabel(e.key,e.side);
     const clk=document.createElement('div');clk.className='lclk';
     clk.textContent=`Q${e.period} ${fmt(e.clk)}`;
     const del=document.createElement('button');del.className='ldel';del.textContent='✕';

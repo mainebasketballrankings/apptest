@@ -99,9 +99,10 @@
     .status-badge.bubble { background: #e67e22; color: #fff; }
     .status-badge.out    { background: var(--red); color: #fff; }
     .odds-bucket .val.bye-val { color: var(--green); }
-    .odds-pct-big { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 36px; vertical-align: middle; margin-left: 4px; }
-    .odds-pct-big.bye-col { color: var(--green); }
-    .odds-pct-big.in-col  { color: var(--green); }
+    .odds-hero { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+    .odds-check-pct { display: flex; align-items: center; gap: 6px; }
+    .odds-check { font-size: 28px; color: var(--green); font-weight: 700; }
+    .odds-big-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 36px; color: var(--green); }
     .seed-pct { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; width: 44px; text-align: right; }
 
     /* COMBINED GAMES TABLE */
@@ -150,12 +151,13 @@
     .error-state { color: var(--red); }
 
     @media (max-width: 640px) {
-      .team-header { flex-direction: column; align-items: center; text-align: center; }
-      .team-header-info { align-items: center; display: flex; flex-direction: column; }
-      .team-name-row { justify-content: center; flex-wrap: wrap; }
-      .rank-trio { margin-top: 6px; }
-      .team-meta { justify-content: center; }
-      .team-inline-stats { justify-content: center; }
+      .team-header { flex-direction: column; align-items: center; text-align: center; padding: 20px 16px; }
+      .team-header-info { align-items: center; display: flex; flex-direction: column; width: 100%; }
+      .team-name-row { justify-content: center; flex-wrap: wrap; width: 100%; }
+      .rank-trio { margin-top: 8px; justify-content: center; }
+      .team-meta { justify-content: center; width: 100%; }
+      .team-inline-stats { justify-content: center; width: 100%; }
+      .inline-stat { flex: 1; text-align: center; padding: 6px 10px; }
     }
     @media (max-width: 640px) {
       .team-header { flex-direction: column; text-align: center; }
@@ -315,9 +317,9 @@ async function load() {
 
     const rankHtml = (rState || rClass) ? `
       <span class="rank-trio">
-        ${rState  ? `<span><span class="rtag">ST</span>#${rState}</span>`  : ''}
-        ${rClass  ? `<span><span class="rtag">${classReg}</span>#${rClass}</span>` : ''}
-        ${rRegion ? `<span><span class="rtag">${regionName.toUpperCase()}</span>#${rRegion}</span>` : ''}
+        ${rState  ? `<span><span class="rtag">STATE</span>#${rState}</span>`  : ''}
+        ${rClass  ? `<span><span class="rtag">${className}</span>#${rClass}</span>` : ''}
+        ${rRegion ? `<span><span class="rtag">${classReg.toUpperCase()}</span>#${rRegion}</span>` : ''}
       </span>` : '';
 
     // Stat cards
@@ -397,14 +399,16 @@ async function load() {
       const showIn  = inTotal  > 0 && byeTotal < 0.999;
       const showOut = outTotal > 0;
 
+      const is100 = byeTotal >= 0.999 || inTotal >= 0.999;
+      const pct100 = byeTotal >= 0.999 ? byePct : inTotal >= 0.999 ? inPct : null;
       const topHtml = `
         <div class="odds-top">
-          ${statusBadge2}
-          <span class="odds-pct-big ${byeTotal>=0.999?'bye-col':inTotal>=0.999?'in-col':''}">
-            ${byeTotal>=0.999 ? byePct+'%' : inTotal>=0.999 ? inPct+'%' : ''}
-          </span>
+          <div class="odds-hero">
+            ${statusBadge2}
+            ${is100 ? `<span class="odds-check-pct"><span class="odds-check">✓</span><span class="odds-big-num">${pct100}%</span></span>` : ''}
+          </div>
           ${showBye  ? `<div class="odds-bucket"><div class="lbl">BYE</div><div class="val bye-val">${byePct}%</div></div>` : ''}
-          ${showIn   ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
+          ${showIn && inTotal < 0.999 ? `<div class="odds-bucket"><div class="lbl">In Tournament</div><div class="val in">${inPct}%</div></div>` : ''}
           ${showOut  ? `<div class="odds-bucket"><div class="lbl">Out</div><div class="val out">${outPct}%</div></div>` : ''}
         </div>`;
 

@@ -412,15 +412,11 @@ body{
       <path d="M 171 173 A 59 59 0 0 0 289 173" fill="none" stroke="#7a5c1e" stroke-width="2"/>
       <path d="M 171 173 A 59 59 0 0 1 289 173" fill="none" stroke="#7a5c1e" stroke-width="2" stroke-dasharray="7,6"/>
 
-      <!-- 3pt line: straight segments at sidelines, then bezier arc
-           Straight: sideline x=15 and x=445, from y=10 down to y=74
-           Arc: from (15,74) to (445,74), bottom at y=195 (traced from reference)
-           Bezier control: midpoint y=195 means control y = 4*195 - 74 - 74 - ... 
-           Q control y: actual bottom of quadratic = 0.5*start + control + 0.5*end... 
-           At t=0.5: y = 0.25*74 + 0.5*cy + 0.25*74 = 0.5*cy + 37 = 195 → cy = 316 -->
-      <line x1="15" y1="10" x2="15" y2="74" stroke="#7a5c1e" stroke-width="2.5"/>
-      <line x1="445" y1="10" x2="445" y2="74" stroke="#7a5c1e" stroke-width="2.5"/>
-      <path d="M 15 74 Q 230 316 445 74" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
+      <!-- 3pt line: NFHS r=19.9ft=171px from basket(230,30). Corner straights + true circular arc.
+           Arc endpoints at y=36: x=59 (left) and x=401 (right). Arc bottom y=201. -->
+      <line x1="15" y1="10" x2="59" y2="36" stroke="#7a5c1e" stroke-width="2.5"/>
+      <line x1="445" y1="10" x2="401" y2="36" stroke="#7a5c1e" stroke-width="2.5"/>
+      <path d="M 59 36 A 171 171 0 1 1 401 36" fill="none" stroke="#7a5c1e" stroke-width="2.5"/>
 
       <!-- Shot dots -->
       <g id="shot-dots"></g>
@@ -688,11 +684,11 @@ function svgP(e){
 }
 // Basket at (230,52), arc r=158px
 function is3(pt){
-  // Corner straight segments match sideline 3pt lines (y < 74)
-  if(pt.y < 74 && (pt.x < 50 || pt.x > 410)) return true;
-  // Arc: basket at (230,30). 3pt arc bottom traced to y=195, so radius ≈ 195-30=165
+  // Corner straight zones (sideline 3pt segments, y < 46)
+  if(pt.y < 46 && (pt.x < 50 || pt.x > 410)) return true;
+  // Arc zone: basket at (230,30), arc bottom ~y=154, radius ≈ 154-30=124
   const dx=pt.x-230, dy=pt.y-30;
-  return Math.sqrt(dx*dx+dy*dy) > 165;
+  return Math.sqrt(dx*dx+dy*dy) > 171;
 }
 
 function swDir(dx,dy){

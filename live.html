@@ -36,7 +36,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .sb-team{display:flex;align-items:center;gap:12px;}
 .sb-team.home{justify-content:flex-end;}
 .sb-team.away{justify-content:flex-start;}
-.sb-logo{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:17px;overflow:hidden;flex-shrink:0;border:1.5px solid var(--rule);background:var(--rule2);color:var(--ink2);}
+.sb-logo{width:48px;height:48px;min-width:48px;max-width:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:17px;overflow:hidden;flex-shrink:0;border:1.5px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
 .sb-team-info{display:flex;flex-direction:column;gap:2px;}
 .sb-team.home .sb-team-info{align-items:flex-end;text-align:right;}
@@ -46,7 +46,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .sb-foul{padding:1px 6px;border-radius:10px;}
 .sb-foul.bonus{background:var(--live);color:#fff;font-weight:600;}
 /* Big score sits outside team-info, right next to logo */
-.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:58px;line-height:1;color:var(--ink);flex-shrink:0;}
+.sb-pts{font-family:'Playfair Display',serif;font-weight:900;font-size:58px;line-height:1;color:var(--ink);flex-shrink:0;min-width:52px;text-align:center;}
 /* Clock centre block */
 .sb-centre{display:flex;flex-direction:column;align-items:center;gap:3px;}
 .sb-dash{font-family:'DM Mono',monospace;font-size:24px;color:var(--rule);line-height:1;}
@@ -567,108 +567,113 @@ function startClock(){
 // ══════════════════════════════════════════════════════
 
 // ── SIMULATOR ─────────────────────────────────────────
+// pt coords in scorer space (460×380, basket at y=25, x=230).
+// is3: corner zones x<60||x>400 with y<232; arc dist>171 from (230,25).
+// All coords verified in Python before placement.
 const SIM=(()=>{
   const h=(id,num,fi,last)=>({pid:`h${id}`,pnum:num,pfi:fi,plast:last,side:'home'});
   const a=(id,num,fi,last)=>({pid:`a${id}`,pnum:num,pfi:fi,plast:last,side:'away'});
   const mk=(who,key,clk,period,pt)=>({id:Date.now()+Math.random(),...who,key,clk,period:period||1,pts:0,three:false,pt:pt||null});
   const p=(x,y)=>({x,y});
   return [
-    mk(h(2,10,'S','Johnson'),     '2pt_made',   470,1,p(200,120)),
-    mk(a(1,10,'L','Lombardo'),    'd_reb',       455,1),
-    mk(a(3,14,'J','Rosen'),       '3pt_made',    440,1,p(90,100)),
-    mk(h(4,12,'H','Schwalm'),     'd_reb',       428,1),
-    mk(h(5,15,'T','Leadbetter'),  '2pt_miss',    415,1,p(240,80)),
-    mk(a(5,23,'O','Beaureguard'), 'o_reb',       408,1),
-    mk(a(5,23,'O','Beaureguard'), 'putback_made',400,1,p(235,40)),
-    mk(h(1,4,'H','Stewart'),      'd_reb',       395,1),
-    mk(h(3,11,'K','Melquist'),    '2pt_made',    380,1,p(180,165)),
-    mk(h(1,4,'H','Stewart'),      'assist',      380,1),
-    mk(a(2,11,'C','Wannemacher'), 'steal',       370,1),
-    mk(a(2,11,'C','Wannemacher'), '2pt_made',    362,1,p(270,200)),
-    mk(h(2,10,'S','Johnson'),     'turnover',    350,1),
-    mk(a(4,20,'E','Morse'),       '3pt_miss',    338,1,p(360,145)),
-    mk(h(4,12,'H','Schwalm'),     'd_reb',       330,1),
+    // Q1
+    mk(h(2,10,'S','Johnson'),     '2pt_made',    470,1,p(230,100)),  // paint  dist=75
+    mk(a(1,10,'L','Lombardo'),    'd_reb',        455,1),
+    mk(a(3,14,'J','Rosen'),       '3pt_made',     440,1,p(55,150)),  // corner dist=215
+    mk(h(4,12,'H','Schwalm'),     'd_reb',        428,1),
+    mk(h(5,15,'T','Leadbetter'),  '2pt_miss',     415,1,p(200,170)), // mid    dist=148
+    mk(a(5,23,'O','Beaureguard'), 'o_reb',        408,1),
+    mk(a(5,23,'O','Beaureguard'), 'putback_made', 400,1,p(245,80)),  // paint  dist=57
+    mk(h(1,4,'H','Stewart'),      'd_reb',        395,1),
+    mk(h(3,11,'K','Melquist'),    '2pt_made',     380,1,p(200,130)), // mid    dist=109
+    mk(h(1,4,'H','Stewart'),      'assist',       380,1),
+    mk(a(2,11,'C','Wannemacher'), 'steal',        370,1),
+    mk(a(2,11,'C','Wannemacher'), '2pt_made',     362,1,p(260,130)), // mid    dist=109
+    mk(h(2,10,'S','Johnson'),     'turnover',     350,1),
+    mk(a(4,20,'E','Morse'),       '3pt_miss',     338,1,p(405,150)), // corner dist=215
+    mk(h(4,12,'H','Schwalm'),     'd_reb',        330,1),
     mk(h(5,15,'T','Leadbetter'),  'foul_personal',320,1),
-    mk(a(3,14,'J','Rosen'),       'ft_made',     315,1),
-    mk(a(3,14,'J','Rosen'),       'ft_made',     310,1),
-    mk(h(1,4,'H','Stewart'),      '3pt_made',    295,1,p(80,85)),
+    mk(a(3,14,'J','Rosen'),       'ft_made',      315,1),
+    mk(a(3,14,'J','Rosen'),       'ft_made',      310,1),
+    mk(h(1,4,'H','Stewart'),      '3pt_made',     295,1,p(100,260)), // wing   dist=269
     mk(a(1,10,'L','Lombardo'),    'foul_personal',285,1),
-    mk(h(3,11,'K','Melquist'),    'ft_made',     280,1),
-    mk(h(3,11,'K','Melquist'),    'ft_miss',     275,1),
-    mk(a(5,23,'O','Beaureguard'), 'd_reb',       268,1),
-    mk(a(4,20,'E','Morse'),       '2pt_made',    252,1,p(220,160)),
-    mk(h(4,12,'H','Schwalm'),     'block',       240,1),
-    mk(h(4,12,'H','Schwalm'),     'd_reb',       235,1),
-    mk(h(2,10,'S','Johnson'),     '2pt_made',    220,1,p(195,55)),
-    mk(a(2,11,'C','Wannemacher'), 'timeout_full',210,1),
-    mk(a(3,14,'J','Rosen'),       '2pt_made',    195,1,p(250,130)),
-    mk(h(5,15,'T','Leadbetter'),  '2pt_miss',    182,1,p(215,200)),
-    mk(a(2,11,'C','Wannemacher'), 'o_reb',       175,1),
-    mk(a(1,10,'L','Lombardo'),    '3pt_miss',    165,1,p(395,110)),
-    mk(h(1,4,'H','Stewart'),      'd_reb',       158,1),
-    mk(h(3,11,'K','Melquist'),    '2pt_made',    140,1,p(230,60)),
-    mk(h(1,4,'H','Stewart'),      'assist',      140,1),
-    mk(a(4,20,'E','Morse'),       '2pt_made',    125,1,p(260,175)),
-    mk(h(2,10,'S','Johnson'),     '3pt_miss',    112,1,p(75,90)),
-    mk(a(5,23,'O','Beaureguard'), 'd_reb',       104,1),
-    mk(a(2,11,'C','Wannemacher'), '2pt_made',     88,1,p(285,200)),
+    mk(h(3,11,'K','Melquist'),    'ft_made',      280,1),
+    mk(h(3,11,'K','Melquist'),    'ft_miss',      275,1),
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',        268,1),
+    mk(a(4,20,'E','Morse'),       '2pt_made',     252,1,p(230,180)), // mid    dist=155
+    mk(h(4,12,'H','Schwalm'),     'block',        240,1),
+    mk(h(4,12,'H','Schwalm'),     'd_reb',        235,1),
+    mk(h(2,10,'S','Johnson'),     '2pt_made',     220,1,p(215,80)),  // paint  dist=57
+    mk(a(2,11,'C','Wannemacher'), 'timeout_full', 210,1),
+    mk(a(3,14,'J','Rosen'),       '2pt_made',     195,1,p(185,160)), // mid    dist=142
+    mk(h(5,15,'T','Leadbetter'),  '2pt_miss',     182,1,p(260,170)), // mid    dist=148
+    mk(a(2,11,'C','Wannemacher'), 'o_reb',        175,1),
+    mk(a(1,10,'L','Lombardo'),    '3pt_miss',     165,1,p(430,160)), // corner dist=241
+    mk(h(1,4,'H','Stewart'),      'd_reb',        158,1),
+    mk(h(3,11,'K','Melquist'),    '2pt_made',     140,1,p(210,110)), // paint  dist=87
+    mk(h(1,4,'H','Stewart'),      'assist',       140,1),
+    mk(a(4,20,'E','Morse'),       '2pt_made',     125,1,p(275,160)), // mid    dist=142
+    mk(h(2,10,'S','Johnson'),     '3pt_miss',     112,1,p(165,285)), // wing   dist=268
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',        104,1),
+    mk(a(2,11,'C','Wannemacher'), '2pt_made',      88,1,p(250,110)), // paint  dist=87
     mk(h(4,12,'H','Schwalm'),     'foul_personal', 80,1),
-    mk(a(3,14,'J','Rosen'),       'ft_made',      75,1),
-    mk(a(3,14,'J','Rosen'),       'ft_miss',      70,1),
-    mk(h(3,11,'K','Melquist'),    'd_reb',        62,1),
-    mk(h(1,4,'H','Stewart'),      '2pt_made',     45,1,p(225,90)),
-    mk(a(1,10,'L','Lombardo'),    '3pt_made',     30,1,p(400,120)),
-    mk(h(2,10,'S','Johnson'),     '2pt_miss',     18,1,p(200,55)),
-    mk(a(5,23,'O','Beaureguard'), 'd_reb',        10,1),
+    mk(a(3,14,'J','Rosen'),       'ft_made',       75,1),
+    mk(a(3,14,'J','Rosen'),       'ft_miss',       70,1),
+    mk(h(3,11,'K','Melquist'),    'd_reb',         62,1),
+    mk(h(1,4,'H','Stewart'),      '2pt_made',      45,1,p(230,60)),  // paint  dist=35
+    mk(a(1,10,'L','Lombardo'),    '3pt_made',      30,1,p(295,285)), // wing   dist=268
+    mk(h(2,10,'S','Johnson'),     '2pt_miss',      18,1,p(200,130)), // mid    dist=109
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',         10,1),
+    mk(a(4,20,'E','Morse'),       '2pt_miss',       4,1,p(245,80)),  // paint  dist=57
     // Q2
-    mk(h(1,4,'H','Stewart'),      '2pt_made',    478,2,p(190,140)),
-    mk(a(2,11,'C','Wannemacher'), 'steal',       468,2),
-    mk(a(3,14,'J','Rosen'),       '3pt_made',    460,2,p(85,110)),
-    mk(h(3,11,'K','Melquist'),    '2pt_made',    445,2,p(230,55)),
+    mk(h(1,4,'H','Stewart'),      '2pt_made',     478,2,p(185,160)), // mid    dist=142
+    mk(a(2,11,'C','Wannemacher'), 'steal',        468,2),
+    mk(a(3,14,'J','Rosen'),       '3pt_made',     460,2,p(55,100)),  // corner dist=190
+    mk(h(3,11,'K','Melquist'),    '2pt_made',     445,2,p(230,100)), // paint  dist=75
     mk(a(1,10,'L','Lombardo'),    'foul_personal',435,2),
-    mk(h(3,11,'K','Melquist'),    'ft_made',     430,2),
-    mk(h(3,11,'K','Melquist'),    'ft_made',     425,2),
-    mk(a(4,20,'E','Morse'),       '2pt_made',    410,2,p(260,165)),
-    mk(h(5,15,'T','Leadbetter'),  '3pt_miss',    398,2,p(380,140)),
-    mk(a(5,23,'O','Beaureguard'), 'd_reb',       390,2),
-    mk(a(2,11,'C','Wannemacher'), '2pt_made',    375,2,p(200,200)),
-    mk(h(4,12,'H','Schwalm'),     '3pt_made',    360,2,p(70,95)),
-    mk(a(3,14,'J','Rosen'),       'turnover',    348,2),
-    mk(h(2,10,'S','Johnson'),     'steal',       342,2),
-    mk(h(2,10,'S','Johnson'),     '2pt_made',    335,2,p(225,145)),
-    mk(a(4,20,'E','Morse'),       '2pt_miss',    320,2,p(255,75)),
-    mk(h(1,4,'H','Stewart'),      'd_reb',       312,2),
-    mk(h(5,15,'T','Leadbetter'),  '2pt_made',    298,2,p(195,175)),
-    mk(a(1,10,'L','Lombardo'),    '3pt_miss',    284,2,p(395,120)),
-    mk(h(3,11,'K','Melquist'),    'd_reb',       276,2),
-    mk(h(1,4,'H','Stewart'),      '3pt_miss',    262,2,p(80,100)),
-    mk(a(5,23,'O','Beaureguard'), 'o_reb',       254,2),
-    mk(a(5,23,'O','Beaureguard'), '2pt_made',    248,2,p(240,45)),
+    mk(h(3,11,'K','Melquist'),    'ft_made',      430,2),
+    mk(h(3,11,'K','Melquist'),    'ft_made',      425,2),
+    mk(a(4,20,'E','Morse'),       '2pt_made',     410,2,p(260,170)), // mid    dist=148
+    mk(h(5,15,'T','Leadbetter'),  '3pt_miss',     398,2,p(360,260)), // wing   dist=269
+    mk(a(5,23,'O','Beaureguard'), 'd_reb',        390,2),
+    mk(a(2,11,'C','Wannemacher'), '2pt_made',     375,2,p(200,170)), // mid    dist=148
+    mk(h(4,12,'H','Schwalm'),     '3pt_made',     360,2,p(30,160)),  // corner dist=241
+    mk(a(3,14,'J','Rosen'),       'turnover',     348,2),
+    mk(h(2,10,'S','Johnson'),     'steal',        342,2),
+    mk(h(2,10,'S','Johnson'),     '2pt_made',     335,2,p(215,80)),  // paint  dist=57
+    mk(a(4,20,'E','Morse'),       '2pt_miss',     320,2,p(260,130)), // mid    dist=109
+    mk(h(1,4,'H','Stewart'),      'd_reb',        312,2),
+    mk(h(5,15,'T','Leadbetter'),  '2pt_made',     298,2,p(200,130)), // mid    dist=109
+    mk(a(1,10,'L','Lombardo'),    '3pt_miss',     284,2,p(430,220)), // corner dist=279
+    mk(h(3,11,'K','Melquist'),    'd_reb',        276,2),
+    mk(h(1,4,'H','Stewart'),      '3pt_miss',     262,2,p(165,285)), // wing   dist=268
+    mk(a(5,23,'O','Beaureguard'), 'o_reb',        254,2),
+    mk(a(5,23,'O','Beaureguard'), 'putback_made', 248,2,p(245,80)),  // paint  dist=57
     mk(h(2,10,'S','Johnson'),     'foul_personal',238,2),
-    mk(a(2,11,'C','Wannemacher'), 'ft_made',     233,2),
-    mk(a(2,11,'C','Wannemacher'), 'ft_made',     228,2),
-    mk(h(4,12,'H','Schwalm'),     '2pt_made',    215,2,p(185,100)),
-    mk(a(3,14,'J','Rosen'),       '3pt_miss',    200,2,p(390,105)),
-    mk(h(1,4,'H','Stewart'),      'd_reb',       192,2),
-    mk(h(2,10,'S','Johnson'),     '2pt_miss',    178,2,p(210,60)),
-    mk(a(4,20,'E','Morse'),       'd_reb',       170,2),
-    mk(a(1,10,'L','Lombardo'),    '2pt_made',    155,2,p(255,140)),
-    mk(h(3,11,'K','Melquist'),    'steal',       142,2),
-    mk(h(3,11,'K','Melquist'),    '3pt_made',    136,2,p(85,92)),
-    mk(a(2,11,'C','Wannemacher'), 'timeout_full',125,2),
-    mk(a(5,23,'O','Beaureguard'), '2pt_miss',    110,2,p(230,50)),
-    mk(h(4,12,'H','Schwalm'),     'd_reb',       102,2),
-    mk(h(5,15,'T','Leadbetter'),  '2pt_made',     88,2,p(195,170)),
-    mk(a(3,14,'J','Rosen'),       '2pt_made',     72,2,p(265,125)),
+    mk(a(2,11,'C','Wannemacher'), 'ft_made',      233,2),
+    mk(a(2,11,'C','Wannemacher'), 'ft_made',      228,2),
+    mk(h(4,12,'H','Schwalm'),     '2pt_made',     215,2,p(250,110)), // paint  dist=87
+    mk(a(3,14,'J','Rosen'),       '3pt_miss',     200,2,p(405,100)), // corner dist=190
+    mk(h(1,4,'H','Stewart'),      'd_reb',        192,2),
+    mk(h(2,10,'S','Johnson'),     '2pt_miss',     178,2,p(185,160)), // mid    dist=142
+    mk(a(4,20,'E','Morse'),       'd_reb',        170,2),
+    mk(a(1,10,'L','Lombardo'),    '2pt_made',     155,2,p(275,160)), // mid    dist=142
+    mk(h(3,11,'K','Melquist'),    'steal',        142,2),
+    mk(h(3,11,'K','Melquist'),    '3pt_made',     136,2,p(30,80)),   // corner dist=207
+    mk(a(2,11,'C','Wannemacher'), 'timeout_full', 125,2),
+    mk(a(5,23,'O','Beaureguard'), '2pt_miss',     110,2,p(230,100)), // paint  dist=75
+    mk(h(4,12,'H','Schwalm'),     'd_reb',        102,2),
+    mk(h(5,15,'T','Leadbetter'),  '2pt_made',      88,2,p(200,130)), // mid    dist=109
+    mk(a(3,14,'J','Rosen'),       '2pt_made',      72,2,p(260,130)), // mid    dist=109
     mk(h(1,4,'H','Stewart'),      'foul_personal', 62,2),
-    mk(a(4,20,'E','Morse'),       'ft_made',      57,2),
-    mk(a(4,20,'E','Morse'),       'ft_made',      52,2),
-    mk(h(2,10,'S','Johnson'),     '2pt_made',     38,2,p(200,145)),
-    mk(h(3,11,'K','Melquist'),    'assist',       38,2),
-    mk(a(1,10,'L','Lombardo'),    '3pt_miss',     22,2,p(400,100)),
-    mk(h(5,15,'T','Leadbetter'),  'd_reb',        14,2),
-    mk(h(1,4,'H','Stewart'),      '2pt_miss',      6,2,p(225,70)),
-    mk(a(2,11,'C','Wannemacher'), 'd_reb',         2,2),
+    mk(a(4,20,'E','Morse'),       'ft_made',       57,2),
+    mk(a(4,20,'E','Morse'),       'ft_made',       52,2),
+    mk(h(2,10,'S','Johnson'),     '2pt_made',      38,2,p(230,180)), // mid    dist=155
+    mk(h(3,11,'K','Melquist'),    'assist',        38,2),
+    mk(a(1,10,'L','Lombardo'),    '3pt_miss',      22,2,p(55,150)),  // corner dist=215
+    mk(h(5,15,'T','Leadbetter'),  'd_reb',         14,2),
+    mk(h(1,4,'H','Stewart'),      '2pt_miss',       6,2,p(215,80)),  // paint  dist=57
+    mk(a(2,11,'C','Wannemacher'), 'd_reb',          2,2),
   ];
 })();
 

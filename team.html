@@ -404,6 +404,10 @@ async function load() {
       const playInTotal = inTotal - byeTotal;
       const playInPct   = playInTotal > 0 ? (playInTotal * 100).toFixed(1) : null;
 
+      const is100     = byeTotal >= 0.999 || inTotal >= 0.999 || outTotal >= 0.999;
+      const pct100    = byeTotal >= 0.999 ? byePct : inTotal >= 0.999 ? inPct : outTotal >= 0.999 ? outPct : null;
+      const pct100col = outTotal >= 0.999 ? 'out-col' : 'green-col';
+
       // Sub-buckets: shown when IN=100% but seed still uncertain
       const showByeSub    = inTotal >= 0.999 && byeTotal > 0.001 && byeTotal < 0.999;
       const showPlayInSub = inTotal >= 0.999 && playInTotal > 0.001;

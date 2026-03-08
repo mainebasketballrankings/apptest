@@ -280,6 +280,40 @@ body{
 .sub-sm{font-size:10px;color:var(--dim);}
 .sub-cancel{margin-top:10px;width:100%;padding:9px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:14px;cursor:pointer;}
 
+/* ── QUARTER-END MODAL ── */
+#qend-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:150;align-items:center;justify-content:center;}
+#qend-modal.show{display:flex;}
+.qend-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:28px 28px 22px;width:min(90vw,320px);box-shadow:0 8px 32px rgba(0,0,0,.6);
+  display:flex;flex-direction:column;gap:16px;align-items:center;
+}
+.qend-label{
+  font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+}
+.qend-title{
+  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:36px;
+  color:var(--text);letter-spacing:.04em;line-height:1;text-align:center;
+}
+.qend-sub{
+  font-size:12px;color:var(--dim);text-align:center;font-family:'Barlow Condensed',sans-serif;
+  letter-spacing:.06em;
+}
+.qend-btns{display:flex;gap:10px;width:100%;}
+.qend-confirm{
+  flex:1;background:var(--green);border:none;border-radius:10px;
+  color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;
+  letter-spacing:.08em;padding:13px;cursor:pointer;transition:opacity .15s;
+}
+.qend-confirm:active{opacity:.8;}
+.qend-cancel{
+  flex:0 0 90px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;
+  letter-spacing:.06em;padding:13px;cursor:pointer;transition:background .15s;
+}
+.qend-cancel:active{background:var(--border);}
+
 /* ── FLASH ── */
 /* ── SETUP SCREEN (light theme, Playfair/DM Sans) ── */
 #setup-screen{
@@ -784,6 +818,19 @@ body{
   </div><!-- /setup-box -->
 </div><!-- /setup-screen -->
 
+<!-- QUARTER-END MODAL -->
+<div id="qend-modal">
+  <div class="qend-box">
+    <div class="qend-label">Clock Expired</div>
+    <div class="qend-title" id="qend-title">END OF Q1</div>
+    <div class="qend-sub" id="qend-sub">Advance to 2nd Quarter?</div>
+    <div class="qend-btns">
+      <button class="qend-confirm" id="qend-confirm-btn" onclick="qendConfirm()">NEXT PERIOD</button>
+      <button class="qend-cancel" onclick="qendClose()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="flash"></div>
 
 <script>
@@ -851,12 +898,19 @@ const SWPX=28;
 
 // ══ CLOCK ═════════════════════════════════════
 const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+
+const PERIOD_LBL = p => p<=4 ? ['1ST','2ND','3RD','4TH'][p-1] : `OT${p-4>1?p-4:''}`;
+const PERIOD_SECS = p => p<=4 ? 480 : 240; // 8 min quarters, 4 min OT
+
 function toggleClock(){
   if(GAME.running){clearInterval(clkInt);GAME.running=false;}
   else{
     clkInt=setInterval(()=>{
       if(GAME.clockSec>0){GAME.clockSec--;updClk();}
-      else{clearInterval(clkInt);GAME.running=false;updClk();}
+      else{
+        clearInterval(clkInt);GAME.running=false;updClk();
+        openQendModal('clock');
+      }
     },1000);
     GAME.running=true;
   }
@@ -868,10 +922,50 @@ function updClk(){
   b.classList.toggle('running',GAME.running);
 }
 function chgPeriod(d){
-  GAME.period=Math.max(1,Math.min(4,GAME.period+d));
-  GAME.clockSec=480;GAME.running=false;
-  clearInterval(clkInt);updClk();
-  document.getElementById('pdisplay').textContent=['1ST','2ND','3RD','4TH'][GAME.period-1]||'OT';
+  // Only allow going back freely; going forward triggers confirm if clock > 0
+  if(d>0 && GAME.clockSec>0){
+    openQendModal('manual');
+    return;
+  }
+  applyPeriodChange(d);
+}
+function applyPeriodChange(d){
+  const maxP = GAME.period<=4 ? 4 : GAME.period; // allow OT extension
+  GAME.period = Math.max(1, GAME.period+d);
+  GAME.clockSec = PERIOD_SECS(GAME.period);
+  GAME.running=false;clearInterval(clkInt);
+  updClk();
+  document.getElementById('pdisplay').textContent = PERIOD_LBL(GAME.period);
+}
+
+// ── Quarter-end modal ──
+function openQendModal(trigger){
+  const p = GAME.period;
+  const isLastRegulation = p===4;
+  const nextLbl = PERIOD_LBL(p+1);
+  const titleEl = document.getElementById('qend-title');
+  const subEl   = document.getElementById('qend-sub');
+  const btnEl   = document.getElementById('qend-confirm-btn');
+
+  titleEl.textContent = `END OF ${PERIOD_LBL(p)}`;
+  document.querySelector('#qend-modal .qend-label').textContent =
+    trigger==='clock' ? 'Clock Expired' : 'End of Quarter';
+  if(isLastRegulation){
+    subEl.textContent = 'Start Overtime or end game?';
+    btnEl.textContent = 'START OT';
+  } else {
+    subEl.textContent = `Advance to ${nextLbl}?`;
+    btnEl.textContent = 'NEXT PERIOD';
+  }
+  document.getElementById('qend-modal').classList.add('show');
+}
+function qendConfirm(){
+  qendClose();
+  applyPeriodChange(1);
+}
+function qendClose(){
+  document.getElementById('qend-modal').classList.remove('show');
+  // If clock expired, keep it at 0 (don't restart)
 }
 function setPoss(side){
   GAME.possession=side;

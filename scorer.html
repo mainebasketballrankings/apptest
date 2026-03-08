@@ -37,6 +37,11 @@ body{
 .side-to{display:flex;gap:4px;align-items:baseline;}
 .side-to .side-val{font-size:16px;}
 .side-to .side-sep{color:var(--dim);font-size:12px;}
+.bonus-pill{
+  font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;
+  letter-spacing:.1em;background:#dc2626;color:#fff;
+  border-radius:4px;padding:1px 5px;
+}
 
 /* Score+name blocks */
 .tscore{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;padding:4px 8px;}
@@ -63,7 +68,7 @@ body{
 /* Clock centre */
 #clk-col{
   display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:3px;padding:4px 0;
+  justify-content:center;gap:4px;padding:4px 0;
 }
 #clock-btn{
   background:var(--surface2);border:2px solid var(--border);border-radius:8px;
@@ -75,15 +80,13 @@ body{
 #clock-btn.running{border-color:var(--green);color:var(--green);box-shadow:0 0 10px rgba(39,174,96,.25);}
 #clock-btn.expired{border-color:var(--gold);color:var(--gold);animation:clk-pulse 1.2s ease-in-out infinite;}
 @keyframes clk-pulse{0%,100%{box-shadow:0 0 6px rgba(243,156,18,.3);}50%{box-shadow:0 0 16px rgba(243,156,18,.7);}}
-#period-row{display:flex;align-items:center;gap:5px;}
-#period-row button{
-  background:var(--surface2);border:1px solid var(--border);color:var(--text);
-  border-radius:5px;width:28px;height:28px;font-size:16px;font-weight:700;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;
+#pdisplay{
+  font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
+  letter-spacing:.18em;color:var(--dim);min-width:32px;text-align:center;
+  cursor:pointer;padding:3px 12px;border-radius:5px;border:1px solid transparent;
+  transition:background .15s,border-color .15s;
 }
-#period-row button:active{background:var(--border);}
-#pdisplay{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;
-  letter-spacing:.15em;color:var(--text);min-width:32px;text-align:center;}
+#pdisplay:hover,#pdisplay:active{background:var(--surface2);border-color:var(--border);}
 
 /* ── MIDDLE: panels + court ── */
 #middle{display:grid;grid-template-columns:162px 1fr 162px;flex:1;min-height:0;overflow:hidden;}
@@ -518,8 +521,11 @@ body{
 <div id="topbar">
   <!-- Home fouls/TO -->
   <div class="side-block">
-    <div class="side-lbl">Fouls</div>
-    <div class="side-val" id="home-fouls">0</div>
+    <div class="side-lbl">Q Fouls</div>
+    <div style="display:flex;align-items:center;gap:5px;">
+      <div class="side-val" id="home-fouls">0</div>
+      <span id="away-bonus" class="bonus-pill" style="display:none">BONUS</span>
+    </div>
     <div class="side-lbl" style="margin-top:4px">Timeouts</div>
     <div class="side-to">
       <div class="side-val" id="home-tof">3</div>
@@ -539,12 +545,8 @@ body{
 
   <!-- Clock centre -->
   <div id="clk-col">
+    <div id="pdisplay" onclick="openQendModal('manual')">1ST</div>
     <button id="clock-btn" onclick="toggleClock()">8:00</button>
-    <div id="period-row">
-      <button onclick="chgPeriod(-1)">‹</button>
-      <div id="pdisplay">1ST</div>
-      <button onclick="chgPeriod(1)">›</button>
-    </div>
   </div>
 
   <!-- Away score + name -->
@@ -558,8 +560,11 @@ body{
 
   <!-- Away fouls/TO -->
   <div class="side-block away-side">
-    <div class="side-lbl">Fouls</div>
-    <div class="side-val" id="away-fouls">0</div>
+    <div class="side-lbl">Q Fouls</div>
+    <div style="display:flex;align-items:center;gap:5px;">
+      <div class="side-val" id="away-fouls">0</div>
+      <span id="home-bonus" class="bonus-pill" style="display:none">BONUS</span>
+    </div>
     <div class="side-lbl" style="margin-top:4px">Timeouts</div>
     <div class="side-to">
       <div class="side-val" id="away-tof">3</div>
@@ -839,9 +844,10 @@ body{
 <script>
 // ══ DATA ══════════════════════════════════════
 const GAME={
-  home:{name:'Camden Boys',    short:'CAMDEN',  score:0,fouls:0,tof:3,to3:2},
-  away:{name:'Cape Elizabeth', short:'CAP.ELI', score:0,fouls:0,tof:3,to3:2},
-  period:1,clockSec:480,running:false,possession:'home'
+  home:{name:'Camden Boys',    short:'CHILLS',  score:0,fouls:0,tof:3,to3:2},
+  away:{name:'Cape Elizabeth', short:'CAPE', score:0,fouls:0,tof:3,to3:2},
+  period:1,clockSec:480,running:false,possession:'home',
+  qFouls:{home:[0,0,0,0,0,0], away:[0,0,0,0,0,0]} // per-quarter fouls, index=period-1
 };
 
 const PL={
@@ -937,14 +943,27 @@ function chgPeriod(d){
   }
   applyPeriodChange(d);
 }
+function updFoulsDisplay(side){
+  const qi=GAME.period-1;
+  const qf=GAME.qFouls[side][qi];
+  const el=document.getElementById(`${side}-fouls`);
+  el.textContent=qf;
+  // bonus = opponent has 5+ quarter fouls
+  const opp=side==='home'?'away':'home';
+  const oppQf=GAME.qFouls[opp][qi];
+  const bonusEl=document.getElementById(`${opp}-bonus`);
+  if(bonusEl) bonusEl.style.display=oppQf>=5?'inline':'none';
+}
+
 function applyPeriodChange(d){
-  const maxP = GAME.period<=4 ? 4 : GAME.period; // allow OT extension
   GAME.period = Math.max(1, GAME.period+d);
   GAME.clockSec = PERIOD_SECS(GAME.period);
   GAME.running=false;clearInterval(clkInt);
   document.getElementById('clock-btn').classList.remove('expired');
   updClk();
   document.getElementById('pdisplay').textContent = PERIOD_LBL(GAME.period);
+  // Refresh fouls display for new quarter (qFouls already at 0 for new period)
+  ['home','away'].forEach(s=>updFoulsDisplay(s));
 }
 
 // ── Quarter-end modal ──
@@ -1069,7 +1088,11 @@ function doStat(def){
   if(def.key==='assist'&&p)p.ast++;
   if((def.key==='o_reb'||def.key==='d_reb')&&p)p.reb++;
   if(def.key.startsWith('foul_')&&!isTeam&&p){
-    p.fouls++;GAME[side].fouls++;document.getElementById(`${side}-fouls`).textContent=GAME[side].fouls;
+    p.fouls++;
+    GAME[side].fouls++;
+    const qi=GAME.period-1;
+    GAME.qFouls[side][qi]++;
+    updFoulsDisplay(side);
   }
   if(def.key==='timeout_full'&&GAME[side].tof>0){GAME[side].tof--;document.getElementById(`${side}-tof`).textContent=GAME[side].tof;}
   if(def.key==='timeout_30sec'&&GAME[side].to3>0){GAME[side].to3--;document.getElementById(`${side}-to3`).textContent=GAME[side].to3;}
@@ -1094,14 +1117,11 @@ function svgP(e){
   const s=e.touches?e.touches[0]:e;
   return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
 }
-// Basket at (230,25). Arc: centre (230,55.9), r=176.1px
-// Corner 3pt zones: straight sideline segments where x < ~60 or x > ~400, y < 232 (arc bottom)
+// Arc: centre (230,55.9), r=176.1. Corner zones: x<60 or x>400, y<232.
 function is3(pt){
-  // Corner straight zones: sideline 3pt runs from baseline to where arc starts (~y=232)
   if(pt.y < 232 && (pt.x < 60 || pt.x > 400)) return true;
-  // Arc zone: distance from basket centre > 171px
-  const dx=pt.x-230, dy=pt.y-25;
-  return Math.sqrt(dx*dx+dy*dy) > 171;
+  const dx=pt.x-230, dy=pt.y-55.9;
+  return Math.sqrt(dx*dx+dy*dy) > 176.1;
 }
 
 function swDir(dx,dy){
@@ -1210,6 +1230,7 @@ function pushEvt(p,side,key,pt,three){
     side,key,period:GAME.period,clk:GAME.clockSec,
     pts:getPts(key),three
   };
+  console.log('pushEvt',key,'pfirst=',e.pfirst,'pfi=',e.pfi,'plast=',e.plast);
   evts.unshift(e);
   const pend=dots.find(d=>d.pend);
   if(pend){pend.eid=e.id;delete pend.pend;}
@@ -1622,13 +1643,13 @@ const MAINE_TEAMS = [
   {name:'Portland',           short:'PORT'},
   {name:'Sanford',            short:'SAN'},
   {name:'Scarborough',        short:'SCAR'},
-  {name:'South Portland',     short:'SOPORT'},
+  {name:'South Portland',     short:'SOPO'},
   {name:'Thornton Academy',   short:'TA'},
   {name:'Windham',            short:'WIND'},
   // Class A
-  {name:'Biddeford',          short:'BID'},
+  {name:'Biddeford',          short:'BIDD'},
   {name:'Brewer',             short:'BREW'},
-  {name:'Brunswick',          short:'BRUN'},
+  {name:'Brunswick',          short:'BRUNS'},
   {name:'Camden Hills',       short:'CHILLS'},
   {name:'Caribou',            short:'CARIB'},
   {name:'Cape Elizabeth',     short:'CAPE'},
@@ -1637,13 +1658,13 @@ const MAINE_TEAMS = [
   {name:'Gorham',             short:'GOR'},
   {name:'Hampden',            short:'HAMP'},
   {name:'Hermon',             short:'HERM'},
-  {name:'Kennebunk',          short:'KEN'},
+  {name:'Kennebunk',          short:'BUNK'},
   {name:'Lawrence',           short:'LAW'},
   {name:'Marshwood',          short:'MARSH'},
-  {name:'Mt. Blue',           short:'MTBLUE'},
+  {name:'Mt. Blue',           short:'MTBLU'},
   {name:'Old Town',           short:'OT'},
   {name:'Skowhegan',          short:'SKOW'},
-  {name:'Westbrook',          short:'WB'},
+  {name:'Westbrook',          short:'WEST'},
   {name:'Yarmouth',           short:'YARM'},
   // Class B
   {name:'Erskine Academy',    short:'ERSK'},
@@ -1656,23 +1677,23 @@ const MAINE_TEAMS = [
   {name:'Leavitt',            short:'LEAV'},
   {name:'Lincoln Academy',    short:'LA'},
   {name:'Medomak Valley',     short:'MED'},
-  {name:'Messalonskee',       short:'MESS'},
+  {name:'Messalonskee',       short:'MESSO'},
   {name:'Morse',              short:'MORSE'},
   {name:'Mt. Ararat',         short:'MTA'},
-  {name:'Nokomis',            short:'NOK'},
+  {name:'Nokomis',            short:'NOKO'},
   {name:'North Yarmouth Academy', short:'NYA'},
   {name:'Oceanside',          short:'OCEAN'},
   {name:'Orono',              short:'ORONO'},
   {name:'Presque Isle',       short:'PI'},
-  {name:'Spruce Mountain',    short:'SPRUCE'},
-  {name:'Waterville',         short:'WAT'},
-  {name:'Winslow',            short:'WIN'},
+  {name:'Spruce Mountain',    short:'SPRCE'},
+  {name:'Waterville',         short:'WATER'},
+  {name:'Winslow',            short:'WINS'},
   {name:'York',               short:'YORK'},
   // Class C
   {name:'Bangor Christian',   short:'BC'},
   {name:'Belfast',            short:'BELF'},
   {name:'Bucksport',          short:'BUCK'},
-  {name:'Dirigo',             short:'DIR'},
+  {name:'Dirigo',             short:'DIRIGO'},
   {name:'Foxcroft Academy',   short:'FOX'},
   {name:'Houlton',            short:'HOUL'},
   {name:'Lee Academy',        short:'LEE'},
@@ -1680,11 +1701,11 @@ const MAINE_TEAMS = [
   {name:'Madawaska',          short:'MAD'},
   {name:'Mattanawcook',       short:'MATT'},
   {name:'Monmouth Academy',   short:'MON'},
-  {name:'Mount Abram',        short:'MABR'},
+  {name:'Mount Abram',        short:'ABRAM'},
   {name:'Mt. Desert Island',  short:'MDI'},
   {name:'Old Orchard Beach',  short:'OOB'},
   {name:'Poland',             short:'POL'},
-  {name:'Schenck',            short:'SCHENK'},
+  {name:'Schenck',            short:'SCHNK'},
   {name:'Sumner',             short:'SUM'},
   {name:'Telstar',            short:'TEL'},
   {name:'Woodland',           short:'WOOD'},
@@ -1694,11 +1715,11 @@ const MAINE_TEAMS = [
   {name:'Calais',             short:'CAL'},
   {name:'Easton',             short:'EAST'},
   {name:'Forest Hills',       short:'FH'},
-  {name:'Fort Fairfield',     short:'FF'},
-  {name:'Fort Kent',          short:'FK'},
-  {name:'Jonesport-Beals',    short:'JB'},
+  {name:'Fort Fairfield',     short:'FTFAIR'},
+  {name:'Fort Kent',          short:'FKENT'},
+  {name:'Jonesport-Beals',    short:'JBEALS'},
   {name:'Katahdin',           short:'KAT'},
-  {name:'Maranacook',         short:'MARA'},
+  {name:'Maranacook',         short:'MCOOK'},
   {name:'Milo',               short:'MILO'},
   {name:'Narraguagus',        short:'NARRA'},
   {name:'Penobscot Valley',   short:'PV'},
@@ -1706,7 +1727,7 @@ const MAINE_TEAMS = [
   {name:'Sacopee Valley',     short:'SAC'},
   {name:'Southern Aroostook', short:'SA'},
   {name:'Van Buren',          short:'VB'},
-  {name:'Waynflete',          short:'WAYN'},
+  {name:'Waynflete',          short:'FLETE'},
   {name:'Wiscasset',          short:'WISC'},
   // Privates / other
   {name:'Kents Hill School',  short:'KHS'},

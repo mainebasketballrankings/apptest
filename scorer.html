@@ -190,25 +190,26 @@ body{
 
 /* Log panel */
 #log-panel{
-  position:absolute;top:34px;right:6px;width:215px;max-height:220px;
-  background:rgba(12,14,22,.96);border:1px solid var(--border);border-radius:var(--radius);
+  position:absolute;top:34px;right:6px;width:min(320px,88vw);max-height:min(420px,70vh);
+  background:rgba(12,14,22,.97);border:1px solid var(--border);border-radius:var(--radius);
   overflow-y:auto;font-size:10px;z-index:20;display:none;
+  box-shadow:0 6px 24px rgba(0,0,0,.6);
 }
 #log-panel.open{display:block;}
 .lhdr{
-  font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--dim);padding:6px 8px 4px;
+  font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--dim);padding:10px 12px 8px;
   border-bottom:1px solid var(--border);display:flex;justify-content:space-between;
-  align-items:center;position:sticky;top:0;background:rgba(12,14,22,.98);
+  align-items:center;position:sticky;top:0;background:rgba(12,14,22,.99);
 }
-.lhdr button{background:none;border:none;color:var(--dim);font-size:14px;cursor:pointer;}
-.lrow{display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid rgba(46,50,80,.4);}
+.lhdr button{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;}
+.lrow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(46,50,80,.4);min-height:48px;}
 .lrow:hover{background:var(--surface2);}
-.ldot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-.ltxt{flex:1;color:var(--text);line-height:1.3;}
-.lclk{color:var(--dim);font-size:9px;flex-shrink:0;}
-.ldel{background:none;border:none;color:var(--al);font-size:12px;cursor:pointer;opacity:.5;padding:0 2px;}
-.ldel:hover{opacity:1;}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ltxt{flex:1;color:var(--text);line-height:1.4;font-size:13px;}
+.lclk{color:var(--dim);font-size:11px;flex-shrink:0;font-family:'Barlow Condensed',sans-serif;}
+.ldel{background:none;border:1px solid rgba(192,57,43,.3);border-radius:5px;color:var(--al);font-size:16px;cursor:pointer;opacity:.7;padding:4px 8px;line-height:1;flex-shrink:0;}
+.ldel:hover,.ldel:active{opacity:1;background:rgba(192,57,43,.15);}
 
 /* ── STAT BAR ── */
 #stat-bar{background:var(--surface);border-top:2px solid var(--border);padding:5px 8px 6px;flex-shrink:0;}
@@ -843,22 +844,22 @@ const GAME={
 
 const PL={
   home:[
-    {id:'h1',fi:'H',last:'Stewart',   num:4, pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'h2',fi:'S',last:'Johnson',   num:10,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'h3',fi:'K',last:'Melquist',  num:11,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'h4',fi:'H',last:'Schwalm',   num:12,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'h5',fi:'T',last:'Leadbetter',num:15,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'h6',fi:'E',last:'Stearns',   num:22,pts:0,reb:0,ast:0,fouls:0,on:false},
-    {id:'h7',fi:'M',last:'Webb',      num:3, pts:0,reb:0,ast:0,fouls:0,on:false},
+    {id:'h1',fi:'H',first:'Henry',  last:'Stewart',   num:4, pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'h2',fi:'S',first:'Sam',    last:'Johnson',   num:10,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'h3',fi:'K',first:'Kyle',   last:'Melquist',  num:11,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'h4',fi:'H',first:'Hunter', last:'Schwalm',   num:12,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'h5',fi:'T',first:'Tyler',  last:'Leadbetter',num:15,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'h6',fi:'E',first:'Eli',    last:'Stearns',   num:22,pts:0,reb:0,ast:0,fouls:0,on:false},
+    {id:'h7',fi:'M',first:'Max',    last:'Webb',      num:3, pts:0,reb:0,ast:0,fouls:0,on:false},
   ],
   away:[
-    {id:'a1',fi:'L',last:'Lombardo',    num:10,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'a2',fi:'C',last:'Wannemacher', num:11,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'a3',fi:'J',last:'Rosen',       num:14,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'a4',fi:'E',last:'Morse',       num:20,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'a5',fi:'O',last:'Beaureguard', num:23,pts:0,reb:0,ast:0,fouls:0,on:true},
-    {id:'a6',fi:'F',last:'Casey',       num:5, pts:0,reb:0,ast:0,fouls:0,on:false},
-    {id:'a7',fi:'D',last:'Park',        num:33,pts:0,reb:0,ast:0,fouls:0,on:false},
+    {id:'a1',fi:'L',first:'Luca',   last:'Lombardo',    num:10,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'a2',fi:'C',first:'Cole',   last:'Wannemacher', num:11,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'a3',fi:'J',first:'Jake',   last:'Rosen',       num:14,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'a4',fi:'E',first:'Evan',   last:'Morse',       num:20,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'a5',fi:'O',first:'Owen',   last:'Beaureguard', num:23,pts:0,reb:0,ast:0,fouls:0,on:true},
+    {id:'a6',fi:'F',first:'Finn',   last:'Casey',       num:5, pts:0,reb:0,ast:0,fouls:0,on:false},
+    {id:'a7',fi:'D',first:'Dylan',  last:'Park',        num:33,pts:0,reb:0,ast:0,fouls:0,on:false},
   ]
 };
 
@@ -1191,7 +1192,7 @@ function addDot(pt,made,three,isPb){
 function pushEvt(p,side,key,pt,three){
   const e={
     id:Date.now()+'_'+Math.random().toString(36).slice(2,5),
-    pid:p?.id,pnum:p?.num,plast:p?.last,pfi:p?.fi,
+    pid:p?.id,pnum:p?.num,plast:p?.last,pfi:p?.fi,pfirst:p?.first,
     side,key,period:GAME.period,clk:GAME.clockSec,
     pts:getPts(key),three
   };
@@ -1236,6 +1237,12 @@ function delEvt(id){
 }
 function findP(pid,side){return PL[side]?.find(p=>p.id===pid);}
 
+function evtPlayerName(e){
+  if(!e.pnum) return null;
+  const name = e.pfirst ? `${e.pfirst} ${e.plast||''}` : `${e.pfi||''}.${e.plast||''}`;
+  return `#${e.pnum} ${name.trim()}`;
+}
+
 // ══ LIVE FEED ═════════════════════════════════
 function renderFeed(){
   const feed=document.getElementById('evt-feed');
@@ -1245,7 +1252,8 @@ function renderFeed(){
     const dot=document.createElement('div');dot.className='ef-dot';
     dot.style.background=e.side==='home'?'var(--hl)':'var(--al)';
     const txt=document.createElement('div');txt.className='ef-txt';
-    txt.textContent=e.pnum?`#${e.pnum} ${e.pfi||''}.${e.plast||''} — ${getLabel(e.key,e.side)}`:getLabel(e.key,e.side);
+    const pn=evtPlayerName(e);
+    txt.textContent=pn?`${pn} — ${getLabel(e.key,e.side)}`:getLabel(e.key,e.side);
     const clk=document.createElement('div');clk.className='ef-clk';
     clk.textContent=`Q${e.period} ${fmt(e.clk)}`;
     row.appendChild(dot);row.appendChild(txt);row.appendChild(clk);
@@ -1257,12 +1265,13 @@ function renderFeed(){
 function renderLog(){
   const c=document.getElementById('log-entries');if(!c)return;
   c.innerHTML='';
-  evts.slice(0,50).forEach(e=>{
+  evts.slice(0,80).forEach(e=>{
     const row=document.createElement('div');row.className='lrow';
     const dot=document.createElement('div');dot.className='ldot';
     dot.style.background=e.side==='home'?'var(--hl)':'var(--al)';
     const txt=document.createElement('div');txt.className='ltxt';
-    txt.textContent=e.pnum?`#${e.pnum} ${e.pfi||''}.${e.plast||''} — ${getLabel(e.key,e.side)}`:getLabel(e.key,e.side);
+    const pn=evtPlayerName(e);
+    txt.textContent=pn?`${pn} — ${getLabel(e.key,e.side)}`:getLabel(e.key,e.side);
     const clk=document.createElement('div');clk.className='lclk';
     clk.textContent=`Q${e.period} ${fmt(e.clk)}`;
     const del=document.createElement('button');del.className='ldel';del.textContent='✕';
@@ -1467,16 +1476,19 @@ function suSyncRoster(side) {
       // handle "F. Last" or "First Last" or just "Last"
       const dotMatch = full.match(/^([A-Za-z])\.?\s+(.+)$/);
       if (dotMatch) {
-        p.fi   = dotMatch[1].toUpperCase();
-        p.last = dotMatch[2];
+        p.fi    = dotMatch[1].toUpperCase();
+        p.first = '';  // only initial known
+        p.last  = dotMatch[2];
       } else {
         const parts = full.split(/\s+/);
         if (parts.length >= 2) {
-          p.fi   = parts[0][0].toUpperCase();
-          p.last = parts.slice(1).join(' ');
+          p.fi    = parts[0][0].toUpperCase();
+          p.first = parts[0];  // full first name
+          p.last  = parts.slice(1).join(' ');
         } else {
-          p.fi   = '';
-          p.last = full;
+          p.fi    = '';
+          p.first = '';
+          p.last  = full;
         }
       }
     }
@@ -1561,6 +1573,7 @@ function suTipOff() {
     PL[side] = SU[side].players.map((p,i) => ({
       id:`${pfx}${i+1}`,
       fi: p.fi || (p.last?p.last[0].toUpperCase():'?'),
+      first: p.first || '',
       last: p.last || '?',
       num: parseInt(p.num)||0,
       pts:0, reb:0, ast:0, fouls:0, on:p.starter,

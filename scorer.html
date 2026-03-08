@@ -1486,40 +1486,112 @@ function suTipOff() {
 // ── Team autocomplete ──
 // Dummy Maine teams list — replace with Supabase fetch later
 const MAINE_TEAMS = [
-  {name:'Bangor',gender:'boys'},{name:'Bangor',gender:'girls'},
-  {name:'Brewer',gender:'boys'},{name:'Brewer',gender:'girls'},
-  {name:'Camden Hills',gender:'boys'},{name:'Camden Hills',gender:'girls'},
-  {name:'Cape Elizabeth',gender:'boys'},{name:'Cape Elizabeth',gender:'girls'},
-  {name:'Caribou',gender:'boys'},{name:'Caribou',gender:'girls'},
-  {name:'Edward Little',gender:'boys'},{name:'Edward Little',gender:'girls'},
-  {name:'Falmouth',gender:'boys'},{name:'Falmouth',gender:'girls'},
-  {name:'Freeport',gender:'boys'},{name:'Freeport',gender:'girls'},
-  {name:'Gardiner',gender:'boys'},{name:'Gardiner',gender:'girls'},
-  {name:'Gorham',gender:'boys'},{name:'Gorham',gender:'girls'},
-  {name:'Grey-New Gloucester',gender:'boys'},{name:'Grey-New Gloucester',gender:'girls'},
-  {name:'John Bapst',gender:'boys'},{name:'John Bapst',gender:'girls'},
-  {name:'Kennebunk',gender:'boys'},{name:'Kennebunk',gender:'girls'},
-  {name:'Lawrence',gender:'boys'},{name:'Lawrence',gender:'girls'},
-  {name:'Lewiston',gender:'boys'},{name:'Lewiston',gender:'girls'},
-  {name:'Lincoln Academy',gender:'boys'},{name:'Lincoln Academy',gender:'girls'},
-  {name:'Medomak Valley',gender:'boys'},{name:'Medomak Valley',gender:'girls'},
-  {name:'Mt. Ararat',gender:'boys'},{name:'Mt. Ararat',gender:'girls'},
-  {name:'Mt. Desert Island',gender:'boys'},{name:'Mt. Desert Island',gender:'girls'},
-  {name:'Noble',gender:'boys'},{name:'Noble',gender:'girls'},
-  {name:'North Yarmouth Academy',gender:'boys'},{name:'North Yarmouth Academy',gender:'girls'},
-  {name:'Orono',gender:'boys'},{name:'Orono',gender:'girls'},
-  {name:'Oxford Hills',gender:'boys'},{name:'Oxford Hills',gender:'girls'},
-  {name:'Portland',gender:'boys'},{name:'Portland',gender:'girls'},
-  {name:'Presque Isle',gender:'boys'},{name:'Presque Isle',gender:'girls'},
-  {name:'Scarborough',gender:'boys'},{name:'Scarborough',gender:'girls'},
-  {name:'Skowhegan',gender:'boys'},{name:'Skowhegan',gender:'girls'},
-  {name:'South Portland',gender:'boys'},{name:'South Portland',gender:'girls'},
-  {name:'Thornton Academy',gender:'boys'},{name:'Thornton Academy',gender:'girls'},
-  {name:'Waterville',gender:'boys'},{name:'Waterville',gender:'girls'},
-  {name:'Windham',gender:'boys'},{name:'Windham',gender:'girls'},
-  {name:'Winslow',gender:'boys'},{name:'Winslow',gender:'girls'},
-  {name:'Yarmouth',gender:'boys'},{name:'Yarmouth',gender:'girls'},
-];
+  // Class AA
+  {name:'Bangor',             short:'BANG'},
+  {name:'Bonny Eagle',        short:'BONNY'},
+  {name:'Cheverus',           short:'CHEV'},
+  {name:'Deering',            short:'DEER'},
+  {name:'Edward Little',      short:'EL'},
+  {name:'Lewiston',           short:'LEW'},
+  {name:'Massabesic',         short:'MASS'},
+  {name:'Noble',              short:'NOBLE'},
+  {name:'Oxford Hills',       short:'OXH'},
+  {name:'Portland',           short:'PORT'},
+  {name:'Sanford',            short:'SAN'},
+  {name:'Scarborough',        short:'SCAR'},
+  {name:'South Portland',     short:'SOPORT'},
+  {name:'Thornton Academy',   short:'TA'},
+  {name:'Windham',            short:'WIND'},
+  // Class A
+  {name:'Biddeford',          short:'BID'},
+  {name:'Brewer',             short:'BREW'},
+  {name:'Brunswick',          short:'BRUN'},
+  {name:'Camden Hills',       short:'CHILLS'},
+  {name:'Caribou',            short:'CARIB'},
+  {name:'Cape Elizabeth',     short:'CAPE'},
+  {name:'Ellsworth',          short:'ELL'},
+  {name:'Falmouth',           short:'FALM'},
+  {name:'Gorham',             short:'GOR'},
+  {name:'Hampden',            short:'HAMP'},
+  {name:'Hermon',             short:'HERM'},
+  {name:'Kennebunk',          short:'KEN'},
+  {name:'Lawrence',           short:'LAW'},
+  {name:'Marshwood',          short:'MARSH'},
+  {name:'Mt. Blue',           short:'MTBLUE'},
+  {name:'Old Town',           short:'OT'},
+  {name:'Skowhegan',          short:'SKOW'},
+  {name:'Westbrook',          short:'WB'},
+  {name:'Yarmouth',           short:'YARM'},
+  // Class B
+  {name:'Erskine Academy',    short:'ERSK'},
+  {name:'Freeport',           short:'FREE'},
+  {name:'Gardiner',           short:'GARD'},
+  {name:'Greely',             short:'GRLY'},
+  {name:'Gray-New Gloucester',short:'GNG'},
+  {name:'Hampden Academy',    short:'HAMP'},
+  {name:'John Bapst',         short:'BAPST'},
+  {name:'Leavitt',            short:'LEAV'},
+  {name:'Lincoln Academy',    short:'LA'},
+  {name:'Medomak Valley',     short:'MED'},
+  {name:'Messalonskee',       short:'MESS'},
+  {name:'Morse',              short:'MORSE'},
+  {name:'Mt. Ararat',         short:'MTA'},
+  {name:'Nokomis',            short:'NOK'},
+  {name:'North Yarmouth Academy', short:'NYA'},
+  {name:'Oceanside',          short:'OCEAN'},
+  {name:'Orono',              short:'ORONO'},
+  {name:'Presque Isle',       short:'PI'},
+  {name:'Spruce Mountain',    short:'SPRUCE'},
+  {name:'Waterville',         short:'WAT'},
+  {name:'Winslow',            short:'WIN'},
+  {name:'York',               short:'YORK'},
+  // Class C
+  {name:'Bangor Christian',   short:'BC'},
+  {name:'Belfast',            short:'BELF'},
+  {name:'Bucksport',          short:'BUCK'},
+  {name:'Dirigo',             short:'DIR'},
+  {name:'Foxcroft Academy',   short:'FOX'},
+  {name:'Houlton',            short:'HOUL'},
+  {name:'Lee Academy',        short:'LEE'},
+  {name:'Lisbon',             short:'LIS'},
+  {name:'Madawaska',          short:'MAD'},
+  {name:'Mattanawcook',       short:'MATT'},
+  {name:'Monmouth Academy',   short:'MON'},
+  {name:'Mount Abram',        short:'MABR'},
+  {name:'Mt. Desert Island',  short:'MDI'},
+  {name:'Old Orchard Beach',  short:'OOB'},
+  {name:'Poland',             short:'POL'},
+  {name:'Schenck',            short:'SCHENK'},
+  {name:'Sumner',             short:'SUM'},
+  {name:'Telstar',            short:'TEL'},
+  {name:'Woodland',           short:'WOOD'},
+  {name:'Winthrop',           short:'WINT'},
+  // Class D / S
+  {name:'Ashland',            short:'ASH'},
+  {name:'Calais',             short:'CAL'},
+  {name:'Easton',             short:'EAST'},
+  {name:'Forest Hills',       short:'FH'},
+  {name:'Fort Fairfield',     short:'FF'},
+  {name:'Fort Kent',          short:'FK'},
+  {name:'Jonesport-Beals',    short:'JB'},
+  {name:'Katahdin',           short:'KAT'},
+  {name:'Maranacook',         short:'MARA'},
+  {name:'Milo',               short:'MILO'},
+  {name:'Narraguagus',        short:'NARRA'},
+  {name:'Penobscot Valley',   short:'PV'},
+  {name:'Rangeley',           short:'RANG'},
+  {name:'Sacopee Valley',     short:'SAC'},
+  {name:'Southern Aroostook', short:'SA'},
+  {name:'Van Buren',          short:'VB'},
+  {name:'Waynflete',          short:'WAYN'},
+  {name:'Wiscasset',          short:'WISC'},
+  // Privates / other
+  {name:'Kents Hill School',  short:'KHS'},
+  {name:'Gould Academy',      short:'GOULD'},
+  {name:'Hebron Academy',     short:'HEB'},
+  {name:'Pine Tree Academy',  short:'PTA'},
+  {name:'Berwick Academy',    short:'BA'},
+].sort((a,b)=>a.name.localeCompare(b.name));
 
 let suAcIdx = { home:-1, away:-1 };
 
@@ -1531,10 +1603,10 @@ function suAcShow(side) {
   if (!matches.length) { ac.style.display='none'; return; }
   suAcIdx[side] = -1;
   ac.innerHTML = matches.map((t,i) =>
-    `<div class="su-ac-item" data-idx="${i}" data-name="${t.name}" data-gender="${t.gender}"
+    `<div class="su-ac-item" data-idx="${i}" data-name="${t.name}" data-short="${t.short}"
       onmousedown="suAcPick(event,'${side}')">
       ${t.name}
-      <span class="su-ac-badge ${t.gender}">${t.gender==='girls'?'Girls':'Boys'}</span>
+      <span class="su-ac-badge boys">${t.short}</span>
     </div>`
   ).join('');
   ac.style.display = '';
@@ -1548,13 +1620,8 @@ function suAcPick(e, side) {
   e.preventDefault();
   const item = e.currentTarget;
   document.getElementById(`su-${side}-name`).value = item.dataset.name;
-  document.getElementById(`su-${side}-gender`).value = item.dataset.gender;
-  // auto-set short name if blank
-  const shortEl = document.getElementById(`su-${side}-short`);
-  if (!shortEl.value) {
-    const words = item.dataset.name.split(/\s+/);
-    shortEl.value = (words.length===1 ? words[0].substring(0,6) : words.map(w=>w[0]).join('').substring(0,6)).toUpperCase();
-  }
+  // auto-set short name from master list default (always overwrite — it's the known good value)
+  document.getElementById(`su-${side}-short`).value = item.dataset.short;
   document.getElementById(`su-${side}-ac`).style.display='none';
   // TODO: pull roster from Supabase for this team
 }

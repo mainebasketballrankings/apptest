@@ -44,10 +44,10 @@ body{
 }
 
 /* Score+name blocks */
-.tscore{display:flex;flex-direction:row;justify-content:center;align-items:center;gap:10px;padding:4px 8px;}
-.tname{font-family:'Playfair Display',serif;font-weight:900;font-size:15px;letter-spacing:.01em;color:var(--text);text-align:center;line-height:1.1;}
-.tscore.home .tname{color:var(--text);}
-.tscore.away .tname{color:var(--text);}
+.tscore{display:flex;flex-direction:row;align-items:center;gap:12px;padding:4px 16px;flex:1;}
+.tscore.home{justify-content:flex-start;}
+.tscore.away{justify-content:flex-end;}
+.tname{font-family:'Playfair Display',serif;font-weight:900;font-size:17px;letter-spacing:.01em;color:var(--text);line-height:1.1;}
 .snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:56px;line-height:1;}
 .tscore.home .snum{color:var(--hl);}
 .tscore.away .snum{color:var(--al);}
@@ -542,8 +542,8 @@ body{
 
   <!-- Home score + name -->
   <div class="tscore home">
-    <div class="snum" id="home-score">0</div>
     <div class="tname" id="home-tname">—</div>
+    <div class="snum" id="home-score">0</div>
   </div>
 
   <!-- Clock centre -->
@@ -554,8 +554,8 @@ body{
 
   <!-- Away score + name -->
   <div class="tscore away">
-    <div class="tname" id="away-tname">—</div>
     <div class="snum" id="away-score">0</div>
+    <div class="tname" id="away-tname">—</div>
   </div>
 
   <!-- Away fouls/TO -->
@@ -772,7 +772,7 @@ body{
             </div>
             <div class="su-field su-field-xs">
               <label>Short</label>
-              <input id="su-home-short" type="text" maxlength="6" placeholder="CHILLS" class="su-upper">
+              <input id="su-home-short" type="text" maxlength="6" placeholder="PORT" class="su-upper">
             </div>
             <div class="su-field su-field-xs">
               <label>B / G</label>
@@ -802,7 +802,7 @@ body{
             </div>
             <div class="su-field su-field-xs">
               <label>Short</label>
-              <input id="su-away-short" type="text" maxlength="6" placeholder="CAPE" class="su-upper">
+              <input id="su-away-short" type="text" maxlength="6" placeholder="CHILLS" class="su-upper">
             </div>
             <div class="su-field su-field-xs">
               <label>B / G</label>

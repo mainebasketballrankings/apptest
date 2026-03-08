@@ -73,6 +73,8 @@ body{
   transition:border-color .15s,color .15s,box-shadow .15s;
 }
 #clock-btn.running{border-color:var(--green);color:var(--green);box-shadow:0 0 10px rgba(39,174,96,.25);}
+#clock-btn.expired{border-color:var(--gold);color:var(--gold);animation:clk-pulse 1.2s ease-in-out infinite;}
+@keyframes clk-pulse{0%,100%{box-shadow:0 0 6px rgba(243,156,18,.3);}50%{box-shadow:0 0 16px rgba(243,156,18,.7);}}
 #period-row{display:flex;align-items:center;gap:5px;}
 #period-row button{
   background:var(--surface2);border:1px solid var(--border);color:var(--text);
@@ -906,11 +908,16 @@ const PERIOD_SECS = p => p<=4 ? 480 : 240; // 8 min quarters, 4 min OT
 function toggleClock(){
   if(GAME.running){clearInterval(clkInt);GAME.running=false;}
   else{
+    // If clock is at 0, don't restart — force period advance instead
+    if(GAME.clockSec===0) { openQendModal('manual'); return; }
     clkInt=setInterval(()=>{
       if(GAME.clockSec>0){GAME.clockSec--;updClk();}
       else{
-        clearInterval(clkInt);GAME.running=false;updClk();
-        openQendModal('clock');
+        clearInterval(clkInt);GAME.running=false;
+        // Clock hit zero: stop and flash the clock, but DON'T block scorer
+        updClk();
+        const b=document.getElementById('clock-btn');
+        b.classList.add('expired');
       }
     },1000);
     GAME.running=true;
@@ -935,6 +942,7 @@ function applyPeriodChange(d){
   GAME.period = Math.max(1, GAME.period+d);
   GAME.clockSec = PERIOD_SECS(GAME.period);
   GAME.running=false;clearInterval(clkInt);
+  document.getElementById('clock-btn').classList.remove('expired');
   updClk();
   document.getElementById('pdisplay').textContent = PERIOD_LBL(GAME.period);
 }
@@ -1066,8 +1074,14 @@ function doStat(def){
   if(def.key==='timeout_full'&&GAME[side].tof>0){GAME[side].tof--;document.getElementById(`${side}-tof`).textContent=GAME[side].tof;}
   if(def.key==='timeout_30sec'&&GAME[side].to3>0){GAME[side].to3--;document.getElementById(`${side}-to3`).textContent=GAME[side].to3;}
   pushEvt(p,side,def.key,null,null);
+  // Offensive foul automatically generates a turnover on the same player
+  if(def.key==='foul_offensive'&&p){
+    pushEvt(p,side,'turnover',null,null);
+    flash(`O.Foul + T/O — #${p.num}`,'');
+  } else {
+    flash(def.lbl+(p?` — #${p.num}`:''),def.t==='sc'?'made':'');
+  }
   renderPl();
-  flash(def.lbl+(p?` — #${p.num}`:''),def.t==='sc'?'made':'');
 }
 
 // ══ COURT ═════════════════════════════════════
@@ -1239,7 +1253,9 @@ function findP(pid,side){return PL[side]?.find(p=>p.id===pid);}
 
 function evtPlayerName(e){
   if(!e.pnum) return null;
-  const name = e.pfirst ? `${e.pfirst} ${e.plast||''}` : `${e.pfi||''}.${e.plast||''}`;
+  // pfirst is full first name if entered as "First Last"; pfi is just initial
+  const first = (e.pfirst && e.pfirst.length>1) ? e.pfirst : (e.pfi ? e.pfi+'.' : '');
+  const name = first ? `${first} ${e.plast||''}` : (e.plast||'');
   return `#${e.pnum} ${name.trim()}`;
 }
 

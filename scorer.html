@@ -1484,7 +1484,19 @@ function suAutoShort(side) {
 
 function suAddPlayer(side, num='', name='', starter=false) {
   const id = `su-p-${++suPidCount}`;
-  SU[side].players.push({ id, num, last:name, fi:'', starter });
+  let fi='', first='', last=name;
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      fi    = parts[0][0].toUpperCase();
+      first = parts[0];
+      last  = parts.slice(1).join(' ');
+    } else {
+      fi   = name[0]?.toUpperCase()||'';
+      last = name;
+    }
+  }
+  SU[side].players.push({ id, num, last, fi, first, starter });
   suRenderRoster(side);
 }
 

@@ -1230,7 +1230,6 @@ function pushEvt(p,side,key,pt,three){
     side,key,period:GAME.period,clk:GAME.clockSec,
     pts:getPts(key),three
   };
-  console.log('pushEvt',key,'pfirst=',e.pfirst,'pfi=',e.pfi,'plast=',e.plast);
   evts.unshift(e);
   const pend=dots.find(d=>d.pend);
   if(pend){pend.eid=e.id;delete pend.pend;}
@@ -1413,22 +1412,22 @@ function flash(msg,type){
 const DUMMY_GAMES = [
   { id:'g1', date:'2026-03-07', event:'Class A South Quarterfinal', venue:'Augusta Civic Center',
     home:{ name:'Camden Hills', short:'CHILLS', gender:'boys',
-      roster:[{num:4,name:'H. Stewart'},{num:10,name:'S. Johnson'},{num:11,name:'K. Melquist'},
-              {num:12,name:'H. Schwalm'},{num:15,name:'T. Leadbetter'},{num:22,name:'E. Stearns'},{num:3,name:'M. Webb'}],
+      roster:[{num:4,name:'Henry Stewart'},{num:10,name:'Sam Johnson'},{num:11,name:'Kyle Melquist'},
+              {num:12,name:'Hunter Schwalm'},{num:15,name:'Tyler Leadbetter'},{num:22,name:'Eli Stearns'},{num:3,name:'Max Webb'}],
       starters:[4,10,11,12,15] },
     away:{ name:'Cape Elizabeth', short:'CAPE', gender:'boys',
-      roster:[{num:10,name:'L. Lombardo'},{num:11,name:'C. Wannemacher'},{num:14,name:'J. Rosen'},
-              {num:20,name:'E. Morse'},{num:23,name:'O. Beaureguard'},{num:5,name:'F. Casey'},{num:33,name:'D. Park'}],
+      roster:[{num:10,name:'Luca Lombardo'},{num:11,name:'Cole Wannemacher'},{num:14,name:'Jake Rosen'},
+              {num:20,name:'Evan Morse'},{num:23,name:'Owen Beaureguard'},{num:5,name:'Finn Casey'},{num:33,name:'Dylan Park'}],
       starters:[10,11,14,20,23] }
   },
   { id:'g2', date:'2026-03-07', event:'Class B North Semifinal', venue:'Bangor Auditorium',
     home:{ name:'Orono', short:'ORONO', gender:'girls',
-      roster:[{num:5,name:'A. Pelletier'},{num:12,name:'B. Frost'},{num:21,name:'C. Lord'},
-              {num:24,name:'D. Allen'},{num:33,name:'E. Small'},{num:3,name:'F. York'}],
+      roster:[{num:5,name:'Alex Pelletier'},{num:12,name:'Ben Frost'},{num:21,name:'Chris Lord'},
+              {num:24,name:'Dan Allen'},{num:33,name:'Ethan Small'},{num:3,name:'Frank York'}],
       starters:[5,12,21,24,33] },
     away:{ name:'Caribou', short:'CARIB', gender:'girls',
-      roster:[{num:10,name:'G. Cyr'},{num:11,name:'H. Bell'},{num:15,name:'I. Shaw'},
-              {num:22,name:'J. King'},{num:31,name:'K. Dunn'},{num:4,name:'L. Roy'}],
+      roster:[{num:10,name:'Gavin Cyr'},{num:11,name:'Henry Bell'},{num:15,name:'Ian Shaw'},
+              {num:22,name:'Jake King'},{num:31,name:'Kevin Dunn'},{num:4,name:'Luke Roy'}],
       starters:[10,11,15,22,31] }
   },
 ];

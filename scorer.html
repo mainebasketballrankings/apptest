@@ -237,6 +237,8 @@ body{
 .sbtn.ts{border-color:rgba(140,140,180,.35);color:#8890b0;}
 .sbtn.np{opacity:.28;pointer-events:none;}
 #more-btn{background:#1a1d27;border:1.5px solid #2e3250;border-radius:8px;color:#8890b0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;padding:10px 8px;cursor:pointer;min-width:52px;}
+#team-btn{background:#1a1d27;border:1.5px solid #2e3250;border-radius:8px;color:#8890b0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;padding:10px 8px;cursor:pointer;min-width:58px;transition:all .15s;}
+#team-btn.active{background:rgba(74,158,255,.15);border-color:#4a9eff;color:#4a9eff;}
 
 /* ── BOX SCORE MODAL ── */
 #bs-modal{
@@ -684,7 +686,8 @@ body{
   <div id="sel-display">Tap a player to select</div>
   <div style="display:flex;align-items:stretch;gap:5px;">
     <div class="sgrid" id="stat-grid" style="flex:1;"></div>
-    <button class="sbtn ts" id="more-btn" onclick="toggleMoreBtns()" style="min-width:52px;font-size:13px;border-radius:8px;">MORE</button>
+    <button class="sbtn ts" id="team-btn" onclick="toggleTeamMode()" style="min-width:58px;font-size:13px;">TEAM</button>
+    <button class="sbtn ts" id="more-btn" onclick="toggleMoreBtns()" style="min-width:52px;font-size:13px;">MORE</button>
   </div>
   <div class="sgrid" id="stat-grid-more" style="display:none;margin-top:5px;"></div>
 </div>
@@ -1059,7 +1062,11 @@ function selPlayer(p,side){
 }
 function updSel(){
   const el=document.getElementById('sel-display');
-  if(selP){
+  if(teamMode){
+    const side=selSide||'home';
+    const c=side==='home'?'var(--hl)':'var(--al)';
+    el.innerHTML=`<span class="sn" style="color:${c}">TEAM ACTION</span>`;
+  } else if(selP){
     const c=selSide==='home'?'var(--hl)':'var(--al)';
     el.innerHTML=`<span class="sn" style="color:${c}">#${selP.num} ${pName(selP)}</span>`;
   } else {el.textContent='Tap a player to select';}
@@ -1067,6 +1074,28 @@ function updSel(){
 
 // ══ STAT BUTTONS ══════════════════════════════
 let moreOpen = false;
+let teamMode = false;
+
+function toggleTeamMode(){
+  // Cycle: off → home → away → off
+  if(!teamMode){ teamMode=true; selSide='home'; selP=null; }
+  else if(selSide==='home'){ selSide='away'; }
+  else { teamMode=false; selSide=null; selP=null; }
+  const btn=document.getElementById('team-btn');
+  btn.classList.toggle('active', teamMode);
+  if(teamMode){
+    const label = selSide==='home' ? 'HOME' : 'AWAY';
+    btn.textContent = label;
+    btn.style.color = selSide==='home' ? '#4a9eff' : '#e05c52';
+    btn.style.borderColor = selSide==='home' ? '#4a9eff' : '#e05c52';
+    btn.style.background = selSide==='home' ? 'rgba(74,158,255,.15)' : 'rgba(224,92,82,.15)';
+  } else {
+    btn.textContent='TEAM';
+    btn.style.color=''; btn.style.borderColor=''; btn.style.background='';
+  }
+  updSel(); updBtns();
+}
+
 function toggleMoreBtns(){
   moreOpen = !moreOpen;
   document.getElementById('stat-grid-more').style.display = moreOpen ? 'grid' : 'none';
@@ -1094,15 +1123,15 @@ function updBtns(){
   document.querySelectorAll('.sbtn').forEach(b=>{
     const d=allDefs.find(s=>s.key===b.dataset.key);
     if(!d)return;
-    b.classList.toggle('np',!d.team&&!selP);
+    b.classList.toggle('np', !teamMode && !d.team && !selP);
   });
 }
 
 function doStat(def){
-  const isTeam=!!def.team;
+  const isTeam = teamMode || !!def.team;
   if(!isTeam&&!selP)return;
-  const p=isTeam?null:selP;
-  const side=isTeam?(selSide||'home'):selSide;
+  const p = isTeam ? null : selP;
+  const side = isTeam ? (selSide||'home') : selSide;
   let pts=0;
   if(def.key==='ft_made')pts=1;
   if(pts&&p){p.pts+=pts;GAME[side].score+=pts;document.getElementById(`${side}-score`).textContent=GAME[side].score;}

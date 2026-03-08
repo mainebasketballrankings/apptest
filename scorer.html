@@ -52,18 +52,19 @@ body{
 .tscore.home .snum{color:var(--hl);}
 .tscore.away .snum{color:var(--al);}
 .poss-btn{
-  display:inline-flex;align-items:center;gap:3px;
+  display:inline-flex;align-items:center;gap:4px;
   font-family:'Barlow Condensed',sans-serif;font-size:10px;
   letter-spacing:.06em;color:var(--dim);
   border:1px solid transparent;border-radius:5px;
-  padding:1px 5px;cursor:pointer;margin-top:1px;
-  transition:opacity .15s;
+  padding:3px 6px;cursor:pointer;
+  transition:opacity .15s, border-color .15s;
+  width:100%;
 }
-.poss-btn .pa{font-size:16px;line-height:1;}
-.tscore.home .poss-btn .pa{color:var(--hl);}
-.tscore.away .poss-btn .pa{color:var(--al);}
-.poss-btn.has-poss{border-color:var(--border);opacity:1;}
-.poss-btn.no-poss{opacity:.28;}
+.poss-btn .pa{font-size:14px;line-height:1;color:var(--dim);}
+.poss-btn.has-poss{border-color:var(--border);opacity:1;background:rgba(255,255,255,.05);}
+.poss-btn.has-poss .pa{color:var(--hl);}
+.side-block.away-side .poss-btn.has-poss .pa{color:var(--al);}
+.poss-btn.no-poss{opacity:.3;}
 
 /* Clock centre */
 #clk-col{
@@ -532,15 +533,15 @@ body{
       <div class="side-sep">/</div>
       <div class="side-val" id="home-to3">2</div>
     </div>
+    <div class="poss-btn no-poss" id="poss-home" onclick="setPoss('home')" style="margin-top:6px;">
+      <span class="pa">▶</span><span>POSS</span>
+    </div>
   </div>
 
   <!-- Home score + name -->
   <div class="tscore home">
     <div class="tname" id="home-tname">—</div>
     <div class="snum" id="home-score">0</div>
-    <div class="poss-btn has-poss" id="poss-home" onclick="setPoss('home')">
-      <span class="pa">▶</span><span>POSS</span>
-    </div>
   </div>
 
   <!-- Clock centre -->
@@ -553,9 +554,6 @@ body{
   <div class="tscore away">
     <div class="tname" id="away-tname">—</div>
     <div class="snum" id="away-score">0</div>
-    <div class="poss-btn no-poss" id="poss-away" onclick="setPoss('away')">
-      <span class="pa">▶</span><span>POSS</span>
-    </div>
   </div>
 
   <!-- Away fouls/TO -->
@@ -570,6 +568,9 @@ body{
       <div class="side-val" id="away-tof">3</div>
       <div class="side-sep">/</div>
       <div class="side-val" id="away-to3">2</div>
+    </div>
+    <div class="poss-btn no-poss" id="poss-away" onclick="setPoss('away')" style="margin-top:6px;">
+      <span class="pa">▶</span><span>POSS</span>
     </div>
   </div>
 </div>

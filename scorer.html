@@ -44,7 +44,7 @@ body{
 }
 
 /* Score+name blocks */
-.tscore{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;padding:4px 8px;}
+.tscore{display:flex;flex-direction:row;justify-content:center;align-items:center;gap:10px;padding:4px 8px;}
 .tname{font-family:'Playfair Display',serif;font-weight:900;font-size:15px;letter-spacing:.01em;color:var(--text);text-align:center;line-height:1.1;}
 .tscore.home .tname{color:var(--text);}
 .tscore.away .tname{color:var(--text);}
@@ -431,11 +431,13 @@ body{
   padding:0 2px;outline:none;
 }
 .su-num-input:focus,.su-name-input:focus{border-bottom-color:#1a1a2e;}
-.su-starter-badge{
-  display:none;font-size:9px;font-weight:700;letter-spacing:.06em;
-  background:#1a56db;color:#fff;border-radius:3px;padding:1px 5px;flex-shrink:0;
+.su-starter-btn{
+  background:none;border:1.5px solid #ddd;border-radius:6px;
+  color:#ccc;font-size:18px;cursor:pointer;padding:2px 8px;
+  line-height:1;flex-shrink:0;transition:all .15s;
 }
-.su-player-row.starter .su-starter-badge{display:inline-block;}
+.su-starter-btn.active{border-color:#1a56db;color:#1a56db;background:#eef3ff;}
+.su-starter-btn:hover{border-color:#1a56db;color:#1a56db;}
 .su-remove-btn{
   background:none;border:none;color:#ccc;font-size:14px;cursor:pointer;
   padding:0 2px;flex-shrink:0;line-height:1;
@@ -540,8 +542,8 @@ body{
 
   <!-- Home score + name -->
   <div class="tscore home">
-    <div class="tname" id="home-tname">—</div>
     <div class="snum" id="home-score">0</div>
+    <div class="tname" id="home-tname">—</div>
   </div>
 
   <!-- Clock centre -->
@@ -742,11 +744,11 @@ body{
         <div class="su-row">
           <div class="su-field su-field-grow">
             <label>Event Name</label>
-            <input id="su-event" type="text" placeholder="e.g. Class A South Quarterfinal">
+            <input id="su-event" type="text" placeholder="e.g. Class A Gold Ball">
           </div>
           <div class="su-field su-field-grow">
             <label>Venue</label>
-            <input id="su-venue" type="text" placeholder="e.g. Augusta Civic Center">
+            <input id="su-venue" type="text" placeholder="e.g. Cross Insurance Arena">
           </div>
           <div class="su-field su-field-sm">
             <label>Date</label>
@@ -764,7 +766,7 @@ body{
           <div class="su-row">
             <div class="su-field su-field-grow su-name-wrap">
               <label>Team Name</label>
-              <input id="su-home-name" type="text" placeholder="e.g. Camden Hills" autocomplete="off"
+              <input id="su-home-name" type="text" placeholder="e.g. Portland" autocomplete="off"
                 oninput="suAutoShort('home');suAcShow('home')" onfocus="suAcShow('home')" onblur="suAcHide('home')" onkeydown="suAcKey(event,'home')">
               <div class="su-autocomplete" id="su-home-ac" style="display:none"></div>
             </div>
@@ -794,7 +796,7 @@ body{
           <div class="su-row">
             <div class="su-field su-field-grow su-name-wrap">
               <label>Team Name</label>
-              <input id="su-away-name" type="text" placeholder="e.g. Cape Elizabeth" autocomplete="off"
+              <input id="su-away-name" type="text" placeholder="e.g. Portland" autocomplete="off"
                 oninput="suAutoShort('away');suAcShow('away')" onfocus="suAcShow('away')" onblur="suAcHide('away')" onkeydown="suAcKey(event,'away')">
               <div class="su-autocomplete" id="su-away-ac" style="display:none"></div>
             </div>
@@ -1534,15 +1536,17 @@ function suRenderRoster(side) {
   const n = SU[side].players.filter(p=>p.starter).length;
   document.getElementById(`su-${side}-starters-note`).textContent = `${n} / 5 starters selected`;
   cont.innerHTML = SU[side].players.map(p=>`
-    <div class="su-player-row${p.starter?' starter':''}" onclick="suToggleStarter('${side}','${p.id}')">
+    <div class="su-player-row${p.starter?' starter':''}">
       <input class="su-num-input" id="su-num-${p.id}" type="number" min="0" max="99"
-        value="${p.num}" placeholder="#" onclick="event.stopPropagation()"
+        value="${p.num}" placeholder="#"
         onchange="suSyncRoster('${side}')">
       <input class="su-name-input" id="su-name-${p.id}" type="text"
         value="${p.first ? p.first+' '+p.last : p.last}" placeholder="First Last (e.g. Mason Nguyen)"
-        onclick="event.stopPropagation()" onchange="suSyncRoster('${side}')">
-      <span class="su-starter-badge">START</span>
-      <button class="su-remove-btn" onclick="event.stopPropagation();suRemovePlayer('${side}','${p.id}')">✕</button>
+        onchange="suSyncRoster('${side}')">
+      <button class="su-starter-btn${p.starter?' active':''}" onclick="suToggleStarter('${side}','${p.id}')" title="Toggle starter">
+        ${p.starter ? '★' : '☆'}
+      </button>
+      <button class="su-remove-btn" onclick="suRemovePlayer('${side}','${p.id}')">✕</button>
     </div>
   `).join('');
 }

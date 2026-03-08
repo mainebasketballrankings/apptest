@@ -307,15 +307,17 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
           <rect x="10" y="165" width="167" height="111" fill="#ddd0b8" stroke="#c4b090" stroke-width="2"/>
           <line x1="10" y1="187" x2="177" y2="187" stroke="#c4b090" stroke-width="1.2" stroke-dasharray="5,5"/>
           <line x1="10" y1="253" x2="177" y2="253" stroke="#c4b090" stroke-width="1.2" stroke-dasharray="5,5"/>
-          <!-- Backboard: right edge x=26 meets basket ring (cx=36, r=10) -->
-          <rect x="10" y="197" width="16" height="46" fill="#c4b090" rx="1"/>
+          <!-- Backboard: thin strip, right edge at x=26 so basket ring touches it -->
+          <rect x="22" y="197" width="4" height="46" fill="#c4b090" rx="1"/>
           <!-- Basket at cx=36 (matches arc geometry) -->
           <circle cx="36" cy="220" r="10" fill="none" stroke="#c4b090" stroke-width="2.5"/>
           <circle cx="36" cy="220" r="3" fill="#c4b090"/>
-          <!-- FT line + circle: endpoints exactly match paint box y=165/276 -->
+          <!-- FT line + circle: two-arc path avoids SVG degenerate same-x issue -->
           <line x1="188" y1="165" x2="188" y2="276" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 188 165 A 61 55.5 0 0 1 188 276" fill="none" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 188 165 A 61 55.5 0 0 0 188 276" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
+          <!-- Solid arc: center-court side (right), through midpoint (243.5,220) -->
+          <path d="M 188 165 A 55.5 55.5 0 0 1 243.5 220 A 55.5 55.5 0 0 1 188 276" fill="none" stroke="#c4b090" stroke-width="2"/>
+          <!-- Dashed arc: paint side (left), through midpoint (132.5,220) -->
+          <path d="M 188 165 A 55.5 55.5 0 0 0 132.5 220 A 55.5 55.5 0 0 0 188 276" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
           <!-- Restricted area -->
           <path d="M 36 187 A 33 33 0 0 1 36 253" fill="none" stroke="#c4b090" stroke-width="1.5" stroke-dasharray="4,3"/>
           <!-- 3pt arc clipped at baseline -->
@@ -330,14 +332,16 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
           <rect x="623" y="165" width="167" height="111" fill="#ddd0b8" stroke="#c4b090" stroke-width="2"/>
           <line x1="623" y1="187" x2="790" y2="187" stroke="#c4b090" stroke-width="1.2" stroke-dasharray="5,5"/>
           <line x1="623" y1="253" x2="790" y2="253" stroke="#c4b090" stroke-width="1.2" stroke-dasharray="5,5"/>
-          <!-- Backboard: left edge x=774 meets basket ring (cx=764, r=10) -->
-          <rect x="774" y="197" width="16" height="46" fill="#c4b090" rx="1"/>
+          <!-- Backboard: thin strip, left edge at x=774 so basket ring touches it -->
+          <rect x="774" y="197" width="4" height="46" fill="#c4b090" rx="1"/>
           <!-- Basket at cx=764 (matches arc geometry) -->
           <circle cx="764" cy="220" r="10" fill="none" stroke="#c4b090" stroke-width="2.5"/>
           <circle cx="764" cy="220" r="3" fill="#c4b090"/>
           <line x1="612" y1="165" x2="612" y2="276" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 612 165 A 61 55.5 0 0 0 612 276" fill="none" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 612 165 A 61 55.5 0 0 1 612 276" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
+          <!-- Solid arc: center-court side (left), through midpoint (556.5,220) -->
+          <path d="M 612 165 A 55.5 55.5 0 0 0 556.5 220 A 55.5 55.5 0 0 0 612 276" fill="none" stroke="#c4b090" stroke-width="2"/>
+          <!-- Dashed arc: paint side (right), through midpoint (667.5,220) -->
+          <path d="M 612 165 A 55.5 55.5 0 0 1 667.5 220 A 55.5 55.5 0 0 1 612 276" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
           <path d="M 764 187 A 33 33 0 0 0 764 253" fill="none" stroke="#c4b090" stroke-width="1.5" stroke-dasharray="4,3"/>
           <clipPath id="aclip"><rect x="400" y="10" width="390" height="420"/></clipPath>
           <polyline clip-path="url(#aclip)" fill="none" stroke="#c4b090" stroke-width="2.5"

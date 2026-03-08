@@ -281,6 +281,108 @@ body{
 .sub-cancel{margin-top:10px;width:100%;padding:9px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:14px;cursor:pointer;}
 
 /* ── FLASH ── */
+/* ── SETUP SCREEN ── */
+#setup-screen{
+  position:fixed;inset:0;z-index:200;
+  background:var(--bg);
+  overflow-y:auto;
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:20px 12px 40px;
+}
+#setup-box{
+  width:100%;max-width:860px;
+  display:flex;flex-direction:column;gap:20px;
+}
+.setup-logo{
+  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;
+  letter-spacing:.06em;color:var(--hl);text-align:center;padding-top:4px;
+}
+.setup-logo span{color:var(--dim);font-weight:400;}
+.setup-section{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;
+}
+.setup-section-title{
+  font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:10px;
+}
+.setup-row{display:flex;gap:10px;flex-wrap:wrap;}
+.setup-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px;}
+.setup-field-sm{flex:0 0 110px;min-width:90px;}
+.setup-field label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
+.setup-field input{
+  background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;
+  padding:7px 10px;outline:none;
+}
+.setup-field input:focus{border-color:var(--hl);}
+.setup-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:start;}
+.setup-vs{
+  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;
+  color:var(--dim);padding-top:44px;text-align:center;
+}
+.setup-team{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;display:flex;flex-direction:column;gap:10px;
+}
+.setup-team-hdr{
+  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;
+  letter-spacing:.12em;text-transform:uppercase;
+}
+.home-hdr{color:var(--hl);}
+.away-hdr{color:var(--al);}
+.setup-roster-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);
+}
+.su-add-btn{
+  background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+  color:var(--hl);font-size:11px;font-family:'Barlow',sans-serif;font-weight:600;
+  padding:2px 8px;cursor:pointer;
+}
+.setup-roster{display:flex;flex-direction:column;gap:4px;min-height:32px;}
+.su-player-row{
+  display:flex;gap:6px;align-items:center;
+  background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+  padding:4px 8px;cursor:pointer;transition:border-color .15s;
+}
+.su-player-row.starter{border-color:var(--hl);background:#1a2a3a;}
+.su-player-row.starter .su-starter-badge{display:inline-block;}
+.su-num-input{
+  width:38px;background:transparent;border:none;border-bottom:1px solid var(--border);
+  color:var(--text);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+  text-align:center;padding:0 2px;outline:none;
+}
+.su-name-input{
+  flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);
+  color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;
+  padding:0 2px;outline:none;
+}
+.su-num-input:focus,.su-name-input:focus{border-bottom-color:var(--hl);}
+.su-starter-badge{
+  display:none;font-size:9px;font-weight:700;letter-spacing:.06em;
+  background:var(--hl);color:#000;border-radius:3px;padding:1px 4px;flex-shrink:0;
+}
+.su-remove-btn{
+  background:none;border:none;color:var(--dim);font-size:14px;cursor:pointer;
+  padding:0 2px;flex-shrink:0;line-height:1;
+}
+.su-remove-btn:hover{color:var(--al);}
+.setup-starters-note{
+  font-size:10px;color:var(--dim);text-align:center;
+  font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em;
+}
+#su-error{
+  color:var(--al);font-size:12px;text-align:center;min-height:16px;
+  font-family:'Barlow',sans-serif;
+}
+#su-tipoff-btn{
+  background:var(--hl);color:#000;font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:22px;letter-spacing:.08em;
+  border:none;border-radius:var(--radius);padding:14px;cursor:pointer;
+  width:100%;transition:opacity .15s;
+}
+#su-tipoff-btn:hover{opacity:.85;}
 #flash{
   position:fixed;top:50%;left:50%;
   transform:translate(-50%,-50%) scale(.85);
@@ -300,6 +402,7 @@ body{
 </head>
 <body>
 
+<div id="scorer-ui" style="display:none;flex-direction:column;height:100dvh;overflow:hidden;">
 <!-- TOP BAR: [Fouls/TO] [Home Score+Name] [Clock/Period] [Away Score+Name] [Fouls/TO] -->
 <div id="topbar">
   <!-- Home fouls/TO -->
@@ -483,6 +586,84 @@ body{
     <div class="sub-sub">Select player entering the game</div>
     <div id="sub-list"></div>
     <button class="sub-cancel" onclick="closeSubModal()">Cancel</button>
+  </div>
+</div>
+
+</div><!-- /scorer-ui -->
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen">
+  <div id="setup-box">
+    <div class="setup-logo">MBR <span>SCORER</span></div>
+
+    <!-- Game metadata -->
+    <div class="setup-section">
+      <div class="setup-section-title">Game Info</div>
+      <div class="setup-row">
+        <div class="setup-field">
+          <label>Event</label>
+          <input id="su-event" type="text" placeholder="e.g. Class A South Quarterfinal">
+        </div>
+        <div class="setup-field">
+          <label>Venue</label>
+          <input id="su-venue" type="text" placeholder="e.g. Augusta Civic Center">
+        </div>
+        <div class="setup-field setup-field-sm">
+          <label>Date</label>
+          <input id="su-date" type="date">
+        </div>
+      </div>
+    </div>
+
+    <!-- Teams -->
+    <div class="setup-teams">
+      <!-- HOME -->
+      <div class="setup-team" id="su-home-block">
+        <div class="setup-team-hdr home-hdr">HOME</div>
+        <div class="setup-row">
+          <div class="setup-field">
+            <label>Team Name</label>
+            <input id="su-home-name" type="text" placeholder="e.g. Camden Hills" oninput="suAutoShort('home')">
+          </div>
+          <div class="setup-field setup-field-sm">
+            <label>Short (≤6 chars)</label>
+            <input id="su-home-short" type="text" maxlength="6" placeholder="CHILLS" style="text-transform:uppercase">
+          </div>
+        </div>
+        <div class="setup-roster-hdr">
+          <span>Roster</span>
+          <button class="su-add-btn" onclick="suAddPlayer('home')">+ Player</button>
+        </div>
+        <div class="setup-roster" id="su-home-roster"></div>
+        <div class="setup-starters-note" id="su-home-starters-note">Tap players to set starters (0/5)</div>
+      </div>
+
+      <div class="setup-vs">VS</div>
+
+      <!-- AWAY -->
+      <div class="setup-team" id="su-away-block">
+        <div class="setup-team-hdr away-hdr">AWAY</div>
+        <div class="setup-row">
+          <div class="setup-field">
+            <label>Team Name</label>
+            <input id="su-away-name" type="text" placeholder="e.g. Cape Elizabeth" oninput="suAutoShort('away')">
+          </div>
+          <div class="setup-field setup-field-sm">
+            <label>Short (≤6 chars)</label>
+            <input id="su-away-short" type="text" maxlength="6" placeholder="CAPE" style="text-transform:uppercase">
+          </div>
+        </div>
+        <div class="setup-roster-hdr">
+          <span>Roster</span>
+          <button class="su-add-btn" onclick="suAddPlayer('away')">+ Player</button>
+        </div>
+        <div class="setup-roster" id="su-away-roster"></div>
+        <div class="setup-starters-note" id="su-away-starters-note">Tap players to set starters (0/5)</div>
+      </div>
+    </div>
+
+    <div id="su-error"></div>
+    <button id="su-tipoff-btn" onclick="suTipOff()">🏀 TIP OFF</button>
   </div>
 </div>
 
@@ -971,8 +1152,141 @@ function flash(msg,type){
   clearTimeout(flashTmr);flashTmr=setTimeout(()=>el.className='',850);
 }
 
+// ══ SETUP SCREEN ══════════════════════════════
+const SU = {
+  home: { players: [] },
+  away: { players: [] }
+};
+let suPidCount = 0;
+
+function suAutoShort(side) {
+  const nameEl = document.getElementById(`su-${side}-name`);
+  const shortEl = document.getElementById(`su-${side}-short`);
+  if (shortEl.value) return; // don't overwrite manual entry
+  const words = nameEl.value.trim().split(/\s+/);
+  let s = '';
+  if (words.length === 1) s = words[0].substring(0,6);
+  else s = words.map(w=>w[0]).join('').substring(0,6);
+  shortEl.value = s.toUpperCase();
+}
+
+function suAddPlayer(side) {
+  const id = `su-p-${++suPidCount}`;
+  SU[side].players.push({ id, num:'', last:'', fi:'', starter:false });
+  suRenderRoster(side);
+  // focus the number input of the new row
+  setTimeout(()=>{ const el=document.querySelector(`#su-${side}-roster .su-player-row:last-child .su-num-input`); if(el) el.focus(); }, 30);
+}
+
+function suRemovePlayer(side, id) {
+  SU[side].players = SU[side].players.filter(p=>p.id!==id);
+  suRenderRoster(side);
+}
+
+function suToggleStarter(side, id) {
+  const p = SU[side].players.find(p=>p.id===id);
+  if (!p) return;
+  // sync current input values first
+  suSyncRoster(side);
+  const starters = SU[side].players.filter(p=>p.starter).length;
+  if (!p.starter && starters >= 5) { flash('Already have 5 starters','warn'); return; }
+  p.starter = !p.starter;
+  suRenderRoster(side);
+}
+
+function suSyncRoster(side) {
+  SU[side].players.forEach(p => {
+    const numEl = document.getElementById(`su-num-${p.id}`);
+    const nameEl = document.getElementById(`su-name-${p.id}`);
+    if (numEl) p.num = numEl.value.trim();
+    if (nameEl) {
+      const full = nameEl.value.trim();
+      const parts = full.split(/\s+/);
+      p.last = parts[parts.length-1] || full;
+      p.fi = parts.length > 1 ? parts[0][0].toUpperCase() : (full[0]||'').toUpperCase();
+    }
+  });
+}
+
+function suRenderRoster(side) {
+  suSyncRoster(side);
+  const cont = document.getElementById(`su-${side}-roster`);
+  const starters = SU[side].players.filter(p=>p.starter).length;
+  document.getElementById(`su-${side}-starters-note`).textContent =
+    `Tap a player row to toggle starter (${starters}/5)`;
+  cont.innerHTML = SU[side].players.map(p=>`
+    <div class="su-player-row${p.starter?' starter':''}" onclick="suToggleStarter('${side}','${p.id}')">
+      <input class="su-num-input" id="su-num-${p.id}" type="number" min="0" max="99"
+        value="${p.num}" placeholder="#" onclick="event.stopPropagation()"
+        onchange="suSyncRoster('${side}')">
+      <input class="su-name-input" id="su-name-${p.id}" type="text"
+        value="${p.last?(p.fi?p.fi+'. ':'')+p.last:''}" placeholder="Last name (or First Last)"
+        onclick="event.stopPropagation()" onchange="suSyncRoster('${side}')">
+      <span class="su-starter-badge">START</span>
+      <button class="su-remove-btn" onclick="event.stopPropagation();suRemovePlayer('${side}','${p.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function suTipOff() {
+  // sync all inputs
+  suSyncRoster('home');
+  suSyncRoster('away');
+
+  const errEl = document.getElementById('su-error');
+  errEl.textContent = '';
+
+  const homeName = document.getElementById('su-home-name').value.trim();
+  const awayName = document.getElementById('su-away-name').value.trim();
+  const homeShort = document.getElementById('su-home-short').value.trim().toUpperCase() || homeName.substring(0,6).toUpperCase();
+  const awayShort = document.getElementById('su-away-short').value.trim().toUpperCase() || awayName.substring(0,6).toUpperCase();
+
+  if (!homeName || !awayName) { errEl.textContent = 'Both team names are required.'; return; }
+
+  const hStarters = SU.home.players.filter(p=>p.starter);
+  const aStarters = SU.away.players.filter(p=>p.starter);
+  if (hStarters.length !== 5) { errEl.textContent = `Select exactly 5 home starters (${hStarters.length}/5).`; return; }
+  if (aStarters.length !== 5) { errEl.textContent = `Select exactly 5 away starters (${aStarters.length}/5).`; return; }
+
+  // Populate GAME
+  GAME.home.name = homeName;
+  GAME.home.short = homeShort.substring(0,8);
+  GAME.away.name = awayName;
+  GAME.away.short = awayShort.substring(0,8);
+  GAME.meta = {
+    event: document.getElementById('su-event').value.trim(),
+    venue: document.getElementById('su-venue').value.trim(),
+    date:  document.getElementById('su-date').value,
+  };
+
+  // Populate PL
+  ['home','away'].forEach(side=>{
+    const prefix = side==='home'?'h':'a';
+    PL[side] = SU[side].players.map((p,i)=>({
+      id: `${prefix}${i+1}`,
+      fi: p.fi || (p.last[0]||'').toUpperCase(),
+      last: p.last || '?',
+      num: parseInt(p.num)||0,
+      pts:0, reb:0, ast:0, fouls:0,
+      on: p.starter,
+      fgm:0, fga:0, tpm:0, tpa:0
+    }));
+  });
+
+  // Hide setup, show scorer
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('scorer-ui').style.display = 'flex';
+  renderPl(); renderBtns(); updClk(); updPoss();
+}
+
+// pre-populate with today's date
+document.getElementById('su-date').valueAsDate = new Date();
+// start with 5 blank players each side
+for(let i=0;i<5;i++){ suAddPlayer('home'); suAddPlayer('away'); }
+
 // ══ INIT ══════════════════════════════════════
-renderPl();renderBtns();updClk();updPoss();
+// (scorer initialises after tip-off via suTipOff)
+
 </script>
 </body>
 </html>

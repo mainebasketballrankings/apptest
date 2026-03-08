@@ -1549,7 +1549,7 @@ function suRenderRoster(side) {
         value="${p.num}" placeholder="#" onclick="event.stopPropagation()"
         onchange="suSyncRoster('${side}')">
       <input class="su-name-input" id="su-name-${p.id}" type="text"
-        value="${p.last?(p.fi?p.fi+'. ':'')+p.last:''}" placeholder="First Last (e.g. Mike Nguyen)"
+        value="${p.last?(p.fi?p.fi+'. ':'')+p.last:''}" placeholder="First Last (e.g. Mason Nguyen)"
         onclick="event.stopPropagation()" onchange="suSyncRoster('${side}')">
       <span class="su-starter-badge">START</span>
       <button class="su-remove-btn" onclick="event.stopPropagation();suRemovePlayer('${side}','${p.id}')">✕</button>
@@ -1570,21 +1570,60 @@ function suLoadGameIntoForm(g) {
   });
 }
 
+function parseName(full) {
+  if (!full) return { fi:'', first:'', last:'' };
+  const parts = full.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    const isInitial = /^[A-Za-z]\.?$/.test(parts[0]);
+    return {
+      fi:    parts[0][0].toUpperCase(),
+      first: isInitial ? '' : parts[0],
+      last:  parts.slice(1).join(' ')
+    };
+  }
+  return { fi: full[0]?.toUpperCase()||'', first:'', last: full };
+}
+
 function suTipOff() {
   const errEl = document.getElementById('su-error');
   errEl.textContent = '';
 
-  let gameData;
-
   if (suMode === 'pick') {
     if (!suSelectedGameId) { errEl.textContent = 'Select a game to continue.'; return; }
     const g = DUMMY_GAMES.find(g=>g.id===suSelectedGameId);
-    // load into form then use that data
-    suLoadGameIntoForm(g);
-    gameData = g;
+
+    GAME.home.name   = g.home.name;
+    GAME.home.short  = g.home.short || g.home.name.substring(0,6).toUpperCase();
+    GAME.home.gender = g.home.gender;
+    GAME.away.name   = g.away.name;
+    GAME.away.short  = g.away.short || g.away.name.substring(0,6).toUpperCase();
+    GAME.away.gender = g.away.gender;
+    GAME.meta = { event: g.event||'', venue: g.venue||'', date: g.date||'' };
+
+    ['home','away'].forEach(side => {
+      const pfx = side==='home'?'h':'a';
+      PL[side] = g[side].roster.map((r,i) => {
+        const n = parseName(r.name);
+        return {
+          id:`${pfx}${i+1}`,
+          fi: n.fi, first: n.first, last: n.last,
+          num: parseInt(r.num)||0,
+          pts:0, reb:0, ast:0, fouls:0, on: g[side].starters.includes(r.num),
+          fgm:0, fga:0, tpm:0, tpa:0
+        };
+      });
+    });
+
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('scorer-ui').style.display = 'flex';
+    const gLabel = g => `${g.name} ${g.gender==='girls'?'Girls':'Boys'}`;
+    document.getElementById('home-tname').textContent = gLabel(GAME.home);
+    document.getElementById('away-tname').textContent = gLabel(GAME.away);
+    renderPl(); renderBtns(); updClk(); updPoss();
+    return;
   }
 
-  // validate new-game form (also validates after pick-loaded)
+  // ── New game mode ──
   suSyncRoster('home'); suSyncRoster('away');
   const homeName  = document.getElementById('su-home-name').value.trim();
   const awayName  = document.getElementById('su-away-name').value.trim();
@@ -1597,7 +1636,6 @@ function suTipOff() {
   if (hS.length!==5) { errEl.textContent = `Select exactly 5 home starters (${hS.length}/5).`; return; }
   if (aS.length!==5) { errEl.textContent = `Select exactly 5 away starters (${aS.length}/5).`; return; }
 
-  // Populate GAME
   GAME.home.name   = homeName;
   GAME.home.short  = homeShort;
   GAME.home.gender = document.getElementById('su-home-gender').value;
@@ -1610,7 +1648,6 @@ function suTipOff() {
     date:   document.getElementById('su-date').value,
   };
 
-  // Populate PL
   ['home','away'].forEach(side => {
     const pfx = side==='home'?'h':'a';
     PL[side] = SU[side].players.map((p,i) => ({
@@ -1626,7 +1663,6 @@ function suTipOff() {
 
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('scorer-ui').style.display = 'flex';
-  // update topbar names
   const gLabel = g => `${g.name} ${g.gender==='girls'?'Girls':'Boys'}`;
   document.getElementById('home-tname').textContent = gLabel(GAME.home);
   document.getElementById('away-tname').textContent = gLabel(GAME.away);

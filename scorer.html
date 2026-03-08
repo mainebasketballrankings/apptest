@@ -683,7 +683,11 @@ body{
 <!-- STAT BAR -->
 <div id="stat-bar">
   <div id="sel-display">Tap a player to select</div>
-  <div class="sgrid" id="stat-grid"></div>
+  <div style="display:flex;align-items:stretch;gap:5px;">
+    <div class="sgrid" id="stat-grid" style="flex:1;"></div>
+    <button class="sbtn ts" id="more-btn" onclick="toggleMoreBtns()" style="min-width:52px;font-size:13px;border-radius:8px;">MORE</button>
+  </div>
+  <div class="sgrid" id="stat-grid-more" style="display:none;margin-top:5px;"></div>
 </div>
 
 <!-- BOX SCORE MODAL -->
@@ -876,24 +880,26 @@ const PL={
 };
 
 const SDEFS=[
-  {key:'o_reb',           lbl:'O-Reb',   icon:'↑', t:'nm'},
-  {key:'d_reb',           lbl:'D-Reb',   icon:'↓', t:'nm'},
-  {key:'assist',          lbl:'Assist',  icon:'🤝',t:'nm'},
-  {key:'steal',           lbl:'Steal',   icon:'⚡',t:'nm'},
-  {key:'block',           lbl:'Block',   icon:'✋',t:'nm'},
-  {key:'turnover',        lbl:'T/O',     icon:'↩', t:'nm'},
-  {key:'deflection',      lbl:'Defl.',   icon:'🖐',t:'nm'},
-  {key:'charge_taken',    lbl:'Charge',  icon:'🛡',t:'nm'},
-  {key:'foul_personal',   lbl:'P.Foul',  icon:'⚠', t:'fo'},
-  {key:'foul_offensive',  lbl:'O.Foul',  icon:'⚠', t:'fo'},
-  {key:'foul_flagrant',   lbl:'Flagrant',icon:'🚨',t:'fo'},
-  {key:'foul_intentional',lbl:'Int.Foul',icon:'⚠', t:'fo'},
-  {key:'foul_technical',  lbl:'Tech',    icon:'📋',t:'fo',team:true},
-  {key:'timeout_full',    lbl:'TO Full', icon:'⏸', t:'ts',team:true},
-  {key:'timeout_30sec',   lbl:'TO 30s',  icon:'⏸', t:'ts',team:true},
-  {key:'ft_made',         lbl:'FT Made', icon:'🟢',t:'sc'},
-  {key:'ft_miss',         lbl:'FT Miss', icon:'🔴',t:'ms'},
-  {key:'possession_flip', lbl:'Arrow',   icon:'⇄', t:'ts',team:true},
+  {key:'o_reb',           lbl:'O-Reb',        t:'nm'},
+  {key:'d_reb',           lbl:'D-Reb',         t:'nm'},
+  {key:'assist',          lbl:'Assist',        t:'nm'},
+  {key:'steal',           lbl:'Steal',         t:'nm'},
+  {key:'block',           lbl:'Block',         t:'nm'},
+  {key:'turnover',        lbl:'T/O',           t:'nm'},
+  {key:'deflection',      lbl:'Defl.',         t:'nm'},
+  {key:'foul_personal',   lbl:'P.Foul',        t:'fo'},
+  {key:'ft_made',         lbl:'FT Made',       t:'sc'},
+  {key:'ft_miss',         lbl:'FT Miss',       t:'ms'},
+  {key:'possession_flip', lbl:'Arrow',         t:'ts', team:true},
+];
+const SDEFS_MORE=[
+  {key:'charge_taken',    lbl:'Charge Taken',  t:'nm'},
+  {key:'foul_offensive',  lbl:'O.Foul',        t:'fo'},
+  {key:'foul_flagrant',   lbl:'Flagrant',      t:'fo'},
+  {key:'foul_intentional',lbl:'Int. Foul',     t:'fo'},
+  {key:'foul_technical',  lbl:'Tech',          t:'fo', team:true},
+  {key:'timeout_full',    lbl:'TO Full',       t:'ts', team:true},
+  {key:'timeout_30sec',   lbl:'TO 30s',        t:'ts', team:true},
 ];
 
 const KLBL={
@@ -1062,20 +1068,33 @@ function updSel(){
 }
 
 // ══ STAT BUTTONS ══════════════════════════════
+let moreOpen = false;
+function toggleMoreBtns(){
+  moreOpen = !moreOpen;
+  document.getElementById('stat-grid-more').style.display = moreOpen ? 'grid' : 'none';
+  document.getElementById('more-btn').textContent = moreOpen ? 'LESS' : 'MORE';
+  updBtns();
+}
 function renderBtns(){
-  const g=document.getElementById('stat-grid');g.innerHTML='';
-  SDEFS.forEach(s=>{
-    const b=document.createElement('button');
-    b.className=`sbtn ${s.t}`;b.dataset.key=s.key;
-    b.innerHTML=s.lbl;
-    b.addEventListener('click',()=>doStat(s));
-    g.appendChild(b);
-  });
+  const allDefs = [...SDEFS, ...SDEFS_MORE];
+  function fillGrid(gridId, defs){
+    const g=document.getElementById(gridId);g.innerHTML='';
+    defs.forEach(s=>{
+      const b=document.createElement('button');
+      b.className=`sbtn ${s.t}`;b.dataset.key=s.key;
+      b.innerHTML=s.lbl;
+      b.addEventListener('click',()=>doStat(s));
+      g.appendChild(b);
+    });
+  }
+  fillGrid('stat-grid', SDEFS);
+  fillGrid('stat-grid-more', SDEFS_MORE);
   updBtns();
 }
 function updBtns(){
+  const allDefs = [...SDEFS, ...SDEFS_MORE];
   document.querySelectorAll('.sbtn').forEach(b=>{
-    const d=SDEFS.find(s=>s.key===b.dataset.key);
+    const d=allDefs.find(s=>s.key===b.dataset.key);
     if(!d)return;
     b.classList.toggle('np',!d.team&&!selP);
   });
@@ -1246,7 +1265,7 @@ function getPts(k){
   if(k==='ft_made')return 1;
   return 0;
 }
-function getLabel(k,side){if(k==='possession_flip'){return (side?GAME[side].name:'')+' ball';}return KLBL[k]||(SDEFS.find(s=>s.key===k)?.lbl)||k;}
+function getLabel(k,side){if(k==='possession_flip'){return (side?GAME[side].name:'')+' ball';}return KLBL[k]||(([...SDEFS,...SDEFS_MORE].find(s=>s.key===k))?.lbl)||k;}
 
 function delEvt(id){
   const e=evts.find(x=>x.id===id);if(!e)return;
@@ -1262,7 +1281,7 @@ function delEvt(id){
       if(e.key==='assist')p.ast=Math.max(0,p.ast-1);
       if(e.key==='putback_made'||e.key==='putback_miss')p.reb=Math.max(0,p.reb-1);
       if(e.key.startsWith('foul_')){
-        const def=SDEFS.find(s=>s.key===e.key);
+        const def=[...SDEFS,...SDEFS_MORE].find(s=>s.key===e.key);
         if(!def?.team){p.fouls=Math.max(0,p.fouls-1);GAME[e.side].fouls=Math.max(0,GAME[e.side].fouls-1);
           document.getElementById(`${e.side}-fouls`).textContent=GAME[e.side].fouls;}
       }

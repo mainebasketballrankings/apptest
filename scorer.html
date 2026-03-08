@@ -45,10 +45,10 @@ body{
 
 /* Score+name blocks */
 .tscore{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;padding:4px 8px;}
-.tname{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;}
-.tscore.home .tname{color:var(--hl);}
-.tscore.away .tname{color:var(--al);}
-.snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:42px;line-height:1;}
+.tname{font-family:'Playfair Display',serif;font-weight:900;font-size:15px;letter-spacing:.01em;color:var(--text);text-align:center;line-height:1.1;}
+.tscore.home .tname{color:var(--text);}
+.tscore.away .tname{color:var(--text);}
+.snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:56px;line-height:1;}
 .tscore.home .snum{color:var(--hl);}
 .tscore.away .snum{color:var(--al);}
 .poss-btn{
@@ -1413,7 +1413,17 @@ function flash(msg,type){
 
 // ══ SETUP SCREEN ══════════════════════════════
 const DUMMY_GAMES = [
-  { id:'g1', date:'2026-03-07', event:'Class A South Quarterfinal', venue:'Augusta Civic Center',
+  { id:'g1', date:'2026-03-08', event:'Class A Gold Ball', venue:'Cross Insurance Arena',
+    home:{ name:'Portland', short:'PORT', gender:'boys',
+      roster:[{num:0,name:'Loic Ramazani'},{num:1,name:'Cordell Jones'},{num:10,name:'Lucas LeGage'},
+              {num:11,name:'Maddox Meas'},{num:20,name:'Benilson Lumani'}],
+      starters:[0,1,10,11,20] },
+    away:{ name:'Camden Hills', short:'CHILLS', gender:'boys',
+      roster:[{num:35,name:'Nolan Ames'},{num:12,name:'Hollis Schwalm'},{num:21,name:'Tucker Whitley'},
+              {num:15,name:'Thomas Leadbetter'},{num:2,name:'Kiefer Healey'}],
+      starters:[35,12,21,15,2] }
+  },
+  { id:'g2', date:'2026-03-07', event:'Class A South Quarterfinal', venue:'Augusta Civic Center',
     home:{ name:'Camden Hills', short:'CHILLS', gender:'boys',
       roster:[{num:4,name:'Henry Stewart'},{num:10,name:'Sam Johnson'},{num:11,name:'Kyle Melquist'},
               {num:12,name:'Hunter Schwalm'},{num:15,name:'Tyler Leadbetter'},{num:22,name:'Eli Stearns'},{num:3,name:'Max Webb'}],
@@ -1422,16 +1432,6 @@ const DUMMY_GAMES = [
       roster:[{num:10,name:'Luca Lombardo'},{num:11,name:'Cole Wannemacher'},{num:14,name:'Jake Rosen'},
               {num:20,name:'Evan Morse'},{num:23,name:'Owen Beaureguard'},{num:5,name:'Finn Casey'},{num:33,name:'Dylan Park'}],
       starters:[10,11,14,20,23] }
-  },
-  { id:'g2', date:'2026-03-07', event:'Class B North Semifinal', venue:'Bangor Auditorium',
-    home:{ name:'Orono', short:'ORONO', gender:'girls',
-      roster:[{num:5,name:'Alex Pelletier'},{num:12,name:'Ben Frost'},{num:21,name:'Chris Lord'},
-              {num:24,name:'Dan Allen'},{num:33,name:'Ethan Small'},{num:3,name:'Frank York'}],
-      starters:[5,12,21,24,33] },
-    away:{ name:'Caribou', short:'CARIB', gender:'girls',
-      roster:[{num:10,name:'Gavin Cyr'},{num:11,name:'Henry Bell'},{num:15,name:'Ian Shaw'},
-              {num:22,name:'Jake King'},{num:31,name:'Kevin Dunn'},{num:4,name:'Luke Roy'}],
-      starters:[10,11,15,22,31] }
   },
 ];
 

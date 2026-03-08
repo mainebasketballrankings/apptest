@@ -796,7 +796,7 @@ body{
           <div class="su-row">
             <div class="su-field su-field-grow su-name-wrap">
               <label>Team Name</label>
-              <input id="su-away-name" type="text" placeholder="e.g. Portland" autocomplete="off"
+              <input id="su-away-name" type="text" placeholder="e.g. Camden Hills" autocomplete="off"
                 oninput="suAutoShort('away');suAcShow('away')" onfocus="suAcShow('away')" onblur="suAcHide('away')" onkeydown="suAcKey(event,'away')">
               <div class="su-autocomplete" id="su-away-ac" style="display:none"></div>
             </div>
@@ -1437,7 +1437,10 @@ const DUMMY_GAMES = [
   },
 ];
 
-const SU = { home:{ players:[] }, away:{ players:[] } };
+const SU_PLACEHOLDERS = {
+  home: ['Loic Ramazani','Cordell Jones','Lucas LeGage','Maddox Meas','Benilson Lumani'],
+  away: ['Nolan Ames','Hollis Schwalm','Tucker Whitley','Thomas Leadbetter','Kiefer Healey']
+};
 let suPidCount = 0;
 let suMode = 'pick';
 let suSelectedGameId = null;
@@ -1535,20 +1538,22 @@ function suRenderRoster(side) {
   const cont = document.getElementById(`su-${side}-roster`);
   const n = SU[side].players.filter(p=>p.starter).length;
   document.getElementById(`su-${side}-starters-note`).textContent = `${n} / 5 starters selected`;
-  cont.innerHTML = SU[side].players.map(p=>`
+  cont.innerHTML = SU[side].players.map((p,i)=>{
+    const ph = SU_PLACEHOLDERS[side][i] || 'First Last';
+    return `
     <div class="su-player-row${p.starter?' starter':''}">
       <input class="su-num-input" id="su-num-${p.id}" type="number" min="0" max="99"
         value="${p.num}" placeholder="#"
         onchange="suSyncRoster('${side}')">
       <input class="su-name-input" id="su-name-${p.id}" type="text"
-        value="${p.first ? p.first+' '+p.last : p.last}" placeholder="First Last (e.g. Mason Nguyen)"
+        value="${p.first ? p.first+' '+p.last : p.last}" placeholder="e.g. ${ph}"
         onchange="suSyncRoster('${side}')">
       <button class="su-starter-btn${p.starter?' active':''}" onclick="suToggleStarter('${side}','${p.id}')" title="Toggle starter">
         ${p.starter ? '★' : '☆'}
       </button>
       <button class="su-remove-btn" onclick="suRemovePlayer('${side}','${p.id}')">✕</button>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function suLoadGameIntoForm(g) {

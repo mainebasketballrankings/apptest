@@ -40,7 +40,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .sb-team{display:flex;flex-direction:row;align-items:center;padding:12px 24px 10px;width:100%;box-sizing:border-box;justify-content:space-between;gap:16px;}
 .sb-team.home{border-right:1px solid var(--rule2);}
 .sb-team.away{border-left:1px solid var(--rule2);}
-.sb-logo{width:56px;height:56px;min-width:56px;max-width:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:20px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
+.sb-logo{width:76px;height:76px;min-width:76px;max-width:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:26px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
 .sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;color:var(--ink);line-height:1.1;}
 .sb-meta{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);margin-top:4px;flex-wrap:wrap;}
@@ -494,7 +494,8 @@ function buildPlayerRows(side, rowsId, sumId) {
     <div class="ts-stat"><div class="ts-val">${ts.ast}</div><div class="ts-lbl">AST</div></div>
     <div class="ts-stat"><div class="ts-val">${ts.stl}</div><div class="ts-lbl">STL</div></div>
     <div class="ts-stat"><div class="ts-val">${ts.blk}</div><div class="ts-lbl">BLK</div></div>
-    <div class="ts-stat"><div class="ts-val">${ts.to}</div><div class="ts-lbl">TO</div></div>`;
+    <div class="ts-stat"><div class="ts-val">${ts.to}</div><div class="ts-lbl">TO</div></div>
+    <div class="ts-stat"><div class="ts-val">${GAME[side].fouls}</div><div class="ts-lbl">FOULS</div></div>`;
   const on = PL[side].filter(p=>p.on).sort((a,b)=>b.pts-a.pts);
   const bench = PL[side].filter(p=>!p.on);
   const cont = document.getElementById(rowsId);
@@ -577,8 +578,8 @@ function updScoreboard(){
   pd.textContent=GAME[GAME.possession].short2||GAME[GAME.possession].short; pd.className='sb-poss '+GAME.possession;
   ['home','away'].forEach(s=>{
     const opp = s==='home'?'away':'home';
-    const f=GAME[s].fouls;
     const qi=Math.min(GAME.period-1,3);
+    const f=GAME.qFouls[s][qi];            // quarter fouls — resets each qtr, shown in header
     const bonus=GAME.qFouls[opp][qi]>=5;  // opponent's fouls put us in bonus
     const fl=document.getElementById(s+'-foul-lbl');
     fl.textContent=`${f} foul${f!==1?'s':''}`;

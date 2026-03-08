@@ -1170,15 +1170,31 @@ function is3(pt){
   return Math.sqrt(dx*dx+dy*dy) > 176.1;
 }
 
-function swDir(dx,dy){
+function swDir(dx,dy,shotX,shotY){
   const ax=Math.abs(dx),ay=Math.abs(dy);
   if(ax<SWPX&&ay<SWPX)return null;
-  if(ay>ax)return dy<0?'up':'down';
-  return dx>0?'right':'left';
+
+  // Vector from shot location toward basket (230, 25)
+  const bx=230-shotX, by=25-shotY;
+  const bLen=Math.sqrt(bx*bx+by*by);
+
+  // Dot product of swipe with basket direction — positive = toward basket
+  const dot=(dx*bx+dy*by)/bLen;
+  const swipeLen=Math.sqrt(dx*dx+dy*dy);
+  const cosAngle=dot/swipeLen;
+
+  // Within ~60° of basket direction = make; opposite = putback miss; perpendicular = putback make
+  if(cosAngle > 0.5)  return 'make';       // toward basket
+  if(cosAngle < -0.5) return 'down';       // away from basket (cancel)
+  if(dx > 0)          return 'right';      // putback make
+  return 'left';                           // putback miss
 }
 function litDir(dir){
+  // map internal directions to UI labels
+  const map={make:'up', down:'down', right:'right', left:'left'};
+  const uiDir=map[dir]||dir;
   ['up','down','left','right'].forEach(d=>
-    document.getElementById(`dir-${d}`).classList.toggle('lit',d===dir)
+    document.getElementById(`dir-${d}`).classList.toggle('lit',d===uiDir)
   );
 }
 
@@ -1197,7 +1213,7 @@ svg.addEventListener('pointermove',e=>{
   if(Math.sqrt(dx*dx+dy*dy)>SWPX){
     tMoving=true;
     if(!tOvShown){swOv.classList.add('show');tOvShown=true;}
-    litDir(swDir(dx,dy));
+    litDir(swDir(dx,dy,tSX,tSY));
   }
 },{passive:false});
 
@@ -1211,8 +1227,8 @@ svg.addEventListener('pointerup',e=>{
   const sp={x:tSX,y:tSY};
   if(!tMoving||dist<SWPX){recShot(sp,false,'norm');}
   else{
-    const d=swDir(dx,dy);
-    if(d==='up')   recShot(sp,true,'norm');
+    const d=swDir(dx,dy,tSX,tSY);
+    if(d==='make')   recShot(sp,true,'norm');
     else if(d==='right') recShot(sp,true,'pb');
     else if(d==='left')  recShot(sp,false,'pb');
     else flash('Cancelled','cfl');

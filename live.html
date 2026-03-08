@@ -292,8 +292,9 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
           <rect width="800" height="440" fill="#e8dcc8"/>
           <!-- Boundary -->
           <rect x="10" y="10" width="780" height="420" fill="none" stroke="#c4b090" stroke-width="3" rx="2"/>
-          <!-- Centre line + circle -->
-          <line x1="400" y1="10" x2="400" y2="430" stroke="#c4b090" stroke-width="2"/>
+          <!-- Centre line: two segments so logo paints over the gap -->
+          <line x1="400" y1="10" x2="400" y2="170" stroke="#c4b090" stroke-width="2"/>
+          <line x1="400" y1="270" x2="400" y2="430" stroke="#c4b090" stroke-width="2"/>
           <circle cx="400" cy="220" r="50" fill="none" stroke="#c4b090" stroke-width="2"/>
           <!-- MBR logo ON TOP of centre circle line -->
           <clipPath id="logoclip"><circle cx="400" cy="220" r="48"/></clipPath>

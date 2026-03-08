@@ -1522,24 +1522,17 @@ function suSyncRoster(side) {
     if (numEl)  p.num  = numEl.value.trim();
     if (nameEl) {
       const full = nameEl.value.trim();
-      if (!full) { p.last = ''; p.fi = ''; return; }
-      // handle "F. Last" or "First Last" or just "Last"
-      const dotMatch = full.match(/^([A-Za-z])\.?\s+(.+)$/);
-      if (dotMatch) {
-        p.fi    = dotMatch[1].toUpperCase();
-        p.first = '';  // only initial known
-        p.last  = dotMatch[2];
+      if (!full) { p.last = ''; p.fi = ''; p.first = ''; return; }
+      const parts = full.split(/\s+/);
+      if (parts.length >= 2) {
+        const isInitial = /^[A-Za-z]\.?$/.test(parts[0]); // single letter with optional dot
+        p.fi    = parts[0][0].toUpperCase();
+        p.first = isInitial ? '' : parts[0];
+        p.last  = parts.slice(1).join(' ');
       } else {
-        const parts = full.split(/\s+/);
-        if (parts.length >= 2) {
-          p.fi    = parts[0][0].toUpperCase();
-          p.first = parts[0];  // full first name
-          p.last  = parts.slice(1).join(' ');
-        } else {
-          p.fi    = '';
-          p.first = '';
-          p.last  = full;
-        }
+        p.fi    = full[0]?.toUpperCase() || '';
+        p.first = '';
+        p.last  = full;
       }
     }
   });
@@ -1556,7 +1549,7 @@ function suRenderRoster(side) {
         value="${p.num}" placeholder="#" onclick="event.stopPropagation()"
         onchange="suSyncRoster('${side}')">
       <input class="su-name-input" id="su-name-${p.id}" type="text"
-        value="${p.last?(p.fi?p.fi+'. ':'')+p.last:''}" placeholder="First Last or Last"
+        value="${p.last?(p.fi?p.fi+'. ':'')+p.last:''}" placeholder="First Last (e.g. Mike Nguyen)"
         onclick="event.stopPropagation()" onchange="suSyncRoster('${side}')">
       <span class="su-starter-badge">START</span>
       <button class="su-remove-btn" onclick="event.stopPropagation();suRemovePlayer('${side}','${p.id}')">✕</button>

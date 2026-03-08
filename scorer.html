@@ -843,6 +843,8 @@ body{
 
 <script>
 // ══ DATA ══════════════════════════════════════
+// Helper: display name for a player object
+function pName(p){ return (p.first && p.first.length>1) ? `${p.first} ${p.last}` : `${p.fi}. ${p.last}`; }
 const GAME={
   home:{name:'Camden Boys',    short:'CHILLS',  score:0,fouls:0,tof:3,to3:2},
   away:{name:'Cape Elizabeth', short:'CAPE', score:0,fouls:0,tof:3,to3:2},
@@ -1023,7 +1025,7 @@ function mkCard(p,side){
   div.innerHTML=`
     <div class="pnum">${p.num}</div>
     <div class="pinfo">
-      <div class="pname">${p.fi}. ${p.last}</div>
+      <div class="pname">${pName(p)}</div>
       <div class="pstats">
         <div class="ps"><div class="psv">${p.pts}</div><div class="psl">PTS</div></div>
         <div class="ps"><div class="psv">${p.reb}</div><div class="psl">REB</div></div>
@@ -1053,7 +1055,7 @@ function updSel(){
   const el=document.getElementById('sel-display');
   if(selP){
     const c=selSide==='home'?'var(--hl)':'var(--al)';
-    el.innerHTML=`<span class="sn" style="color:${c}">#${selP.num} ${selP.fi}. ${selP.last}</span>`;
+    el.innerHTML=`<span class="sn" style="color:${c}">#${selP.num} ${pName(selP)}</span>`;
   } else {el.textContent='Tap a player to select';}
 }
 
@@ -1356,7 +1358,7 @@ function openBoxScore(){
       const tppct=tpa?pct(tpm/tpa):'—';
       const ftpct=fta?pct(ftm/fta):'—';
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>#${p.num} ${p.fi}. ${p.last}</td><td>${p.pts}</td><td>${fgm}/${fga}</td><td>${fgpct}</td><td>${tpm}/${tpa}</td><td>${tppct}</td><td>${ftm}/${fta}</td><td>${ftpct}</td><td>${p.reb}</td><td>${p.ast}</td><td>${stl}</td><td>${blk}</td><td>${to}</td><td>${p.fouls}</td>`;
+      tr.innerHTML=`<td>#${p.num} ${pName(p)}</td><td>${p.pts}</td><td>${fgm}/${fga}</td><td>${fgpct}</td><td>${tpm}/${tpa}</td><td>${tppct}</td><td>${ftm}/${fta}</td><td>${ftpct}</td><td>${p.reb}</td><td>${p.ast}</td><td>${stl}</td><td>${blk}</td><td>${to}</td><td>${p.fouls}</td>`;
       tbody.appendChild(tr);
       totals.pts+=p.pts;totals.fgm+=fgm;totals.fga+=fga;totals.tpm+=tpm;totals.tpa+=tpa;
       totals.ftm+=ftm;totals.fta+=fta;totals.reb+=p.reb;totals.ast+=p.ast;
@@ -1378,12 +1380,12 @@ function openSub(p,side){
   const bench=PL[side].filter(x=>!x.on);
   if(!bench.length){flash('No bench players');return;}
   subTgt={p,side};
-  document.getElementById('sub-title').textContent=`Sub out #${p.num} ${p.fi}. ${p.last}`;
+  document.getElementById('sub-title').textContent=`Sub out #${p.num} ${pName(p)}`;
   const list=document.getElementById('sub-list');list.innerHTML='';
   const ac=side==='home'?'var(--hl)':'var(--al)';
   bench.forEach(bp=>{
     const row=document.createElement('div');row.className='sub-row';
-    row.innerHTML=`<div class="sub-num" style="color:${ac}">${bp.num}</div><div><div class="sub-name">${bp.fi}. ${bp.last}</div><div class="sub-sm">${bp.pts} pts · ${bp.reb} reb · ${bp.fouls} fls</div></div>`;
+    row.innerHTML=`<div class="sub-num" style="color:${ac}">${bp.num}</div><div><div class="sub-name">${pName(bp)}</div><div class="sub-sm">${bp.pts} pts · ${bp.reb} reb · ${bp.fouls} fls</div></div>`;
     row.addEventListener('click',()=>doSub(bp));
     list.appendChild(row);
   });

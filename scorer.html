@@ -426,6 +426,24 @@ body{
 #su-error{
   color:#c81e1e;font-size:12px;text-align:center;min-height:16px;
 }
+/* Autocomplete */
+.su-autocomplete{
+  position:absolute;top:100%;left:0;right:0;z-index:50;
+  background:#fff;border:1.5px solid #1a1a2e;border-top:none;border-radius:0 0 8px 8px;
+  max-height:180px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,.1);
+}
+.su-ac-item{
+  padding:8px 12px;font-size:13px;color:#1a1a2e;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+}
+.su-ac-item:hover,.su-ac-item.focused{background:#f0f4ff;}
+.su-ac-badge{
+  font-size:9px;font-weight:700;letter-spacing:.08em;
+  padding:1px 5px;border-radius:3px;flex-shrink:0;
+}
+.su-ac-badge.boys{background:#e8f0fe;color:#1a56db;}
+.su-ac-badge.girls{background:#fde8e8;color:#c81e1e;}
+.su-field.su-name-wrap{position:relative;}
 #su-tipoff-btn{
   background:#1a1a2e;color:#fff;
   font-family:'Playfair Display',serif;font-weight:700;
@@ -475,7 +493,7 @@ body{
 
   <!-- Home score + name -->
   <div class="tscore home">
-    <div class="tname">Camden Boys</div>
+    <div class="tname" id="home-tname">—</div>
     <div class="snum" id="home-score">0</div>
     <div class="poss-btn has-poss" id="poss-home" onclick="setPoss('home')">
       <span class="pa">▶</span><span>POSS</span>
@@ -494,7 +512,7 @@ body{
 
   <!-- Away score + name -->
   <div class="tscore away">
-    <div class="tname">Cape Elizabeth Boys</div>
+    <div class="tname" id="away-tname">—</div>
     <div class="snum" id="away-score">0</div>
     <div class="poss-btn no-poss" id="poss-away" onclick="setPoss('away')">
       <span class="pa">▶</span><span>POSS</span>
@@ -701,9 +719,11 @@ body{
         <div class="su-card su-team-card">
           <div class="su-team-badge home-badge">HOME</div>
           <div class="su-row">
-            <div class="su-field su-field-grow">
+            <div class="su-field su-field-grow su-name-wrap">
               <label>Team Name</label>
-              <input id="su-home-name" type="text" placeholder="e.g. Camden Hills" oninput="suAutoShort('home')">
+              <input id="su-home-name" type="text" placeholder="e.g. Camden Hills" autocomplete="off"
+                oninput="suAutoShort('home');suAcShow('home')" onfocus="suAcShow('home')" onblur="suAcHide('home')" onkeydown="suAcKey(event,'home')">
+              <div class="su-autocomplete" id="su-home-ac" style="display:none"></div>
             </div>
             <div class="su-field su-field-xs">
               <label>Short</label>
@@ -729,9 +749,11 @@ body{
         <div class="su-card su-team-card">
           <div class="su-team-badge away-badge">AWAY</div>
           <div class="su-row">
-            <div class="su-field su-field-grow">
+            <div class="su-field su-field-grow su-name-wrap">
               <label>Team Name</label>
-              <input id="su-away-name" type="text" placeholder="e.g. Cape Elizabeth" oninput="suAutoShort('away')">
+              <input id="su-away-name" type="text" placeholder="e.g. Cape Elizabeth" autocomplete="off"
+                oninput="suAutoShort('away');suAcShow('away')" onfocus="suAcShow('away')" onblur="suAcHide('away')" onkeydown="suAcKey(event,'away')">
+              <div class="su-autocomplete" id="su-away-ac" style="display:none"></div>
             </div>
             <div class="su-field su-field-xs">
               <label>Short</label>
@@ -1347,9 +1369,22 @@ function suSyncRoster(side) {
     if (numEl)  p.num  = numEl.value.trim();
     if (nameEl) {
       const full = nameEl.value.trim();
-      const parts = full.split(/\s+/);
-      p.last = parts[parts.length-1] || full;
-      p.fi   = (parts.length>1 ? parts[0][0] : (full[0]||'')).toUpperCase();
+      if (!full) { p.last = ''; p.fi = ''; return; }
+      // handle "F. Last" or "First Last" or just "Last"
+      const dotMatch = full.match(/^([A-Za-z])\.?\s+(.+)$/);
+      if (dotMatch) {
+        p.fi   = dotMatch[1].toUpperCase();
+        p.last = dotMatch[2];
+      } else {
+        const parts = full.split(/\s+/);
+        if (parts.length >= 2) {
+          p.fi   = parts[0][0].toUpperCase();
+          p.last = parts.slice(1).join(' ');
+        } else {
+          p.fi   = '';
+          p.last = full;
+        }
+      }
     }
   });
 }
@@ -1430,18 +1465,122 @@ function suTipOff() {
   ['home','away'].forEach(side => {
     const pfx = side==='home'?'h':'a';
     PL[side] = SU[side].players.map((p,i) => ({
-      id:`${pfx}${i+1}`, fi:p.fi||(p.last[0]||'').toUpperCase(), last:p.last||'?',
-      num:parseInt(p.num)||0, pts:0, reb:0, ast:0, fouls:0, on:p.starter,
+      id:`${pfx}${i+1}`,
+      fi: p.fi || (p.last?p.last[0].toUpperCase():'?'),
+      last: p.last || '?',
+      num: parseInt(p.num)||0,
+      pts:0, reb:0, ast:0, fouls:0, on:p.starter,
       fgm:0, fga:0, tpm:0, tpa:0
     }));
   });
 
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('scorer-ui').style.display = 'flex';
+  // update topbar names
+  const gLabel = g => `${g.name} ${g.gender==='girls'?'Girls':'Boys'}`;
+  document.getElementById('home-tname').textContent = gLabel(GAME.home);
+  document.getElementById('away-tname').textContent = gLabel(GAME.away);
   renderPl(); renderBtns(); updClk(); updPoss();
 }
 
-// ── Init setup screen ──
+// ── Team autocomplete ──
+// Dummy Maine teams list — replace with Supabase fetch later
+const MAINE_TEAMS = [
+  {name:'Bangor',gender:'boys'},{name:'Bangor',gender:'girls'},
+  {name:'Brewer',gender:'boys'},{name:'Brewer',gender:'girls'},
+  {name:'Camden Hills',gender:'boys'},{name:'Camden Hills',gender:'girls'},
+  {name:'Cape Elizabeth',gender:'boys'},{name:'Cape Elizabeth',gender:'girls'},
+  {name:'Caribou',gender:'boys'},{name:'Caribou',gender:'girls'},
+  {name:'Edward Little',gender:'boys'},{name:'Edward Little',gender:'girls'},
+  {name:'Falmouth',gender:'boys'},{name:'Falmouth',gender:'girls'},
+  {name:'Freeport',gender:'boys'},{name:'Freeport',gender:'girls'},
+  {name:'Gardiner',gender:'boys'},{name:'Gardiner',gender:'girls'},
+  {name:'Gorham',gender:'boys'},{name:'Gorham',gender:'girls'},
+  {name:'Grey-New Gloucester',gender:'boys'},{name:'Grey-New Gloucester',gender:'girls'},
+  {name:'John Bapst',gender:'boys'},{name:'John Bapst',gender:'girls'},
+  {name:'Kennebunk',gender:'boys'},{name:'Kennebunk',gender:'girls'},
+  {name:'Lawrence',gender:'boys'},{name:'Lawrence',gender:'girls'},
+  {name:'Lewiston',gender:'boys'},{name:'Lewiston',gender:'girls'},
+  {name:'Lincoln Academy',gender:'boys'},{name:'Lincoln Academy',gender:'girls'},
+  {name:'Medomak Valley',gender:'boys'},{name:'Medomak Valley',gender:'girls'},
+  {name:'Mt. Ararat',gender:'boys'},{name:'Mt. Ararat',gender:'girls'},
+  {name:'Mt. Desert Island',gender:'boys'},{name:'Mt. Desert Island',gender:'girls'},
+  {name:'Noble',gender:'boys'},{name:'Noble',gender:'girls'},
+  {name:'North Yarmouth Academy',gender:'boys'},{name:'North Yarmouth Academy',gender:'girls'},
+  {name:'Orono',gender:'boys'},{name:'Orono',gender:'girls'},
+  {name:'Oxford Hills',gender:'boys'},{name:'Oxford Hills',gender:'girls'},
+  {name:'Portland',gender:'boys'},{name:'Portland',gender:'girls'},
+  {name:'Presque Isle',gender:'boys'},{name:'Presque Isle',gender:'girls'},
+  {name:'Scarborough',gender:'boys'},{name:'Scarborough',gender:'girls'},
+  {name:'Skowhegan',gender:'boys'},{name:'Skowhegan',gender:'girls'},
+  {name:'South Portland',gender:'boys'},{name:'South Portland',gender:'girls'},
+  {name:'Thornton Academy',gender:'boys'},{name:'Thornton Academy',gender:'girls'},
+  {name:'Waterville',gender:'boys'},{name:'Waterville',gender:'girls'},
+  {name:'Windham',gender:'boys'},{name:'Windham',gender:'girls'},
+  {name:'Winslow',gender:'boys'},{name:'Winslow',gender:'girls'},
+  {name:'Yarmouth',gender:'boys'},{name:'Yarmouth',gender:'girls'},
+];
+
+let suAcIdx = { home:-1, away:-1 };
+
+function suAcShow(side) {
+  const val = document.getElementById(`su-${side}-name`).value.trim().toLowerCase();
+  const ac  = document.getElementById(`su-${side}-ac`);
+  if (!val) { ac.style.display='none'; return; }
+  const matches = MAINE_TEAMS.filter(t => t.name.toLowerCase().includes(val)).slice(0,8);
+  if (!matches.length) { ac.style.display='none'; return; }
+  suAcIdx[side] = -1;
+  ac.innerHTML = matches.map((t,i) =>
+    `<div class="su-ac-item" data-idx="${i}" data-name="${t.name}" data-gender="${t.gender}"
+      onmousedown="suAcPick(event,'${side}')">
+      ${t.name}
+      <span class="su-ac-badge ${t.gender}">${t.gender==='girls'?'Girls':'Boys'}</span>
+    </div>`
+  ).join('');
+  ac.style.display = '';
+}
+
+function suAcHide(side) {
+  setTimeout(()=>{ document.getElementById(`su-${side}-ac`).style.display='none'; }, 150);
+}
+
+function suAcPick(e, side) {
+  e.preventDefault();
+  const item = e.currentTarget;
+  document.getElementById(`su-${side}-name`).value = item.dataset.name;
+  document.getElementById(`su-${side}-gender`).value = item.dataset.gender;
+  // auto-set short name if blank
+  const shortEl = document.getElementById(`su-${side}-short`);
+  if (!shortEl.value) {
+    const words = item.dataset.name.split(/\s+/);
+    shortEl.value = (words.length===1 ? words[0].substring(0,6) : words.map(w=>w[0]).join('').substring(0,6)).toUpperCase();
+  }
+  document.getElementById(`su-${side}-ac`).style.display='none';
+  // TODO: pull roster from Supabase for this team
+}
+
+function suAcKey(e, side) {
+  const ac = document.getElementById(`su-${side}-ac`);
+  if (ac.style.display==='none') return;
+  const items = ac.querySelectorAll('.su-ac-item');
+  if (!items.length) return;
+  if (e.key==='ArrowDown') {
+    e.preventDefault();
+    suAcIdx[side] = Math.min(suAcIdx[side]+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===suAcIdx[side]));
+  } else if (e.key==='ArrowUp') {
+    e.preventDefault();
+    suAcIdx[side] = Math.max(suAcIdx[side]-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===suAcIdx[side]));
+  } else if (e.key==='Enter' && suAcIdx[side]>=0) {
+    e.preventDefault();
+    items[suAcIdx[side]].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
+  } else if (e.key==='Escape') {
+    ac.style.display='none';
+  }
+}
+
+
 document.getElementById('su-date').valueAsDate = new Date();
 suRenderGamesList();
 // pre-populate 5 blank rows for new-game mode

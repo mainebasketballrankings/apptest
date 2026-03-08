@@ -297,8 +297,8 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
           <circle cx="400" cy="220" r="50" fill="none" stroke="#c4b090" stroke-width="2"/>
           <circle cx="400" cy="220" r="3" fill="#c4b090"/>
           <!-- MBR logo in centre circle -->
-          <image href="https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/mbr-logo.png"
-            x="368" y="188" width="64" height="64" opacity="0.18"
+          <image href="https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/logo.png"
+            x="368" y="188" width="64" height="64" opacity="0.2"
             preserveAspectRatio="xMidYMid meet"/>
 
           <!-- ═══ HOME HALF (left, basket on left wall) ═══ -->
@@ -308,9 +308,11 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
           <rect x="10" y="197" width="5" height="46" fill="#c4b090" rx="1"/>
           <circle cx="36" cy="220" r="10" fill="none" stroke="#c4b090" stroke-width="2.5"/>
           <circle cx="36" cy="220" r="3" fill="#c4b090"/>
+          <!-- FT line + circle: endpoints exactly match paint box y=165/276 -->
           <line x1="188" y1="165" x2="188" y2="276" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 188 166 A 61 54 0 0 1 188 274" fill="none" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 188 166 A 61 54 0 0 0 188 274" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
+          <path d="M 188 165 A 61 55.5 0 0 1 188 276" fill="none" stroke="#c4b090" stroke-width="2"/>
+          <path d="M 188 165 A 61 55.5 0 0 0 188 276" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
+          <!-- Restricted area -->
           <path d="M 36 187 A 33 33 0 0 1 36 253" fill="none" stroke="#c4b090" stroke-width="1.5" stroke-dasharray="4,3"/>
           <clipPath id="hclip"><rect x="10" y="10" width="390" height="420"/></clipPath>
           <polyline clip-path="url(#hclip)" fill="none" stroke="#c4b090" stroke-width="2.5"
@@ -324,8 +326,8 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
           <circle cx="764" cy="220" r="10" fill="none" stroke="#c4b090" stroke-width="2.5"/>
           <circle cx="764" cy="220" r="3" fill="#c4b090"/>
           <line x1="612" y1="165" x2="612" y2="276" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 612 166 A 61 54 0 0 0 612 274" fill="none" stroke="#c4b090" stroke-width="2"/>
-          <path d="M 612 166 A 61 54 0 0 1 612 274" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
+          <path d="M 612 165 A 61 55.5 0 0 0 612 276" fill="none" stroke="#c4b090" stroke-width="2"/>
+          <path d="M 612 165 A 61 55.5 0 0 1 612 276" fill="none" stroke="#c4b090" stroke-width="2" stroke-dasharray="7,6"/>
           <path d="M 764 187 A 33 33 0 0 0 764 253" fill="none" stroke="#c4b090" stroke-width="1.5" stroke-dasharray="4,3"/>
           <clipPath id="aclip"><rect x="400" y="10" width="390" height="420"/></clipPath>
           <polyline clip-path="url(#aclip)" fill="none" stroke="#c4b090" stroke-width="2.5"

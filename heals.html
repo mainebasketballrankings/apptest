@@ -768,6 +768,7 @@
   // Called by nav.js after auth check completes
   window.mbrAuthCallback = function(user, isPaid) {
     applyGate(isPaid);
+    loadRegions();
   };
 </script>
 <script>MBRNav.init({ active: 'heals' });</script>

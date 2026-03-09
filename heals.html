@@ -360,11 +360,10 @@
     @media (max-width: 640px) {
       nav { display: none; }
       .game-line {
-        grid-template-columns: 18px 52px 1fr 58px;
-        gap: 5px;
+        grid-template-columns: 18px 48px 1fr 90px 60px;
+        gap: 4px;
         font-size: 12px;
       }
-      .gl-winpct { display: none; }
       th.hide-mobile, td.hide-mobile { display: none; }
       .detail-inner { padding: 10px 10px 14px; }
       .detail-header { flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -373,12 +372,62 @@
       .gl-date { font-size: 12px; }
       .gl-opp { font-size: 13px; }
       .gl-score { font-size: 13px; }
+      .gl-bar-label { font-size: 10px; }
+    }
+
+    /* ── Hamburger menu ── */
+    #mbr-burger {
+      display: none;
+      position: fixed; top: 12px; right: 12px; z-index: 200;
+      background: var(--green); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 8px 12px; font-size: 20px; cursor: pointer;
+      line-height: 1;
+    }
+    #mbr-drawer {
+      display: none;
+      position: fixed; inset: 0; z-index: 199;
+    }
+    #mbr-drawer.open { display: block; }
+    #mbr-drawer-bg {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,.4);
+    }
+    #mbr-drawer-panel {
+      position: absolute; top: 0; right: 0;
+      width: 220px; height: 100%;
+      background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,.15);
+      display: flex; flex-direction: column;
+      padding: 60px 0 20px;
+    }
+    #mbr-drawer-panel a {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 18px;
+      color: #222; text-decoration: none;
+      padding: 14px 24px;
+      border-bottom: 1px solid #eee;
+    }
+    #mbr-drawer-panel a:hover { background: #f5f5f5; }
+    #mbr-drawer-panel a.active { color: var(--green); }
+    @media (max-width: 640px) {
+      #mbr-burger { display: block; }
     }
   </style>
 </head>
 <body>
 
 <div id="mbr-header"></div>
+
+<button id="mbr-burger" onclick="document.getElementById('mbr-drawer').classList.toggle('open')">☰</button>
+<div id="mbr-drawer">
+  <div id="mbr-drawer-bg" onclick="document.getElementById('mbr-drawer').classList.remove('open')"></div>
+  <div id="mbr-drawer-panel">
+    <a href="index.html">Scoreboard</a>
+    <a href="heals.html" class="active">Heal Points</a>
+    <a href="tournament.html">Tournament</a>
+    <a href="team.html">Teams</a>
+  </div>
+</div>
 
 <div class="page">
   <div class="page-title">Heal Points</div>

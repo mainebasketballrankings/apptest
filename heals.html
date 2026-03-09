@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js"></script>
   <link rel="stylesheet" href="nav.css" />
 
   <style>
@@ -395,7 +396,7 @@
   const sb = MBRNav.getSB();
 
   // Tracks paid status set by nav.js auth callback
-  let _isPaid = false;
+  var _isPaid = false;
 
   function applyGate(isPaid) {
     if (isPaid !== undefined) _isPaid = isPaid;
@@ -769,7 +770,6 @@
     applyGate(isPaid);
   };
 </script>
-<script src="nav.js"></script>
 <script>MBRNav.init({ active: 'heals' });</script>
 </body>
 </html>

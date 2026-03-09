@@ -360,6 +360,7 @@
       nav { display: none; }
       .game-line { grid-template-columns: 20px 60px 1fr 60px; }
       .gl-winpct { display: none; }
+      th.hide-mobile, td.hide-mobile { display: none; }
     }
   </style>
 </head>
@@ -488,6 +489,7 @@
   async function loadData() {
     document.getElementById('tableWrap').innerHTML =
       '<div class="loading"><div class="spinner"></div><span>Calculating…</span></div>';
+    try {
 
     // Get teams in this region
     const { data: tcData } = await sb
@@ -626,7 +628,7 @@
         <th>Team</th>
         <th class="num">W</th>
         <th class="num">L</th>
-        <th class="num">PI</th>
+        <th class="num hide-mobile">PI</th>
         <th class="num">Heals</th>
         <th></th>
       </tr></thead>
@@ -648,7 +650,7 @@
         <td><div class="td-team">${logoEl}<span class="team-name-cell">${team.school_name}</span><a href="team.html?team_id=${team.id}" onclick="event.stopPropagation()" style="margin-left:8px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--green);text-decoration:none;opacity:0.7" title="Team detail">↗</a></div></td>
         <td class="td-num">${wins}</td>
         <td class="td-num">${losses}</td>
-        <td class="td-num">${pi.toFixed(3)}</td>
+        <td class="td-num hide-mobile">${pi.toFixed(3)}</td>
         <td class="td-num">${heal.toFixed(3)}</td>
         <td class="td-chevron">▼</td>
       </tr>
@@ -683,7 +685,12 @@
         }
       });
     });
+  } catch(err) {
+    console.error('loadData error:', err);
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty"><h3>Failed to load</h3><p>Check your connection and try refreshing.</p></div>';
   }
+}
 
   // ── Render expanded game detail ───────────────────────────────
   function winPct(myScore, oppScore) {

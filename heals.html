@@ -359,6 +359,8 @@
       font-weight: 800; font-size: 18px; color: var(--gray); margin-bottom: 4px;
     }
 
+    .lbl-short { display: none; }  /* shown only on mobile via media query below */
+
     @media (max-width: 640px) {
       nav { display: none; }
       .page { padding-left: 10px; padding-right: 10px; }
@@ -386,8 +388,6 @@
       .detail-inner { padding: 10px 4px 14px; }
       .game-list { padding: 0 2px; }
     }
-
-    .lbl-short { display: none; }
 
     /* ── Hamburger + drawer ── */
     #mbr-burger {

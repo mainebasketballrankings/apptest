@@ -361,7 +361,8 @@
 
     @media (max-width: 640px) {
       nav { display: none; }
-      .page { padding-left: 12px; padding-right: 12px; }
+      .page { padding-left: 10px; padding-right: 10px; }
+      .table-wrap { overflow: hidden; }
       .game-line {
         grid-template-columns: 18px 44px minmax(0,1fr) 56px;
         gap: 4px;
@@ -384,7 +385,7 @@
     /* ── Hamburger menu ── */
     #mbr-burger {
       display: none;
-      position: fixed; top: 10px; right: 8px; z-index: 200;
+      position: fixed; top: 10px; left: 8px; z-index: 200;
       background: var(--green); color: #fff;
       border: none; border-radius: 8px;
       padding: 7px 11px; font-size: 18px; cursor: pointer;

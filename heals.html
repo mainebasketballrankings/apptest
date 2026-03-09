@@ -359,9 +359,20 @@
 
     @media (max-width: 640px) {
       nav { display: none; }
-      .game-line { grid-template-columns: 20px 60px 1fr 60px; }
+      .game-line {
+        grid-template-columns: 18px 52px 1fr 58px;
+        gap: 5px;
+        font-size: 12px;
+      }
       .gl-winpct { display: none; }
       th.hide-mobile, td.hide-mobile { display: none; }
+      .detail-inner { padding: 10px 10px 14px; }
+      .detail-header { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .detail-summary { font-size: 11px; }
+      .gl-result { font-size: 13px; }
+      .gl-date { font-size: 12px; }
+      .gl-opp { font-size: 13px; }
+      .gl-score { font-size: 13px; }
     }
   </style>
 </head>

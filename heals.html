@@ -364,11 +364,15 @@
       .page { padding-left: 10px; padding-right: 10px; }
       .table-wrap { overflow: hidden; }
       .game-line {
-        grid-template-columns: 16px 40px minmax(0,1fr) 62px;
+        grid-template-columns: 16px minmax(0,1fr) 75px 62px;
         gap: 4px;
         font-size: 12px;
       }
-      .gl-winpct { display: none; }
+      .gl-winpct { display: flex; }
+      .gl-date { display: none; }
+      .gl-bar-label { font-size: 9px; letter-spacing: 0; }
+      .lbl-full { display: none; }
+      .lbl-short { display: inline; }
       th.hide-mobile, td.hide-mobile { display: none; }
       .detail-header { flex-direction: column; align-items: flex-start; gap: 4px; }
       .detail-summary { font-size: 11px; }

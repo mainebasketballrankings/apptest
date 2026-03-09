@@ -360,7 +360,7 @@
     @media (max-width: 640px) {
       nav { display: none; }
       .game-line {
-        grid-template-columns: 18px 48px 1fr 90px 60px;
+        grid-template-columns: 18px 46px 1fr 80px 54px;
         gap: 4px;
         font-size: 12px;
       }
@@ -369,11 +369,15 @@
       .detail-header { flex-direction: column; align-items: flex-start; gap: 4px; }
       .detail-summary { font-size: 11px; }
       .gl-result { font-size: 13px; }
-      .gl-date { font-size: 12px; }
+      .gl-date { font-size: 11px; }
       .gl-opp { font-size: 13px; }
       .gl-score { font-size: 13px; }
-      .gl-bar-label { font-size: 10px; }
+      .gl-bar-label { font-size: 9px; letter-spacing: 0; }
+      .lbl-full { display: none; }
+      .lbl-short { display: inline; }
     }
+
+    .lbl-short { display: none; }
 
     /* ── Hamburger menu ── */
     #mbr-burger {
@@ -789,7 +793,7 @@
         <span class="gl-opp"><span class="at">${prefix}</span><span class="rank">${rankStr}</span>${d.opp?.school_name || '?'}</span>
         <div class="gl-winpct">
           <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
-          ${wpPct !== null ? `<div class="gl-bar-label">${wpPct}% &nbsp;·&nbsp; ${piStr} PI</div>` : ''}
+          ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${wpPct}%</span></div>` : ''}
         </div>
         <span class="gl-score ${res}">${scoreStr}</span>
       </div>`;

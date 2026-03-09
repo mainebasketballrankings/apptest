@@ -612,7 +612,12 @@
     allTeams.sort((a, b) => b.heal - a.heal);
     renderTable();
     applyGate(); // re-applies gate using current _isPaid state
+  } catch(err) {
+    console.error('loadData error:', err);
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty"><h3>Failed to load</h3><p>Check your connection and try refreshing.</p></div>';
   }
+}
 
   // ── Render table ───────────────────────────────────────────────
   function renderTable() {
@@ -685,12 +690,7 @@
         }
       });
     });
-  } catch(err) {
-    console.error('loadData error:', err);
-    document.getElementById('tableWrap').innerHTML =
-      '<div class="empty"><h3>Failed to load</h3><p>Check your connection and try refreshing.</p></div>';
   }
-}
 
   // ── Render expanded game detail ───────────────────────────────
   function winPct(myScore, oppScore) {

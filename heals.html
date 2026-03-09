@@ -375,7 +375,7 @@
       .gl-bar-label { font-size: 10px; letter-spacing: 0; }
       .gl-bar-wrap { height: 8px; }
       .lbl-full { display: none; }
-      .lbl-short { display: block; }
+      .lbl-short { display: inline; }
       th.hide-mobile, td.hide-mobile { display: none; }
       .detail-header { flex-direction: column; align-items: flex-start; gap: 4px; }
       .detail-summary { font-size: 11px; }
@@ -799,7 +799,7 @@
            </div>`
         : `<div class="gl-winpct">
             <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
-            ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${wpPct}%<br>${piStr} PI</span></div>` : ''}
+            ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${piStr} PI</span></div>` : ''}
            </div>`;
 
       const scoreEl = unplayed

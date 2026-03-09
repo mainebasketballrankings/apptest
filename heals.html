@@ -384,7 +384,45 @@
 
     .lbl-short { display: none; }
 
-    /* ── No hamburger needed - nav.css handles mobile with horizontal scroll ── */
+    /* ── Hamburger + drawer ── */
+    #mbr-burger {
+      display: none;
+      background: none; border: none;
+      font-size: 22px; cursor: pointer;
+      color: #333; padding: 4px 8px;
+      margin-left: 8px; line-height: 1;
+    }
+    #mbr-drawer {
+      display: none;
+      position: fixed; inset: 0; z-index: 500;
+    }
+    #mbr-drawer.open { display: block; }
+    #mbr-drawer-bg {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.4);
+    }
+    #mbr-drawer-panel {
+      position: absolute; top: 0; right: 0;
+      width: 240px; height: 100%;
+      background: #fff;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+      display: flex; flex-direction: column;
+      padding-top: 16px; overflow-y: auto;
+    }
+    #mbr-drawer-panel a {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 17px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      color: #222; text-decoration: none;
+      padding: 15px 24px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    #mbr-drawer-panel a.active { color: #1a7a4a; }
+    #mbr-drawer-panel a:hover { background: #f8f8f8; }
+    @media (max-width: 700px) {
+      #mbr-burger { display: block; }
+      .mbr-nav { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -794,5 +832,39 @@
   };
 </script>
 <script>MBRNav.init({ active: 'heals' });</script>
+<script>
+// Inject hamburger into the nav topbar
+(function() {
+  const topbar = document.querySelector('.mbr-topbar');
+  if (!topbar) return;
+
+  // Burger button
+  const burger = document.createElement('button');
+  burger.id = 'mbr-burger';
+  burger.innerHTML = '&#9776;';
+  burger.setAttribute('aria-label', 'Menu');
+  topbar.appendChild(burger);
+
+  // Drawer overlay
+  const drawer = document.createElement('div');
+  drawer.id = 'mbr-drawer';
+  drawer.innerHTML = `
+    <div id="mbr-drawer-bg"></div>
+    <div id="mbr-drawer-panel">
+      <a href="index.html">Scoreboard</a>
+      <a href="rankings.html">Rankings</a>
+      <a href="heals.html" class="active">Heal Points</a>
+      <a href="#">Gold Ball Odds</a>
+      <a href="tournament.html">Player Stats</a>
+      <a href="https://www.mainebasketballrankings.com/tourney-guide/" target="_blank">Tourney Guide</a>
+      <a href="https://www.youtube.com/watch?v=ZvFlsDrIB2w&list=PLLOJcFaMXfS9gMPVDb-mb5I6oFS0Kl94I" target="_blank">Podcast</a>
+      <a href="https://maine-basketball-rankings.printify.me/" target="_blank">Merch</a>
+    </div>`;
+  document.body.appendChild(drawer);
+
+  burger.addEventListener('click', () => drawer.classList.toggle('open'));
+  drawer.querySelector('#mbr-drawer-bg').addEventListener('click', () => drawer.classList.remove('open'));
+})();
+</script>
 </body>
 </html>

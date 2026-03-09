@@ -780,23 +780,38 @@
       const prefix  = d.atHome ? '@ ' : '';
       const rankStr = d.oppRank ? `#${d.oppRank} ` : '';
       const piStr   = d.oppPI ? d.oppPI.toFixed(2) : '—';
-      const scoreStr = d.myScore !== null && d.oppScore !== null
-        ? `${d.myScore}-${d.oppScore}` : '—';
-      const res = d.won ? 'W' : 'L';
+      const unplayed = d.myScore === null || d.oppScore === null;
+      const scoreStr = unplayed ? dateStr : `${d.myScore}-${d.oppScore}`;
+      const res = unplayed ? 'U' : (d.won ? 'W' : 'L');
 
       const wp = winPct(d.myScore, d.oppScore);
       const wpPct = wp !== null ? (wp * 100).toFixed(1) : null;
-      const barWidth = wp !== null ? Math.round(wp * 100) : 50;
+      const barWidth = wp !== null ? Math.round(wp * 100) : 0;
+
+      const resultEl = unplayed
+        ? `<span class="gl-result" style="color:#bbb">·</span>`
+        : `<span class="gl-result ${res}">${res}</span>`;
+
+      const barEl = unplayed
+        ? `<div class="gl-winpct">
+            <div class="gl-bar-wrap" style="background:#e8e8e8"><div class="gl-bar" style="width:0%;background:#ccc"></div></div>
+            <div class="gl-bar-label" style="color:#aaa"><span class="lbl-full">${piStr} PI available</span><span class="lbl-short">${piStr} PI</span></div>
+           </div>`
+        : `<div class="gl-winpct">
+            <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
+            ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${wpPct}%<br>${piStr} PI</span></div>` : ''}
+           </div>`;
+
+      const scoreEl = unplayed
+        ? `<span class="gl-score" style="color:#bbb;font-size:11px;text-align:right">${dateStr}</span>`
+        : `<span class="gl-score ${res}">${scoreStr}</span>`;
 
       lines += `<div class="game-line">
-        <span class="gl-result ${res}">${res}</span>
+        ${resultEl}
         <span class="gl-date">${dateStr}</span>
         <span class="gl-opp"><span class="at">${prefix}</span><span class="rank">${rankStr}</span>${d.opp?.school_name || '?'}</span>
-        <div class="gl-winpct">
-          <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
-          ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${wpPct}%<br>${piStr} PI</span></div>` : ''}
-        </div>
-        <span class="gl-score ${res}">${scoreStr}</span>
+        ${barEl}
+        ${scoreEl}
       </div>`;
     });
 

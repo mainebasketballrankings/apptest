@@ -364,7 +364,7 @@
       .page { padding-left: 10px; padding-right: 10px; }
       .table-wrap { overflow: hidden; }
       .game-line {
-        grid-template-columns: 16px minmax(0,1fr) 75px 62px;
+        grid-template-columns: 16px minmax(0,1fr) 68px 62px;
         gap: 4px;
         font-size: 12px;
       }
@@ -372,7 +372,7 @@
       .gl-date { display: none; }
       .gl-bar-label { font-size: 9px; letter-spacing: 0; }
       .lbl-full { display: none; }
-      .lbl-short { display: inline; }
+      .lbl-short { display: block; }
       th.hide-mobile, td.hide-mobile { display: none; }
       .detail-header { flex-direction: column; align-items: flex-start; gap: 4px; }
       .detail-summary { font-size: 11px; }
@@ -793,7 +793,7 @@
         <span class="gl-opp"><span class="at">${prefix}</span><span class="rank">${rankStr}</span>${d.opp?.school_name || '?'}</span>
         <div class="gl-winpct">
           <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
-          ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${wpPct}%</span></div>` : ''}
+          ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${wpPct}%<br>${piStr} PI</span></div>` : ''}
         </div>
         <span class="gl-score ${res}">${scoreStr}</span>
       </div>`;

@@ -230,6 +230,7 @@
       padding: 5px 0;
       font-size: 13px;
       border-bottom: 1px solid #eef5f0;
+      min-width: 0;
     }
 
     .game-line:last-child { border-bottom: none; }
@@ -252,6 +253,7 @@
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700; font-size: 15px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
     }
 
     .gl-opp .at   { color: var(--lgray); font-weight: 600; }
@@ -371,8 +373,8 @@
       .detail-summary { font-size: 11px; }
       .gl-result { font-size: 13px; }
       .gl-date { font-size: 11px; }
-      .gl-opp { font-size: 13px; }
-      .gl-score { font-size: 13px; text-align: right; }
+      .gl-opp { white-space: normal; overflow: visible; text-overflow: clip; font-size: 12px; }
+      .gl-score { font-size: 13px; text-align: right; white-space: nowrap; }
     }
 
     .lbl-short { display: none; }

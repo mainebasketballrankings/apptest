@@ -53,6 +53,20 @@
 
     .date-nav { display: flex; align-items: center; gap: 6px; }
 
+    .date-picker {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--gray);
+      padding: 0 10px; height: 34px;
+      border-radius: 6px;
+      cursor: pointer;
+      outline: none;
+    }
+    .date-picker:focus { border-color: #bbb; }
+
     .date-btn {
       background: var(--white);
       border: 1px solid var(--border);
@@ -257,6 +271,25 @@
     }
 
     .card-meta { font-size: 11px; color: var(--lgray); line-height: 1.5; flex: 1; min-width: 0; }
+
+    .card-meta .stream-link {
+      display: inline-block;
+      color: var(--green2);
+      font-weight: 700;
+      text-decoration: none;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .card-meta .stream-link:hover { text-decoration: underline; }
+
+    .card-notes {
+      font-size: 10px;
+      color: var(--gray);
+      line-height: 1.4;
+      margin-top: 2px;
+      font-style: italic;
+    }
 
     .submit-btn-inline {
       font-family: 'Barlow Condensed', sans-serif;
@@ -500,6 +533,7 @@
     <div class="date-nav">
       <button class="date-btn" id="prevDay">&#8592;</button>
       <button class="date-today" id="todayBtn">Today</button>
+      <input type="date" class="date-picker" id="datePicker" />
       <button class="date-btn" id="nextDay">&#8594;</button>
     </div>
   </div>
@@ -550,10 +584,6 @@
     return `${hr > 12 ? hr-12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
   }
 
-  function getClass(g) {
-    return g.home_team?.team_classifications?.[0]?.classes?.name || '?';
-  }
-
   async function loadRanks(dateStr) {
     rankMap = {};
     const { data } = await sb
@@ -572,7 +602,7 @@
     await loadRanks(ds);
 
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, location, status,
+      id, game_date, game_time, location, status, stream_url, event,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
       home_team:home_team_id ( id, school_name, gender, logo_url,
@@ -587,20 +617,43 @@
       return;
     }
 
+    // Fetch latest notes from score_submissions for each game
+    const gameIds = (data || []).map(g => g.id);
+    let notesMap = {};
+    if (gameIds.length) {
+      const { data: subs } = await sb.from('score_submissions')
+        .select('game_id, notes, created_at')
+        .in('game_id', gameIds)
+        .not('notes', 'is', null)
+        .order('created_at', { ascending: false });
+      if (subs) subs.forEach(s => { if (!notesMap[s.game_id]) notesMap[s.game_id] = s.notes; });
+    }
+
     allGames = (data || []).filter(g => g.home_team && g.away_team);
-    renderGames();
+    renderGames(notesMap);
   }
 
-  function renderGames() {
+  function getHomeClass(g) {
+    return g.home_team?.team_classifications?.[0]?.classes?.name || '?';
+  }
+  function getAwayClass(g) {
+    return g.away_team?.team_classifications?.[0]?.classes?.name || '?';
+  }
+  function isCrossClass(g) {
+    return getHomeClass(g) !== getAwayClass(g);
+  }
+
+  function renderGames(notesMap = {}) {
     const container = document.getElementById('gamesContainer');
     let games = allGames;
 
     if (activeFilter !== 'all') {
-      games = games.filter(g =>
-        activeFilter === 'Boys' || activeFilter === 'Girls'
-          ? g.home_team?.gender === activeFilter
-          : getClass(g) === activeFilter
-      );
+      games = games.filter(g => {
+        if (activeFilter === 'Boys' || activeFilter === 'Girls')
+          return g.home_team?.gender === activeFilter;
+        // Cross-class: show in BOTH class filters
+        return getHomeClass(g) === activeFilter || getAwayClass(g) === activeFilter;
+      });
     }
 
     if (!games.length) {
@@ -613,8 +666,8 @@
     const boys  = games.filter(g => g.home_team?.gender === 'Boys');
     const girls = games.filter(g => g.home_team?.gender === 'Girls');
     let html = '';
-    if (boys.length  && activeFilter !== 'Girls') html += section('Boys', boys);
-    if (girls.length && activeFilter !== 'Boys')  html += section('Girls', girls);
+    if (boys.length  && activeFilter !== 'Girls') html += section('Boys',  boys,  notesMap);
+    if (girls.length && activeFilter !== 'Boys')  html += section('Girls', girls, notesMap);
     container.innerHTML = html;
 
     container.querySelectorAll('.submit-btn-inline').forEach(btn => {
@@ -638,9 +691,9 @@
     });
   }
 
-  function section(label, games) {
+  function section(label, games, notesMap) {
     return `<div class="section-label">${label}</div>
-            <div class="games-grid">${games.map(card).join('')}</div>`;
+            <div class="games-grid">${games.map(g => card(g, notesMap)).join('')}</div>`;
   }
 
   function logoEl(team) {
@@ -652,10 +705,13 @@
     return `<div class="logo-initial">${team.school_name[0]}</div>`;
   }
 
-  function card(g) {
+  function card(g, notesMap = {}) {
     const home    = g.home_team;
     const away    = g.away_team;
-    const cls     = getClass(g);
+    const homeCls = getHomeClass(g);
+    const awayCls = getAwayClass(g);
+    const crossCls = homeCls !== awayCls;
+    const clsLabel = crossCls ? 'Cross-class' : `Class ${homeCls}`;
     const isFinal = g.status === 'final';
     const isLive  = g.status === 'active';
 
@@ -673,10 +729,10 @@
 
     // Top status bar
     const topBar = isFinal
-      ? `<div class="card-top"><span>Final</span><span>Class ${cls} · ${home.gender}</span></div>`
+      ? `<div class="card-top"><span>Final</span><span>${clsLabel} · ${home.gender}</span></div>`
       : isLive
-        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>Class ${cls} · ${home.gender}</span></div>`
-        : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>Class ${cls} · ${home.gender}</span></div>`;
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>${clsLabel} · ${home.gender}</span></div>`
+        : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>${clsLabel} · ${home.gender}</span></div>`;
 
     // Score cells
     const hScEl = has
@@ -686,9 +742,15 @@
       ? `<div class="team-score ${isFinal ? (aWin?'winner':'loser') : ''}">${aSc}</div>`
       : `<div class="team-score empty">–</div>`;
 
-    // Footer location string
+    // Footer
     const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
+    const streamEl = g.stream_url
+      ? `· <a class="stream-link" href="${g.stream_url}" target="_blank" rel="noopener">▶ Watch</a>`
+      : '';
+    const eventEl = g.event ? `<br/><span style="color:var(--green);font-weight:700">${g.event}</span>` : '';
+    const notes = notesMap[g.id];
+    const notesEl = notes ? `<div class="card-notes">${notes}</div>` : '';
 
     return `
     <div class="game-card ${isLive ? 'live' : ''}">
@@ -710,7 +772,7 @@
         </div>
       </div>
       <div class="card-footer">
-        <div class="card-meta">${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>
+        <div class="card-meta">${loc}${eventEl}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''} ${streamEl}${notesEl}</div>
         ${!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
       </div>
       ${!isFinal ? `
@@ -812,14 +874,23 @@
     setTimeout(() => t.className = 'toast', 3000);
   }
 
+  function syncDatePicker() {
+    document.getElementById('datePicker').value = toISO(currentDate);
+  }
+
   document.getElementById('prevDay').addEventListener('click', () => {
-    currentDate.setDate(currentDate.getDate() - 1); loadGames(currentDate);
+    currentDate.setDate(currentDate.getDate() - 1); syncDatePicker(); loadGames(currentDate);
   });
   document.getElementById('nextDay').addEventListener('click', () => {
-    currentDate.setDate(currentDate.getDate() + 1); loadGames(currentDate);
+    currentDate.setDate(currentDate.getDate() + 1); syncDatePicker(); loadGames(currentDate);
   });
   document.getElementById('todayBtn').addEventListener('click', () => {
-    currentDate = new Date(); loadGames(currentDate);
+    currentDate = new Date(); syncDatePicker(); loadGames(currentDate);
+  });
+  document.getElementById('datePicker').addEventListener('change', e => {
+    const [y,m,d] = e.target.value.split('-').map(Number);
+    currentDate = new Date(y, m-1, d);
+    loadGames(currentDate);
   });
   document.getElementById('filters').addEventListener('click', e => {
     if (!e.target.matches('.filter-btn')) return;
@@ -829,6 +900,7 @@
     renderGames();
   });
 
+  syncDatePicker();
   loadGames(currentDate);
 </script>
 

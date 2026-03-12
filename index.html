@@ -753,7 +753,7 @@
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278312/You-Tube-14_nqkseu.png';
       alt = 'YouTube';
-    } else if (url.includes('nfhsnetwork.com')) {
+    } else if (url.includes('nfhs')) {
       src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680700/nfhsnetworklogo2_hcomv2.png';
       alt = 'NFHS';
     } else if (url.includes('lctv') || url.includes('lctvonline')) {
@@ -836,18 +836,18 @@
       ${topBar}
       <div class="card-body">
         <div class="team-row">
-          <div class="logo-wrap">${logoEl(home)}</div>
-          <div class="team-name-wrap">
-            <div class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}">${hR}${home.school_name}</div>
-          </div>
-          ${hScEl}
-        </div>
-        <div class="team-row">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
             <div class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}">${aR}${away.school_name}</div>
           </div>
           ${aScEl}
+        </div>
+        <div class="team-row">
+          <div class="logo-wrap">${logoEl(home)}</div>
+          <div class="team-name-wrap">
+            <div class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}">${hR}${home.school_name}</div>
+          </div>
+          ${hScEl}
         </div>
       </div>
       <div class="card-footer">

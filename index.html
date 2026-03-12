@@ -602,7 +602,7 @@
     await loadRanks(ds);
 
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, location, status, stream_url, event,
+      id, game_date, game_time, location, status, stream_url,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
       home_team:home_team_id ( id, school_name, gender, logo_url,

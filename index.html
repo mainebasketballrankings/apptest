@@ -346,6 +346,39 @@
 
     .si-extras { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 
+    .si-clock-row { display: flex; gap: 8px; align-items: center; }
+
+    .si-select {
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--black);
+      font-family: 'Barlow', sans-serif;
+      font-size: 12px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.15s;
+      flex: 1;
+    }
+    .si-select:focus { border-color: var(--green2); }
+
+    .si-time {
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--black);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      width: 72px;
+      outline: none;
+      transition: border-color 0.15s;
+      text-align: center;
+    }
+    .si-time:focus { border-color: var(--green2); }
+    .si-time::placeholder { color: var(--lgray); font-weight: 400; }
+
     .si-extras input,
     .si-extras textarea {
       background: var(--white);
@@ -592,7 +625,17 @@
       });
     });
 
-    container.querySelectorAll('.score-form').forEach(f => f.addEventListener('submit', handleSubmit));
+    container.querySelectorAll('.score-form').forEach(f => {
+      f.addEventListener('submit', handleSubmit);
+      const periodSel = f.querySelector('select[name="period"]');
+      const timeInput = f.querySelector('input[name="clock_time"]');
+      if (periodSel && timeInput) {
+        periodSel.addEventListener('change', () => {
+          const noTime = ['Halftime', 'End Q4', 'Final', ''].includes(periodSel.value);
+          timeInput.style.display = noTime ? 'none' : '';
+        });
+      }
+    });
   }
 
   function section(label, games) {
@@ -686,7 +729,20 @@
             </div>
           </div>
           <div class="si-extras">
-            <input type="text" name="game_clock" placeholder="Quarter / time (e.g. Halftime)" />
+            <div class="si-clock-row">
+              <select name="period" class="si-select">
+                <option value="">Period / Status</option>
+                <option value="Q1">Q1</option>
+                <option value="Q2">Q2</option>
+                <option value="Halftime">Halftime</option>
+                <option value="Q3">Q3</option>
+                <option value="Q4">Q4</option>
+                <option value="OT">OT</option>
+                <option value="End Q4">End Q4</option>
+                <option value="Final">Final</option>
+              </select>
+              <input type="text" name="clock_time" class="si-time" placeholder="4:00" pattern="^([0-9]{1,2}:[0-5][0-9])?$" title="Format: 4:00" />
+            </div>
             <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)"></textarea>
           </div>
           <div class="si-row">
@@ -712,13 +768,20 @@
     const aSc = parseInt(form.away_score.value);
     if (isNaN(hSc) || isNaN(aSc)) return;
 
+    const period    = form.period.value;
+    const clockTime = form.clock_time.value.trim();
+    const noTime    = ['Halftime', 'End Q4', 'Final', ''].includes(period);
+    const gameClock = period
+      ? (noTime || !clockTime ? period : `${period} | ${clockTime}`)
+      : null;
+
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
     const { error } = await sb.from('score_submissions').insert({
       game_id: id, home_score: hSc, away_score: aSc,
       is_final: form.is_final.checked,
-      game_clock: form.game_clock.value.trim() || null,
+      game_clock: gameClock,
       notes: form.notes.value.trim() || null,
       status: 'pending',
     });
@@ -736,7 +799,7 @@
     if (form.is_final.checked) {
       await sb.from('games').update({
         status: 'active', home_score_live: hSc, away_score_live: aSc,
-        game_clock: form.game_clock.value.trim() || null,
+        game_clock: gameClock,
       }).eq('id', id);
       setTimeout(() => loadGames(currentDate), 1500);
     }

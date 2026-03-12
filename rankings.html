@@ -44,6 +44,18 @@
 
     .page-sub { font-size: 13px; color: var(--lgray); margin-bottom: 20px; }
 
+    /* SPORT TABS */
+    .sport-tabs {
+      display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .sport-tab {
+      padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer;
+      color: var(--gray); transition: all .15s;
+    }
+    .sport-tab:hover { border-color: #bbb; color: var(--black); }
+    .sport-tab.active { background: var(--black); border-color: var(--black); color: #fff; }
+
     /* GENDER TABS */
     .gender-tabs {
       display: flex; gap: 0; margin-bottom: 0;
@@ -283,6 +295,14 @@
   <div class="page-title">Power Rankings</div>
   <div class="page-sub" id="updatedNote">Loading latest snapshot…</div>
 
+  <div class="sport-tabs">
+    <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
+    <button class="sport-tab" data-sport="baseball" data-season="2025">Baseball</button>
+    <button class="sport-tab" data-sport="softball" data-season="2025">Softball</button>
+    <button class="sport-tab" data-sport="boys-lax" data-season="2025">Boys LAX</button>
+    <button class="sport-tab" data-sport="girls-lax" data-season="2025">Girls LAX</button>
+  </div>
+
   <div class="gender-tabs">
     <button class="gender-tab active" data-gender="Boys">Boys</button>
     <button class="gender-tab" data-gender="Girls">Girls</button>
@@ -317,9 +337,32 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  let allData    = [];
+  const SPORT_IDS = {
+    'basketball': 'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+    'baseball':   'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+    'softball':   '095c9841-7261-4cb1-824e-6304792b53d0',
+    'boys-lax':   '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'girls-lax':  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+  };
+  // Sports where gender tab is irrelevant (single-gender sports)
+  const SINGLE_GENDER = {
+    'baseball': 'Boys', 'softball': 'Girls',
+    'boys-lax': 'Boys', 'girls-lax': 'Girls',
+  };
+  // Classes available per sport
+  const SPORT_CLASSES = {
+    'basketball': ['A','B','C','D','S'],
+    'baseball':   ['A','B','C','D'],
+    'softball':   ['A','B','C','D'],
+    'boys-lax':   ['A','B'],
+    'girls-lax':  ['A','B'],
+  };
+
+  let allData      = [];
   let activeGender = 'Boys';
   let activeClass  = 'all';
+  let activeSport  = 'basketball';
+  let activeSeason = 2026;
   let sortCol      = 'rank_overall';
   let sortAsc      = true;
   let visibleCols  = { pf: true, pa: true, diff: true, pct: true, sos: true, odds: false };
@@ -335,10 +378,13 @@
     document.getElementById('tableWrap').innerHTML =
       '<div class="loading"><div class="spinner"></div><span>Loading rankings…</span></div>';
 
-    // Get most recent snapshot date
+    const sportId = SPORT_IDS[activeSport];
+
+    // Get most recent snapshot date for this sport+season
     const { data: dateData } = await sb
       .from('rankings_snapshots')
-      .select('snapshot_date')
+      .select('snapshot_date, team:team_id(sport_id)')
+      .eq('season_year', activeSeason)
       .order('snapshot_date', { ascending: false })
       .limit(1);
 
@@ -352,7 +398,7 @@
     document.getElementById('updatedNote').textContent =
       'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // Load all teams for that date with team info
+    // Load all teams for that date+sport with team info
     const { data, error } = await sb
       .from('rankings_snapshots')
       .select(`
@@ -361,14 +407,16 @@
         pct_perfect, signature_win, ats_record, win_pct,
         tournament_odds,
         team:team_id (
-          id, school_name, gender, logo_url,
+          id, school_name, gender, logo_url, sport_id,
           team_classifications (
             classes ( name ),
             regions ( name, abbreviation )
           )
         )
       `)
-      .eq('snapshot_date', latestDate);
+      .eq('snapshot_date', latestDate)
+      .eq('season_year', activeSeason)
+      .eq('team.sport_id', sportId);
 
     if (error || !data) {
       document.getElementById('tableWrap').innerHTML =
@@ -389,8 +437,27 @@
     return REGION_NAMES[abbr] || abbr;
   }
 
+  function updateClassTabs() {
+    const classes = SPORT_CLASSES[activeSport] || ['A','B','C','D','S'];
+    const container = document.getElementById('classTabs');
+    container.innerHTML = '<button class="class-tab active" data-class="all">All</button>' +
+      classes.map(c => `<button class="class-tab" data-class="${c}">Class ${c}</button>`).join('');
+    // Rewire clicks
+    container.querySelectorAll('.class-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeClass = btn.dataset.class;
+        sortCol = activeClass === 'all' ? 'rank_overall' : 'rank_class';
+        sortAsc = true;
+        renderTable();
+      });
+    });
+  }
+
   function renderTable() {
-    let rows = allData.filter(r => r.team?.gender === activeGender);
+    const genderFilter = SINGLE_GENDER[activeSport] || activeGender;
+    let rows = allData.filter(r => r.team && r.team.gender === genderFilter);
     if (activeClass !== 'all') rows = rows.filter(r => getClass(r) === activeClass);
 
     // Sort
@@ -513,6 +580,27 @@
   }
 
   // Gender tabs
+  document.querySelectorAll('.sport-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeSport  = btn.dataset.sport;
+      activeSeason = parseInt(btn.dataset.season);
+      activeClass  = 'all';
+      sortCol = 'rank_overall'; sortAsc = true;
+      // Show/hide gender tabs
+      const genderTabs = document.querySelector('.gender-tabs');
+      if (SINGLE_GENDER[activeSport]) {
+        genderTabs.style.display = 'none';
+        activeGender = SINGLE_GENDER[activeSport];
+      } else {
+        genderTabs.style.display = '';
+      }
+      updateClassTabs();
+      loadRankings();
+    });
+  });
+
   document.querySelectorAll('.gender-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.gender-tab').forEach(b => b.classList.remove('active'));
@@ -548,6 +636,7 @@
     });
   });
 
+  updateClassTabs();
   loadRankings();
 </script>
 

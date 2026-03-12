@@ -291,6 +291,38 @@
       font-style: italic;
     }
 
+    .card-footer-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .stax-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 12px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .stax-badge.gray   { color: #aaa; }
+    .stax-badge.yellow { color: #d4a00a; }
+    .stax-badge.orange { color: #e07020; }
+    .stax-badge.red    { color: #c0392b; }
+
+    .stream-icon {
+      height: 22px;
+      width: auto;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+      border-radius: 3px;
+    }
+
     .submit-btn-inline {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700;
@@ -602,10 +634,10 @@
     await loadRanks(ds);
 
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, location, status, stream_url,
+      id, game_date, game_time, location, status, stream_url, stax_index,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
-      home_team:home_team_id ( id, school_name, gender, logo_url,
+      home_team:home_team_id ( id, school_name, gender, logo_url, stream_url,
         team_classifications ( classes ( name ) ) ),
       away_team:away_team_id ( id, school_name, gender, logo_url,
         team_classifications ( classes ( name ) ) )
@@ -705,6 +737,33 @@
     return `<div class="logo-initial">${team.school_name[0]}</div>`;
   }
 
+  function staxEl(val) {
+    if (val === null || val === undefined) return '';
+    const n = parseFloat(val);
+    const cls = n >= 80 ? 'red' : n >= 65 ? 'orange' : n >= 50 ? 'yellow' : 'gray';
+    return `<span class="stax-badge ${cls}">⚡${n.toFixed(1)}</span>`;
+  }
+
+  function streamIconEl(url) {
+    if (!url) return '';
+    let src = '';
+    let alt = 'Stream';
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/64px-YouTube_full-color_icon_%282017%29.svg.png';
+      alt = 'YouTube';
+    } else if (url.includes('nfhsnetwork.com')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/nfhs.png';
+      alt = 'NFHS';
+    } else if (url.includes('lctv') || url.includes('lctvonline')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/lctv.png';
+      alt = 'LCTV';
+    } else {
+      // Generic play icon for unknown streams
+      return `<a href="${url}" target="_blank" rel="noopener" title="Watch live" style="color:var(--green2);font-size:18px;line-height:1;text-decoration:none">▶</a>`;
+    }
+    return `<a href="${url}" target="_blank" rel="noopener" title="Watch on ${alt}"><img class="stream-icon" src="${src}" alt="${alt}" /></a>`;
+  }
+
   function card(g, notesMap = {}) {
     const home    = g.home_team;
     const away    = g.away_team;
@@ -745,9 +804,7 @@
     // Footer
     const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
-    const streamEl = g.stream_url
-      ? `· <a class="stream-link" href="${g.stream_url}" target="_blank" rel="noopener">▶ Watch</a>`
-      : '';
+    const streamUrl = g.stream_url || home.stream_url || null;
     const eventEl = g.event ? `<br/><span style="color:var(--green);font-weight:700">${g.event}</span>` : '';
     const notes = notesMap[g.id];
     const notesEl = notes ? `<div class="card-notes">${notes}</div>` : '';
@@ -772,8 +829,12 @@
         </div>
       </div>
       <div class="card-footer">
-        <div class="card-meta">${loc}${eventEl}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''} ${streamEl}${notesEl}</div>
-        ${!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
+        <div class="card-meta">${loc}${eventEl}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}${notesEl}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${staxEl(g.stax_index)}
+          ${streamIconEl(streamUrl)}
+          ${!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
+        </div>
       </div>
       ${!isFinal ? `
       <div class="submit-panel" id="panel-${g.id}">

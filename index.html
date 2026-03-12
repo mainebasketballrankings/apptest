@@ -315,12 +315,13 @@
     .stax-badge.red    { color: #c0392b; }
 
     .stream-icon {
-      height: 22px;
-      width: auto;
+      height: 24px;
+      width: 24px;
+      object-fit: contain;
       display: inline-block;
       vertical-align: middle;
       flex-shrink: 0;
-      border-radius: 3px;
+      border-radius: 4px;
     }
 
     .submit-btn-inline {
@@ -748,17 +749,38 @@
     if (!url) return '';
     let src = '';
     let alt = 'Stream';
+
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/64px-YouTube_full-color_icon_%282017%29.svg.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278312/You-Tube-14_nqkseu.png';
       alt = 'YouTube';
     } else if (url.includes('nfhsnetwork.com')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/nfhs.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680700/nfhsnetworklogo2_hcomv2.png';
       alt = 'NFHS';
     } else if (url.includes('lctv') || url.includes('lctvonline')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/lctv.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680745/lctv_wikpnr.jpg';
       alt = 'LCTV';
+    } else if (url.includes('whou')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772683015/whou.live_.square-768x609_nwxdjx.png';
+      alt = 'WHOU';
+    } else if (url.includes('hudl.com')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680951/hudl_bq26ed.png';
+      alt = 'Hudl';
+    } else if (url.includes('theticket') || url.includes('ticket.tv')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680872/tickettv_llamh1.jpg';
+      alt = 'The Ticket';
+    } else if (url.includes('easternmainesports') || url.includes('eastern-maine')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278369/eastern_maine_sport_vp5nya.png';
+      alt = 'Eastern Maine Sports';
+    } else if (url.includes('munzing')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278428/munzing_c4tion.png';
+      alt = 'Munzing';
+    } else if (url.includes('mainepublic') || url.includes('maine-public') || url.includes('mainepublic.org')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278462/maine_public_logoo_mlepsa.png';
+      alt = 'Maine Public';
+    } else if (url.includes('mainecoast') || url.includes('maine-coast')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278552/maine_coast_tv_njnccc.png';
+      alt = 'Maine Coast TV';
     } else {
-      // Generic play icon for unknown streams
       return `<a href="${url}" target="_blank" rel="noopener" title="Watch live" style="color:var(--green2);font-size:18px;line-height:1;text-decoration:none">▶</a>`;
     }
     return `<a href="${url}" target="_blank" rel="noopener" title="Watch on ${alt}"><img class="stream-icon" src="${src}" alt="${alt}" /></a>`;

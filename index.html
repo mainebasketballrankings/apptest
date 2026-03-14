@@ -690,9 +690,9 @@
       id, game_date, game_time, location, status, stream_url, stax_index,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
-      home_team:home_team_id ( id, school_name, gender, logo_url, stream_url,
+      home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, class,
         team_classifications ( classes ( name ) ) ),
-      away_team:away_team_id ( id, school_name, gender, logo_url,
+      away_team:away_team_id ( id, school_name, gender, logo_url, class,
         team_classifications ( classes ( name ) ) )
     `).eq('game_date', ds)
       .eq('sport_id', SPORT_IDS[activeSport])
@@ -722,10 +722,10 @@
   }
 
   function getHomeClass(g) {
-    return g.home_team?.team_classifications?.[0]?.classes?.name || '?';
+    return g.home_team?.class || g.home_team?.team_classifications?.[0]?.classes?.name || '?';
   }
   function getAwayClass(g) {
-    return g.away_team?.team_classifications?.[0]?.classes?.name || '?';
+    return g.away_team?.class || g.away_team?.team_classifications?.[0]?.classes?.name || '?';
   }
   function isCrossClass(g) {
     return getHomeClass(g) !== getAwayClass(g);

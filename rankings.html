@@ -416,7 +416,7 @@
         pct_perfect, signature_win, ats_record, win_pct,
         tournament_odds,
         team:team_id (
-          id, school_name, gender, logo_url, sport_id,
+          id, school_name, gender, logo_url, sport_id, team_class,
           team_classifications (
             classes ( name ),
             regions ( name, abbreviation )
@@ -424,8 +424,7 @@
         )
       `)
       .eq('snapshot_date', latestDate)
-      .eq('season_year', activeSeason)
-      .eq('team.sport_id', sportId);
+      .eq('season_year', activeSeason);
 
     if (error || !data) {
       document.getElementById('tableWrap').innerHTML =
@@ -433,12 +432,13 @@
       return;
     }
 
-    allData = data.filter(r => r.team);
+    // Filter client-side by sport_id since PostgREST can't filter on FK columns
+    allData = data.filter(r => r.team && r.team.sport_id === sportId);
     renderTable();
   }
 
   function getClass(row) {
-    return row.team?.team_classifications?.[0]?.classes?.name || '?';
+    return row.team?.team_class || row.team?.team_classifications?.[0]?.classes?.name || '?';
   }
 
   function getRegion(row) {

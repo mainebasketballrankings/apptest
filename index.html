@@ -98,6 +98,18 @@
 
     .date-today:hover { background: var(--bg); color: var(--black); border-color: #bbb; }
 
+    /* SPORT TABS */
+    .sport-tabs {
+      display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .sport-tab {
+      padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer;
+      color: var(--gray); transition: all .15s;
+    }
+    .sport-tab:hover { border-color: #bbb; color: var(--black); }
+    .sport-tab.active { background: var(--black); border-color: var(--black); color: #fff; }
+
     /* FILTERS */
     .filters { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
 
@@ -571,6 +583,14 @@
     </div>
   </div>
 
+  <div class="sport-tabs" id="sportTabs">
+    <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
+    <button class="sport-tab" data-sport="baseball" data-season="2025">Baseball</button>
+    <button class="sport-tab" data-sport="softball" data-season="2025">Softball</button>
+    <button class="sport-tab" data-sport="boys-lax" data-season="2025">Boys LAX</button>
+    <button class="sport-tab" data-sport="girls-lax" data-season="2025">Girls LAX</button>
+  </div>
+
   <div class="filters" id="filters">
     <button class="filter-btn active" data-filter="all">All</button>
     <button class="filter-btn" data-filter="Boys">Boys</button>
@@ -592,10 +612,24 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  let currentDate  = new Date();
-  let allGames     = [];
-  let activeFilter = 'all';
-  let rankMap      = {};
+  const SPORT_IDS = {
+    'basketball': 'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+    'baseball':   'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+    'softball':   '095c9841-7261-4cb1-824e-6304792b53d0',
+    'boys-lax':   '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'girls-lax':  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+  };
+  const SPORT_GENDER = {
+    'baseball': 'Boys', 'softball': 'Girls',
+    'boys-lax': 'Boys', 'girls-lax': 'Girls',
+  };
+
+  let currentDate   = new Date();
+  let allGames      = [];
+  let activeFilter  = 'all';
+  let activeSport   = 'basketball';
+  let activeSeason  = 2026;
+  let rankMap       = {};
 
   function toISO(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -642,7 +676,10 @@
         team_classifications ( classes ( name ) ) ),
       away_team:away_team_id ( id, school_name, gender, logo_url,
         team_classifications ( classes ( name ) ) )
-    `).eq('game_date', ds).order('game_time', { ascending: true, nullsFirst: false });
+    `).eq('game_date', ds)
+      .eq('sport_id', SPORT_IDS[activeSport])
+      .eq('season_year', activeSeason)
+      .order('game_time', { ascending: true, nullsFirst: false });
 
     if (error) {
       document.getElementById('gamesContainer').innerHTML =
@@ -696,11 +733,12 @@
       return;
     }
 
+    const singleGender = SPORT_GENDER[activeSport];
     const boys  = games.filter(g => g.home_team?.gender === 'Boys');
     const girls = games.filter(g => g.home_team?.gender === 'Girls');
     let html = '';
-    if (boys.length  && activeFilter !== 'Girls') html += section('Boys',  boys,  notesMap);
-    if (girls.length && activeFilter !== 'Boys')  html += section('Girls', girls, notesMap);
+    if (boys.length  && activeFilter !== 'Girls' && (!singleGender || singleGender === 'Boys'))  html += section('Boys',  boys,  notesMap);
+    if (girls.length && activeFilter !== 'Boys'  && (!singleGender || singleGender === 'Girls')) html += section('Girls', girls, notesMap);
     container.innerHTML = html;
 
     container.querySelectorAll('.submit-btn-inline').forEach(btn => {
@@ -975,6 +1013,33 @@
     currentDate = new Date(y, m-1, d);
     loadGames(currentDate);
   });
+
+  document.getElementById('sportTabs').addEventListener('click', e => {
+    if (!e.target.matches('.sport-tab')) return;
+    document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    activeSport  = e.target.dataset.sport;
+    activeSeason = parseInt(e.target.dataset.season);
+    activeFilter = 'all';
+    // Reset filter buttons and hide gender for single-gender sports
+    const singleGender = SPORT_GENDER[activeSport];
+    document.getElementById('filters').innerHTML = singleGender
+      ? `<button class="filter-btn active" data-filter="all">All</button>
+         <button class="filter-btn" data-filter="A">Class A</button>
+         <button class="filter-btn" data-filter="B">Class B</button>
+         <button class="filter-btn" data-filter="C">Class C</button>
+         <button class="filter-btn" data-filter="D">Class D</button>`
+      : `<button class="filter-btn active" data-filter="all">All</button>
+         <button class="filter-btn" data-filter="Boys">Boys</button>
+         <button class="filter-btn" data-filter="Girls">Girls</button>
+         <button class="filter-btn" data-filter="A">Class A</button>
+         <button class="filter-btn" data-filter="B">Class B</button>
+         <button class="filter-btn" data-filter="C">Class C</button>
+         <button class="filter-btn" data-filter="D">Class D</button>
+         <button class="filter-btn" data-filter="S">Class S</button>`;
+    loadGames(currentDate);
+  });
+
   document.getElementById('filters').addEventListener('click', e => {
     if (!e.target.matches('.filter-btn')) return;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));

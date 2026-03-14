@@ -619,7 +619,24 @@
     'boys-lax':   '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
     'girls-lax':  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
   };
-  const SPORT_GENDER = {
+  const SPORT_CLASSES = {
+    'basketball': ['A','B','C','D','S'],
+    'baseball':   ['A','B','C','D'],
+    'softball':   ['A','B','C','D'],
+    'boys-lax':   ['A','B'],
+    'girls-lax':  ['A','B'],
+  };
+
+  function buildFilterButtons() {
+    const singleGender = SPORT_GENDER[activeSport];
+    const classes = SPORT_CLASSES[activeSport] || ['A','B','C','D'];
+    const genderBtns = singleGender ? '' :
+      `<button class="filter-btn" data-filter="Boys">Boys</button>
+       <button class="filter-btn" data-filter="Girls">Girls</button>`;
+    const classBtns = classes.map(c => `<button class="filter-btn" data-filter="${c}">Class ${c}</button>`).join('');
+    document.getElementById('filters').innerHTML =
+      `<button class="filter-btn active" data-filter="all">All</button>${genderBtns}${classBtns}`;
+  }
     'baseball': 'Boys', 'softball': 'Girls',
     'boys-lax': 'Boys', 'girls-lax': 'Girls',
   };
@@ -1021,22 +1038,7 @@
     activeSport  = e.target.dataset.sport;
     activeSeason = parseInt(e.target.dataset.season);
     activeFilter = 'all';
-    // Reset filter buttons and hide gender for single-gender sports
-    const singleGender = SPORT_GENDER[activeSport];
-    document.getElementById('filters').innerHTML = singleGender
-      ? `<button class="filter-btn active" data-filter="all">All</button>
-         <button class="filter-btn" data-filter="A">Class A</button>
-         <button class="filter-btn" data-filter="B">Class B</button>
-         <button class="filter-btn" data-filter="C">Class C</button>
-         <button class="filter-btn" data-filter="D">Class D</button>`
-      : `<button class="filter-btn active" data-filter="all">All</button>
-         <button class="filter-btn" data-filter="Boys">Boys</button>
-         <button class="filter-btn" data-filter="Girls">Girls</button>
-         <button class="filter-btn" data-filter="A">Class A</button>
-         <button class="filter-btn" data-filter="B">Class B</button>
-         <button class="filter-btn" data-filter="C">Class C</button>
-         <button class="filter-btn" data-filter="D">Class D</button>
-         <button class="filter-btn" data-filter="S">Class S</button>`;
+    buildFilterButtons();
     loadGames(currentDate);
   });
 

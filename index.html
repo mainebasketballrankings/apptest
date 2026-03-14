@@ -589,6 +589,9 @@
     <button class="sport-tab" data-sport="softball" data-season="2025">Softball</button>
     <button class="sport-tab" data-sport="boys-lax" data-season="2025">Boys LAX</button>
     <button class="sport-tab" data-sport="girls-lax" data-season="2025">Girls LAX</button>
+    <button class="sport-tab" data-sport="boys-soccer" data-season="2025">Boys Soccer</button>
+    <button class="sport-tab" data-sport="girls-soccer" data-season="2025">Girls Soccer</button>
+    <button class="sport-tab" data-sport="field-hockey" data-season="2025">Field Hockey</button>
   </div>
 
   <div class="filters" id="filters">
@@ -613,18 +616,30 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const SPORT_IDS = {
-    'basketball': 'b31ab283-b28e-4ba8-9684-b1cf30cea219',
-    'baseball':   'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
-    'softball':   '095c9841-7261-4cb1-824e-6304792b53d0',
-    'boys-lax':   '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
-    'girls-lax':  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+    'baseball':     'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+    'softball':     '095c9841-7261-4cb1-824e-6304792b53d0',
+    'boys-lax':     '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'girls-lax':    '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'boys-soccer':  'ff80a695-0e78-4432-98f2-141b2b571e0e',
+    'girls-soccer': 'ff80a695-0e78-4432-98f2-141b2b571e0e',
+    'field-hockey': '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
   };
   const SPORT_CLASSES = {
-    'basketball': ['A','B','C','D','S'],
-    'baseball':   ['A','B','C','D'],
-    'softball':   ['A','B','C','D'],
-    'boys-lax':   ['A','B','C'],
-    'girls-lax':  ['A','B','C'],
+    'basketball':   ['A','B','C','D','S'],
+    'baseball':     ['A','B','C','D'],
+    'softball':     ['A','B','C','D'],
+    'boys-lax':     ['A','B','C'],
+    'girls-lax':    ['A','B','C'],
+    'boys-soccer':  ['A','B','C','D','8'],
+    'girls-soccer': ['A','B','C','D','8'],
+    'field-hockey': ['A','B','C'],
+  };
+  const SPORT_GENDER = {
+    'baseball':     'Boys', 'softball':     'Girls',
+    'boys-lax':     'Boys', 'girls-lax':    'Girls',
+    'boys-soccer':  'Boys', 'girls-soccer': 'Girls',
+    'field-hockey': 'Girls',
   };
 
   function buildFilterButtons() {
@@ -637,10 +652,6 @@
     document.getElementById('filters').innerHTML =
       `<button class="filter-btn active" data-filter="all">All</button>${genderBtns}${classBtns}`;
   }
-  const SPORT_GENDER = {
-    'baseball': 'Boys', 'softball': 'Girls',
-    'boys-lax': 'Boys', 'girls-lax': 'Girls',
-  };
 
   let currentDate   = new Date();
   let allGames      = [];

@@ -785,24 +785,44 @@
       teamIds.includes(g.home_team?.id) || teamIds.includes(g.away_team?.id)
     );
 
-    // Fixed regular season schedule lengths per sport (MPA-set)
-    const SCHEDULE_LENGTH = {
-      'basketball':  18,
-      'baseball':    16,
-      'softball':    16,
-      'lacrosse':    14,
-      'soccer':      14,
-      'field-hockey':14,
-      'football':    8,   // 9 for Class A — handled below
+    // Fetch ALL games (final + scheduled) for schedule length calculation
+    const fetchAllScheduled = async (field, ids) => {
+      const results = [];
+      const chunkSize = 100;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize);
+        const q = sb.from('games')
+          .select('id, home_team_id, away_team_id')
+          .in(field, chunk)
+          .eq('sport_id', sportId)
+          .eq('season_year', season)
+          .eq('is_tournament', false)
+          .neq('status', 'cancelled');
+        if (cutoff) q.lte('game_date', cutoff);
+        const { data } = await q;
+        if (data) results.push(...data);
+      }
+      return results;
     };
 
+    const [schedHome, schedAway] = await Promise.all([
+      fetchAllScheduled('home_team_id', allTeamIds),
+      fetchAllScheduled('away_team_id', allTeamIds),
+    ]);
+
+    // Build scheduled game count per team (deduplicated)
+    const schedGameIds = new Set();
+    const schedCountMap = {}; // team_id -> scheduled game count
+    for (const g of [...schedHome, ...schedAway]) {
+      if (schedGameIds.has(g.id)) continue;
+      schedGameIds.add(g.id);
+      schedCountMap[g.home_team_id] = (schedCountMap[g.home_team_id] || 0) + 1;
+      schedCountMap[g.away_team_id] = (schedCountMap[g.away_team_id] || 0) + 1;
+    }
+
     const getScheduled = (tid) => {
-      if (activeSport === 'football') {
-        // Class A football plays 9 games
-        const t = (allTeamsResp.data || []).find(t => t.id === tid);
-        return t?.team_class === 'A' ? 9 : 8;
-      }
-      return SCHEDULE_LENGTH[activeSport] || 14;
+      const count = schedCountMap[tid] || 0;
+      return Math.max(count, 12);
     };
 
     // Load rank from rankings_snapshots for display only

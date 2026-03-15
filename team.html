@@ -256,11 +256,12 @@ function logoEl(url, name, lg) {
 }
 
 function healsCalc(games, tid, smap, regEnd) {
-  const reg = games.filter(g => !g.is_tournament && g.game_date <= regEnd && g.status === 'final');
+  const reg = games.filter(g => !g.is_tournament && g.game_date <= regEnd && g.status !== 'cancelled');
   const denom = Math.max(reg.length, 12);
   let piSum = 0, healSum = 0;
   const details = {};
   for (const g of reg) {
+    if (g.status !== 'final') continue;
     const ih = g.home_team_id === tid;
     const oid = ih ? g.away_team_id : g.home_team_id;
     const ms = ih ? g.home_score : g.away_score;
@@ -274,8 +275,9 @@ function healsCalc(games, tid, smap, regEnd) {
     healSum += contrib;
     details[`${g.game_date}_${oid}`] = { wp: pyth(ms, os), contrib, oppPI: opi };
   }
-  const pi = reg.length === 0 ? 1.0 : piSum / denom;
-  return { pi, heals: healSum * 10, played: reg.length, denom, details };
+  const played = reg.filter(g => g.status === 'final').length;
+  const pi = played === 0 ? 1.0 : piSum / denom;
+  return { pi, heals: healSum * 10, played, denom, details };
 }
 
 async function load() {
@@ -309,7 +311,7 @@ async function load() {
     const [oppTeams, oppCls, oppGames, siblings] = await Promise.all([
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
       oppIds.length ? sb(`team_classifications?team_id=in.(${idList})&select=team_id,classes(name)`) : [],
-      oppIds.length ? sb(`games?or=(home_team_id.in.(${idList}),away_team_id.in.(${idList}))&sport_id=eq.${team.sport_id}&status=eq.final&is_tournament=eq.false&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,game_date`) : [],
+      oppIds.length ? sb(`games?or=(home_team_id.in.(${idList}),away_team_id.in.(${idList}))&sport_id=eq.${team.sport_id}&is_tournament=eq.false&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,game_date,status`) : [],
       sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&sport_id=eq.${team.sport_id}&select=id,school_name,gender&limit=1`)
     ]);
 
@@ -321,21 +323,22 @@ async function load() {
     for (const c of oppCls) clsMap[c.team_id] = c.classes?.name || 'A';
 
     // Calculate each opponent's PI from their actual game results
-    // PI = sum of win values / max(games played, 12); zero wins = 1.0
+    // PI = sum of win values / max(scheduled non-cancelled games before cutoff, 12)
     const oppPIMap = {};
     for (const oid of oppIds) {
       const og = oppGames.filter(g => g.home_team_id === oid || g.away_team_id === oid);
-      let piSum = 0, gamesPlayed = 0;
+      let piSum = 0;
       for (const g of og) {
+        if (g.status === 'cancelled') continue;
         const ih = g.home_team_id === oid;
         const ms = ih ? g.home_score : g.away_score;
         const os = ih ? g.away_score : g.home_score;
         if (ms == null || os == null) continue;
-        gamesPlayed++;
         if (ms > os) piSum += (WVALS[clsMap[oid]] || 36);
       }
-      const denom12 = Math.max(gamesPlayed, 12);
-      oppPIMap[oid] = gamesPlayed === 0 ? 1.0 : piSum / denom12;
+      const scheduled = og.filter(g => g.status !== 'cancelled').length;
+      const denom12 = Math.max(scheduled, 12);
+      oppPIMap[oid] = scheduled === 0 ? 1.0 : piSum / denom12;
     }
 
     // smap used for logo/name/rank display only — rank from allSnaps

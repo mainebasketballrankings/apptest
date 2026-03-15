@@ -326,6 +326,18 @@ async function load() {
     }
     const getScheduled = (id) => Math.max(schedCountMap[id] || 0, 12);
 
+    console.log('DEBUG sport:', sport, 'regEnd:', regEnd);
+    console.log('DEBUG allSportFinalGames count:', allSportFinalGames.length);
+    console.log('DEBUG allSportScheduled count:', allSportScheduled.length);
+    console.log('DEBUG schedCountMap for tid:', schedCountMap[tid], '-> getScheduled:', getScheduled(tid));
+    for (const g of allSportScheduled) {
+      if (seenSched.has(g.id)) continue;
+      seenSched.add(g.id);
+      schedCountMap[g.home_team_id] = (schedCountMap[g.home_team_id] || 0) + 1;
+      schedCountMap[g.away_team_id] = (schedCountMap[g.away_team_id] || 0) + 1;
+    }
+    const getScheduled = (id) => Math.max(schedCountMap[id] || 0, 12);
+
     // Collect all unique team IDs from sport games for class lookup
     const allSportTeamIds = [...new Set(allSportFinalGames.flatMap(g => [g.home_team_id, g.away_team_id]))];
     const allSportIdList = allSportTeamIds.join(',');
@@ -362,6 +374,9 @@ async function load() {
       }
       oppPIMap[oid] = piSum / getScheduled(oid);
     }
+    console.log('DEBUG oppPIMap sample (first 3):', Object.entries(oppPIMap).slice(0,3));
+    console.log('DEBUG clsMap sample (first 3):', Object.entries(clsMap).slice(0,3));
+    }
 
     // smap: logo/name/rank for display, PI from computed oppPIMap
     const smap = {};
@@ -393,6 +408,7 @@ async function load() {
     const rRegion = stats?.rank_region || null;
 
     const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd, getScheduled);
+    console.log('DEBUG healsCalc result: pi', pi, 'heals', heals, 'played', played, 'denom', denom);
 
     let wins = 0, losses = 0, pointDiff = 0;
     for (const g of games) {

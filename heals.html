@@ -253,6 +253,7 @@
     }
 
     .gl-result.W { color: var(--green); }
+    .gl-result.T { color: var(--gold); }
     .gl-result.L { color: var(--red); }
 
     .gl-date {
@@ -716,7 +717,7 @@
 
     // Season end date cutoffs to exclude playoffs
     const SEASON_CUTOFFS = {
-      'basketball':  '2026-02-20',
+      'basketball':  '2026-02-28',  // end of regular season before tournament
       'baseball':    '2025-06-04',
       'softball':    '2025-06-04',
       'lacrosse':    '2025-06-06',
@@ -810,22 +811,25 @@
       );
       let sumWinPts = 0, wins = 0, played = 0;
       teamAllGames.forEach(g => {
-        const isHome  = g.home_team?.id === tid;
-        const myScore = isHome ? g.home_score : g.away_score;
+        const isHome   = g.home_team?.id === tid;
+        const myScore  = isHome ? g.home_score : g.away_score;
         const oppScore = isHome ? g.away_score : g.home_score;
         if (myScore === null || oppScore === null) return;
         played++;
+        const opp = isHome ? g.away_team : g.home_team;
+        const oppClass = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
+        const fullPts  = WIN_PTS[oppClass] || 36;
         if (myScore > oppScore) {
           wins++;
-          const opp = isHome ? g.away_team : g.home_team;
-          const oppClass = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
-          sumWinPts += WIN_PTS[oppClass] || 36;
+          sumWinPts += fullPts;        // full points for a win
+        } else if (myScore === oppScore) {
+          sumWinPts += fullPts / 2;    // half points for a tie
         }
       });
       const snap = snapMap[tid];
       const scheduled = snap?.scheduled || played;
       const denom = Math.max(scheduled, 12);
-      const pi = wins === 0 ? 1.0 : sumWinPts / denom;
+      const pi = (wins === 0 && sumWinPts === 0) ? 1.0 : sumWinPts / denom;
       piMap[tid] = pi;
       return pi;
     };
@@ -845,30 +849,37 @@
         const myScore   = isHome ? g.home_score : g.away_score;
         const oppScore  = isHome ? g.away_score : g.home_score;
         const won       = myScore > oppScore;
+        const tied      = myScore === oppScore && myScore !== null;
         const oppClass  = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
-        const oppPI     = opp?.id ? calcPI(opp.id) : 1.0;  // calculated PI, not snapshots
-        const oppRank   = snapMap[opp?.id]?.rank || null;   // rank from snapshots for display
-        const winPts    = WIN_PTS[oppClass] || 36;
+        const oppPI     = opp?.id ? calcPI(opp.id) : 1.0;
+        const oppRank   = snapMap[opp?.id]?.rank || null;
+        const fullPts   = WIN_PTS[oppClass] || 36;
+        const winPts    = tied ? fullPts / 2 : fullPts;  // half for tie
         const atHome    = !isHome && !g.is_neutral_site;
 
-        return { g, opp, myScore, oppScore, won, oppClass, oppPI, oppRank, winPts, atHome, isNeutral: g.is_neutral_site };
+        return { g, opp, myScore, oppScore, won, tied, oppClass, oppPI, oppRank, winPts, atHome, isNeutral: g.is_neutral_site };
       });
 
       const wins   = gameDetails.filter(d => d.won).length;
-      const losses = gameDetails.filter(d => !d.won).length;
-      const played = wins + losses;
+      const ties   = gameDetails.filter(d => d.tied).length;
+      const losses = gameDetails.filter(d => !d.won && !d.tied).length;
+      const played = wins + losses + ties;
       const snapInfo = snapMap[team.id];
       const scheduled = snapInfo?.scheduled || played;
       const denom  = Math.max(scheduled, 12);
 
-      // PI = use already-calculated value from piMap
-      const pi = piMap[team.id] ?? (wins === 0 ? 1.0 : gameDetails.filter(d => d.won).reduce((s, d) => s + d.winPts, 0) / denom);
+      // PI = already calculated in piMap (includes ties)
+      const pi = piMap[team.id] ?? 1.0;
 
-      // Heal = sum of beaten opponents' PI / denom
-      const sumOppPI = gameDetails.filter(d => d.won).reduce((s, d) => s + d.oppPI, 0);
+      // Heal = sum of (won oppPI + 0.5 * tied oppPI) / denom * 10
+      const sumOppPI = gameDetails.reduce((s, d) => {
+        if (d.won)  return s + d.oppPI;
+        if (d.tied) return s + d.oppPI / 2;
+        return s;
+      }, 0);
       const heal = (sumOppPI / denom) * 10;
 
-      return { team, gameDetails, wins, losses, pi, heal, denom };
+      return { team, gameDetails, wins, losses, ties, pi, heal, denom };
     });
 
     // Sort by Heal desc
@@ -966,7 +977,8 @@
   }
 
   function renderDetail(entry) {
-    const { team, gameDetails, wins, losses, pi, heal, denom } = entry;
+    const { team, gameDetails, wins, losses, ties, pi, heal, denom } = entry;
+    const record = (ties || 0) > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
 
     let lines = '';
     gameDetails.forEach(d => {
@@ -977,7 +989,7 @@
       const piStr   = d.oppPI ? d.oppPI.toFixed(2) : '—';
       const unplayed = d.myScore === null || d.oppScore === null;
       const scoreStr = unplayed ? dateStr : `${d.myScore}-${d.oppScore}`;
-      const res = unplayed ? 'U' : (d.won ? 'W' : 'L');
+      const res = unplayed ? 'U' : (d.won ? 'W' : d.tied ? 'T' : 'L');
 
       const wp = winPct(d.myScore, d.oppScore);
       const wpPct = wp !== null ? (wp * 100).toFixed(1) : null;
@@ -1019,7 +1031,7 @@
     return `<div class="detail-inner">
       <div class="detail-header">
         <span class="detail-team-name">${team.school_name}</span>
-        <span class="detail-summary">${wins}-${losses} &nbsp;|&nbsp; ${pi.toFixed(4)} PI &nbsp;|&nbsp; ${heal.toFixed(4)} Heals &nbsp;|&nbsp; <span style="${diffColor};font-weight:700">${diffStr}</span></span>
+        <span class="detail-summary">${record} &nbsp;|&nbsp; ${pi.toFixed(4)} PI &nbsp;|&nbsp; ${heal.toFixed(4)} Heals &nbsp;|&nbsp; <span style="${diffColor};font-weight:700">${diffStr}</span></span>
       </div>
       <div class="game-list">${lines}</div>
       <div class="detail-note">[Win%] · Opp PI in brackets · Denominator: ${denom}</div>

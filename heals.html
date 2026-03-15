@@ -602,7 +602,8 @@
         .from('teams')
         .select('team_class, team_region')
         .eq('sport_id', SPORT_IDS[activeSport])
-        .not('team_class', 'is', null);
+        .not('team_class', 'is', null)
+        .neq('team_class', '0');
 
       // Build unique class+region combos
       const seen = new Map();
@@ -706,8 +707,8 @@
       return;
     }
 
-    // Filter out teams without class (co-op teams that didn't play)
-    teams = teams.filter(t => t.team_class || t.class);
+    // Filter out teams without class or with class '0' (unclassified/co-op)
+    teams = teams.filter(t => (t.team_class || t.class) && (t.team_class || t.class) !== '0');
 
     const teamIds = teams.map(t => t.id);
     const season  = SPORT_SEASON[activeSport];

@@ -424,7 +424,42 @@
 
     .si-extras { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 
-    .si-clock-row { display: flex; gap: 8px; align-items: center; }
+    .si-clock-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .si-pills { display: flex; gap: 4px; }
+    .si-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.3px;
+      padding: 6px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--gray);
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+      line-height: 1;
+    }
+    .si-pill.active {
+      background: var(--black);
+      border-color: var(--black);
+      color: #fff;
+    }
+    .si-vb-pts {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--gray);
+    }
+    .si-vb-pts input {
+      width: 48px !important;
+      text-align: center;
+      font-family: 'Barlow Condensed', sans-serif !important;
+      font-weight: 700 !important;
+      font-size: 14px !important;
+    }
 
     .si-select {
       background: var(--white);
@@ -778,13 +813,53 @@
 
     container.querySelectorAll('.score-form').forEach(f => {
       f.addEventListener('submit', handleSubmit);
+      const sport = f.dataset.sport;
+
+      // Quarter-based sports: hide clock when no-time period selected
       const periodSel = f.querySelector('select[name="period"]');
       const timeInput = f.querySelector('input[name="clock_time"]');
       if (periodSel && timeInput) {
+        const noTimePeriods = ['Halftime', 'End Q4', 'Final', ''];
         periodSel.addEventListener('change', () => {
-          const noTime = ['Halftime', 'End Q4', 'Final', ''].includes(periodSel.value);
-          timeInput.style.display = noTime ? 'none' : '';
+          timeInput.style.display = noTimePeriods.includes(periodSel.value) ? 'none' : '';
         });
+      }
+
+      // Baseball/softball: pill buttons + inning select → hidden period field
+      const pills = f.querySelectorAll('.si-pill[data-half]');
+      if (pills.length) {
+        let activeHalf = '';
+        pills.forEach(pill => {
+          pill.addEventListener('click', () => {
+            pills.forEach(p => p.classList.remove('active'));
+            if (activeHalf === pill.dataset.half) {
+              activeHalf = '';
+            } else {
+              pill.classList.add('active');
+              activeHalf = pill.dataset.half;
+            }
+            syncBaseballPeriod(f, activeHalf);
+          });
+        });
+        const inningSel = f.querySelector('select[name="inning"]');
+        if (inningSel) {
+          inningSel.addEventListener('change', () => syncBaseballPeriod(f, activeHalf));
+        }
+      }
+
+      // Volleyball: game select + pts → hidden period field
+      const vbGame = f.querySelector('select[name="vb_game"]');
+      if (vbGame) {
+        const syncVb = () => {
+          const g = vbGame.value;
+          const hp = f.querySelector('input[name="vb_home_pts"]')?.value.trim();
+          const ap = f.querySelector('input[name="vb_away_pts"]')?.value.trim();
+          let val = g || '';
+          if (g && g !== 'Final' && hp !== '' && ap !== '') val += ` (${hp}–${ap})`;
+          if (f.querySelector('input[name="period"]')) f.querySelector('input[name="period"]').value = val;
+        };
+        vbGame.addEventListener('change', syncVb);
+        f.querySelectorAll('input[name="vb_home_pts"], input[name="vb_away_pts"]').forEach(i => i.addEventListener('input', syncVb));
       }
     });
   }
@@ -849,6 +924,69 @@
       return `<a href="${url}" target="_blank" rel="noopener" title="Watch live" style="color:var(--green2);font-size:18px;line-height:1;text-decoration:none">▶</a>`;
     }
     return `<a href="${url}" target="_blank" rel="noopener" title="Watch on ${alt}"><img class="stream-icon" src="${src}" alt="${alt}" /></a>`;
+  }
+
+  function periodClockHTML(sport) {
+    if (sport === 'soccer') {
+      return `
+        <select name="period" class="si-select">
+          <option value="">Period / Status</option>
+          <option value="1st Half">1st Half</option>
+          <option value="Halftime">Halftime</option>
+          <option value="2nd Half">2nd Half</option>
+          <option value="OT">OT</option>
+          <option value="Final">Final</option>
+        </select>
+        <input type="text" name="clock_time" class="si-time" placeholder="40:00" pattern="^([0-9]{1,3}:[0-5][0-9])?$" title="Format: 40:00" />`;
+    }
+    if (sport === 'baseball' || sport === 'softball') {
+      const inningOpts = [1,2,3,4,5,6,7,8,9,10].map(i =>
+        `<option value="${i}">${i}${i > 7 ? ' (extra)' : ''}</option>`).join('');
+      return `
+        <select name="inning" class="si-select" style="flex:0 0 auto;width:auto;">
+          <option value="">Inning</option>
+          ${inningOpts}
+          <option value="F">Final</option>
+        </select>
+        <input type="hidden" name="period" value="" />
+        <div class="si-pills">
+          <button type="button" class="si-pill" data-half="Top">▲ Top</button>
+          <button type="button" class="si-pill" data-half="Mid">Mid</button>
+          <button type="button" class="si-pill" data-half="Bot">▼ Bot</button>
+        </div>`;
+    }
+    if (sport === 'volleyball') {
+      return `
+        <select name="vb_game" class="si-select" style="flex:0 0 auto;width:auto;">
+          <option value="">Game</option>
+          <option value="G1">Game 1</option>
+          <option value="G2">Game 2</option>
+          <option value="G3">Game 3</option>
+          <option value="G4">Game 4</option>
+          <option value="G5">Game 5</option>
+          <option value="Final">Final</option>
+        </select>
+        <input type="hidden" name="period" value="" />
+        <div class="si-vb-pts">
+          <input type="number" name="vb_home_pts" min="0" max="99" placeholder="0" class="si-time" />
+          <span>–</span>
+          <input type="number" name="vb_away_pts" min="0" max="99" placeholder="0" class="si-time" />
+        </div>`;
+    }
+    // Default: basketball, football, lacrosse, field-hockey
+    return `
+      <select name="period" class="si-select">
+        <option value="">Period / Status</option>
+        <option value="Q1">Q1</option>
+        <option value="Q2">Q2</option>
+        <option value="Halftime">Halftime</option>
+        <option value="Q3">Q3</option>
+        <option value="Q4">Q4</option>
+        <option value="OT">OT</option>
+        <option value="End Q4">End Q4</option>
+        <option value="Final">Final</option>
+      </select>
+      <input type="text" name="clock_time" class="si-time" placeholder="4:00" pattern="^([0-9]{1,2}:[0-5][0-9])?$" title="Format: 4:00" />`;
   }
 
   function card(g, notesMap = {}) {
@@ -926,7 +1064,7 @@
       ${!isFinal ? `
       <div class="submit-panel" id="panel-${g.id}">
         <h4>Submit Score</h4>
-        <form class="score-form" data-id="${g.id}">
+        <form class="score-form" data-id="${g.id}" data-sport="${activeSport}">
           <div class="score-inputs">
             <div class="si-group">
               <label>${home.school_name}</label>
@@ -940,18 +1078,7 @@
           </div>
           <div class="si-extras">
             <div class="si-clock-row">
-              <select name="period" class="si-select">
-                <option value="">Period / Status</option>
-                <option value="Q1">Q1</option>
-                <option value="Q2">Q2</option>
-                <option value="Halftime">Halftime</option>
-                <option value="Q3">Q3</option>
-                <option value="Q4">Q4</option>
-                <option value="OT">OT</option>
-                <option value="End Q4">End Q4</option>
-                <option value="Final">Final</option>
-              </select>
-              <input type="text" name="clock_time" class="si-time" placeholder="4:00" pattern="^([0-9]{1,2}:[0-5][0-9])?$" title="Format: 4:00" />
+              ${periodClockHTML(activeSport)}
             </div>
             <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)"></textarea>
           </div>
@@ -967,6 +1094,16 @@
     </div>`;
   }
 
+  function syncBaseballPeriod(form, activeHalf) {
+    const inningSel = form.querySelector('select[name="inning"]');
+    const hiddenPeriod = form.querySelector('input[name="period"]');
+    if (!inningSel || !hiddenPeriod) return;
+    const inn = inningSel.value;
+    if (!inn) { hiddenPeriod.value = ''; return; }
+    if (inn === 'F') { hiddenPeriod.value = 'Final'; return; }
+    hiddenPeriod.value = activeHalf ? `${activeHalf} ${inn}` : `Inn ${inn}`;
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     const form   = e.target;
@@ -978,9 +1115,9 @@
     const aSc = parseInt(form.away_score.value);
     if (isNaN(hSc) || isNaN(aSc)) return;
 
-    const period    = form.period.value;
-    const clockTime = form.clock_time.value.trim();
-    const noTime    = ['Halftime', 'End Q4', 'Final', ''].includes(period);
+    const period    = form.period ? form.period.value : '';
+    const clockTime = form.clock_time ? form.clock_time.value.trim() : '';
+    const noTime    = ['Halftime', 'End Q4', 'Final', '1st Half', '2nd Half', 'OT', ''].includes(period);
     const gameClock = period
       ? (noTime || !clockTime ? period : `${period} | ${clockTime}`)
       : null;

@@ -45,6 +45,18 @@
     .page-sub { font-size: 16px; color: var(--lgray); margin-bottom: 22px; }
 
     /* REGION SELECTOR */
+    /* SPORT TABS */
+    .sport-tabs {
+      display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .sport-tab {
+      padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer;
+      color: var(--gray); transition: all .15s;
+    }
+    .sport-tab:hover { border-color: #bbb; color: var(--black); }
+    .sport-tab.active { background: var(--black); border-color: var(--black); color: #fff; }
+
     .region-wrap {
       display: flex;
       align-items: center;
@@ -438,8 +450,18 @@
   <div class="page-title">Heal Points</div>
   <div class="page-sub">The Way Heal Points Should Be.</div>
 
+  <div class="sport-tabs" id="sportTabs">
+    <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
+    <button class="sport-tab" data-sport="baseball" data-season="2025">Baseball</button>
+    <button class="sport-tab" data-sport="softball" data-season="2025">Softball</button>
+    <button class="sport-tab" data-sport="lacrosse" data-season="2025">Lacrosse</button>
+    <button class="sport-tab" data-sport="soccer" data-season="2025">Soccer</button>
+    <button class="sport-tab" data-sport="field-hockey" data-season="2025">Field Hockey</button>
+    <button class="sport-tab" data-sport="football" data-season="2025">Football</button>
+  </div>
+
   <div class="region-wrap">
-    <span class="region-label">Region</span>
+    <span class="region-label" id="regionLabel">Region</span>
     <select class="region-select" id="regionSelect">
       <option value="">Loading…</option>
     </select>
@@ -489,57 +511,104 @@
   }
 
   // Win point values by class
-  const WIN_PTS = { A: 40, B: 38, C: 36, D: 34, S: 32 };
+  const WIN_PTS = { A: 40, B: 38, C: 36, D: 34, S: 32, '8': 30 };
+
+  const SPORT_IDS = {
+    'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+    'baseball':     'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+    'softball':     '095c9841-7261-4cb1-824e-6304792b53d0',
+    'lacrosse':     '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'soccer':       'ff80a695-0e78-4432-98f2-141b2b571e0e',
+    'field-hockey': '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
+    'football':     'fa905ca5-f416-409b-81ac-777179ee5576',
+  };
+  const SPORT_SEASON = {
+    'basketball': 2026, 'baseball': 2025, 'softball': 2025,
+    'lacrosse': 2025, 'soccer': 2025, 'field-hockey': 2025, 'football': 2025,
+  };
+  const SPORT_GENDER = {
+    'baseball': 'Boys', 'softball': 'Girls',
+    'field-hockey': 'Girls', 'football': 'Boys',
+  };
 
   let activeGender = 'Boys';
-  let activeRegion = null;
-  let allTeams     = [];   // { team, games, pi, heal, wins, losses }
+  let activeRegion = null;  // for basketball: region UUID; for others: class letter e.g. 'A'
+  let activeSport  = 'basketball';
+  let activeSeason = 2026;
+  let allTeams     = [];
   let expandedTeam = null;
 
-  // ── Load regions for dropdown ──────────────────────────────────
+  // ── Load selector (region for basketball, class for others) ──
   async function loadRegions() {
-    // Get unique class+region combos from team_classifications
-    const { data } = await sb
-      .from('team_classifications')
-      .select('classes ( id, name ), regions ( id, name )')
-      .order('class_id');
+    const sel   = document.getElementById('regionSelect');
+    const label = document.getElementById('regionLabel');
+    sel.innerHTML = '<option value="">Loading…</option>';
 
-    const sel = document.getElementById('regionSelect');
+    // Show/hide gender tabs
+    const singleGender = SPORT_GENDER[activeSport];
+    const genderTabs = document.querySelector('.gender-tabs');
+    if (singleGender) {
+      genderTabs.style.display = 'none';
+      activeGender = singleGender;
+    } else {
+      genderTabs.style.display = '';
+    }
+
     sel.innerHTML = '';
 
-    if (data) {
-      // Build unique class+region pairs, sorted
-      const seen = new Set();
-      const combos = [];
-      data.forEach(tc => {
-        if (!tc.classes || !tc.regions) return;
-        const key = `${tc.classes.name}-${tc.regions.id}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          combos.push({
-            regionId: tc.regions.id,
-            label: `${tc.classes.name} ${tc.regions.name}`,
-            classOrder: tc.classes.name,
-            regionName: tc.regions.name,
-          });
-        }
-      });
+    if (activeSport === 'basketball') {
+      label.textContent = 'Region';
+      const { data } = await sb
+        .from('team_classifications')
+        .select('classes ( id, name ), regions ( id, name )')
+        .order('class_id');
 
-      // Sort: A North, A South, B North, B South, etc.
-      combos.sort((a, b) => {
-        if (a.classOrder !== b.classOrder) return a.classOrder.localeCompare(b.classOrder);
-        return a.regionName.localeCompare(b.regionName);
-      });
+      if (data) {
+        const seen = new Set();
+        const combos = [];
+        data.forEach(tc => {
+          if (!tc.classes || !tc.regions) return;
+          const key = `${tc.classes.name}-${tc.regions.id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            combos.push({
+              regionId: tc.regions.id,
+              label: `${tc.classes.name} ${tc.regions.name}`,
+              classOrder: tc.classes.name,
+              regionName: tc.regions.name,
+            });
+          }
+        });
+        combos.sort((a, b) => {
+          if (a.classOrder !== b.classOrder) return a.classOrder.localeCompare(b.classOrder);
+          return a.regionName.localeCompare(b.regionName);
+        });
+        combos.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.regionId;
+          opt.textContent = c.label;
+          sel.appendChild(opt);
+        });
+        activeRegion = combos[0]?.regionId;
+        if (activeRegion) sel.value = activeRegion;
+      }
+    } else {
+      label.textContent = 'Class';
+      const { data: teamData } = await sb
+        .from('teams')
+        .select('team_class')
+        .eq('sport_id', SPORT_IDS[activeSport])
+        .not('team_class', 'is', null);
 
-      combos.forEach(c => {
+      const classes = [...new Set((teamData || []).map(t => t.team_class))].sort();
+      classes.forEach(cls => {
         const opt = document.createElement('option');
-        opt.value = c.regionId;
-        opt.textContent = c.label;
+        opt.value = cls;
+        opt.textContent = `Class ${cls}`;
         sel.appendChild(opt);
       });
-
-      activeRegion = combos[0]?.regionId;
-      sel.value = activeRegion;
+      activeRegion = classes[0] || null;
+      if (activeRegion) sel.value = activeRegion;
     }
 
     sel.addEventListener('change', () => {
@@ -551,88 +620,109 @@
     loadData();
   }
 
-  // ── Load all teams + games for the selected region/gender ──────
+  // ── Load all teams + games for selected sport/region/class/gender ──
   async function loadData() {
     document.getElementById('tableWrap').innerHTML =
       '<div class="loading"><div class="spinner"></div><span>Calculating…</span></div>';
     try {
 
-    // Get teams in this region
-    const { data: tcData } = await sb
-      .from('team_classifications')
-      .select(`
-        team:team_id ( id, school_name, gender, logo_url ),
-        classes ( name ),
-        regions ( id, name, abbreviation )
-      `)
-      .eq('region_id', activeRegion);
+    let teams = [];
 
-    if (!tcData || !tcData.length) {
-      document.getElementById('tableWrap').innerHTML =
-        '<div class="empty"><h3>No teams found</h3><p>No teams in this region.</p></div>';
-      return;
+    if (activeSport === 'basketball') {
+      // Basketball: get teams via team_classifications + region
+      const { data: tcData } = await sb
+        .from('team_classifications')
+        .select(`
+          team:team_id ( id, school_name, gender, logo_url ),
+          classes ( name ),
+          regions ( id, name, abbreviation )
+        `)
+        .eq('region_id', activeRegion);
+
+      if (!tcData || !tcData.length) {
+        document.getElementById('tableWrap').innerHTML =
+          '<div class="empty"><h3>No teams found</h3><p>No teams in this region.</p></div>';
+        return;
+      }
+      teams = tcData
+        .filter(tc => tc.team?.gender === activeGender)
+        .map(tc => ({ ...tc.team, class: tc.classes?.name, region: tc.regions?.abbreviation }));
+    } else {
+      // Other sports: get teams directly from teams table by sport_id + class + gender
+      const q = sb.from('teams')
+        .select('id, school_name, gender, logo_url, team_class')
+        .eq('sport_id', SPORT_IDS[activeSport])
+        .eq('team_class', activeRegion)  // activeRegion holds class letter for non-basketball
+        .eq('active', true);
+
+      const singleGender = SPORT_GENDER[activeSport];
+      if (singleGender) {
+        q.eq('gender', singleGender);
+      } else {
+        q.eq('gender', activeGender);
+      }
+
+      const { data: teamData } = await q;
+      teams = (teamData || []).map(t => ({ ...t, class: t.team_class }));
     }
-
-    const teams = tcData
-      .filter(tc => tc.team?.gender === activeGender)
-      .map(tc => ({ ...tc.team, class: tc.classes?.name, region: tc.regions?.abbreviation }));
 
     if (!teams.length) {
       document.getElementById('tableWrap').innerHTML =
-        '<div class="empty"><h3>No teams</h3><p>No ' + activeGender + ' teams in this region.</p></div>';
+        '<div class="empty"><h3>No teams</h3><p>No teams found for this selection.</p></div>';
       return;
     }
 
     const teamIds = teams.map(t => t.id);
+    const season  = SPORT_SEASON[activeSport];
+    const sportId = SPORT_IDS[activeSport];
 
-    // Get all regular season games involving these teams (exclude tournament/playoff)
-    const { data: gamesData } = await sb
-      .from('games')
-      .select(`
-        id, game_date, game_time, home_score, away_score, is_neutral_site, status,
-        home_team:home_team_id ( id, school_name, logo_url,
-          team_classifications ( classes ( name ) ) ),
-        away_team:away_team_id ( id, school_name, logo_url,
-          team_classifications ( classes ( name ) ) )
-      `)
+    // Game select — basketball uses team_classifications for oppClass, others use team_class
+    const gameSelect = activeSport === 'basketball'
+      ? `id, game_date, home_score, away_score, is_neutral_site, status,
+         home_team:home_team_id ( id, school_name, logo_url,
+           team_classifications ( classes ( name ) ) ),
+         away_team:away_team_id ( id, school_name, logo_url,
+           team_classifications ( classes ( name ) ) )`
+      : `id, game_date, home_score, away_score, is_neutral_site, status,
+         home_team:home_team_id ( id, school_name, logo_url, team_class ),
+         away_team:away_team_id ( id, school_name, logo_url, team_class )`;
+
+    const { data: homeGames } = await sb.from('games')
+      .select(gameSelect)
       .in('home_team_id', teamIds)
+      .eq('sport_id', sportId)
+      .eq('season_year', season)
       .eq('status', 'final')
       .eq('is_tournament', false)
-      .lte('game_date', '2026-02-05')
       .order('game_date', { ascending: true });
 
-    const { data: awayGames } = await sb
-      .from('games')
-      .select(`
-        id, game_date, game_time, home_score, away_score, is_neutral_site, status,
-        home_team:home_team_id ( id, school_name, logo_url,
-          team_classifications ( classes ( name ) ) ),
-        away_team:away_team_id ( id, school_name, logo_url,
-          team_classifications ( classes ( name ) ) )
-      `)
+    const { data: awayGames } = await sb.from('games')
+      .select(gameSelect)
       .in('away_team_id', teamIds)
+      .eq('sport_id', sportId)
+      .eq('season_year', season)
       .eq('status', 'final')
       .eq('is_tournament', false)
-      .lte('game_date', '2026-02-05')
       .order('game_date', { ascending: true });
 
-    // Merge and deduplicate
     const seen = new Set();
     const games = [];
-    for (const g of [...(gamesData || []), ...(awayGames || [])]) {
+    for (const g of [...(homeGames || []), ...(awayGames || [])]) {
       if (!seen.has(g.id)) { seen.add(g.id); games.push(g); }
     }
 
-    // Also load ALL teams' PI values from rankings_snapshot for opponent PI display
+    // Load PI + rank from rankings_snapshots filtered by sport + season
     const { data: snapData } = await sb
       .from('rankings_snapshots')
-      .select('team_id, pi, rank_overall')
+      .select('team_id, pi, rank_overall, team:team_id(sport_id)')
+      .eq('season_year', season)
       .order('snapshot_date', { ascending: false });
 
-    const snapMap = {}; // team_id -> { pi, rank }
+    const snapMap = {};
     if (snapData) {
       snapData.forEach(s => {
-        if (!snapMap[s.team_id]) snapMap[s.team_id] = { pi: s.pi, rank: s.rank_overall };
+        if (s.team?.sport_id === sportId && !snapMap[s.team_id])
+          snapMap[s.team_id] = { pi: s.pi, rank: s.rank_overall };
       });
     }
 
@@ -648,7 +738,7 @@
         const myScore   = isHome ? g.home_score : g.away_score;
         const oppScore  = isHome ? g.away_score : g.home_score;
         const won       = myScore > oppScore;
-        const oppClass  = opp?.team_classifications?.[0]?.classes?.name || 'A';
+        const oppClass  = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
         const oppPIData = snapMap[opp?.id];
         const oppPI     = oppPIData?.pi || 1.0;
         const oppRank   = oppPIData?.rank || null;
@@ -839,6 +929,23 @@
       activeGender = btn.dataset.gender;
       expandedTeam = null;
       loadData();
+    });
+  });
+
+  document.querySelectorAll('.sport-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeSport  = btn.dataset.sport;
+      activeSeason = parseInt(btn.dataset.season);
+      activeRegion = null;
+      expandedTeam = null;
+      // Reset gender to Boys for multi-gender sports
+      if (!SPORT_GENDER[activeSport]) {
+        activeGender = 'Boys';
+        document.querySelectorAll('.gender-tab').forEach(b => b.classList.toggle('active', b.dataset.gender === 'Boys'));
+      }
+      loadRegions();
     });
   });
 

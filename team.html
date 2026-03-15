@@ -228,7 +228,7 @@ const WVALS = { A: 40, B: 38, C: 36, D: 34, S: 32 };
 
 async function sb(path) {
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
-    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Prefer': 'count=none' }
   });
   if (!r.ok) { const b = await r.text(); throw new Error(`${r.status} — ${b}`); }
   return r.json();

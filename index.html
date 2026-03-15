@@ -1043,7 +1043,9 @@
         ? `<div class="card-meta">${notes}</div>`
         : `<div class="card-meta" style="color:var(--lgray)">—</div>`;
     } else if (isLive) {
-      footerMeta = `<div class="card-meta">${eventEl}${g.game_clock || 'Live'}</div>`;
+      footerMeta = notes
+        ? `<div class="card-meta">${notes}</div>`
+        : `<div class="card-meta"></div>`;
     } else {
       footerMeta = `<div class="card-meta">${eventEl}${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>`;
     }

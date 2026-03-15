@@ -240,10 +240,11 @@ const fpc = n => n != null ? (+n * 100).toFixed(1) + '%' : '—';
 const fdt = d => { if (!d) return ''; const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
 
 function pyth(a, b) {
-  if (!a || !b) return null;
+  if (a == null || b == null) return null;
+  if (a === 0 && b === 0) return 0.5;
   const d = a - b;
   if (d > 35) return 1; if (d < -35) return 0;
-  const pa = Math.pow(a,11), pb = Math.pow(b,11);
+  const pa = Math.pow(a + 0.5, 11), pb = Math.pow(b + 0.5, 11);
   return pa / (pa + pb);
 }
 
@@ -325,7 +326,7 @@ async function load() {
 
     const [allSportFinalGames, allSportScheduled] = await Promise.all([
       fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,status`),
-      fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&season_year=eq.${seasonYear}&select=id,home_team_id,away_team_id`)
+      fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id`)
     ]);
 
     const oppIds = [...new Set(games.map(g => g.home_team_id === tid ? g.away_team_id : g.home_team_id))];

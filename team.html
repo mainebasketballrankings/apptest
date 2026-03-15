@@ -397,6 +397,15 @@ async function load() {
       const oppName = tmap[oid]?.school_name || '';
       if (oppName.includes('Messalonskee') || oppName.includes('Cape Elizabeth')) {
         console.log(`DEBUG ${oppName}: games=${og.length} piSum=${piSum} scheduled=${schedCountMap[oid]} getScheduled=${getScheduled(oid)} PI=${oppPIMap[oid].toFixed(4)} totalFinal=${dedupedFinalGames.length}`);
+        og.forEach(g => {
+          const ih = g.home_team_id === oid;
+          const ms = ih ? g.home_score : g.away_score;
+          const os = ih ? g.away_score : g.home_score;
+          const teamObj = ih ? g.home_team : g.away_team;
+          const cls = teamObj?.team_classifications?.[0]?.classes?.name || teamObj?.team_class || clsMap[oid] || 'A';
+          const result = ms > os ? 'W' : ms === os ? 'T' : 'L';
+          console.log(`  ${g.home_team_id === oid ? 'H' : 'A'} ${ms}-${os} ${result} cls=${cls}`);
+        });
       }
     }
 

@@ -1026,19 +1026,33 @@
     document.getElementById('datePicker').value = toISO(currentDate);
   }
 
+  async function navigateTo(date) {
+    syncDatePicker();
+    const { sport, season } = await detectDefaultSport();
+    if (sport !== activeSport) {
+      activeSport  = sport;
+      activeSeason = season;
+      document.querySelectorAll('.sport-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.sport === sport);
+      });
+      buildFilterButtons();
+    }
+    loadGames(date);
+  }
+
   document.getElementById('prevDay').addEventListener('click', () => {
-    currentDate.setDate(currentDate.getDate() - 1); syncDatePicker(); loadGames(currentDate);
+    currentDate.setDate(currentDate.getDate() - 1); navigateTo(currentDate);
   });
   document.getElementById('nextDay').addEventListener('click', () => {
-    currentDate.setDate(currentDate.getDate() + 1); syncDatePicker(); loadGames(currentDate);
+    currentDate.setDate(currentDate.getDate() + 1); navigateTo(currentDate);
   });
   document.getElementById('todayBtn').addEventListener('click', () => {
-    currentDate = new Date(); syncDatePicker(); loadGames(currentDate);
+    currentDate = new Date(); navigateTo(currentDate);
   });
   document.getElementById('datePicker').addEventListener('change', e => {
     const [y,m,d] = e.target.value.split('-').map(Number);
     currentDate = new Date(y, m-1, d);
-    loadGames(currentDate);
+    navigateTo(currentDate);
   });
 
   document.getElementById('sportTabs').addEventListener('click', e => {
@@ -1091,7 +1105,6 @@
   detectDefaultSport().then(({ sport, season }) => {
     activeSport  = sport;
     activeSeason = season;
-    // Update active sport tab
     document.querySelectorAll('.sport-tab').forEach(b => {
       b.classList.toggle('active', b.dataset.sport === sport);
     });

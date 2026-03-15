@@ -1074,14 +1074,15 @@
   async function detectDefaultSport() {
     const ds = toISO(currentDate);
     for (const { sport, season } of SPORT_PRIORITY) {
-      const { count } = await sb.from('games')
-        .select('id', { count: 'exact', head: true })
+      const { data } = await sb.from('games')
+        .select('id')
         .eq('game_date', ds)
         .eq('sport_id', SPORT_IDS[sport])
-        .eq('season_year', season);
-      if (count && count > 0) return { sport, season };
+        .eq('season_year', season)
+        .limit(1);
+      if (data && data.length > 0) return { sport, season };
     }
-    return { sport: 'basketball', season: 2026 }; // fallback
+    return { sport: 'basketball', season: 2026 };
   }
 
   syncDatePicker();

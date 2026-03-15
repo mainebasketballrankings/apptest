@@ -1033,9 +1033,20 @@
     const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
     const streamUrl = g.stream_url || home.stream_url || null;
-    const eventEl = g.event ? `<br/><span style="color:var(--green);font-weight:700">${g.event}</span>` : '';
+    const eventEl = g.event ? `<span style="color:var(--green);font-weight:700">${g.event} · </span>` : '';
     const notes = notesMap[g.id];
-    const notesEl = notes ? `<div class="card-notes">${notes}</div>` : '';
+
+    // State-aware footer meta
+    let footerMeta;
+    if (isFinal) {
+      footerMeta = notes
+        ? `<div class="card-meta">${notes}</div>`
+        : `<div class="card-meta" style="color:var(--lgray)">—</div>`;
+    } else if (isLive) {
+      footerMeta = `<div class="card-meta">${eventEl}${g.game_clock || 'Live'}</div>`;
+    } else {
+      footerMeta = `<div class="card-meta">${eventEl}${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>`;
+    }
 
     return `
     <div class="game-card ${isLive ? 'live' : ''}">
@@ -1057,7 +1068,7 @@
         </div>
       </div>
       <div class="card-footer">
-        <div class="card-meta">${loc}${eventEl}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}${notesEl}</div>
+        ${footerMeta}
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
           ${streamIconEl(streamUrl)}

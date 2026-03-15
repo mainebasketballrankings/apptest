@@ -324,19 +324,22 @@ async function load() {
       return results;
     }
 
-    const [allSportFinalGames, allSportScheduled] = await Promise.all([
+    const [allSportFinalGames, allSportScheduled, classifiedTeams] = await Promise.all([
       fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,status,home_team:home_team_id(id,team_class,team_classifications(classes(name))),away_team:away_team_id(id,team_class,team_classifications(classes(name)))`),
-      fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id`)
+      fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id`),
+      sb(`teams?sport_id=eq.${team.sport_id}&team_class=not.is.null&team_class=neq.0&select=id&limit=500`)
     ]);
 
     const oppIds = [...new Set(games.map(g => g.home_team_id === tid ? g.away_team_id : g.home_team_id))];
     const idList = oppIds.join(',');
 
-    // Build scheduled count map per team (deduplicated by game id)
+    // Build scheduled count map per team (deduplicated, only classified teams)
     const schedCountMap = {};
     const seenSched = new Set();
+    const classifiedIds = new Set((classifiedTeams || []).map(t => t.id));
     for (const g of allSportScheduled) {
       if (seenSched.has(g.id)) continue;
+      if (!classifiedIds.has(g.home_team_id) || !classifiedIds.has(g.away_team_id)) continue;
       seenSched.add(g.id);
       schedCountMap[g.home_team_id] = (schedCountMap[g.home_team_id] || 0) + 1;
       schedCountMap[g.away_team_id] = (schedCountMap[g.away_team_id] || 0) + 1;

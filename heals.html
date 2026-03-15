@@ -803,8 +803,11 @@
       }
       return SCHEDULE_LENGTH[activeSport] || 14;
     };
+
+    // Load rank from rankings_snapshots for display only
+    const { data: snapData } = await sb
       .from('rankings_snapshots')
-      .select('team_id, rank_overall, raw_data, team:team_id(sport_id)')
+      .select('team_id, rank_overall, team:team_id(sport_id)')
       .eq('season_year', season)
       .order('snapshot_date', { ascending: false });
 

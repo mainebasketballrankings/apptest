@@ -255,9 +255,9 @@ function logoEl(url, name, lg) {
   return `<div class="${fb}">${ch}</div>`;
 }
 
-function healsCalc(games, tid, smap, regEnd) {
+function healsCalc(games, tid, smap, regEnd, getScheduled) {
   const reg = games.filter(g => !g.is_tournament && g.game_date <= regEnd && g.status !== 'cancelled');
-  const denom = Math.max(reg.length, 12);
+  const denom = getScheduled(tid);
   let piSum = 0, healSum = 0;
   const details = {};
   for (const g of reg) {
@@ -302,18 +302,32 @@ async function load() {
     const regEnd  = SPORT_REG_END[sport];
     const [pfLbl, paLbl] = SPORT_SCORE_LABELS[sport] || ['Avg PF', 'Avg PA'];
 
-    const [games, classData, allSnaps, allSportGames] = await Promise.all([
+    const [games, classData, allSnaps, allSportFinalGames, allSportScheduled] = await Promise.all([
       sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&order=game_date.asc&select=*`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       sb(`rankings_snapshots?order=snapshot_date.desc&select=team_id,heal_points,rank_overall,rank_class&limit=2000`),
-      sb(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,game_date,status`)
+      // Final games only — for PI win point calculation
+      sb(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,status`),
+      // All non-cancelled games — for denominator count
+      sb(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id`)
     ]);
 
     const oppIds = [...new Set(games.map(g => g.home_team_id === tid ? g.away_team_id : g.home_team_id))];
     const idList = oppIds.join(',');
 
+    // Build scheduled count map per team (deduplicated by game id)
+    const schedCountMap = {};
+    const seenSched = new Set();
+    for (const g of allSportScheduled) {
+      if (seenSched.has(g.id)) continue;
+      seenSched.add(g.id);
+      schedCountMap[g.home_team_id] = (schedCountMap[g.home_team_id] || 0) + 1;
+      schedCountMap[g.away_team_id] = (schedCountMap[g.away_team_id] || 0) + 1;
+    }
+    const getScheduled = (id) => Math.max(schedCountMap[id] || 0, 12);
+
     // Collect all unique team IDs from sport games for class lookup
-    const allSportTeamIds = [...new Set(allSportGames.flatMap(g => [g.home_team_id, g.away_team_id]))];
+    const allSportTeamIds = [...new Set(allSportFinalGames.flatMap(g => [g.home_team_id, g.away_team_id]))];
     const allSportIdList = allSportTeamIds.join(',');
 
     const [oppTeams, allSportTeams, siblings] = await Promise.all([
@@ -335,21 +349,18 @@ async function load() {
     // PI = sum of win values / max(scheduled non-cancelled games before cutoff, 12)
     const oppPIMap = {};
     for (const oid of oppIds) {
-      const og = allSportGames.filter(g => g.home_team_id === oid || g.away_team_id === oid);
+      const og = allSportFinalGames.filter(g => g.home_team_id === oid || g.away_team_id === oid);
       let piSum = 0;
       const wval = WVALS[clsMap[oid]] || 36;
       for (const g of og) {
-        if (g.status === 'cancelled') continue;
         const ih = g.home_team_id === oid;
         const ms = ih ? g.home_score : g.away_score;
         const os = ih ? g.away_score : g.home_score;
         if (ms == null || os == null) continue;
-        if (ms > os)      piSum += wval;
+        if (ms > os)        piSum += wval;
         else if (ms === os) piSum += wval * 0.5;
       }
-      const scheduled = og.filter(g => g.status !== 'cancelled').length;
-      const denom12 = Math.max(scheduled, 12);
-      oppPIMap[oid] = scheduled === 0 ? 1.0 : piSum / denom12;
+      oppPIMap[oid] = piSum / getScheduled(oid);
     }
 
     // smap: logo/name/rank for display, PI from computed oppPIMap
@@ -381,7 +392,7 @@ async function load() {
     // For now use rank_class as proxy until rank_region is added to snapshot push.
     const rRegion = stats?.rank_region || null;
 
-    const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd);
+    const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd, getScheduled);
 
     let wins = 0, losses = 0, pointDiff = 0;
     for (const g of games) {

@@ -717,15 +717,20 @@
 
     // Season end date cutoffs to exclude playoffs
     const SEASON_CUTOFFS = {
-      'basketball':  '2026-02-06',  // regular season ended Feb 5, 2026
+      'basketball':  '2026-02-06',
       'baseball':    '2025-06-04',
       'softball':    '2025-06-04',
       'lacrosse':    '2025-06-06',
       'soccer':      '2025-10-22',
       'field-hockey':'2025-10-22',
-      'football':    '2025-11-30',
     };
-    const cutoff = SEASON_CUTOFFS[activeSport];
+
+    // Football cutoff varies by class (A ends Oct 31, others Oct 25)
+    const getFootballCutoff = (cls) => cls === 'A' ? '2025-11-01' : '2025-10-26';
+    // Use the cutoff for the currently selected class
+    const effectiveCutoff = activeSport === 'football'
+      ? getFootballCutoff(activeRegion?.split('|')[0] || activeRegion)
+      : cutoff;
 
     // Game select — basketball uses team_classifications for oppClass, others use team_class
     const gameSelect = activeSport === 'basketball'
@@ -762,7 +767,7 @@
           .eq('status', 'final')
           .eq('is_tournament', false)
           .order('game_date', { ascending: true });
-        if (cutoff) q.lte('game_date', cutoff);
+        if (effectiveCutoff) q.lte('game_date', effectiveCutoff);
         const { data } = await q;
         if (data) results.push(...data);
       }
@@ -798,7 +803,7 @@
           .eq('season_year', season)
           .eq('is_tournament', false)
           .neq('status', 'cancelled');
-        if (cutoff) q.lte('game_date', cutoff);
+        if (effectiveCutoff) q.lte('game_date', effectiveCutoff);
         const { data } = await q;
         if (data) results.push(...data);
       }

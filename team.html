@@ -307,9 +307,9 @@ async function load() {
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       sb(`rankings_snapshots?order=snapshot_date.desc&select=team_id,heal_points,rank_overall,rank_class&limit=2000`),
       // Final games only — for PI win point calculation
-      sb(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,status`),
-      // All non-cancelled games — for denominator count
-      sb(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id`)
+      sb(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&season_year=eq.${sport === 'basketball' ? 2026 : 2025}&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,status`),
+      // All non-cancelled games — for denominator count (no date cutoff, full season)
+      sb(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&season_year=eq.${sport === 'basketball' ? 2026 : 2025}&select=id,home_team_id,away_team_id`)
     ]);
 
     const oppIds = [...new Set(games.map(g => g.home_team_id === tid ? g.away_team_id : g.home_team_id))];

@@ -706,9 +706,24 @@
       return;
     }
 
+    // Filter out teams without class (co-op teams that didn't play)
+    teams = teams.filter(t => t.team_class || t.class);
+
     const teamIds = teams.map(t => t.id);
     const season  = SPORT_SEASON[activeSport];
     const sportId = SPORT_IDS[activeSport];
+
+    // Season end date cutoffs to exclude playoffs
+    const SEASON_CUTOFFS = {
+      'basketball':  '2026-02-20',
+      'baseball':    '2025-06-04',
+      'softball':    '2025-06-04',
+      'lacrosse':    '2025-06-06',
+      'soccer':      '2025-10-22',
+      'field-hockey':'2025-10-22',
+      'football':    '2025-11-30',
+    };
+    const cutoff = SEASON_CUTOFFS[activeSport];
 
     // Game select — basketball uses team_classifications for oppClass, others use team_class
     const gameSelect = activeSport === 'basketball'
@@ -721,41 +736,56 @@
          home_team:home_team_id ( id, school_name, logo_url, team_class ),
          away_team:away_team_id ( id, school_name, logo_url, team_class )`;
 
-    // For basketball, exclude post-season games using date cutoff
-    const bballCutoff = activeSport === 'basketball' ? '2026-02-20' : null;
-
-    const homeQ = sb.from('games')
-      .select(gameSelect)
-      .in('home_team_id', teamIds)
+    // Load ALL games for this sport/season to calculate opponent PI correctly
+    // We need games involving ALL teams in the sport, not just the selected region
+    const allTeamsResp = await sb.from('teams')
+      .select('id, team_class')
       .eq('sport_id', sportId)
-      .eq('season_year', season)
-      .eq('status', 'final')
-      .eq('is_tournament', false)
-      .order('game_date', { ascending: true });
-    if (bballCutoff) homeQ.lte('game_date', bballCutoff);
-    const { data: homeGames } = await homeQ;
+      .eq('active', true)
+      .not('team_class', 'is', null);
+    const allTeamIds = (allTeamsResp.data || []).map(t => t.id);
 
-    const awayQ = sb.from('games')
-      .select(gameSelect)
-      .in('away_team_id', teamIds)
-      .eq('sport_id', sportId)
-      .eq('season_year', season)
-      .eq('status', 'final')
-      .eq('is_tournament', false)
-      .order('game_date', { ascending: true });
-    if (bballCutoff) awayQ.lte('game_date', bballCutoff);
-    const { data: awayGames } = await awayQ;
+    // Fetch all games for this sport in chunks if needed
+    const fetchGames = async (field, ids) => {
+      const results = [];
+      const chunkSize = 100;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize);
+        const q = sb.from('games')
+          .select(gameSelect)
+          .in(field, chunk)
+          .eq('sport_id', sportId)
+          .eq('season_year', season)
+          .eq('status', 'final')
+          .eq('is_tournament', false)
+          .order('game_date', { ascending: true });
+        if (cutoff) q.lte('game_date', cutoff);
+        const { data } = await q;
+        if (data) results.push(...data);
+      }
+      return results;
+    };
+
+    const [allHomeGames, allAwayGames] = await Promise.all([
+      fetchGames('home_team_id', allTeamIds),
+      fetchGames('away_team_id', allTeamIds),
+    ]);
 
     const seen = new Set();
-    const games = [];
-    for (const g of [...(homeGames || []), ...(awayGames || [])]) {
-      if (!seen.has(g.id)) { seen.add(g.id); games.push(g); }
+    const allGames = [];
+    for (const g of [...allHomeGames, ...allAwayGames]) {
+      if (!seen.has(g.id)) { seen.add(g.id); allGames.push(g); }
     }
 
-    // Load PI + rank from rankings_snapshots filtered by sport + season
+    // Filter to just the selected region's teams for display
+    const games = allGames.filter(g =>
+      teamIds.includes(g.home_team?.id) || teamIds.includes(g.away_team?.id)
+    );
+
+    // Load rank from rankings_snapshots for display only (NOT for PI calculation)
     const { data: snapData } = await sb
       .from('rankings_snapshots')
-      .select('team_id, pi, rank_overall, raw_data, team:team_id(sport_id)')
+      .select('team_id, rank_overall, raw_data, team:team_id(sport_id)')
       .eq('season_year', season)
       .order('snapshot_date', { ascending: false });
 
@@ -763,11 +793,46 @@
     if (snapData) {
       snapData.forEach(s => {
         if (s.team?.sport_id === sportId && !snapMap[s.team_id])
-          snapMap[s.team_id] = { pi: s.pi, rank: s.rank_overall, scheduled: s.raw_data?.games };
+          snapMap[s.team_id] = { rank: s.rank_overall, scheduled: s.raw_data?.games };
       });
     }
 
-    // ── Calculate PI and Heal for each team ───────────────────────
+    // ── Step 1: Calculate PI for ALL teams in the sport ──────────
+    // PI = sum of win point values / max(scheduled, 12); 0 wins -> 1.0
+    const piMap = {}; // team_id -> calculated PI
+
+    // Get scheduled game count per team from snapMap
+    const calcPI = (tid) => {
+      if (piMap[tid] !== undefined) return piMap[tid];
+      const teamAllGames = allGames.filter(g =>
+        g.home_team?.id === tid || g.away_team?.id === tid
+      );
+      let sumWinPts = 0, wins = 0, played = 0;
+      teamAllGames.forEach(g => {
+        const isHome  = g.home_team?.id === tid;
+        const myScore = isHome ? g.home_score : g.away_score;
+        const oppScore = isHome ? g.away_score : g.home_score;
+        if (myScore === null || oppScore === null) return;
+        played++;
+        if (myScore > oppScore) {
+          wins++;
+          const opp = isHome ? g.away_team : g.home_team;
+          const oppClass = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
+          sumWinPts += WIN_PTS[oppClass] || 36;
+        }
+      });
+      const snap = snapMap[tid];
+      const scheduled = snap?.scheduled || played;
+      const denom = Math.max(scheduled, 12);
+      const pi = wins === 0 ? 1.0 : sumWinPts / denom;
+      piMap[tid] = pi;
+      return pi;
+    };
+
+    // Pre-calculate PI for all teams
+    allTeamIds.forEach(tid => calcPI(tid));
+
+    // ── Step 2: Calculate Heal Points for each team in selected region ──
     allTeams = teams.map(team => {
       const teamGames = games.filter(g =>
         g.home_team?.id === team.id || g.away_team?.id === team.id
@@ -780,9 +845,8 @@
         const oppScore  = isHome ? g.away_score : g.home_score;
         const won       = myScore > oppScore;
         const oppClass  = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
-        const oppPIData = snapMap[opp?.id];
-        const oppPI     = oppPIData?.pi || 1.0;
-        const oppRank   = oppPIData?.rank || null;
+        const oppPI     = opp?.id ? calcPI(opp.id) : 1.0;  // calculated PI, not snapshots
+        const oppRank   = snapMap[opp?.id]?.rank || null;   // rank from snapshots for display
         const winPts    = WIN_PTS[oppClass] || 36;
         const atHome    = !isHome && !g.is_neutral_site;
 
@@ -792,14 +856,12 @@
       const wins   = gameDetails.filter(d => d.won).length;
       const losses = gameDetails.filter(d => !d.won).length;
       const played = wins + losses;
-      // Denominator = scheduled games from SILK (stored in raw_data.games), min 12
       const snapInfo = snapMap[team.id];
       const scheduled = snapInfo?.scheduled || played;
       const denom  = Math.max(scheduled, 12);
 
-      // PI = sum of win point values / denom; if 0 wins -> 1.000
-      const sumWinPts = gameDetails.filter(d => d.won).reduce((s, d) => s + d.winPts, 0);
-      const pi = wins === 0 ? 1.0 : sumWinPts / denom;
+      // PI = use already-calculated value from piMap
+      const pi = piMap[team.id] ?? (wins === 0 ? 1.0 : gameDetails.filter(d => d.won).reduce((s, d) => s + d.winPts, 0) / denom);
 
       // Heal = sum of beaten opponents' PI / denom
       const sumOppPI = gameDetails.filter(d => d.won).reduce((s, d) => s + d.oppPI, 0);

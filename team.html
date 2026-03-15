@@ -325,7 +325,7 @@ async function load() {
     }
 
     const [allSportFinalGames, allSportScheduled] = await Promise.all([
-      fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,status,home_team:home_team_id(id,team_class,team_classifications(classes(name))),away_team:away_team_id(id,team_class,team_classifications(classes(name)))`),
+      fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id,home_score,away_score,status,home_team:home_team_id(id,team_class,team_classifications(classes(name))),away_team:away_team_id(id,team_class,team_classifications(classes(name)))`),
       fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id`)
     ]);
 
@@ -365,8 +365,14 @@ async function load() {
 
     // Calculate each opponent's PI from their full schedule using embedded class
     const oppPIMap = {};
+    const seenFinal = new Set();
+    const dedupedFinalGames = allSportFinalGames.filter(g => {
+      if (seenFinal.has(g.id)) return false;
+      seenFinal.add(g.id);
+      return true;
+    });
     for (const oid of oppIds) {
-      const og = allSportFinalGames.filter(g => g.home_team_id === oid || g.away_team_id === oid);
+      const og = dedupedFinalGames.filter(g => g.home_team_id === oid || g.away_team_id === oid);
       let piSum = 0;
       for (const g of og) {
         const ih = g.home_team_id === oid;
@@ -381,10 +387,9 @@ async function load() {
         else if (ms === os) piSum += wval * 0.5;
       }
       oppPIMap[oid] = piSum / getScheduled(oid);
-      // Debug: log details for any opponent named Messalonskee
       const oppName = tmap[oid]?.school_name || '';
       if (oppName.includes('Messalonskee') || oppName.includes('Cape Elizabeth')) {
-        console.log(`DEBUG ${oppName}: games=${og.length} piSum=${piSum} scheduled=${schedCountMap[oid]} getScheduled=${getScheduled(oid)} PI=${oppPIMap[oid].toFixed(4)}`);
+        console.log(`DEBUG ${oppName}: games=${og.length} piSum=${piSum} scheduled=${schedCountMap[oid]} getScheduled=${getScheduled(oid)} PI=${oppPIMap[oid].toFixed(4)} totalFinal=${dedupedFinalGames.length}`);
       }
     }
 

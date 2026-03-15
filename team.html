@@ -291,7 +291,7 @@ async function load() {
 
   try {
     const [teams, snap] = await Promise.all([
-      sb(`teams?id=eq.${tid}&select=id,school_name,logo_url,gender,sport_id`),
+      sb(`teams?id=eq.${tid}&select=id,school_name,logo_url,gender,sport_id,team_class`),
       sb(`rankings_snapshots?team_id=eq.${tid}&order=snapshot_date.desc&limit=1&select=*`)
     ]);
     if (!teams.length) { app.innerHTML = `<div class="error-state">Team not found.</div>`; return; }
@@ -399,7 +399,7 @@ async function load() {
 
     const sibling   = siblings[0] || null;
     const myClass   = classData[0];
-    const className = myClass?.classes?.name || '';
+    const className = myClass?.classes?.name || team.team_class || '';
     const regionName= myClass?.regions?.name || '';
     const classReg  = [className, regionName].filter(Boolean).join(' ');
 

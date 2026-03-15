@@ -593,21 +593,40 @@
         if (activeRegion) sel.value = activeRegion;
       }
     } else {
-      label.textContent = 'Class';
+      // Sports with regions use team_region; LAX has no regions
+      const SPORTS_NO_REGION = ['lacrosse'];
+      const hasRegion = !SPORTS_NO_REGION.includes(activeSport);
+      label.textContent = hasRegion ? 'Region' : 'Class';
+
       const { data: teamData } = await sb
         .from('teams')
-        .select('team_class')
+        .select('team_class, team_region')
         .eq('sport_id', SPORT_IDS[activeSport])
         .not('team_class', 'is', null);
 
-      const classes = [...new Set((teamData || []).map(t => t.team_class))].sort();
-      classes.forEach(cls => {
+      // Build unique class+region combos
+      const seen = new Map();
+      (teamData || []).forEach(t => {
+        const key = hasRegion
+          ? `${t.team_class}|${t.team_region || ''}`
+          : t.team_class;
+        if (!seen.has(key)) seen.set(key, {
+          value: key,
+          label: hasRegion && t.team_region
+            ? `Class ${t.team_class} ${t.team_region}`
+            : `Class ${t.team_class}`,
+          sortKey: `${t.team_class}${t.team_region || ''}`,
+        });
+      });
+
+      const combos = [...seen.values()].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      combos.forEach(c => {
         const opt = document.createElement('option');
-        opt.value = cls;
-        opt.textContent = `Class ${cls}`;
+        opt.value = c.value;
+        opt.textContent = c.label;
         sel.appendChild(opt);
       });
-      activeRegion = classes[0] || null;
+      activeRegion = combos[0]?.value || null;
       if (activeRegion) sel.value = activeRegion;
     }
 
@@ -648,12 +667,27 @@
         .filter(tc => tc.team?.gender === activeGender)
         .map(tc => ({ ...tc.team, class: tc.classes?.name, region: tc.regions?.abbreviation }));
     } else {
-      // Other sports: get teams directly from teams table by sport_id + class + gender
+      // Other sports: get teams by sport_id + team_class + team_region
+      const SPORTS_NO_REGION = ['lacrosse'];
+      const hasRegion = !SPORTS_NO_REGION.includes(activeSport);
+
+      // activeRegion is 'A|North' for sports with regions, 'A' for LAX
+      let classFilter, regionFilter;
+      if (hasRegion && activeRegion && activeRegion.includes('|')) {
+        [classFilter, regionFilter] = activeRegion.split('|');
+      } else {
+        classFilter  = activeRegion;
+        regionFilter = null;
+      }
+
       const q = sb.from('teams')
-        .select('id, school_name, gender, logo_url, team_class')
+        .select('id, school_name, gender, logo_url, team_class, team_region')
         .eq('sport_id', SPORT_IDS[activeSport])
-        .eq('team_class', activeRegion)  // activeRegion holds class letter for non-basketball
+        .eq('team_class', classFilter)
         .eq('active', true);
+
+      if (regionFilter) q.eq('team_region', regionFilter);
+      else if (hasRegion) q.is('team_region', null);
 
       const singleGender = SPORT_GENDER[activeSport];
       if (singleGender) {
@@ -687,7 +721,10 @@
          home_team:home_team_id ( id, school_name, logo_url, team_class ),
          away_team:away_team_id ( id, school_name, logo_url, team_class )`;
 
-    const { data: homeGames } = await sb.from('games')
+    // For basketball, exclude post-season games using date cutoff
+    const bballCutoff = activeSport === 'basketball' ? '2026-02-20' : null;
+
+    const homeQ = sb.from('games')
       .select(gameSelect)
       .in('home_team_id', teamIds)
       .eq('sport_id', sportId)
@@ -695,8 +732,10 @@
       .eq('status', 'final')
       .eq('is_tournament', false)
       .order('game_date', { ascending: true });
+    if (bballCutoff) homeQ.lte('game_date', bballCutoff);
+    const { data: homeGames } = await homeQ;
 
-    const { data: awayGames } = await sb.from('games')
+    const awayQ = sb.from('games')
       .select(gameSelect)
       .in('away_team_id', teamIds)
       .eq('sport_id', sportId)
@@ -704,6 +743,8 @@
       .eq('status', 'final')
       .eq('is_tournament', false)
       .order('game_date', { ascending: true });
+    if (bballCutoff) awayQ.lte('game_date', bballCutoff);
+    const { data: awayGames } = await awayQ;
 
     const seen = new Set();
     const games = [];
@@ -714,7 +755,7 @@
     // Load PI + rank from rankings_snapshots filtered by sport + season
     const { data: snapData } = await sb
       .from('rankings_snapshots')
-      .select('team_id, pi, rank_overall, team:team_id(sport_id)')
+      .select('team_id, pi, rank_overall, raw_data, team:team_id(sport_id)')
       .eq('season_year', season)
       .order('snapshot_date', { ascending: false });
 
@@ -722,7 +763,7 @@
     if (snapData) {
       snapData.forEach(s => {
         if (s.team?.sport_id === sportId && !snapMap[s.team_id])
-          snapMap[s.team_id] = { pi: s.pi, rank: s.rank_overall };
+          snapMap[s.team_id] = { pi: s.pi, rank: s.rank_overall, scheduled: s.raw_data?.games };
       });
     }
 
@@ -751,7 +792,10 @@
       const wins   = gameDetails.filter(d => d.won).length;
       const losses = gameDetails.filter(d => !d.won).length;
       const played = wins + losses;
-      const denom  = Math.max(played, 12);
+      // Denominator = scheduled games from SILK (stored in raw_data.games), min 12
+      const snapInfo = snapMap[team.id];
+      const scheduled = snapInfo?.scheduled || played;
+      const denom  = Math.max(scheduled, 12);
 
       // PI = sum of win point values / denom; if 0 wins -> 1.000
       const sumWinPts = gameDetails.filter(d => d.won).reduce((s, d) => s + d.winPts, 0);
@@ -761,7 +805,7 @@
       const sumOppPI = gameDetails.filter(d => d.won).reduce((s, d) => s + d.oppPI, 0);
       const heal = (sumOppPI / denom) * 10;
 
-      return { team, gameDetails, wins, losses, pi, heal };
+      return { team, gameDetails, wins, losses, pi, heal, denom };
     });
 
     // Sort by Heal desc
@@ -859,9 +903,7 @@
   }
 
   function renderDetail(entry) {
-    const { team, gameDetails, wins, losses, pi, heal } = entry;
-    const played = wins + losses;
-    const denom  = Math.max(played, 12);
+    const { team, gameDetails, wins, losses, pi, heal, denom } = entry;
 
     let lines = '';
     gameDetails.forEach(d => {

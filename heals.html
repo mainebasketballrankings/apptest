@@ -738,13 +738,14 @@
          home_team:home_team_id ( id, school_name, logo_url, team_class ),
          away_team:away_team_id ( id, school_name, logo_url, team_class )`;
 
-    // Load ALL games for this sport/season to calculate opponent PI correctly
-    // We need games involving ALL teams in the sport, not just the selected region
-    const allTeamsResp = await sb.from('teams')
+    // Load ALL teams for this sport to calculate opponent PI correctly
+    const allTeamsQuery = sb.from('teams')
       .select('id, team_class')
       .eq('sport_id', sportId)
-      .eq('active', true)
-      .not('team_class', 'is', null);
+      .eq('active', true);
+    // For non-basketball sports, exclude teams with no class (co-op/unclassified)
+    if (activeSport !== 'basketball') allTeamsQuery.not('team_class', 'is', null).neq('team_class', '0');
+    const allTeamsResp = await allTeamsQuery;
     const allTeamIds = (allTeamsResp.data || []).map(t => t.id);
 
     // Fetch all games for this sport in chunks if needed

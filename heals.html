@@ -724,10 +724,10 @@
       'soccer':      '2025-10-22',
       'field-hockey':'2025-10-22',
     };
+    const cutoff = SEASON_CUTOFFS[activeSport] || null;
 
     // Football cutoff varies by class (A ends Oct 31, others Oct 25)
     const getFootballCutoff = (cls) => cls === 'A' ? '2025-11-01' : '2025-10-26';
-    // Use the cutoff for the currently selected class
     const effectiveCutoff = activeSport === 'football'
       ? getFootballCutoff(activeRegion?.split('|')[0] || activeRegion)
       : cutoff;

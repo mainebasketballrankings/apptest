@@ -527,7 +527,7 @@ async function load() {
 
       // Heal data
       const hkey = `${g.game_date}_${oid}`;
-      const hd   = (!g.is_tournament && g.game_date <= REG_END) ? details[hkey] : null;
+      const hd   = (!g.is_tournament && g.game_date <= regEnd) ? details[hkey] : null;
       const wp   = hd?.wp ?? null;
       const wpPct= wp !== null ? (wp*100).toFixed(1)+'%' : '';
       const barW = wp !== null ? (wp*100).toFixed(1) : 0;

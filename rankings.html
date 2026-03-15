@@ -387,20 +387,23 @@
     const sportId = SPORT_IDS[activeSport];
 
     // Get most recent snapshot date for this sport+season
+    // Fetch recent snapshots with team sport_id, filter client-side
     const { data: dateData } = await sb
       .from('rankings_snapshots')
       .select('snapshot_date, team:team_id(sport_id)')
       .eq('season_year', activeSeason)
       .order('snapshot_date', { ascending: false })
-      .limit(1);
+      .limit(500);
 
-    if (!dateData || !dateData.length) {
+    const sportDateData = (dateData || []).filter(r => r.team?.sport_id === sportId);
+
+    if (!sportDateData.length) {
       document.getElementById('tableWrap').innerHTML =
         '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
       return;
     }
 
-    const latestDate = dateData[0].snapshot_date;
+    const latestDate = sportDateData[0].snapshot_date;
     document.getElementById('updatedNote').textContent =
       'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 

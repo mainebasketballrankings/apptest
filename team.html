@@ -306,24 +306,47 @@ async function load() {
     const oppIds = [...new Set(games.map(g => g.home_team_id === tid ? g.away_team_id : g.home_team_id))];
     const idList = oppIds.join(',');
 
-    const [oppTeams, oppSnaps, oppCls, siblings] = await Promise.all([
+    const [oppTeams, oppCls, oppGames, siblings] = await Promise.all([
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
-      oppIds.length ? sb(`rankings_snapshots?team_id=in.(${idList})&order=snapshot_date.desc&select=team_id,pi,rank_class,rank_overall&limit=2000`) : [],
       oppIds.length ? sb(`team_classifications?team_id=in.(${idList})&select=team_id,classes(name)`) : [],
+      oppIds.length ? sb(`games?or=(home_team_id.in.(${idList}),away_team_id.in.(${idList}))&sport_id=eq.${team.sport_id}&status=eq.final&is_tournament=eq.false&game_date=lte.${regEnd}&select=home_team_id,away_team_id,home_score,away_score,game_date`) : [],
       sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&sport_id=eq.${team.sport_id}&select=id,school_name,gender&limit=1`)
     ]);
 
     const tmap = {};
     for (const t of oppTeams) tmap[t.id] = t;
 
-    const smap = {};
-    for (const s of oppSnaps) {
-      if (!smap[s.team_id]) {
-        const t = tmap[s.team_id] || {};
-        smap[s.team_id] = { ...s, _name: t.school_name, _logo: t.logo_url, _class: null };
+    // Build class map for opponents
+    const clsMap = {};
+    for (const c of oppCls) clsMap[c.team_id] = c.classes?.name || 'A';
+
+    // Calculate each opponent's PI from their actual game results
+    // PI = sum of win values / max(games played, 12); zero wins = 1.0
+    const oppPIMap = {};
+    for (const oid of oppIds) {
+      const og = oppGames.filter(g => g.home_team_id === oid || g.away_team_id === oid);
+      let piSum = 0, gamesPlayed = 0;
+      for (const g of og) {
+        const ih = g.home_team_id === oid;
+        const ms = ih ? g.home_score : g.away_score;
+        const os = ih ? g.away_score : g.home_score;
+        if (ms == null || os == null) continue;
+        gamesPlayed++;
+        if (ms > os) piSum += (WVALS[clsMap[oid]] || 36);
       }
+      const denom12 = Math.max(gamesPlayed, 12);
+      oppPIMap[oid] = gamesPlayed === 0 ? 1.0 : piSum / denom12;
     }
-    for (const c of oppCls) { if (smap[c.team_id]) smap[c.team_id]._class = c.classes?.name; }
+
+    // smap used for logo/name/rank display only — rank from allSnaps
+    const smap = {};
+    for (const t of oppTeams) {
+      smap[t.id] = { _name: t.school_name, _logo: t.logo_url, _class: clsMap[t.id] || 'A', pi: oppPIMap[t.id] || 1.0 };
+    }
+    // Merge rank info from allSnaps
+    for (const s of allSnaps) {
+      if (smap[s.team_id]) { smap[s.team_id].rank_overall = s.rank_overall; smap[s.team_id].rank_class = s.rank_class; }
+    }
 
     const sibling   = siblings[0] || null;
     const myClass   = classData[0];

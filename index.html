@@ -626,6 +626,7 @@
     <button class="sport-tab" data-sport="soccer" data-season="2025">Soccer</button>
     <button class="sport-tab" data-sport="field-hockey" data-season="2025">Field Hockey</button>
     <button class="sport-tab" data-sport="football" data-season="2025">Football</button>
+    <button class="sport-tab" data-sport="volleyball" data-season="2025">Volleyball</button>
   </div>
 
   <div class="filters" id="filters">
@@ -657,6 +658,7 @@
     'soccer':       'ff80a695-0e78-4432-98f2-141b2b571e0e',
     'field-hockey': '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
     'football':     'fa905ca5-f416-409b-81ac-777179ee5576',
+    'volleyball':   'e26b0fcc-e661-4945-8b2d-063c37ace44f',
   };
   const SPORT_CLASSES = {
     'basketball':   ['A','B','C','D','S'],
@@ -666,6 +668,7 @@
     'soccer':       ['A','B','C','D','8'],
     'field-hockey': ['A','B','C'],
     'football':     ['A','B','C','D','8L','8S'],
+    'volleyball':   ['A','B','C','D'],
   };
   // Sports locked to a single gender (no Boys/Girls sub-tabs)
   const SPORT_GENDER = {
@@ -1220,6 +1223,7 @@
     { sport: 'soccer',     season: 2025 },
     { sport: 'lacrosse',   season: 2025 },
     { sport: 'field-hockey', season: 2025 },
+    { sport: 'volleyball',   season: 2025 },
   ];
 
   async function detectDefaultSport() {

@@ -266,12 +266,15 @@ function healsCalc(games, tid, smap, regEnd) {
     const oid = ih ? g.away_team_id : g.home_team_id;
     const ms = ih ? g.home_score : g.away_score;
     const os = ih ? g.away_score : g.home_score;
-    const won = ms > os;
     const opp = smap[oid] || {};
     const cls = opp._class || 'A';
     const opi = opp.pi || 1.0;
-    if (won) piSum += (WVALS[cls] || 36);
-    const contrib = won ? opi / denom : 0;
+    const wval = WVALS[cls] || 36;
+    const tied = ms === os;
+    const won  = ms > os;
+    if (won)  piSum += wval;
+    if (tied) piSum += wval * 0.5;
+    const contrib = won ? opi / denom : tied ? (opi * 0.5) / denom : 0;
     healSum += contrib;
     details[`${g.game_date}_${oid}`] = { wp: pyth(ms, os), contrib, oppPI: opi };
   }
@@ -313,18 +316,20 @@ async function load() {
     const allSportTeamIds = [...new Set(allSportGames.flatMap(g => [g.home_team_id, g.away_team_id]))];
     const allSportIdList = allSportTeamIds.join(',');
 
-    const [oppTeams, allSportCls, siblings] = await Promise.all([
-      oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
-      allSportTeamIds.length ? sb(`team_classifications?team_id=in.(${allSportIdList})&select=team_id,classes(name)`) : [],
+    const [oppTeams, allSportTeams, siblings] = await Promise.all([
+      oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender,team_class`) : [],
+      allSportTeamIds.length ? sb(`teams?id=in.(${allSportIdList})&select=id,team_class,team_classifications(classes(name))`) : [],
       sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&sport_id=eq.${team.sport_id}&select=id,school_name,gender&limit=1`)
     ]);
 
     const tmap = {};
     for (const t of oppTeams) tmap[t.id] = t;
 
-    // Build class map for ALL sport teams (needed for accurate opponent PI)
+    // Build class map for ALL sport teams — prefer team_class, fall back to team_classifications
     const clsMap = {};
-    for (const c of allSportCls) clsMap[c.team_id] = c.classes?.name || 'A';
+    for (const t of allSportTeams) {
+      clsMap[t.id] = t.team_class || t.team_classifications?.[0]?.classes?.name || 'A';
+    }
 
     // Calculate each opponent's PI from their full schedule
     // PI = sum of win values / max(scheduled non-cancelled games before cutoff, 12)
@@ -332,13 +337,15 @@ async function load() {
     for (const oid of oppIds) {
       const og = allSportGames.filter(g => g.home_team_id === oid || g.away_team_id === oid);
       let piSum = 0;
+      const wval = WVALS[clsMap[oid]] || 36;
       for (const g of og) {
         if (g.status === 'cancelled') continue;
         const ih = g.home_team_id === oid;
         const ms = ih ? g.home_score : g.away_score;
         const os = ih ? g.away_score : g.home_score;
         if (ms == null || os == null) continue;
-        if (ms > os) piSum += (WVALS[clsMap[oid]] || 36);
+        if (ms > os)      piSum += wval;
+        else if (ms === os) piSum += wval * 0.5;
       }
       const scheduled = og.filter(g => g.status !== 'cancelled').length;
       const denom12 = Math.max(scheduled, 12);

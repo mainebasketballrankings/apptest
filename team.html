@@ -180,8 +180,51 @@
 <script>
 const SB_URL  = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-const REG_END = '2026-02-05';
-const WVALS   = { A: 40, B: 38, C: 36, D: 34, S: 32 };
+const SPORT_REG_END = {
+  'basketball':    '2026-02-06',
+  'baseball':      '2025-06-04',
+  'softball':      '2025-06-04',
+  'lacrosse':      '2025-06-06',
+  'soccer':        '2025-10-22',
+  'field-hockey':  '2025-10-22',
+  'football':      '2025-11-01',
+  'volleyball':    '2025-11-01',
+};
+
+const SPORT_IDS = {
+  'basketball':    'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+  'baseball':      'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+  'softball':      '095c9841-7261-4cb1-824e-6304792b53d0',
+  'lacrosse':      '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+  'soccer':        'ff80a695-0e78-4432-98f2-141b2b571e0e',
+  'field-hockey':  '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
+  'football':      'fa905ca5-f416-409b-81ac-777179ee5576',
+  'volleyball':    'e26b0fcc-e661-4945-8b2d-063c37ace44f',
+};
+
+const SPORT_NAME = {
+  'basketball':    'Basketball',
+  'baseball':      'Baseball',
+  'softball':      'Softball',
+  'lacrosse':      'Lacrosse',
+  'soccer':        'Soccer',
+  'field-hockey':  'Field Hockey',
+  'football':      'Football',
+  'volleyball':    'Volleyball',
+};
+
+const SPORT_SCORE_LABELS = {
+  'basketball':   ['Avg PF',     'Avg PA'],
+  'football':     ['Avg PF',     'Avg PA'],
+  'soccer':       ['Avg GF',     'Avg GA'],
+  'lacrosse':     ['Avg GF',     'Avg GA'],
+  'field-hockey': ['Avg GF',     'Avg GA'],
+  'baseball':     ['Avg RF',     'Avg RA'],
+  'softball':     ['Avg RF',     'Avg RA'],
+  'volleyball':   ['Avg Sets W', 'Avg Sets L'],
+};
+
+const WVALS = { A: 40, B: 38, C: 36, D: 34, S: 32 };
 
 async function sb(path) {
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -212,8 +255,8 @@ function logoEl(url, name, lg) {
   return `<div class="${fb}">${ch}</div>`;
 }
 
-function healsCalc(games, tid, smap) {
-  const reg = games.filter(g => !g.is_tournament && g.game_date <= REG_END && g.status === 'final');
+function healsCalc(games, tid, smap, regEnd) {
+  const reg = games.filter(g => !g.is_tournament && g.game_date <= regEnd && g.status === 'final');
   const denom = Math.max(reg.length, 12);
   let piSum = 0, healSum = 0;
   const details = {};
@@ -242,15 +285,20 @@ async function load() {
 
   try {
     const [teams, snap] = await Promise.all([
-      sb(`teams?id=eq.${tid}&select=id,school_name,logo_url,gender`),
+      sb(`teams?id=eq.${tid}&select=id,school_name,logo_url,gender,sport_id`),
       sb(`rankings_snapshots?team_id=eq.${tid}&order=snapshot_date.desc&limit=1&select=*`)
     ]);
     if (!teams.length) { app.innerHTML = `<div class="error-state">Team not found.</div>`; return; }
     const team  = teams[0];
     const stats = snap[0] || null;
 
+    // Derive sport slug and regEnd from team.sport_id
+    const sport   = Object.keys(SPORT_IDS).find(k => SPORT_IDS[k] === team.sport_id) || 'basketball';
+    const regEnd  = SPORT_REG_END[sport];
+    const [pfLbl, paLbl] = SPORT_SCORE_LABELS[sport] || ['Avg PF', 'Avg PA'];
+
     const [games, classData, allSnaps] = await Promise.all([
-      sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&order=game_date.asc&select=*`),
+      sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&order=game_date.asc&select=*`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       sb(`rankings_snapshots?order=snapshot_date.desc&select=team_id,heal_points,rank_overall,rank_class&limit=2000`)
     ]);
@@ -262,7 +310,7 @@ async function load() {
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender`) : [],
       oppIds.length ? sb(`rankings_snapshots?team_id=in.(${idList})&order=snapshot_date.desc&select=team_id,pi,rank_class,rank_overall&limit=2000`) : [],
       oppIds.length ? sb(`team_classifications?team_id=in.(${idList})&select=team_id,classes(name)`) : [],
-      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&select=id,school_name,gender&limit=1`)
+      sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&sport_id=eq.${team.sport_id}&select=id,school_name,gender&limit=1`)
     ]);
 
     const tmap = {};
@@ -296,7 +344,7 @@ async function load() {
     // For now use rank_class as proxy until rank_region is added to snapshot push.
     const rRegion = stats?.rank_region || null;
 
-    const { pi, heals, played, denom, details } = healsCalc(games, tid, smap);
+    const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd);
 
     let wins = 0, losses = 0, pointDiff = 0;
     for (const g of games) {
@@ -329,8 +377,8 @@ async function load() {
       <div class="stat-cards">
         <div class="stat-card"><div class="lbl">DIRIGO</div><div class="val grn">${stats ? f2(stats.heal_points) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">SOS</div><div class="val">${stats ? f2(stats.sos) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">Avg PF</div><div class="val">${stats ? f2(stats.avg_pf) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">Avg PA</div><div class="val">${stats ? f2(stats.avg_pa) : '—'}</div></div>
+        <div class="stat-card"><div class="lbl">${pfLbl}</div><div class="val">${stats ? f2(stats.avg_pf) : '—'}</div></div>
+        <div class="stat-card"><div class="lbl">${paLbl}</div><div class="val">${stats ? f2(stats.avg_pa) : '—'}</div></div>
         <div class="stat-card"><div class="lbl">%Perfect</div><div class="val">${stats ? fpc(stats.pct_perfect) : '—'}</div></div>
       </div>`;
 
@@ -514,7 +562,7 @@ async function load() {
 
     const gamesHtml = `
       <div class="games-section">
-        <div class="section-header">Schedule, Results &amp; Heal Points</div>
+        <div class="section-header">${SPORT_NAME[sport] || 'Sport'} Schedule, Results &amp; Heal Points</div>
         <div class="games-wrap">
           <table class="gt">
             <thead><tr>
@@ -541,7 +589,7 @@ async function load() {
             <span class="team-name-lg">${team.school_name}</span>
             ${rankHtml}
           </div>
-          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong></div>
+          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}</div>
           <div class="team-inline-stats">
             <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}</span></span>
             <span class="inline-stat"><span class="inline-lbl">POINT DIFF</span><span class="inline-val ${pointDiff >= 0 ? 'grn' : 'red'}">${diffStr}</span></span>
@@ -553,7 +601,7 @@ async function load() {
       ${oddsHtml}
       ${gamesHtml}`;
 
-    document.title = `${team.school_name} — Maine Basketball Rankings`;
+    document.title = `${team.school_name} ${SPORT_NAME[sport] || ''} — Maine Basketball Rankings`;
 
   } catch (err) {
     console.error(err);

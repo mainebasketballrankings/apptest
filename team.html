@@ -306,7 +306,7 @@ async function load() {
     const [games, classData, allSnaps] = await Promise.all([
       sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&order=game_date.asc&select=*`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
-      sb(`rankings_snapshots?order=snapshot_date.desc&select=team_id,heal_points,rank_overall,rank_class&limit=2000`)
+      sb(`rankings_snapshots?season_year=eq.${sport === 'basketball' ? 2026 : 2025}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,rank_class&limit=2000`)
     ]);
 
     const seasonYear = sport === 'basketball' ? 2026 : 2025;
@@ -357,7 +357,7 @@ async function load() {
 
     const [oppTeams, allSportTeams, siblings] = await Promise.all([
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender,team_class`) : [],
-      allSportTeamIds.length ? sb(`teams?id=in.(${allSportIdList})&select=id,team_class,team_classifications(classes(name))`) : [],
+      allSportTeamIds.length ? sb(`teams?id=in.(${allSportIdList})&select=id,team_class,team_region,team_classifications(classes(name))`) : [],
       sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&sport_id=eq.${team.sport_id}&select=id,school_name,gender&limit=1`)
     ]);
 
@@ -396,7 +396,6 @@ async function load() {
       oppPIMap[oid] = piSum / getScheduled(oid);
       const oppName = tmap[oid]?.school_name || '';
       if (oppName.includes('Messalonskee') || oppName.includes('Cape Elizabeth')) {
-        console.log(`DEBUG ${oppName}: games=${og.length} piSum=${piSum} scheduled=${schedCountMap[oid]} getScheduled=${getScheduled(oid)} PI=${oppPIMap[oid].toFixed(4)} totalFinal=${dedupedFinalGames.length}`);
         og.forEach(g => {
           const ih = g.home_team_id === oid;
           const ms = ih ? g.home_score : g.away_score;
@@ -404,7 +403,6 @@ async function load() {
           const oppObj = ih ? g.away_team : g.home_team;
           const cls = oppObj?.team_classifications?.[0]?.classes?.name || oppObj?.team_class || 'A';
           const result = ms > os ? 'W' : ms === os ? 'T' : 'L';
-          console.log(`  ${ih ? 'H' : 'A'} ${ms}-${os} ${result} oppCls=${cls}`);
         });
       }
     }
@@ -436,7 +434,19 @@ async function load() {
     // rank_class position within class, comparing to opponents we already have.
     // Best approach: use rank_overall within the region subset we build from opponent data.
     // For now use rank_class as proxy until rank_region is added to snapshot push.
-    const rRegion = stats?.rank_region || null;
+    // Region rank: compute from allSnaps filtered to same class+region+gender
+    let rRegion = stats?.rank_region || null;
+    if (!rRegion && className && regionName) {
+      // Build region map from allSportTeams
+      const regionMap = {};
+      for (const t of allSportTeams) regionMap[t.id] = t.team_region || '';
+      // Filter allSnaps to same class+region+gender, sort by heal_points desc
+      const regionSnaps = allSnaps
+        .filter(s => genderTeamIds.has(s.team_id) && clsMap[s.team_id] === className && regionMap[s.team_id] === regionName)
+        .sort((a, b) => (b.heal_points || 0) - (a.heal_points || 0));
+      const pos = regionSnaps.findIndex(s => s.team_id === tid);
+      if (pos !== -1) rRegion = pos + 1;
+    }
 
     const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd, getScheduled);
 
@@ -511,7 +521,6 @@ async function load() {
       const genderNorm = team.gender ? team.gender.charAt(0).toUpperCase() + team.gender.slice(1).toLowerCase() : 'Boys';
       const cutoffKey = `${classReg}|${genderNorm}`;
       const cutoff    = REGION_CUTOFFS[cutoffKey] || { bye: 6, inCutoff: 10 };
-      console.log('Cutoff lookup:', cutoffKey, '->', cutoff);
       const byeCutoff = cutoff.bye;
       const inCutoff  = cutoff.inCutoff;
 

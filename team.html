@@ -386,9 +386,9 @@ async function load() {
         const ms = ih ? g.home_score : g.away_score;
         const os = ih ? g.away_score : g.home_score;
         if (ms == null || os == null) continue;
-        // Get class from embedded team object on the game record
-        const teamObj = ih ? g.home_team : g.away_team;
-        const cls = teamObj?.team_classifications?.[0]?.classes?.name || teamObj?.team_class || clsMap[oid] || 'A';
+        // Get OPPONENT's class — win value depends on who you beat
+        const oppObj = ih ? g.away_team : g.home_team;
+        const cls = oppObj?.team_classifications?.[0]?.classes?.name || oppObj?.team_class || clsMap[ih ? g.away_team_id : g.home_team_id] || 'A';
         const wval = WVALS[cls] || 36;
         if (ms > os)        piSum += wval;
         else if (ms === os) piSum += wval * 0.5;
@@ -401,10 +401,10 @@ async function load() {
           const ih = g.home_team_id === oid;
           const ms = ih ? g.home_score : g.away_score;
           const os = ih ? g.away_score : g.home_score;
-          const teamObj = ih ? g.home_team : g.away_team;
-          const cls = teamObj?.team_classifications?.[0]?.classes?.name || teamObj?.team_class || clsMap[oid] || 'A';
+          const oppObj = ih ? g.away_team : g.home_team;
+          const cls = oppObj?.team_classifications?.[0]?.classes?.name || oppObj?.team_class || 'A';
           const result = ms > os ? 'W' : ms === os ? 'T' : 'L';
-          console.log(`  ${g.home_team_id === oid ? 'H' : 'A'} ${ms}-${os} ${result} cls=${cls}`);
+          console.log(`  ${ih ? 'H' : 'A'} ${ms}-${os} ${result} oppCls=${cls}`);
         });
       }
     }

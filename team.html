@@ -324,18 +324,26 @@ async function load() {
       return results;
     }
 
+    // Get all same-gender team IDs for this sport — needed to filter games correctly
+    const genderTeams = await sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`);
+    const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
+
     const [allSportFinalGames, allSportScheduled] = await Promise.all([
       fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id,home_score,away_score,status,home_team:home_team_id(id,team_class,team_classifications(classes(name))),away_team:away_team_id(id,team_class,team_classifications(classes(name)))`),
       fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=neq.cancelled&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id`)
     ]);
 
+    // Filter to same-gender games only
+    const genderFinalGames = allSportFinalGames.filter(g => genderTeamIds.has(g.home_team_id) && genderTeamIds.has(g.away_team_id));
+    const genderScheduled = allSportScheduled.filter(g => genderTeamIds.has(g.home_team_id) && genderTeamIds.has(g.away_team_id));
+
     const oppIds = [...new Set(games.map(g => g.home_team_id === tid ? g.away_team_id : g.home_team_id))];
     const idList = oppIds.join(',');
 
-    // Build scheduled count map per team (deduplicated by game id)
+    // Build scheduled count map per team (deduplicated by game id, same-gender only)
     const schedCountMap = {};
     const seenSched = new Set();
-    for (const g of allSportScheduled) {
+    for (const g of genderScheduled) {
       if (seenSched.has(g.id)) continue;
       seenSched.add(g.id);
       schedCountMap[g.home_team_id] = (schedCountMap[g.home_team_id] || 0) + 1;
@@ -343,9 +351,8 @@ async function load() {
     }
     const getScheduled = (id) => Math.max(schedCountMap[id] || 0, 12);
 
-
-    // Collect all unique team IDs from sport games for class lookup
-    const allSportTeamIds = [...new Set(allSportFinalGames.flatMap(g => [g.home_team_id, g.away_team_id]))];
+    // Collect all unique team IDs from gender-filtered final games for class lookup
+    const allSportTeamIds = [...new Set(genderFinalGames.flatMap(g => [g.home_team_id, g.away_team_id]))];
     const allSportIdList = allSportTeamIds.join(',');
 
     const [oppTeams, allSportTeams, siblings] = await Promise.all([
@@ -366,7 +373,7 @@ async function load() {
     // Calculate each opponent's PI from their full schedule using embedded class
     const oppPIMap = {};
     const seenFinal = new Set();
-    const dedupedFinalGames = allSportFinalGames.filter(g => {
+    const dedupedFinalGames = genderFinalGames.filter(g => {
       if (seenFinal.has(g.id)) return false;
       seenFinal.add(g.id);
       return true;

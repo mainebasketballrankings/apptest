@@ -1133,12 +1133,14 @@ function doStat(def){
   if(pts&&p){p.pts+=pts;GAME[side].score+=pts;document.getElementById(`${side}-score`).textContent=GAME[side].score;}
   if(def.key==='assist'&&p)p.ast++;
   if((def.key==='o_reb'||def.key==='d_reb')&&p)p.reb++;
-  if(def.key.startsWith('foul_')&&!isTeam&&p){
-    p.fouls++;
+  if(def.key.startsWith('foul_')){
+    if(!isTeam&&p&&def.key!=='foul_technical')p.fouls++;
     GAME[side].fouls++;
     const qi=GAME.period-1;
     GAME.qFouls[side][qi]++;
     updFoulsDisplay(side);
+    const opp=side==='home'?'away':'home';
+    updFoulsDisplay(opp);
   }
   if(def.key==='timeout_full'&&GAME[side].tof>0){GAME[side].tof--;document.getElementById(`${side}-tof`).textContent=GAME[side].tof;}
   if(def.key==='timeout_30sec'&&GAME[side].to3>0){GAME[side].to3--;document.getElementById(`${side}-to3`).textContent=GAME[side].to3;}

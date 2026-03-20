@@ -380,7 +380,7 @@ async function loadSpreads() {
     .select(`
       id, status, stax_index, pick_team, spread,
       home_score, away_score,
-      home_team:home_team_id ( id, school_name, logo_url, sport_id ),
+      home_team:home_team_id ( id, school_name, logo_url, sport_id, gender ),
       away_team:away_team_id ( id, school_name, logo_url )
     `)
     .eq('game_date', ds)
@@ -412,13 +412,15 @@ async function loadSpreads() {
   // Filter out games without valid teams
   const valid = games.filter(g => g.home_team && g.away_team);
 
-  // Group by sport, then by status
+  // Group by sport → gender → status
   const bySport = {};
   for (const g of valid) {
     const sid = g.home_team.sport_id;
-    if (!bySport[sid]) bySport[sid] = { scheduled: [], final: [] };
-    if (g.status === 'final') bySport[sid].final.push(g);
-    else bySport[sid].scheduled.push(g);
+    const gender = g.home_team.gender || 'Boys';
+    if (!bySport[sid]) bySport[sid] = {};
+    if (!bySport[sid][gender]) bySport[sid][gender] = { scheduled: [], final: [] };
+    if (g.status === 'final') bySport[sid][gender].final.push(g);
+    else bySport[sid][gender].scheduled.push(g);
   }
 
   let html = '';
@@ -428,21 +430,30 @@ async function loadSpreads() {
     html = `<div class="empty">No games with picks on this date.</div>`;
   } else {
     for (const sid of sportIds) {
-      const { scheduled, final } = bySport[sid];
       const sportName = SPORT_NAMES[sid] || 'Other';
-      const totalCount = scheduled.length + final.length;
+      const genders = ['Boys', 'Girls'].filter(g => bySport[sid][g]);
+      const totalCount = genders.reduce((n, g) => n + bySport[sid][g].scheduled.length + bySport[sid][g].final.length, 0);
 
       html += `<div class="sport-section">
         <div class="sport-label">${sportName} · ${totalCount} game${totalCount !== 1 ? 's' : ''}</div>`;
 
-      if (scheduled.length) {
-        if (final.length) html += `<div class="status-label">Upcoming</div>`;
-        for (const g of scheduled) html += gameCard(g, snapList);
-      }
+      for (const gender of genders) {
+        const { scheduled, final } = bySport[sid][gender];
+        const hasBoth = genders.length > 1;
 
-      if (final.length) {
-        html += `<div class="status-label">Final</div>`;
-        for (const g of final) html += gameCard(g, snapList);
+        if (hasBoth) {
+          html += `<div class="status-label">${gender}</div>`;
+        }
+
+        if (scheduled.length) {
+          if (final.length) html += `<div class="status-label">${hasBoth ? '↳ ' : ''}Upcoming</div>`;
+          for (const g of scheduled) html += gameCard(g, snapList);
+        }
+
+        if (final.length) {
+          html += `<div class="status-label">${hasBoth ? '↳ ' : ''}Final</div>`;
+          for (const g of final) html += gameCard(g, snapList);
+        }
       }
 
       html += `</div>`;

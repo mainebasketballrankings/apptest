@@ -1425,6 +1425,15 @@ function openBoxScore(){
       totals.stl+=stl;totals.blk+=blk;totals.to+=to;totals.fls+=p.fouls;
     });
 
+    // Add team-mode events (pid===null) to totals
+    const teamEvts=evts.filter(e=>e.side===side&&e.pid==null);
+    totals.reb+=teamEvts.filter(e=>e.key==='o_reb'||e.key==='d_reb').length;
+    totals.ast+=teamEvts.filter(e=>e.key==='assist').length;
+    totals.stl+=teamEvts.filter(e=>e.key==='steal').length;
+    totals.blk+=teamEvts.filter(e=>e.key==='block').length;
+    totals.to+=teamEvts.filter(e=>e.key==='turnover').length;
+    totals.fls+=teamEvts.filter(e=>e.key.startsWith('foul_')).length;
+
     const pct=n=>n===0?'—':`${Math.round(100*n)}%`;
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>TOTALS</td><td>${totals.pts}</td><td>${totals.fgm}/${totals.fga}</td><td>${totals.fga?pct(totals.fgm/totals.fga):'—'}</td><td>${totals.tpm}/${totals.tpa}</td><td>${totals.tpa?pct(totals.tpm/totals.tpa):'—'}</td><td>${totals.ftm}/${totals.fta}</td><td>${totals.fta?pct(totals.ftm/totals.fta):'—'}</td><td>${totals.reb}</td><td>${totals.ast}</td><td>${totals.stl}</td><td>${totals.blk}</td><td>${totals.to}</td><td>${totals.fls}</td>`;

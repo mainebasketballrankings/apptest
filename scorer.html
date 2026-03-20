@@ -560,7 +560,17 @@ body{
   <!-- Clock centre -->
   <div id="clk-col">
     <div id="pdisplay" onclick="openQendModal('manual')">1ST</div>
-    <button id="clock-btn" onclick="toggleClock()">8:00</button>
+    <button id="clock-btn" onclick="toggleClock()" ondblclick="openClkEdit(event)">8:00</button>
+  </div>
+  <!-- Clock edit popover -->
+  <div id="clk-edit" style="display:none;position:fixed;z-index:200;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px 16px;box-shadow:0 4px 24px rgba(0,0,0,.4);flex-direction:column;gap:8px;align-items:center;">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.08em;color:var(--dim);">SET CLOCK</div>
+    <input id="clk-edit-inp" type="text" placeholder="M:SS" maxlength="5"
+      style="width:90px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:28px;background:var(--bg);border:2px solid var(--border);border-radius:8px;color:var(--text);padding:4px 8px;outline:none;">
+    <div style="display:flex;gap:8px;">
+      <button onclick="applyClkEdit()" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;padding:5px 14px;border-radius:6px;background:var(--green);color:#fff;border:none;cursor:pointer;">SET</button>
+      <button onclick="closeClkEdit()" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;padding:5px 14px;border-radius:6px;background:var(--border);color:var(--text);border:none;cursor:pointer;">CANCEL</button>
+    </div>
   </div>
 
   <!-- Away score + name -->
@@ -590,7 +600,7 @@ body{
 
 <!-- MIDDLE -->
 <div id="middle">
-  <div class="ppanel hp" id="home-panel"><div class="shoot-stats" id="home-sstats"></div></div>
+  <div class="ppanel hp" id="home-panel"></div>
 
   <div id="court-wrap">
     <!--
@@ -689,7 +699,7 @@ body{
     </div>
   </div>
 
-  <div class="ppanel ap" id="away-panel"><div class="shoot-stats" id="away-sstats"></div></div>
+  <div class="ppanel ap" id="away-panel"></div>
 </div>
 
 <!-- STAT BAR -->
@@ -952,6 +962,36 @@ function toggleClock(){
   }
   updClk();
 }
+function openClkEdit(e){
+  e && e.stopPropagation();
+  const pop=document.getElementById('clk-edit');
+  pop.style.display='flex';
+  // Position near clock button
+  const btn=document.getElementById('clock-btn');
+  const r=btn.getBoundingClientRect();
+  pop.style.left=(r.left+r.width/2-75)+'px';
+  pop.style.top=(r.bottom+8)+'px';
+  const inp=document.getElementById('clk-edit-inp');
+  inp.value=fmt(GAME.clockSec);
+  setTimeout(()=>{inp.focus();inp.select();},50);
+  inp.onkeydown=ev=>{if(ev.key==='Enter')applyClkEdit();if(ev.key==='Escape')closeClkEdit();};
+}
+function closeClkEdit(){document.getElementById('clk-edit').style.display='none';}
+function applyClkEdit(){
+  const raw=document.getElementById('clk-edit-inp').value.trim();
+  // Accept M:SS or just seconds
+  let sec=0;
+  if(raw.includes(':')){
+    const [m,s]=raw.split(':');
+    sec=parseInt(m||0)*60+parseInt(s||0);
+  } else {
+    sec=parseInt(raw)||0;
+  }
+  sec=Math.max(0,Math.min(sec,PERIOD_SECS(GAME.period)));
+  GAME.clockSec=sec;
+  updClk();
+  closeClkEdit();
+}
 function updClk(){
   const b=document.getElementById('clock-btn');
   b.textContent=fmt(GAME.clockSec);
@@ -1039,8 +1079,9 @@ function renderPl(){
     const panel=document.getElementById(`${side}-panel`);
     panel.innerHTML='';
     PL[side].filter(p=>p.on).forEach(p=>panel.appendChild(mkCard(p,side)));
-    const ss=document.getElementById(`${side}-sstats`);
-    if(ss)panel.appendChild(ss);
+    const ss=document.createElement('div');
+    ss.className='shoot-stats';ss.id=`${side}-sstats`;
+    panel.appendChild(ss);
   });
   renderShootStats();
 }

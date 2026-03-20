@@ -1841,7 +1841,7 @@ function suTipOff() {
       first: p.first || '',
       last: p.last || '?',
       num: parseInt(p.num)||0,
-      pts:0, reb:0, ast:0, fouls:0, on:p.starter,
+      pts:0, reb:0, ast:0, fouls:0, on:p.starter, starter:!!p.starter,
       fgm:0, fga:0, tpm:0, tpa:0
     }));
   });

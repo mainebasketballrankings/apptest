@@ -125,6 +125,18 @@ body{
 .fd{width:7px;height:7px;border-radius:50%;background:var(--border);}
 .fd.on{background:var(--gold);}
 
+/* ── SHOOTING STATS PANEL ── */
+.shoot-stats{
+  margin-top:auto;padding:6px 4px 2px;border-top:1px solid var(--border);
+  font-family:'Barlow Condensed',sans-serif;
+}
+.ss-row{display:flex;align-items:baseline;gap:3px;font-size:11px;line-height:1.5;}
+.ss-lbl{font-weight:700;color:var(--dim);letter-spacing:.05em;width:32px;flex-shrink:0;}
+.ss-q{color:var(--text);font-weight:600;flex:1;}
+.ss-g{color:var(--dim);font-weight:500;flex:1;}
+.ss-hdr{display:flex;font-size:9px;color:var(--dim);letter-spacing:.06em;padding-bottom:1px;margin-left:32px;gap:0;}
+.ss-hdr span{flex:1;}
+
 /* ── COURT ── */
 #court-wrap{position:relative;display:flex;overflow:hidden;background:#1a1208;}
 #csvg{width:100%;height:100%;display:block;cursor:crosshair;}
@@ -578,7 +590,7 @@ body{
 
 <!-- MIDDLE -->
 <div id="middle">
-  <div class="ppanel hp" id="home-panel"></div>
+  <div class="ppanel hp" id="home-panel"><div class="shoot-stats" id="home-sstats"></div></div>
 
   <div id="court-wrap">
     <!--
@@ -677,7 +689,7 @@ body{
     </div>
   </div>
 
-  <div class="ppanel ap" id="away-panel"></div>
+  <div class="ppanel ap" id="away-panel"><div class="shoot-stats" id="away-sstats"></div></div>
 </div>
 
 <!-- STAT BAR -->
@@ -972,8 +984,12 @@ function applyPeriodChange(d){
   document.getElementById('clock-btn').classList.remove('expired');
   updClk();
   document.getElementById('pdisplay').textContent = PERIOD_LBL(GAME.period);
+  // Clear shot dots for new period
+  document.getElementById('shot-dots').innerHTML='';
+  dots=dots.filter(d=>false); // clear dots array
   // Refresh fouls display for new quarter (qFouls already at 0 for new period)
   ['home','away'].forEach(s=>updFoulsDisplay(s));
+  renderShootStats();
 }
 
 // ── Quarter-end modal ──
@@ -1023,6 +1039,33 @@ function renderPl(){
     const panel=document.getElementById(`${side}-panel`);
     panel.innerHTML='';
     PL[side].filter(p=>p.on).forEach(p=>panel.appendChild(mkCard(p,side)));
+    const ss=document.getElementById(`${side}-sstats`);
+    if(ss)panel.appendChild(ss);
+  });
+  renderShootStats();
+}
+
+function renderShootStats(){
+  ['home','away'].forEach(side=>{
+    const el=document.getElementById(`${side}-sstats`);
+    if(!el)return;
+    const q=GAME.period;
+    const sideEvts=evts.filter(e=>e.side===side);
+    const qEvts=sideEvts.filter(e=>e.period===q);
+    function calc(arr){
+      const fgm=arr.filter(e=>e.key==='2pt_made'||e.key==='putback_made'||e.key==='3pt_made').length;
+      const fga=fgm+arr.filter(e=>e.key==='2pt_miss'||e.key==='putback_miss'||e.key==='3pt_miss').length;
+      const tpm=arr.filter(e=>e.key==='3pt_made').length;
+      const tpa=tpm+arr.filter(e=>e.key==='3pt_miss').length;
+      const fgpct=fga?Math.round(100*fgm/fga)+'%':'—';
+      const tppct=tpa?Math.round(100*tpm/tpa)+'%':'—';
+      return{fgm,fga,fgpct,tpm,tpa,tppct};
+    }
+    const g=calc(sideEvts),qc=calc(qEvts);
+    el.innerHTML=`
+      <div class="ss-hdr"><span>Q${q}</span><span>GAME</span></div>
+      <div class="ss-row"><span class="ss-lbl">FG%</span><span class="ss-q">${qc.fgm}/${qc.fga} ${qc.fgpct}</span><span class="ss-g">${g.fgm}/${g.fga} ${g.fgpct}</span></div>
+      <div class="ss-row"><span class="ss-lbl">3PT%</span><span class="ss-q">${qc.tpm}/${qc.tpa} ${qc.tppct}</span><span class="ss-g">${g.tpm}/${g.tpa} ${g.tppct}</span></div>`;
   });
 }
 

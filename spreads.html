@@ -44,6 +44,12 @@
       white-space: nowrap;
     }
     .nav-btn:hover { background: var(--black); color: var(--white); border-color: var(--black); }
+    .date-input {
+      font-family: 'Barlow', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      max-width: 140px;
+    }
     .nav-btn.today { background: var(--green); color: #fff; border-color: var(--green); }
     .nav-btn.today:hover { background: var(--green2); border-color: var(--green2); }
 
@@ -223,6 +229,7 @@
 <div class="page-wrap">
   <div class="date-nav">
     <div class="date-heading" id="dateHeading">Today's Picks</div>
+    <input type="date" id="datePicker" class="nav-btn date-input" onchange="pickDate(this.value)" />
     <button class="nav-btn today" id="todayBtn" onclick="goToday()">Today</button>
     <button class="nav-btn" onclick="navigate(-1)">‹ Prev</button>
   </div>
@@ -280,6 +287,15 @@ function navigate(dir) {
   next.setDate(next.getDate() + dir);
   if (next > today) return; // can't go into the future
   currentDate = next;
+  loadSpreads();
+}
+
+function pickDate(val) {
+  if (!val) return;
+  const d = new Date(val + 'T12:00:00');
+  const today = new Date(); today.setHours(12,0,0,0);
+  if (d > today) return; // no future dates
+  currentDate = d;
   loadSpreads();
 }
 
@@ -387,9 +403,11 @@ async function loadSpreads() {
 
   const ds = toISO(currentDate);
   document.getElementById('dateHeading').textContent = fmtHeading(currentDate);
+  document.getElementById('datePicker').value = ds;
+  document.getElementById('datePicker').max = toISO(new Date());
 
   const today = new Date(); today.setHours(12,0,0,0);
-  const isToday = toISO(currentDate) === toISO(today);
+  const isToday = ds === toISO(today);
   document.getElementById('todayBtn').style.display = isToday ? 'none' : '';
 
   document.getElementById('app').innerHTML =
@@ -405,7 +423,7 @@ async function loadSpreads() {
       away_team:away_team_id ( id, school_name, logo_url )
     `)
     .eq('game_date', ds)
-    .not('stax_index', 'is', null)
+    .not('pick_team', 'is', null)
     .order('stax_index', { ascending: false });
 
   if (error || !games?.length) {

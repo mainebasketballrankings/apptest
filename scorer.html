@@ -130,11 +130,11 @@ body{
   margin-top:auto;padding:6px 4px 2px;border-top:1px solid var(--border);
   font-family:'Barlow Condensed',sans-serif;
 }
-.ss-row{display:flex;align-items:baseline;gap:3px;font-size:11px;line-height:1.5;}
-.ss-lbl{font-weight:700;color:var(--dim);letter-spacing:.05em;width:32px;flex-shrink:0;}
+.ss-row{display:flex;align-items:baseline;gap:3px;font-size:13px;line-height:1.7;}
+.ss-lbl{font-weight:700;color:var(--dim);letter-spacing:.05em;width:36px;flex-shrink:0;}
 .ss-q{color:var(--text);font-weight:600;flex:1;}
 .ss-g{color:var(--dim);font-weight:500;flex:1;}
-.ss-hdr{display:flex;font-size:9px;color:var(--dim);letter-spacing:.06em;padding-bottom:1px;margin-left:32px;gap:0;}
+.ss-hdr{display:flex;font-size:10px;color:var(--dim);letter-spacing:.06em;padding-bottom:1px;margin-left:36px;gap:0;}
 .ss-hdr span{flex:1;}
 
 /* ── COURT ── */
@@ -691,6 +691,7 @@ body{
     <div id="court-btns">
       <button class="cbtn" onclick="toggleLog()">LOG ▾</button>
       <button class="cbtn" onclick="openBoxScore()">BOX ▾</button>
+      <button class="cbtn" id="starters-btn" onclick="openStartersModal()" style="background:rgba(243,156,18,.15);border-color:rgba(243,156,18,.4);color:var(--gold);">STARTERS</button>
     </div>
 
     <div id="log-panel">
@@ -1778,7 +1779,7 @@ function suTipOff() {
           id:`${pfx}${i+1}`,
           fi: n.fi, first: n.first, last: n.last,
           num: parseInt(r.num)||0,
-          pts:0, reb:0, ast:0, fouls:0, on: g[side].starters.includes(r.num),
+          pts:0, reb:0, ast:0, fouls:0, on: g[side].starters.includes(r.num), starter: g[side].starters.includes(r.num),
           fgm:0, fga:0, tpm:0, tpa:0
         };
       });
@@ -2013,5 +2014,20 @@ for (let i=0;i<5;i++) { suAddPlayer('home'); suAddPlayer('away'); }
 // (scorer initialises after tip-off via suTipOff)
 
 </script>
+
+  <!-- Starters modal -->
+  <div id="starters-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:14px;padding:18px 20px;min-width:260px;max-width:360px;box-shadow:0 4px 32px rgba(0,0,0,.5);">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:.08em;color:var(--dim);margin-bottom:12px;text-align:center;">RESET STARTERS</div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="resetStarters('home')" id="starters-home-btn" style="flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:10px 8px;border-radius:8px;background:rgba(45,125,210,.15);border:2px solid rgba(45,125,210,.4);color:var(--hl);cursor:pointer;"></button>
+        <button onclick="resetStarters('away')" id="starters-away-btn" style="flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:10px 8px;border-radius:8px;background:rgba(192,57,43,.15);border:2px solid rgba(192,57,43,.4);color:var(--al);cursor:pointer;"></button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="resetStarters('both')" style="flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;padding:8px;border-radius:8px;background:rgba(243,156,18,.15);border:2px solid rgba(243,156,18,.4);color:var(--gold);cursor:pointer;">BOTH TEAMS</button>
+        <button onclick="closeStartersModal()" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:8px;background:var(--border);color:var(--text);border:none;cursor:pointer;">CANCEL</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

@@ -147,12 +147,11 @@ body{
 
 /* Swipe overlay */
 #swipe-ov{
-  position:absolute;inset:0;display:none;
-  align-items:center;justify-content:center;
+  position:absolute;display:none;
   pointer-events:none;z-index:15;
+  transform:translate(-50%,-50%);
 }
-#swipe-ov.show{display:flex;}
-.sw-dirs{position:relative;width:160px;height:160px;}
+#swipe-ov.show{display:block;}.sw-dirs{position:relative;width:160px;height:160px;}
 .sw-dir{
   position:absolute;display:flex;flex-direction:column;align-items:center;
   font-family:'Barlow Condensed',sans-serif;font-weight:700;
@@ -1204,6 +1203,11 @@ svg.addEventListener('pointerdown',e=>{
   if(!selP)return;e.preventDefault();
   const pt=svgP(e);tSX=pt.x;tSY=pt.y;tMoving=false;tOvShown=false;
   tring.setAttribute('cx',pt.x);tring.setAttribute('cy',pt.y);tring.setAttribute('opacity','.5');
+  // Position overlay at touch point in container pixel space
+  const cont=svg.parentElement.getBoundingClientRect();
+  const s=e.touches?e.touches[0]:e;
+  swOv.style.left=(s.clientX-cont.left)+'px';
+  swOv.style.top=(s.clientY-cont.top)+'px';
   litDir(null);
 },{passive:false});
 

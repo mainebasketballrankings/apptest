@@ -719,7 +719,7 @@ body{
   <div id="setup-box">
 
     <div class="su-header">
-      <div class="su-wordmark">MBR<span>·</span>SCORER</div>
+      <div class="su-wordmark">Maine Basketball Rankings<br><span style="font-size:0.5em;letter-spacing:.15em;font-weight:500">LIVE SCORING</span></div>
       <div class="su-tagline">Game Setup</div>
     </div>
 
@@ -1213,8 +1213,7 @@ svg.addEventListener('pointerdown',e=>{
   const angle=Math.atan2(bx, -by)*(180/Math.PI); // angle from "up" toward basket
   const dirs=swOv.querySelector('.sw-dirs');
   dirs.style.transform='rotate('+angle+'deg)';
-  // Counter-rotate inner text/arrows so they stay upright regardless of compass angle
-  swOv.querySelectorAll('.sw-dir .da, .sw-dir .dl').forEach(el=>{el.style.transform='rotate('+(-angle)+'deg)';});
+
   litDir(null);
 },{passive:false});
 

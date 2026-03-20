@@ -898,7 +898,7 @@ const SDEFS_MORE=[
   {key:'foul_offensive',  lbl:'O.Foul',        t:'fo'},
   {key:'foul_flagrant',   lbl:'Flagrant',      t:'fo'},
   {key:'foul_intentional',lbl:'Int. Foul',     t:'fo'},
-  {key:'foul_technical',  lbl:'Tech',          t:'fo', team:true},
+  {key:'foul_technical',  lbl:'Tech',          t:'fo'},
   {key:'timeout_full',    lbl:'TO Full',       t:'ts', team:true},
   {key:'timeout_30sec',   lbl:'TO 30s',        t:'ts', team:true},
 ];
@@ -1134,7 +1134,7 @@ function doStat(def){
   if(def.key==='assist'&&p)p.ast++;
   if((def.key==='o_reb'||def.key==='d_reb')&&p)p.reb++;
   if(def.key.startsWith('foul_')){
-    if(!isTeam&&p&&def.key!=='foul_technical')p.fouls++;
+    if(!isTeam&&p)p.fouls++;
     GAME[side].fouls++;
     const qi=GAME.period-1;
     GAME.qFouls[side][qi]++;
@@ -1323,10 +1323,18 @@ function delEvt(id){
       if(e.key==='putback_made'||e.key==='putback_miss')p.reb=Math.max(0,p.reb-1);
       if(e.key.startsWith('foul_')){
         const def=[...SDEFS,...SDEFS_MORE].find(s=>s.key===e.key);
-        if(!def?.team){p.fouls=Math.max(0,p.fouls-1);GAME[e.side].fouls=Math.max(0,GAME[e.side].fouls-1);
-          document.getElementById(`${e.side}-fouls`).textContent=GAME[e.side].fouls;}
+        if(!def?.team)p.fouls=Math.max(0,p.fouls-1);
       }
     }
+  }
+  if(e.key.startsWith('foul_')&&e.side){
+    GAME[e.side].fouls=Math.max(0,GAME[e.side].fouls-1);
+    document.getElementById(`${e.side}-fouls`).textContent=GAME[e.side].fouls;
+    const qi=e.period?e.period-1:GAME.period-1;
+    GAME.qFouls[e.side][qi]=Math.max(0,GAME.qFouls[e.side][qi]-1);
+    updFoulsDisplay(e.side);
+    const opp=e.side==='home'?'away':'home';
+    updFoulsDisplay(opp);
   }
   const dot=dots.find(d=>d.eid===id);
   if(dot){document.getElementById(dot.id)?.remove();dots=dots.filter(d=>d.eid!==id);}

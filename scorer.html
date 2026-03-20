@@ -988,13 +988,15 @@ function openClkEdit(e){
 function closeClkEdit(){document.getElementById('clk-edit').style.display='none';}
 function applyClkEdit(){
   const raw=document.getElementById('clk-edit-inp').value.trim();
-  // Accept M:SS or just seconds
+  // Accept M:SS, or bare digits as MMSS (321→3:21, 500→5:00, 32→0:32)
   let sec=0;
   if(raw.includes(':')){
     const [m,s]=raw.split(':');
     sec=parseInt(m||0)*60+parseInt(s||0);
   } else {
-    sec=parseInt(raw)||0;
+    const n=parseInt(raw)||0;
+    if(raw.length<=2){ sec=n; }           // 32 → 0:32
+    else { sec=Math.floor(n/100)*60+(n%100); } // 321→3:21, 500→5:00
   }
   sec=Math.max(0,Math.min(sec,PERIOD_SECS(GAME.period)));
   GAME.clockSec=sec;
@@ -2025,6 +2027,16 @@ for (let i=0;i<5;i++) { suAddPlayer('home'); suAddPlayer('away'); }
 // ══ INIT ══════════════════════════════════════
 // (scorer initialises after tip-off via suTipOff)
 
+
+function resetStarters(side){
+  const sides=side==='both'?['home','away']:[side];
+  sides.forEach(s=>{
+    PL[s].forEach(p=>{p.on=!!p.starter;});
+  });
+  selP=null;selSide=null;
+  renderPl();updSel();updBtns();
+  flash('Starters back in','');
+}
 </script>
 </body>
 </html>

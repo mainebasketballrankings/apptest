@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>MBR Scorer</title>
+<title>Maine Basketball Rankings Live Scoring</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -1208,6 +1208,13 @@ svg.addEventListener('pointerdown',e=>{
   const s=e.touches?e.touches[0]:e;
   swOv.style.left=(s.clientX-cont.left)+'px';
   swOv.style.top=(s.clientY-cont.top)+'px';
+  // Rotate compass so MAKE arrow points toward basket (230,25)
+  const bx=230-pt.x, by=25-pt.y;
+  const angle=Math.atan2(bx, -by)*(180/Math.PI); // angle from "up" toward basket
+  const dirs=swOv.querySelector('.sw-dirs');
+  dirs.style.transform='rotate('+angle+'deg)';
+  // Counter-rotate inner text/arrows so they stay upright regardless of compass angle
+  swOv.querySelectorAll('.sw-dir .da, .sw-dir .dl').forEach(el=>{el.style.transform='rotate('+(-angle)+'deg)';});
   litDir(null);
 },{passive:false});
 

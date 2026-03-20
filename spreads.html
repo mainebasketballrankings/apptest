@@ -164,6 +164,12 @@
     }
     .pick-correct { color: var(--green2); }
     .pick-wrong   { color: var(--red); }
+    .result-icon {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900; font-size: 16px; margin-left: 2px;
+    }
+    .result-icon.correct { color: var(--green2); }
+    .result-icon.wrong   { color: var(--red); }
 
     /* Stax badge */
     .stax-badge {
@@ -218,7 +224,7 @@
   <div class="date-nav">
     <div class="date-heading" id="dateHeading">Today's Picks</div>
     <button class="nav-btn today" id="todayBtn" onclick="goToday()">Today</button>
-    <button class="nav-btn" onclick="navigate(1)">Next ›</button>
+    <button class="nav-btn" onclick="navigate(-1)">‹ Prev</button>
   </div>
   <div id="app"><div class="loading"><span class="spinner"></span> Loading…</div></div>
 </div>
@@ -272,7 +278,7 @@ function navigate(dir) {
   const today = new Date(); today.setHours(12,0,0,0);
   const next = new Date(currentDate);
   next.setDate(next.getDate() + dir);
-  if (next < today) return; // don't go back past today
+  if (next > today) return; // can't go into the future
   currentDate = next;
   loadSpreads();
 }
@@ -350,7 +356,8 @@ function gameCard(g, snaps) {
       <div class="pick-badge">
         <span class="pick-label">Pick</span>
         <span class="pick-team ${pickClass}">${g.pick_team}</span>
-        <span class="pick-spread ${pickClass}">+${(+g.spread).toFixed(1)}</span>
+        <span class="pick-spread">+${(+g.spread).toFixed(1)}</span>
+        ${isFinal ? `<span class="result-icon ${pickClass === 'pick-correct' ? 'correct' : 'wrong'}">${pickClass === 'pick-correct' ? '✓' : '✗'}</span>` : ''}
       </div>
       ${staxEl(g.stax_index)}
     </div>` : `
@@ -382,8 +389,8 @@ async function loadSpreads() {
   document.getElementById('dateHeading').textContent = fmtHeading(currentDate);
 
   const today = new Date(); today.setHours(12,0,0,0);
-  document.getElementById('todayBtn').style.display =
-    toISO(currentDate) === toISO(today) ? 'none' : '';
+  const isToday = toISO(currentDate) === toISO(today);
+  document.getElementById('todayBtn').style.display = isToday ? 'none' : '';
 
   document.getElementById('app').innerHTML =
     '<div class="loading"><span class="spinner"></span> Loading…</div>';

@@ -1433,31 +1433,35 @@ function pushEvt(p,side,key,pt,three){
 }
 
 function calcRun(){
-  // Returns {side, leader, opp} for current run, or null
-  // Run window: scan scoring events chronologically from most recent
-  // Ends when: opp scores 2 consecutive possessions, OR ratio fails (opp*4 >= leader)
-  const scoreEvts=[...evts].filter(e=>e.pts>0); // newest first
+  // Scan ALL scoring events chronologically, find the most recent qualifying run
+  // A run is a contiguous window where one team dominates: leader>=8, opp<=5, leader>4*opp
+  // Run breaks when: opp scores 2 consecutive possessions, OR opp*4>leader, OR opp>5
+  const scoreEvts=[...evts].filter(e=>e.pts>0).reverse(); // chronological (oldest first)
   if(!scoreEvts.length) return null;
 
-  let leader=0, opp=0, leadSide=scoreEvts[0].side;
-  let oppConsec=0; // consecutive opp scoring possessions
+  // Find all run segments, return the last qualifying one
+  let bestRun=null;
+  let segSide=null,segLead=0,segOpp=0,segOppConsec=0;
 
   for(const e of scoreEvts){
-    if(e.side===leadSide){
-      leader+=e.pts;
-      oppConsec=0; // reset consecutive counter when lead team scores
+    if(segSide===null){
+      segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;
+    } else if(e.side===segSide){
+      segLead+=e.pts;segOppConsec=0;
     } else {
-      opp+=e.pts;
-      oppConsec++;
-      if(oppConsec>=2) break; // 2 straight opp baskets ends the run
+      segOpp+=e.pts;segOppConsec++;
+      if(segOppConsec>=2||segOpp>5||segOpp*4>segLead){
+        // run broken — start new segment with this event
+        segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;
+        continue;
+      }
     }
-    // Check ratio — if it no longer qualifies, stop expanding window
-    if(opp>5||opp*4>=leader) break;
+    // Check if current segment qualifies
+    if(segLead>=8&&segOpp<=5&&segLead>=4*segOpp){
+      bestRun={side:segSide,leader:segLead,opp:segOpp};
+    }
   }
-
-  // Must meet criteria: leader>=8, opp<=5, leader>=4*opp
-  if(leader>=8&&opp<=5&&leader>=4*opp) return{side:leadSide,leader,opp};
-  return null;
+  return bestRun;
 }
 
 function updRun(){
@@ -2595,31 +2599,27 @@ function generatePDF(){
     y+=3;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
-    // Compute run peaks: mark only the highest point of each qualifying run
+    // Compute run peaks using same logic as live scorer
+    // For each scoring event, check if a qualifying run ends here (next event breaks it)
     const runMilestones=new Map();
     {
       const allScore=[...evts].filter(e=>e.pts>0).reverse(); // chronological
-      let leadSide=null,leader=0,opp=0,oppConsec=0,runEvts=[];
-      const commitRun=()=>{
-        if(leadSide&&leader>=8&&opp<=5&&leader>=4*opp){
-          const peakEvt=[...runEvts].reverse().find(e=>e.period===period);
-          if(peakEvt) runMilestones.set(peakEvt.id,{side:leadSide,leader,opp});
-        }
-      };
-      for(const e of allScore){
-        if(leadSide===null){leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;runEvts=[e];}
-        else if(e.side===leadSide){leader+=e.pts;oppConsec=0;runEvts.push(e);}
-        else{
-          opp+=e.pts;oppConsec++;
-          if(oppConsec>=2||opp>5||opp*4>leader){
-            commitRun();
-            leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;runEvts=[e];
-          } else {
-            runEvts.push(e);
-          }
+      // For each position i, compute run looking backwards from i
+      // A run "peaks" at position i if: run qualifies at i, and either
+      //   - i is the last scoring event, OR
+      //   - the run at i+1 (one more event back) no longer qualifies or switches team
+      for(let i=0;i<allScore.length;i++){
+        const window=allScore.slice(0,i+1).reverse(); // newest-first up to this point
+        const run=getRunFromEvents(window);
+        if(!run) continue;
+        // Check if this is the peak: look at window including next event
+        const nextWindow=allScore.slice(0,i+2).reverse();
+        const nextRun=i+1<allScore.length?getRunFromEvents(nextWindow):null;
+        const isPeak=!nextRun||nextRun.side!==run.side;
+        if(isPeak&&allScore[i].period===period){
+          runMilestones.set(allScore[i].id,{side:run.side,leader:run.leader,opp:run.opp});
         }
       }
-      commitRun();
     }
     const pEvts=[...evts].filter(e=>e.period===period&&!skipKeys.has(e.key)).reverse();
     pEvts.forEach((e,ri)=>{

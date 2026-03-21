@@ -2054,8 +2054,6 @@ function endGame(){
 }
 
 // ── Helpers ──────────────────────────────────────────────────
-function fmt(s){const m=Math.floor(s/60);return `${m}:${String(s%60).padStart(2,'0')}`;}
-
 function boxStats(side){
   const sideEvts=evts.filter(e=>e.side===side);
   return PL[side].map(p=>{
@@ -2215,13 +2213,13 @@ function generatePDF(){
   doc.setTextColor(...NAVY);
   doc.text(`${GAME.home.name}`,ML,y+5);
   doc.setFontSize(22);
-  doc.setTextColor(winner==='home'?...BLUE:...DIM);
+  doc.setTextColor(...(winner==='home'?BLUE:DIM));
   doc.text(`${hs}`,ML,y+14);
   doc.setFontSize(22);
   doc.setTextColor(...DIM);
   doc.text('vs',(PW/2),y+10,{align:'center'});
   doc.setFontSize(22);
-  doc.setTextColor(winner==='away'?...RED:...DIM);
+  doc.setTextColor(...(winner==='away'?RED:DIM));
   doc.text(`${as}`,PW-MR,y+14,{align:'right'});
   doc.setFontSize(16);
   doc.setFont('helvetica','bold');

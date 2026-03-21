@@ -91,6 +91,13 @@ body{
 }
 #pdisplay:hover,#pdisplay:active{background:var(--surface2);border-color:var(--border);}
 
+/* Run display */
+#run-display{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;
+  letter-spacing:.04em;text-align:center;padding:1px 0;min-height:14px;
+  color:var(--gold);transition:opacity .3s;
+}
+
 /* ── MIDDLE: panels + court ── */
 #middle{display:grid;grid-template-columns:162px 1fr 162px;flex:1;min-height:0;overflow:hidden;}
 
@@ -571,6 +578,7 @@ body{
   <div id="clk-col">
     <div id="pdisplay" onclick="openQendModal('manual')">1ST</div>
     <button id="clock-btn" onclick="toggleClock()" ondblclick="openClkEdit(event)">8:00</button>
+  <div id="run-display"></div>
   </div>
   <!-- Clock edit popover -->
   <div id="clk-edit" style="display:none;position:fixed;z-index:200;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px 16px;box-shadow:0 4px 24px rgba(0,0,0,.4);flex-direction:column;gap:8px;align-items:center;">
@@ -891,7 +899,8 @@ const GAME={
   home:{name:'Camden Boys',    short:'CHILLS',  score:0,fouls:0,tof:3,to3:2},
   away:{name:'Cape Elizabeth', short:'CAPE', score:0,fouls:0,tof:3,to3:2},
   period:1,clockSec:480,running:false,possession:'home',
-  qFouls:{home:[0,0,0,0,0,0], away:[0,0,0,0,0,0]} // per-quarter fouls, index=period-1
+  qFouls:{home:[0,0,0,0,0,0], away:[0,0,0,0,0,0]}, // per-quarter fouls, index=period-1
+  maxLead:{home:0,away:0}, leadChanges:0, lastLeadSide:null
 };
 
 const PL={
@@ -1419,7 +1428,52 @@ function pushEvt(p,side,key,pt,three){
   const pend=dots.find(d=>d.pend);
   if(pend){pend.eid=e.id;delete pend.pend;}
   renderFeed();renderLog();
+  if(e.pts>0) updRun();
   return e;
+}
+
+function updRun(){
+  // Current run: scan backwards through scoring events
+  const scoreEvts=[...evts].filter(e=>e.pts>0);
+  if(!scoreEvts.length){document.getElementById('run-display').textContent='';return;}
+  const lastSide=scoreEvts[0].side;
+  let runHome=0,runAway=0;
+  for(const e of scoreEvts){
+    if(e.side===lastSide){
+      if(lastSide==='home') runHome+=e.pts; else runAway+=e.pts;
+    } else break;
+  }
+  const runPts=lastSide==='home'?runHome:runAway;
+  const oppPts=lastSide==='home'?runAway:runHome; // always 0 since we break on switch
+  // Also count what opponent scored since run started — need full picture
+  // Re-scan: find index of last opponent score
+  const runStart=scoreEvts.findIndex(e=>e.side!==lastSide);
+  let oppInRun=0;
+  if(runStart>0) oppInRun=0; // no opponent score since run started = clean run
+  const runStr=`${runPts}-0`;
+
+  // Update max lead and lead changes
+  const h=GAME.home.score, a=GAME.away.score;
+  const diff=h-a;
+  if(diff>GAME.maxLead.home) GAME.maxLead.home=diff;
+  if(a-h>GAME.maxLead.away) GAME.maxLead.away=a-h;
+  if(GAME.lastLeadSide){
+    const nowLead=diff>0?'home':diff<0?'away':null;
+    if(nowLead&&nowLead!==GAME.lastLeadSide){GAME.leadChanges++;GAME.lastLeadSide=nowLead;}
+    else if(nowLead) GAME.lastLeadSide=nowLead;
+  } else {
+    GAME.lastLeadSide=diff>0?'home':diff<0?'away':null;
+  }
+
+  // Display
+  const el=document.getElementById('run-display');
+  const teamName=GAME[lastSide]?.short||GAME[lastSide]?.name||'';
+  if(runPts>=8){
+    el.textContent=`🔥 ${teamName} ${runStr} run`;
+    el.style.color=lastSide==='home'?'var(--hl)':'var(--al)';
+  } else {
+    el.textContent='';
+  }
 }
 function getPts(k){
   if(k==='2pt_made'||k==='putback_made')return 2;
@@ -2507,6 +2561,11 @@ function generatePDF(){
 
   // ── Play by play page ──
   newPage();
+  sectionTitle('GAME NOTES');
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...NAVY);
+  const hmLead=GAME.maxLead.home,awLead=GAME.maxLead.away;
+  doc.text(`Largest lead — ${GAME.home.name}: +${hmLead}   ${GAME.away.name}: +${awLead}   Lead changes: ${GAME.leadChanges}`,ML,y);
+  y+=8;
   sectionTitle('PLAY-BY-PLAY');
 
   const periods=[...new Set(evts.map(e=>e.period))].sort((a,b)=>a-b);
@@ -2555,6 +2614,17 @@ function generatePDF(){
       doc.text(marginStr,PW/2+14,y,{align:'center'});
       doc.setFontSize(6.5);doc.setFont('helvetica','normal');
       y+=4.5;
+      // Run milestone marker
+      if(runMilestones.has(e.id)){
+        const rm=runMilestones.get(e.id);
+        checkY(5);
+        const rName=GAME[rm.side].name;
+        doc.setFont('helvetica','bold');doc.setFontSize(6.5);
+        doc.setTextColor(rm.side==='home'?37:220,rm.side==='home'?99:38,rm.side==='home'?235:38);
+        doc.text(`🔥 ${rName} on a ${rm.pts}-0 run`,PW/2,y,{align:'center'});
+        doc.setFont('helvetica','normal');doc.setTextColor(...NAVY);
+        y+=4.5;
+      }
     });
     y+=4;
   });

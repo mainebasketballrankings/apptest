@@ -2202,7 +2202,7 @@ function generateCSV(){
   evts.filter(e=>e.key!=='possession_flip'&&e.key!=='starters_reset').forEach(e=>{
     const pn=e.pnum!=null?`#${e.pnum} ${e.plast||''}`:''
     row(PERIOD_LBL(e.period),fmt(e.clk),GAME[e.side]?.name||'',pn,
-        (([...SDEFS,...SDEFS_MORE].find(s=>s.key===e.key))?.lbl||e.key),
+        getLabel(e.key,e.side),
         e.hScore??'',e.aScore??'');
   });
   row('');
@@ -2403,6 +2403,24 @@ function generatePDF(){
     doc.circle(cx+scaleX(230),cy+scaleY(25),scaleX(3),'F');
     // Backboard
     doc.line(cx+scaleX(200),cy+scaleY(15),cx+scaleX(260),cy+scaleY(15));
+    // 3pt corner straights
+    doc.setDrawColor(...BORDER);doc.setLineWidth(0.3);
+    doc.line(cx+scaleX(60),cy+scaleY(0),cx+scaleX(60),cy+scaleY(232));
+    doc.line(cx+scaleX(400),cy+scaleY(0),cx+scaleX(400),cy+scaleY(232));
+    // 3pt arc as line segments — centre (230,55.9) r=176.1, sweep 215deg to -35deg
+    {
+      const arcCX=230,arcCY=55.9,arcR=176.1;
+      let px2=null,py2=null;
+      for(let deg=215;deg>=-35;deg-=1.5){
+        const rad=deg*Math.PI/180;
+        const ax=arcCX+arcR*Math.cos(rad);
+        const ay=arcCY+arcR*Math.sin(rad);
+        if(ay>232) break;
+        const nx=cx+scaleX(ax),ny=cy+scaleY(ay);
+        if(px2!==null) doc.line(px2,py2,nx,ny);
+        px2=nx;py2=ny;
+      }
+    }
 
     // Shots
     shotEvts.forEach(e=>{
@@ -2492,7 +2510,7 @@ function generatePDF(){
       checkY(5);
       if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3,PW-ML-MR,5,'F');}
       const pn=e.pnum!=null?`#${e.pnum} ${e.plast||''}`:''
-      const lbl=([...SDEFS,...SDEFS_MORE].find(s=>s.key===e.key))?.lbl||e.key;
+      const lbl=getLabel(e.key,e.side);
       const desc=pn?`${pn} — ${lbl}`:lbl;
       const time=fmt(e.clk);
 

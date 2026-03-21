@@ -1412,8 +1412,8 @@ function pushEvt(p,side,key,pt,three){
     pid:p?.id,pnum:p?.num,plast:p?.last,pfi:p?.fi,pfirst:p?.first,
     side,key,period:GAME.period,clk:GAME.clockSec,
     pts:getPts(key),three,
-    hScore:GAME.home.score+(side==='home'?getPts(key):0),
-    aScore:GAME.away.score+(side==='away'?getPts(key):0)
+    hScore:GAME.home.score,
+    aScore:GAME.away.score
   };
   evts.unshift(e);
   const pend=dots.find(d=>d.pend);
@@ -2078,9 +2078,9 @@ function boxStats(side){
     const stl=pe.filter(e=>e.key==='steal').length;
     const blk=pe.filter(e=>e.key==='block').length;
     const to=pe.filter(e=>e.key==='turnover').length;
-    const oreb=pe.filter(e=>e.key==='o_reb').length;
+    const oreb=pe.filter(e=>e.key==='o_reb'||e.key==='putback_made'||e.key==='putback_miss').length;
     const dreb=pe.filter(e=>e.key==='d_reb').length;
-    const reb=p.reb; // total including putbacks already counted
+    const reb=oreb+dreb; // split from events
 
     // Minutes: track intervals when player was on floor
     // Starters enter at period=1,clk=480; subs tracked via sub_in/sub_out events
@@ -2437,25 +2437,32 @@ function generatePDF(){
   y+=COURT_H+12;
 
   // Individual shot charts — 3 per row
-  sectionTitle('INDIVIDUAL SHOT CHARTS');
-  const ICW=55,ICH=46;
-  const iCols=[ML, ML+ICW+7, ML+(ICW+7)*2, ML+(ICW+7)*3];
-  let col=0;
-  const rowY=()=>y;
+  const ICW=56,ICH=47;
+  const ICGAP=7;
+  const ICPER=3; // charts per row
+  const iCols=[ML, ML+ICW+ICGAP, ML+(ICW+ICGAP)*2];
 
+  // Collect all players with shots
+  const allShooters=[];
   ['home','away'].forEach(side=>{
-    const players=PL[side].filter(p=>{
-      return evts.some(e=>e.side===side&&e.pid===p.id&&e.pt);
-    });
-    players.forEach(p=>{
-      if(col===4){col=0;y+=ICH+12;}
-      checkY(ICH+14);
+    PL[side].forEach(p=>{
       const shots=evts.filter(e=>e.side===side&&e.pid===p.id&&e.pt);
-      drawMiniCourt(iCols[col],y,ICW,ICH,shots,`#${p.num} ${pName(p)}`);
-      col++;
+      if(shots.length>0) allShooters.push({p,side,shots});
     });
   });
-  if(col>0){y+=ICH+14;col=0;}
+
+  if(allShooters.length>0){
+    sectionTitle('INDIVIDUAL SHOT CHARTS');
+    let icol=0;
+    let rowStartY=y;
+    allShooters.forEach(({p,side,shots})=>{
+      if(icol===ICPER){icol=0;rowStartY+=ICH+14;y=rowStartY;}
+      if(rowStartY+ICH+14>PH-14){newPage();sectionTitle('INDIVIDUAL SHOT CHARTS (CONT.)');rowStartY=y;icol=0;}
+      drawMiniCourt(iCols[icol],rowStartY,ICW,ICH,shots,`#${p.num} ${pName(p)}`);
+      icol++;
+    });
+    y=rowStartY+ICH+14;
+  }
 
   // ── Play by play page ──
   newPage();
@@ -2478,7 +2485,7 @@ function generatePDF(){
     y+=3;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
-    const pEvts=evts.filter(e=>e.period===period&&!skipKeys.has(e.key));
+    const pEvts=[...evts].filter(e=>e.period===period&&!skipKeys.has(e.key)).reverse();
     pEvts.forEach((e,ri)=>{
       checkY(5);
       if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3,PW-ML-MR,5,'F');}

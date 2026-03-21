@@ -2403,10 +2403,10 @@ function generatePDF(){
     doc.circle(cx+scaleX(230),cy+scaleY(25),scaleX(3),'F');
     // Backboard
     doc.line(cx+scaleX(200),cy+scaleY(15),cx+scaleX(260),cy+scaleY(15));
-    // 3pt corner straights
+    // 3pt corner straights — connect from baseline (y=0) to where arc re-enters at y≈104/98
     doc.setDrawColor(...BORDER);doc.setLineWidth(0.3);
-    doc.line(cx+scaleX(60),cy+scaleY(0),cx+scaleX(60),cy+scaleY(232));
-    doc.line(cx+scaleX(400),cy+scaleY(0),cx+scaleX(400),cy+scaleY(232));
+    doc.line(cx+scaleX(60),cy+scaleY(0),cx+scaleX(60),cy+scaleY(104.4));
+    doc.line(cx+scaleX(400),cy+scaleY(0),cx+scaleX(400),cy+scaleY(98.5));
     // 3pt arc as line segments — centre (230,55.9) r=176.1, sweep 215deg to -35deg
     // Corner straights occupy x<60 and x>400, so skip arc points in those zones
     {

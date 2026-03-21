@@ -2408,7 +2408,7 @@ function generatePDF(){
     doc.line(cx+scaleX(60),cy+scaleY(0),cx+scaleX(60),cy+scaleY(232));
     doc.line(cx+scaleX(400),cy+scaleY(0),cx+scaleX(400),cy+scaleY(232));
     // 3pt arc as line segments — centre (230,55.9) r=176.1, sweep 215deg to -35deg
-    // Only clip corner segments (x<60 or x>400) at y=232 baseline, not the middle of the arc
+    // Corner straights occupy x<60 and x>400, so skip arc points in those zones
     {
       const arcCX=230,arcCY=55.9,arcR=176.1;
       let px2=null,py2=null;
@@ -2416,9 +2416,9 @@ function generatePDF(){
         const rad=deg*Math.PI/180;
         const ax=arcCX+arcR*Math.cos(rad);
         const ay=arcCY+arcR*Math.sin(rad);
-        // Skip points that are in the corner zone past the baseline
-        if(ay>232&&(ax<60||ax>400)) break;
-        const nx=cx+scaleX(ax),ny=cy+scaleY(Math.min(ay,232));
+        // Skip points in corner zones (behind the corner straight lines)
+        if(ax<60||ax>400){px2=null;continue;}
+        const nx=cx+scaleX(ax),ny=cy+scaleY(ay);
         if(px2!==null) doc.line(px2,py2,nx,ny);
         px2=nx;py2=ny;
       }

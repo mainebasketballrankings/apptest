@@ -2595,32 +2595,31 @@ function generatePDF(){
     y+=3;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
-    // Compute run milestones for inline PBP markers
+    // Compute run peaks: mark only the highest point of each qualifying run
     const runMilestones=new Map();
     {
-      const allScore=[...evts].filter(e=>e.pts>0).reverse();
-      let leadSide=null,leader=0,opp=0,oppConsec=0;
-      const announcedLevels=new Set();
+      const allScore=[...evts].filter(e=>e.pts>0).reverse(); // chronological
+      let leadSide=null,leader=0,opp=0,oppConsec=0,runEvts=[];
+      const commitRun=()=>{
+        if(leadSide&&leader>=8&&opp<=5&&leader>=4*opp){
+          const peakEvt=[...runEvts].reverse().find(e=>e.period===period);
+          if(peakEvt) runMilestones.set(peakEvt.id,{side:leadSide,leader,opp});
+        }
+      };
       for(const e of allScore){
-        if(leadSide===null){leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;}
-        else if(e.side===leadSide){leader+=e.pts;oppConsec=0;}
+        if(leadSide===null){leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;runEvts=[e];}
+        else if(e.side===leadSide){leader+=e.pts;oppConsec=0;runEvts.push(e);}
         else{
           opp+=e.pts;oppConsec++;
-          if(oppConsec>=2||opp>5||opp*4>=leader){
-            // run broken — start fresh with this scoring event
-            leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;announcedLevels.clear();
-            continue;
+          if(oppConsec>=2||opp>5||opp*4>leader){
+            commitRun();
+            leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;runEvts=[e];
+          } else {
+            runEvts.push(e);
           }
         }
-        if(leader>=8&&opp<=5&&leader>=4*opp&&e.period===period){
-          [8,10,12,15,20].forEach(m=>{
-            if(leader>=m&&!announcedLevels.has(m)){
-              announcedLevels.add(m);
-              runMilestones.set(e.id,{side:leadSide,leader:leader,opp:opp});
-            }
-          });
-        }
       }
+      commitRun();
     }
     const pEvts=[...evts].filter(e=>e.period===period&&!skipKeys.has(e.key)).reverse();
     pEvts.forEach((e,ri)=>{

@@ -1432,45 +1432,55 @@ function pushEvt(p,side,key,pt,three){
   return e;
 }
 
-function updRun(){
-  // Current run: scan backwards through scoring events
-  const scoreEvts=[...evts].filter(e=>e.pts>0);
-  if(!scoreEvts.length){document.getElementById('run-display').textContent='';return;}
-  const lastSide=scoreEvts[0].side;
-  let runHome=0,runAway=0;
-  for(const e of scoreEvts){
-    if(e.side===lastSide){
-      if(lastSide==='home') runHome+=e.pts; else runAway+=e.pts;
-    } else break;
-  }
-  const runPts=lastSide==='home'?runHome:runAway;
-  const oppPts=lastSide==='home'?runAway:runHome; // always 0 since we break on switch
-  // Also count what opponent scored since run started — need full picture
-  // Re-scan: find index of last opponent score
-  const runStart=scoreEvts.findIndex(e=>e.side!==lastSide);
-  let oppInRun=0;
-  if(runStart>0) oppInRun=0; // no opponent score since run started = clean run
-  const runStr=`${runPts}-0`;
+function calcRun(){
+  // Returns {side, leader, opp} for current run, or null
+  // Run window: scan scoring events chronologically from most recent
+  // Ends when: opp scores 2 consecutive possessions, OR ratio fails (opp*4 >= leader)
+  const scoreEvts=[...evts].filter(e=>e.pts>0); // newest first
+  if(!scoreEvts.length) return null;
 
+  let leader=0, opp=0, leadSide=scoreEvts[0].side;
+  let oppConsec=0; // consecutive opp scoring possessions
+
+  for(const e of scoreEvts){
+    if(e.side===leadSide){
+      leader+=e.pts;
+      oppConsec=0; // reset consecutive counter when lead team scores
+    } else {
+      opp+=e.pts;
+      oppConsec++;
+      if(oppConsec>=2) break; // 2 straight opp baskets ends the run
+    }
+    // Check ratio — if it no longer qualifies, stop expanding window
+    if(opp>5||opp*4>=leader) break;
+  }
+
+  // Must meet criteria: leader>=8, opp<=5, leader>=4*opp
+  if(leader>=8&&opp<=5&&leader>=4*opp) return{side:leadSide,leader,opp};
+  return null;
+}
+
+function updRun(){
   // Update max lead and lead changes
   const h=GAME.home.score, a=GAME.away.score;
   const diff=h-a;
   if(diff>GAME.maxLead.home) GAME.maxLead.home=diff;
   if(a-h>GAME.maxLead.away) GAME.maxLead.away=a-h;
-  if(GAME.lastLeadSide){
+  if(GAME.lastLeadSide!==undefined){
     const nowLead=diff>0?'home':diff<0?'away':null;
-    if(nowLead&&nowLead!==GAME.lastLeadSide){GAME.leadChanges++;GAME.lastLeadSide=nowLead;}
-    else if(nowLead) GAME.lastLeadSide=nowLead;
+    if(nowLead&&GAME.lastLeadSide&&nowLead!==GAME.lastLeadSide) GAME.leadChanges++;
+    GAME.lastLeadSide=nowLead;
   } else {
     GAME.lastLeadSide=diff>0?'home':diff<0?'away':null;
   }
 
-  // Display
+  const run=calcRun();
   const el=document.getElementById('run-display');
-  const teamName=GAME[lastSide]?.short||GAME[lastSide]?.name||'';
-  if(runPts>=8){
+  if(run){
+    const teamName=GAME[run.side]?.short||GAME[run.side]?.name||'';
+    const runStr=run.opp>0?`${run.leader}-${run.opp}`:`${run.leader}-0`;
     el.textContent=`🔥 ${teamName} ${runStr} run`;
-    el.style.color=lastSide==='home'?'var(--hl)':'var(--al)';
+    el.style.color=run.side==='home'?'var(--hl)':'var(--al)';
   } else {
     el.textContent='';
   }
@@ -2585,6 +2595,30 @@ function generatePDF(){
     y+=3;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
+    // Compute run milestones for inline PBP markers
+    const runMilestones=new Map();
+    {
+      const allScore=[...evts].filter(e=>e.pts>0).reverse();
+      let leadSide=null,leader=0,opp=0,oppConsec=0;
+      const announcedLevels=new Set();
+      allScore.forEach(e=>{
+        if(leadSide===null){leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;}
+        else if(e.side===leadSide){leader+=e.pts;oppConsec=0;}
+        else{opp+=e.pts;oppConsec++;
+          if(oppConsec>=2||opp>5||opp*4>=leader){
+            leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;announcedLevels.clear();return;
+          }
+        }
+        if(leader>=8&&opp<=5&&leader>=4*opp&&e.period===period){
+          [8,10,12,15,20].forEach(m=>{
+            if(leader>=m&&!announcedLevels.has(m)){
+              announcedLevels.add(m);
+              runMilestones.set(e.id,{side:leadSide,leader,opp});
+            }
+          });
+        }
+      });
+    }
     const pEvts=[...evts].filter(e=>e.period===period&&!skipKeys.has(e.key)).reverse();
     pEvts.forEach((e,ri)=>{
       checkY(5);

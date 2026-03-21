@@ -1248,6 +1248,10 @@ function doStat(def){
   }
   if(def.key==='timeout_full'&&GAME[side].tof>0){GAME[side].tof--;document.getElementById(`${side}-tof`).textContent=GAME[side].tof;}
   if(def.key==='timeout_30sec'&&GAME[side].to3>0){GAME[side].to3--;document.getElementById(`${side}-to3`).textContent=GAME[side].to3;}
+  // Auto-stop clock on fouls and timeouts
+  if(def.key.startsWith('foul_')||def.key.startsWith('timeout_')){
+    if(GAME.running){clearInterval(clkInt);GAME.running=false;updClk();}
+  }
   pushEvt(p,side,def.key,null,null);
   // Offensive foul automatically generates a turnover on the same player
   if(def.key==='foul_offensive'&&p){
@@ -1459,7 +1463,7 @@ function delEvt(id){
 function findP(pid,side){return PL[side]?.find(p=>p.id===pid);}
 
 function evtPlayerName(e){
-  if(!e.pnum) return null;
+  if(e.pnum==null) return null;
   // pfirst is full first name if entered as "First Last"; pfi is just initial
   const first = (e.pfirst && e.pfirst.length>1) ? e.pfirst : (e.pfi ? e.pfi+'.' : '');
   const name = first ? `${first} ${e.plast||''}` : (e.plast||'');
@@ -2122,7 +2126,7 @@ function generateCSV(){
   hdr('EVENT LOG');
   row('Period','Clock','Team','Player','Event','Home Score','Away Score');
   evts.filter(e=>e.key!=='possession_flip'&&e.key!=='starters_reset').forEach(e=>{
-    const pn=e.pnum?`#${e.pnum} ${e.plast||''}`:''
+    const pn=e.pnum!=null?`#${e.pnum} ${e.plast||''}`:''
     row(PERIOD_LBL(e.period),fmt(e.clk),GAME[e.side]?.name||'',pn,
         (([...SDEFS,...SDEFS_MORE].find(s=>s.key===e.key))?.lbl||e.key),
         GAME.home.score,GAME.away.score);
@@ -2323,11 +2327,14 @@ function generatePDF(){
       const made=['2pt_made','3pt_made','putback_made'].includes(e.key);
       const sx=cx+scaleX(e.pt.x);
       const sy=cy+scaleY(e.pt.y);
+      // Color by side: home=blue, away=red; made=filled, miss=X
+      const madeClr=e.side==='home'?[37,99,235]:[220,38,38];
+      const missClr=e.side==='home'?[147,197,253]:[252,165,165];
       if(made){
-        doc.setFillColor(22,163,74);doc.setDrawColor(22,163,74);
+        doc.setFillColor(...madeClr);doc.setDrawColor(...madeClr);
         doc.circle(sx,sy,1.2,'FD');
       } else {
-        doc.setDrawColor(180,30,30);doc.setLineWidth(0.4);
+        doc.setDrawColor(...missClr);doc.setLineWidth(0.5);
         doc.line(sx-1,sy-1,sx+1,sy+1);
         doc.line(sx+1,sy-1,sx-1,sy+1);
       }
@@ -2394,7 +2401,7 @@ function generatePDF(){
     pEvts.forEach((e,ri)=>{
       checkY(5);
       if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3,PW-ML-MR,5,'F');}
-      const pn=e.pnum?`#${e.pnum} ${e.plast||''}`:''
+      const pn=e.pnum!=null?`#${e.pnum} ${e.plast||''}`:''
       const lbl=([...SDEFS,...SDEFS_MORE].find(s=>s.key===e.key))?.lbl||e.key;
       const desc=pn?`${pn} — ${lbl}`:lbl;
       const time=fmt(e.clk);

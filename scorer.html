@@ -1411,7 +1411,9 @@ function pushEvt(p,side,key,pt,three){
     id:Date.now()+'_'+Math.random().toString(36).slice(2,5),
     pid:p?.id,pnum:p?.num,plast:p?.last,pfi:p?.fi,pfirst:p?.first,
     side,key,period:GAME.period,clk:GAME.clockSec,
-    pts:getPts(key),three
+    pts:getPts(key),three,
+    hScore:GAME.home.score+(side==='home'?getPts(key):0),
+    aScore:GAME.away.score+(side==='away'?getPts(key):0)
   };
   evts.unshift(e);
   const pend=dots.find(d=>d.pend);
@@ -2059,7 +2061,12 @@ function endGame(){
 
 // ── Helpers ──────────────────────────────────────────────────
 function boxStats(side){
+  const opp=side==='home'?'away':'home';
   const sideEvts=evts.filter(e=>e.side===side);
+  // Build all events in chronological order for +/- and minutes
+  const allEvts=[...evts].reverse();
+  const QSECS=480;
+
   return PL[side].map(p=>{
     const pe=sideEvts.filter(e=>e.pid===p.id);
     const fgm=pe.filter(e=>['2pt_made','putback_made','3pt_made'].includes(e.key)).length;
@@ -2071,8 +2078,73 @@ function boxStats(side){
     const stl=pe.filter(e=>e.key==='steal').length;
     const blk=pe.filter(e=>e.key==='block').length;
     const to=pe.filter(e=>e.key==='turnover').length;
-    return{num:p.num,name:pName(p),pts:p.pts,reb:p.reb,ast:p.ast,fls:p.fouls,
-           fgm,fga,tpm,tpa,ftm,fta,stl,blk,to};
+    const oreb=pe.filter(e=>e.key==='o_reb').length;
+    const dreb=pe.filter(e=>e.key==='d_reb').length;
+    const reb=p.reb; // total including putbacks already counted
+
+    // Minutes: track intervals when player was on floor
+    // Starters enter at period=1,clk=480; subs tracked via sub_in/sub_out events
+    let minsSecsTotal=0;
+    // Build on/off timeline from events
+    const timeline=[]; // {type:'in'|'out', period, clk}
+    if(p.starter) timeline.push({type:'in',period:1,clk:QSECS});
+    allEvts.filter(e=>e.side===side&&e.pid===p.id&&(e.key==='sub_in'||e.key==='sub_out'))
+      .forEach(e=>timeline.push({type:e.key==='sub_in'?'in':'out',period:e.period,clk:e.clk}));
+    // Add game-end marker
+    const lastPeriod=GAME.period;
+    const lastClk=GAME.clockSec;
+    timeline.push({type:'end',period:lastPeriod,clk:lastClk});
+    // Sum seconds on floor
+    let onEvent=null;
+    timeline.forEach(ev=>{
+      if(ev.type==='in'){onEvent=ev;}
+      else if((ev.type==='out'||ev.type==='end')&&onEvent){
+        // seconds = periods elapsed * QSECS + clk difference
+        const pDiff=(ev.period-onEvent.period)*QSECS;
+        const cDiff=onEvent.clk-ev.clk;
+        minsSecsTotal+=Math.max(0,pDiff+cDiff);
+        onEvent=null;
+      }
+    });
+    const mins=Math.floor(minsSecsTotal/60);
+    const secs=Math.round(minsSecsTotal%60);
+    const minsStr=`${mins}:${String(secs).padStart(2,'0')}`;
+
+    // +/-: sum of point swings while player was on floor
+    let plusMinus=0;
+    onEvent=null;
+    const pmTimeline=timeline.slice(0,-1); // exclude end marker for +/-
+    pmTimeline.push({type:'end',period:lastPeriod,clk:lastClk});
+    let tlIdx=0;
+    // Simple approach: for each scoring event, check if player was on floor
+    let curOn=p.starter;
+    let prevPeriod=1,prevClk=QSECS;
+    // rebuild on/off from sub events
+    const subEvts=allEvts.filter(e=>e.side===side&&e.pid===p.id&&(e.key==='sub_in'||e.key==='sub_out'));
+    const onOffMap=[{on:p.starter,period:1,clk:QSECS}];
+    subEvts.forEach(e=>onOffMap.push({on:e.key==='sub_in',period:e.period,clk:e.clk}));
+    function wasOnFloor(period,clk){
+      let state=p.starter;
+      for(const s of onOffMap){
+        if(s.period<period||(s.period===period&&s.clk>=clk)) state=s.on;
+        else break;
+      }
+      return state;
+    }
+    allEvts.filter(e=>e.pts>0).forEach(e=>{
+      if(!wasOnFloor(e.period,e.clk)) return;
+      if(e.side===side) plusMinus+=e.pts;
+      else plusMinus-=e.pts;
+    });
+
+    // EFF = (PTS+REB+AST+STL+BLK) - (FGA-FGM) - (FTA-FTM) - TO
+    const eff=(p.pts+reb+p.ast+stl+blk)-((fga-fgm)+(fta-ftm)+to);
+    // TS% = PTS / (2*(FGA + 0.44*FTA))
+    const tsDenom=2*(fga+0.44*fta);
+    const ts=tsDenom>0?Math.round(100*p.pts/tsDenom)+'%':'—';
+
+    return{num:p.num,name:pName(p),pts:p.pts,oreb,dreb,reb,ast:p.ast,fls:p.fouls,
+           fgm,fga,tpm,tpa,ftm,fta,stl,blk,to,mins:minsStr,plusMinus,eff,ts};
   }).filter(p=>p.fga>0||p.pts>0||p.reb>0||p.ast>0||p.stl>0||p.blk>0||p.to>0||p.fls>0);
 }
 
@@ -2256,28 +2328,35 @@ function generatePDF(){
     const teamName=GAME[side].name.toUpperCase();
     sectionTitle(`${teamName} — BOX SCORE`);
     const stats=boxStats(side);
-    const cols=[ML,ML+24,ML+44,ML+58,ML+72,ML+86,ML+100,ML+114,ML+128,ML+142,ML+154,ML+166,ML+178,ML+190];
-    const hdrs=['#','Player','PTS','FG','FG%','3PT','3P%','FT','FT%','REB','AST','STL','BLK','PF'];
-    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...DIM);
+    // Columns: #, Player, MIN, PTS, FG, FG%, 3PT, 3P%, FT, FT%, OR, DR, REB, AST, STL, BLK, TO, PF, +/-, EFF, TS%
+    const cols=[ML,ML+18,ML+36,ML+52,ML+63,ML+76,ML+89,ML+100,ML+111,ML+122,ML+132,ML+141,ML+150,ML+160,ML+169,ML+177,ML+185,ML+192,ML+199,ML+206];
+    const hdrs=['#','Player','MIN','PTS','FG','FG%','3PT','3P%','FT','FT%','OR','DR','AST','STL','TO','PF','+/-','EFF','TS%'];
+    doc.setFont('helvetica','bold');doc.setFontSize(5.8);doc.setTextColor(...DIM);
     hdrs.forEach((h,i)=>doc.text(h,cols[i],y,i>1?{align:'center'}:{}));
     y+=3.5;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
-    const tot={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0};
+    const tot={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,oreb:0,dreb:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0,eff:0};
     stats.forEach((p,ri)=>{
       checkY(6);
       if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.2,PW-ML-MR,5.2,'F');}
       const pct=(m,a)=>a?Math.round(100*m/a)+'%':'—';
-      const cells=[p.num,p.name.length>12?p.name.slice(0,12)+'…':p.name,
-        p.pts,`${p.fgm}/${p.fga}`,pct(p.fgm,p.fga),`${p.tpm}/${p.tpa}`,pct(p.tpm,p.tpa),
-        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.reb,p.ast,p.stl,p.blk,p.fls];
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...NAVY);
+      const pm=(p.plusMinus>=0?'+':'')+p.plusMinus;
+      const cells=[p.num,p.name.length>10?p.name.slice(0,10)+'…':p.name,
+        p.mins,p.pts,`${p.fgm}/${p.fga}`,pct(p.fgm,p.fga),`${p.tpm}/${p.tpa}`,pct(p.tpm,p.tpa),
+        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.oreb,p.dreb,p.ast,p.stl,p.to,p.fls,pm,p.eff,p.ts];
+      doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(...NAVY);
       cells.forEach((c,i)=>{
         if(i===0)doc.text(String(c),cols[i],y);
         else if(i===1){doc.setFont('helvetica','bold');doc.text(String(c),cols[i],y);doc.setFont('helvetica','normal');}
-        else doc.text(String(c),cols[i],y,{align:'center'});
+        else {
+          // Color +/- 
+          if(i===16){doc.setTextColor(p.plusMinus>0?22:p.plusMinus<0?180:120,p.plusMinus>0?163:p.plusMinus<0?30:130,p.plusMinus>0?74:p.plusMinus<0?30:150);}
+          doc.text(String(c),cols[i],y,{align:'center'});
+          doc.setTextColor(...NAVY);
+        }
       });
-      ['pts','fgm','fga','tpm','tpa','ftm','fta','reb','ast','stl','blk','to','fls'].forEach(k=>tot[k]+=p[k]);
+      ['pts','fgm','fga','tpm','tpa','ftm','fta','oreb','dreb','reb','ast','stl','blk','to','fls','eff'].forEach(k=>tot[k]+=p[k]);
       y+=5;
     });
 
@@ -2285,10 +2364,12 @@ function generatePDF(){
     checkY(7);
     doc.setFillColor(...LIGHT);doc.rect(ML,y-3.2,PW-ML-MR,5.5,'F');
     const pct=(m,a)=>a?Math.round(100*m/a)+'%':'—';
-    const tcells=['','TOTALS',tot.pts,`${tot.fgm}/${tot.fga}`,pct(tot.fgm,tot.fga),
+    const tsDenom=2*(tot.fga+0.44*tot.fta);
+    const totTs=tsDenom>0?Math.round(100*tot.pts/tsDenom)+'%':'—';
+    const tcells=['','TOTALS','—',tot.pts,`${tot.fgm}/${tot.fga}`,pct(tot.fgm,tot.fga),
       `${tot.tpm}/${tot.tpa}`,pct(tot.tpm,tot.tpa),`${tot.ftm}/${tot.fta}`,pct(tot.ftm,tot.fta),
-      tot.reb,tot.ast,tot.stl,tot.blk,tot.fls];
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...NAVY);
+      tot.oreb,tot.dreb,tot.ast,tot.stl,tot.to,tot.fls,'—',tot.eff,totTs];
+    doc.setFont('helvetica','bold');doc.setFontSize(6.2);doc.setTextColor(...NAVY);
     tcells.forEach((c,i)=>doc.text(String(c),cols[i],y,i>1?{align:'center'}:{}));
     y+=7;
   }
@@ -2393,7 +2474,7 @@ function generatePDF(){
 
     // Column headers
     doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...DIM);
-    doc.text('HOME',ML,y);doc.text('TIME',PW/2,y,{align:'center'});doc.text('AWAY',PW-MR,y,{align:'right'});
+    doc.text('HOME',ML,y);doc.text('TIME',PW/2-8,y,{align:'center'});doc.text('SCORE',PW/2+8,y,{align:'center'});doc.text('AWAY',PW-MR,y,{align:'right'});
     y+=3;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
@@ -2407,15 +2488,19 @@ function generatePDF(){
       const time=fmt(e.clk);
 
       doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+      const scoreStr=`${e.hScore??''}–${e.aScore??''}`;
       if(e.side==='home'){
         doc.setTextColor(...BLUE);
-        doc.text(desc.length>38?desc.slice(0,38)+'…':desc,ML,y);
+        doc.text(desc.length>35?desc.slice(0,35)+'…':desc,ML,y);
       } else {
         doc.setTextColor(...RED);
-        doc.text(desc.length>38?desc.slice(0,38)+'…':desc,PW-MR,y,{align:'right'});
+        doc.text(desc.length>35?desc.slice(0,35)+'…':desc,PW-MR,y,{align:'right'});
       }
       doc.setTextColor(...DIM);doc.setFont('helvetica','normal');
-      doc.text(time,PW/2,y,{align:'center'});
+      doc.text(time,PW/2-8,y,{align:'center'});
+      doc.setFont('helvetica','bold');
+      doc.text(scoreStr,PW/2+8,y,{align:'center'});
+      doc.setFont('helvetica','normal');
       y+=4.5;
     });
     y+=4;

@@ -1411,7 +1411,7 @@ function pushEvt(p,side,key,pt,three){
     id:Date.now()+'_'+Math.random().toString(36).slice(2,5),
     pid:p?.id,pnum:p?.num,plast:p?.last,pfi:p?.fi,pfirst:p?.first,
     side,key,period:GAME.period,clk:GAME.clockSec,
-    pts:getPts(key),three,
+    pts:getPts(key),three,pt,
     hScore:GAME.home.score,
     aScore:GAME.away.score
   };
@@ -2179,18 +2179,20 @@ function generateCSV(){
   // Box scores
   ['home','away'].forEach(side=>{
     hdr(`BOX SCORE — ${GAME[side].name.toUpperCase()}`);
-    row('#','Player','PTS','FGM','FGA','FG%','3PM','3PA','3P%','FTM','FTA','FT%','REB','AST','STL','BLK','TO','PF');
+    row('#','Player','MIN','PTS','FGM','FGA','FG%','3PM','3PA','3P%','FTM','FTA','FT%','OR','DR','REB','AST','STL','BLK','TO','PF','+/-','EFF','TS%');
     const stats=boxStats(side);
     const tot={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0};
     stats.forEach(p=>{
       const pct=(m,a)=>a?Math.round(100*m/a)+'%':'—';
-      row(p.num,p.name,p.pts,p.fgm,p.fga,pct(p.fgm,p.fga),p.tpm,p.tpa,pct(p.tpm,p.tpa),
-          p.ftm,p.fta,pct(p.ftm,p.fta),p.reb,p.ast,p.stl,p.blk,p.to,p.fls);
-      ['pts','fgm','fga','tpm','tpa','ftm','fta','reb','ast','stl','blk','to','fls'].forEach(k=>tot[k]+=p[k]);
+      const pm=(p.plusMinus>=0?'+':'')+p.plusMinus;
+      row(p.num,p.name,p.mins,p.pts,p.fgm,p.fga,pct(p.fgm,p.fga),p.tpm,p.tpa,pct(p.tpm,p.tpa),
+          p.ftm,p.fta,pct(p.ftm,p.fta),p.oreb,p.dreb,p.reb,p.ast,p.stl,p.blk,p.to,p.fls,pm,p.eff,p.ts);
+      ['pts','fgm','fga','tpm','tpa','ftm','fta','oreb','dreb','reb','ast','stl','blk','to','fls'].forEach(k=>tot[k]+=p[k]);
     });
     const pct=(m,a)=>a?Math.round(100*m/a)+'%':'—';
-    row('','TOTALS',tot.pts,tot.fgm,tot.fga,pct(tot.fgm,tot.fga),tot.tpm,tot.tpa,pct(tot.tpm,tot.tpa),
-        tot.ftm,tot.fta,pct(tot.ftm,tot.fta),tot.reb,tot.ast,tot.stl,tot.blk,tot.to,tot.fls);
+    const tsTot=2*(tot.fga+0.44*tot.fta)>0?Math.round(100*tot.pts/(2*(tot.fga+0.44*tot.fta)))+'%':'—';
+    row('','TOTALS','—',tot.pts,tot.fgm,tot.fga,pct(tot.fgm,tot.fga),tot.tpm,tot.tpa,pct(tot.tpm,tot.tpa),
+        tot.ftm,tot.fta,pct(tot.ftm,tot.fta),tot.oreb,tot.dreb,tot.reb,tot.ast,tot.stl,tot.blk,tot.to,tot.fls,'—','—',tsTot);
     row('');
   });
 
@@ -2201,7 +2203,7 @@ function generateCSV(){
     const pn=e.pnum!=null?`#${e.pnum} ${e.plast||''}`:''
     row(PERIOD_LBL(e.period),fmt(e.clk),GAME[e.side]?.name||'',pn,
         (([...SDEFS,...SDEFS_MORE].find(s=>s.key===e.key))?.lbl||e.key),
-        GAME.home.score,GAME.away.score);
+        e.hScore??'',e.aScore??'');
   });
   row('');
 
@@ -2481,7 +2483,7 @@ function generatePDF(){
 
     // Column headers
     doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...DIM);
-    doc.text('HOME',ML,y);doc.text('TIME',PW/2-8,y,{align:'center'});doc.text('SCORE',PW/2+8,y,{align:'center'});doc.text('AWAY',PW-MR,y,{align:'right'});
+    doc.text('HOME',ML,y);doc.text('TIME',PW/2-16,y,{align:'center'});doc.text('SCORE',PW/2,y,{align:'center'});doc.text('MARGIN',PW/2+14,y,{align:'center'});doc.text('AWAY',PW-MR,y,{align:'right'});
     y+=3;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
@@ -2504,10 +2506,15 @@ function generatePDF(){
         doc.text(desc.length>35?desc.slice(0,35)+'…':desc,PW-MR,y,{align:'right'});
       }
       doc.setTextColor(...DIM);doc.setFont('helvetica','normal');
-      doc.text(time,PW/2-8,y,{align:'center'});
+      doc.text(time,PW/2-16,y,{align:'center'});
       doc.setFont('helvetica','bold');
-      doc.text(scoreStr,PW/2+8,y,{align:'center'});
-      doc.setFont('helvetica','normal');
+      doc.text(scoreStr,PW/2,y,{align:'center'});
+      const margin=e.hScore-e.aScore;
+      const marginStr=margin===0?'T':(margin>0?`H+${margin}`:`A+${Math.abs(margin)}`);
+      const marginClr=margin>0?BLUE:margin<0?RED:DIM;
+      doc.setTextColor(...marginClr);doc.setFontSize(5.5);
+      doc.text(marginStr,PW/2+14,y,{align:'center'});
+      doc.setFontSize(6.5);doc.setFont('helvetica','normal');
       y+=4.5;
     });
     y+=4;

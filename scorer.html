@@ -1464,6 +1464,27 @@ function calcRun(){
   return bestRun;
 }
 
+function getRunFromEvents(scoreEvtsChronological){
+  // Same logic as calcRun but takes a pre-filtered chronological array
+  if(!scoreEvtsChronological.length) return null;
+  let bestRun=null;
+  let segSide=null,segLead=0,segOpp=0,segOppConsec=0;
+  for(const e of scoreEvtsChronological){
+    if(segSide===null){segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;}
+    else if(e.side===segSide){segLead+=e.pts;segOppConsec=0;}
+    else{
+      segOpp+=e.pts;segOppConsec++;
+      if(segOppConsec>=2||segOpp>5||segOpp*4>segLead){
+        segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;continue;
+      }
+    }
+    if(segLead>=8&&segOpp<=5&&segLead>=4*segOpp){
+      bestRun={side:segSide,leader:segLead,opp:segOpp};
+    }
+  }
+  return bestRun;
+}
+
 function updRun(){
   // Update max lead and lead changes
   const h=GAME.home.score, a=GAME.away.score;

@@ -1433,16 +1433,11 @@ function pushEvt(p,side,key,pt,three){
 }
 
 function calcRun(){
-  // Scan ALL scoring events chronologically, find the most recent qualifying run
-  // A run is a contiguous window where one team dominates: leader>=8, opp<=5, leader>4*opp
-  // Run breaks when: opp scores 2 consecutive possessions, OR opp*4>leader, OR opp>5
-  const scoreEvts=[...evts].filter(e=>e.pts>0).reverse(); // chronological (oldest first)
+  // Walk chronologically, track current segment only
+  // Return current segment's run if it qualifies, null otherwise
+  const scoreEvts=[...evts].filter(e=>e.pts>0).reverse(); // oldest first
   if(!scoreEvts.length) return null;
-
-  // Find all run segments, return the last qualifying one
-  let bestRun=null;
   let segSide=null,segLead=0,segOpp=0,segOppConsec=0;
-
   for(const e of scoreEvts){
     if(segSide===null){
       segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;
@@ -1451,23 +1446,18 @@ function calcRun(){
     } else {
       segOpp+=e.pts;segOppConsec++;
       if(segOppConsec>=2||segOpp>5||segOpp*4>segLead){
-        // run broken — start new segment with this event
+        // segment broken — start fresh, this team is now the "leader"
         segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;
-        continue;
       }
     }
-    // Check if current segment qualifies
-    if(segLead>=8&&segOpp<=5&&segLead>=4*segOpp){
-      bestRun={side:segSide,leader:segLead,opp:segOpp};
-    }
   }
-  return bestRun;
+  // Return current segment if it qualifies
+  if(segLead>=8&&segOpp<=5&&segLead>=4*segOpp) return{side:segSide,leader:segLead,opp:segOpp};
+  return null;
 }
 
 function getRunFromEvents(scoreEvtsChronological){
-  // Same logic as calcRun but takes a pre-filtered chronological array
   if(!scoreEvtsChronological.length) return null;
-  let bestRun=null;
   let segSide=null,segLead=0,segOpp=0,segOppConsec=0;
   for(const e of scoreEvtsChronological){
     if(segSide===null){segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;}
@@ -1475,14 +1465,12 @@ function getRunFromEvents(scoreEvtsChronological){
     else{
       segOpp+=e.pts;segOppConsec++;
       if(segOppConsec>=2||segOpp>5||segOpp*4>segLead){
-        segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;continue;
+        segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;
       }
     }
-    if(segLead>=8&&segOpp<=5&&segLead>=4*segOpp){
-      bestRun={side:segSide,leader:segLead,opp:segOpp};
-    }
   }
-  return bestRun;
+  if(segLead>=8&&segOpp<=5&&segLead>=4*segOpp) return{side:segSide,leader:segLead,opp:segOpp};
+  return null;
 }
 
 function updRun(){
@@ -2620,27 +2608,38 @@ function generatePDF(){
     y+=3;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
 
-    // Compute run peaks using same logic as live scorer
-    // For each scoring event, check if a qualifying run ends here (next event breaks it)
+    // Compute run peaks: walk chronologically, mark event where each qualifying run ends
     const runMilestones=new Map();
     {
-      const allScore=[...evts].filter(e=>e.pts>0).reverse(); // chronological
-      // For each position i, compute run looking backwards from i
-      // A run "peaks" at position i if: run qualifies at i, and either
-      //   - i is the last scoring event, OR
-      //   - the run at i+1 (one more event back) no longer qualifies or switches team
-      for(let i=0;i<allScore.length;i++){
-        const window=allScore.slice(0,i+1).reverse(); // newest-first up to this point
-        const run=getRunFromEvents(window);
-        if(!run) continue;
-        // Check if this is the peak: look at window including next event
-        const nextWindow=allScore.slice(0,i+2).reverse();
-        const nextRun=i+1<allScore.length?getRunFromEvents(nextWindow):null;
-        const isPeak=!nextRun||nextRun.side!==run.side;
-        if(isPeak&&allScore[i].period===period){
-          runMilestones.set(allScore[i].id,{side:run.side,leader:run.leader,opp:run.opp});
+      const allScore=[...evts].filter(e=>e.pts>0).reverse(); // chronological (oldest first)
+      let segSide=null,segLead=0,segOpp=0,segOppConsec=0;
+      let lastQualifyingEvt=null; // last event where current segment qualified
+      const commitPeak=()=>{
+        if(lastQualifyingEvt&&lastQualifyingEvt.period===period){
+          runMilestones.set(lastQualifyingEvt.id,{side:segSide,leader:segLead,opp:segOpp});
+        }
+        lastQualifyingEvt=null;
+      };
+      for(const e of allScore){
+        if(segSide===null){
+          segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;
+        } else if(e.side===segSide){
+          segLead+=e.pts;segOppConsec=0;
+        } else {
+          segOpp+=e.pts;segOppConsec++;
+          if(segOppConsec>=2||segOpp>5||segOpp*4>segLead){
+            commitPeak(); // commit the peak of the broken segment
+            segSide=e.side;segLead=e.pts;segOpp=0;segOppConsec=0;
+          }
+        }
+        if(segLead>=8&&segOpp<=5&&segLead>=4*segOpp){
+          lastQualifyingEvt=e; // keep updating — we want the last (peak) event
+        } else {
+          // segment no longer qualifies mid-run (e.g. opp scored enough)
+          if(lastQualifyingEvt) commitPeak();
         }
       }
+      commitPeak(); // commit final segment if qualifying
     }
     const pEvts=[...evts].filter(e=>e.period===period&&!skipKeys.has(e.key)).reverse();
     pEvts.forEach((e,ri)=>{

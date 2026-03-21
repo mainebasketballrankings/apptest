@@ -2601,23 +2601,26 @@ function generatePDF(){
       const allScore=[...evts].filter(e=>e.pts>0).reverse();
       let leadSide=null,leader=0,opp=0,oppConsec=0;
       const announcedLevels=new Set();
-      allScore.forEach(e=>{
+      for(const e of allScore){
         if(leadSide===null){leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;}
         else if(e.side===leadSide){leader+=e.pts;oppConsec=0;}
-        else{opp+=e.pts;oppConsec++;
+        else{
+          opp+=e.pts;oppConsec++;
           if(oppConsec>=2||opp>5||opp*4>=leader){
-            leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;announcedLevels.clear();return;
+            // run broken — start fresh with this scoring event
+            leadSide=e.side;leader=e.pts;opp=0;oppConsec=0;announcedLevels.clear();
+            continue;
           }
         }
         if(leader>=8&&opp<=5&&leader>=4*opp&&e.period===period){
           [8,10,12,15,20].forEach(m=>{
             if(leader>=m&&!announcedLevels.has(m)){
               announcedLevels.add(m);
-              runMilestones.set(e.id,{side:leadSide,leader,opp});
+              runMilestones.set(e.id,{side:leadSide,leader:leader,opp:opp});
             }
           });
         }
-      });
+      }
     }
     const pEvts=[...evts].filter(e=>e.period===period&&!skipKeys.has(e.key)).reverse();
     pEvts.forEach((e,ri)=>{
@@ -2651,13 +2654,16 @@ function generatePDF(){
       // Run milestone marker
       if(runMilestones.has(e.id)){
         const rm=runMilestones.get(e.id);
-        checkY(5);
+        checkY(6);
         const rName=GAME[rm.side].name;
-        doc.setFont('helvetica','bold');doc.setFontSize(6.5);
-        doc.setTextColor(rm.side==='home'?37:220,rm.side==='home'?99:38,rm.side==='home'?235:38);
-        doc.text(`🔥 ${rName} on a ${rm.pts}-0 run`,PW/2,y,{align:'center'});
+        const runStr=rm.opp>0?`${rm.leader}-${rm.opp} run`:`${rm.leader}-0 run`;
+        doc.setFillColor(rm.side==='home'?230:255,rm.side==='home'?240:230,rm.side==='home'?255:230);
+        doc.rect(ML+20,y-3.5,PW-ML-MR-40,6,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);
+        doc.setTextColor(rm.side==='home'?37:180,rm.side==='home'?99:30,rm.side==='home'?235:30);
+        doc.text(`*** ${rName} on a ${runStr} ***`,PW/2,y,{align:'center'});
         doc.setFont('helvetica','normal');doc.setTextColor(...NAVY);
-        y+=4.5;
+        y+=6;
       }
     });
     y+=4;

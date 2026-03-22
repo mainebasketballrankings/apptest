@@ -237,8 +237,8 @@
       </div>
       <div class="import-row">
         <select class="import-mode" id="importMode">
-          <option value="upsert">Upsert (add + update)</option>
-          <option value="replace">Replace team roster (delete first)</option>
+          <option value="replace">Replace roster (delete + reinsert)</option>
+          <option value="append">Append only (skip existing teams)</option>
         </select>
         <button class="import-btn" id="importBtn">Import to Supabase</button>
         <span class="import-status" id="importStatus"></span>
@@ -480,34 +480,31 @@
     const mode = document.getElementById('importMode').value;
     let deleted = 0;
 
-    // Replace mode: delete existing players for each affected team+sport+season
+    // Always delete first for affected team+sport+season combos
+    const combos = [...new Set(valid.map(r => `${r.team_id}|${r.sport_id}|${r.season_year}`))];
     if (mode === 'replace') {
-      const combos = [...new Set(valid.map(r => `${r.team_id}|${r.sport_id}|${r.season_year}`))];
       for (const combo of combos) {
         const [tid, sid, sy] = combo.split('|');
-        await sb.from('players')
+        const { error: delErr } = await sb.from('players')
           .delete()
           .eq('team_id', tid)
           .eq('sport_id', sid)
-          .eq('season_year', sy);
-        deleted++;
+          .eq('season_year', parseInt(sy));
+        if (!delErr) deleted++;
       }
     }
 
-    // Strip internal helper fields before upserting
+    // Strip internal helper fields before inserting
     const toInsert = valid.map(({ _teamId, _matchKey, ...rest }) => rest);
 
-    // Upsert in batches of 200
+    // Insert in batches of 200
     let inserted = 0, errors = 0;
     const BATCH = 200;
     for (let i = 0; i < toInsert.length; i += BATCH) {
       const batch = toInsert.slice(i, i + BATCH);
-      const { error } = await sb.from('players').upsert(batch, {
-        onConflict: 'team_id,sport_id,season_year,number',
-        ignoreDuplicates: false,
-      });
+      const { error } = await sb.from('players').insert(batch);
       if (error) {
-        console.error(error);
+        console.error('Insert error:', error);
         errors += batch.length;
       } else {
         inserted += batch.length;
@@ -523,7 +520,7 @@
       <div class="result-card"><div class="rc-val ok">${inserted}</div><div class="rc-lbl">Imported</div></div>
       <div class="result-card"><div class="rc-val" style="color:var(--lgray)">${skipped}</div><div class="rc-lbl">Skipped (no match)</div></div>
       ${errors ? `<div class="result-card"><div class="rc-val err">${errors}</div><div class="rc-lbl">Errors</div></div>` : ''}
-      ${mode === 'replace' ? `<div class="result-card"><div class="rc-val" style="color:var(--lgray)">${deleted}</div><div class="rc-lbl">Teams Cleared</div></div>` : ''}
+      ${deleted ? `<div class="result-card"><div class="rc-val" style="color:var(--lgray)">${deleted}</div><div class="rc-lbl">Rosters Cleared</div></div>` : ''}
     `;
 
     if (errors) {

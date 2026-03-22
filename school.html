@@ -67,7 +67,8 @@
     .no-roster { color: var(--lgray); font-size: 13px; font-style: italic; padding: 12px 0; }
 
     /* GAME CARDS */
-    .game-cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .game-cards-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    .sc-game-card { width: 260px; flex-shrink: 0; }
     .sc-game-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
     .sc-card-top { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; padding: 5px 12px; background: #f0f0f0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; color: var(--lgray); }
     .sc-card-body { padding: 10px 12px 8px; background: var(--white); }
@@ -240,8 +241,7 @@ function renderSportCard(team, snap, wins, losses, ties, players, sport, showGen
   function scLogoEl(t) {
     if (!t) return `<div class="sc-logo-fb">?</div>`;
     const ch = (t.school_name || '?')[0];
-    const slug = (t.school_name||'').toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
-    if (t.logo_url) return `<img src="${t.logo_url}" alt="${t.school_name}" style="max-width:30px;max-height:30px;object-fit:contain" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div class=\"sc-logo-fb\">${ch}</div>')">`;
+    if (t.logo_url) return `<img src="${t.logo_url}" alt="${t.school_name}" style="max-width:30px;max-height:30px;object-fit:contain;display:block" onerror="this.outerHTML='<div class=\"sc-logo-fb\">${ch}</div>'">`;
     return `<div class="sc-logo-fb">${ch}</div>`;
   }
 
@@ -352,7 +352,7 @@ async function load() {
       const regEnd = SPORT_REG_END[sport] || '2026-02-06';
 
       const [games, snaps, players] = await Promise.all([
-        sb(`games?or=(home_team_id.eq.${team.id},away_team_id.eq.${team.id})&sport_id=eq.${team.sport_id}&order=game_date.asc&select=game_date,status,location,home_team_id,away_team_id,home_score,away_score,home_team:home_team_id(school_name),away_team:away_team_id(school_name)`),
+        sb(`games?or=(home_team_id.eq.${team.id},away_team_id.eq.${team.id})&sport_id=eq.${team.sport_id}&order=game_date.asc&select=game_date,status,location,home_team_id,away_team_id,home_score,away_score,home_team:home_team_id(id,school_name,logo_url),away_team:away_team_id(id,school_name,logo_url)`),
         sb(`rankings_snapshots?team_id=eq.${team.id}&order=snapshot_date.desc&limit=1&select=rank_overall,rank_class,heal_points`),
         sb(`players?team_id=eq.${team.id}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=number,name,height,position,grade,games,ppg,rpg,apg,stl,blk,fgp,tpp,ftp,eff,plusminus,ba,hr,rbi,sb,ops&order=number.asc&limit=100`),
       ]);

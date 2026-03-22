@@ -167,6 +167,20 @@
       .stat-cards { grid-template-columns: repeat(3, 1fr); }
       .hsm { display: none; }
     }
+
+    /* ROSTER */
+    .roster-section { margin-bottom: 16px; }
+    .roster-wrap { background: var(--white); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    table.rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.rt thead tr { background: var(--bg); border-bottom: 2px solid var(--border); }
+    table.rt th { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--lgray); padding: 8px 12px; text-align: left; white-space: nowrap; }
+    table.rt td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    table.rt tr:last-child td { border-bottom: none; }
+    table.rt tr:hover td { background: #fafafa; }
+    .rt-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 15px; color: var(--lgray); width: 40px; }
+    .rt-name { font-weight: 600; }
+    .rt-pos { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; color: var(--gray); }
+    .rt-grade { font-size: 12px; color: var(--lgray); }
   </style>
 </head>
 <body>
@@ -312,6 +326,9 @@ async function load() {
     const seasonYear = sport === 'basketball' ? 2026 : 2025;
 
     // Paginated fetch helper
+    // Fetch roster players for this team
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=number.asc`);
+
     async function fetchAll(query) {
       const pageSize = 1000;
       let offset = 0, results = [];
@@ -684,6 +701,33 @@ async function load() {
         </div>
       </div>`;
 
+    // Roster
+    let rosterHtml = '';
+    try {
+      const players = await playersPromise;
+      if (players && players.length) {
+        const rows = players.map(p => `
+          <tr>
+            <td class="rt-num">${p.number || '—'}</td>
+            <td class="rt-name">${p.name || ''}</td>
+            <td class="rt-pos">${p.position || ''}</td>
+            <td class="rt-grade">${p.grade || ''}</td>
+          </tr>`).join('');
+        rosterHtml = `
+          <div class="roster-section">
+            <div class="section-header">Roster</div>
+            <div class="roster-wrap">
+              <table class="rt">
+                <thead><tr>
+                  <th>#</th><th>Name</th><th>Position</th><th>Grade</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+    } catch(e) { /* no roster yet, silently skip */ }
+
     app.innerHTML = `
       <div class="team-header">
         ${logoEl(team.logo_url, team.school_name, true)}
@@ -702,7 +746,8 @@ async function load() {
       </div>
       ${cards}
       ${oddsHtml}
-      ${gamesHtml}`;
+      ${gamesHtml}
+      ${rosterHtml}`;
 
     document.title = `${team.school_name} ${SPORT_NAME[sport] || ''} — Maine Basketball Rankings`;
 

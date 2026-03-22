@@ -181,6 +181,10 @@
     .rt-name { font-weight: 600; }
     .rt-pos { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; color: var(--gray); }
     .rt-grade { font-size: 12px; color: var(--lgray); }
+    .rt-pron  { font-size: 11px; color: var(--lgray); font-style: italic; }
+    .rt-stat  { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; text-align: right; color: var(--black); }
+    table.rt th:not(:first-child):not(:nth-child(2)) { text-align: right; }
+    table.rt th:nth-child(2), table.rt th:nth-child(3) { text-align: left; }
   </style>
 </head>
 <body>
@@ -707,22 +711,47 @@ async function load() {
       const players = await playersPromise;
       if (players && players.length) {
         const showHeight = players.some(p => p.height);
+        const showStats  = players.some(p =>
+          p.pts||p.reb||p.ast||p.stl||p.ba||p.hr||p.rbi||p.sb||p.ops);
+        // Detect sport from URL for stat header labels
+        const urlSport = new URLSearchParams(window.location.search).get('sport') || sport;
+        const isBball  = urlSport === 'basketball';
+        const isBase   = urlSport === 'baseball' || urlSport === 'softball';
         const rows = players.map(p => `
           <tr>
             <td class="rt-num">${p.number || '—'}</td>
             <td class="rt-name">${p.name || ''}</td>
+            <td class="rt-pron">${p.pronunciation || ''}</td>
+            ${showHeight ? `<td class="rt-grade">${p.height || ''}</td>` : ''}
             <td class="rt-pos">${p.position || ''}</td>
             <td class="rt-grade">${p.grade || ''}</td>
-            ${showHeight ? `<td class="rt-grade">${p.height || ''}</td>` : ''}
+            ${showStats && isBball ? `
+              <td class="rt-stat">${p.pts != null ? p.pts : ''}</td>
+              <td class="rt-stat">${p.reb != null ? p.reb : ''}</td>
+              <td class="rt-stat">${p.ast != null ? p.ast : ''}</td>
+              <td class="rt-stat">${p.stl != null ? p.stl : ''}</td>` : ''}
+            ${showStats && isBase ? `
+              <td class="rt-stat">${p.ba  != null ? p.ba  : ''}</td>
+              <td class="rt-stat">${p.hr  != null ? p.hr  : ''}</td>
+              <td class="rt-stat">${p.rbi != null ? p.rbi : ''}</td>
+              <td class="rt-stat">${p.sb  != null ? p.sb  : ''}</td>
+              <td class="rt-stat">${p.ops != null ? p.ops : ''}</td>` : ''}
           </tr>`).join('');
+        const statHeaders = showStats && isBball
+          ? '<th>PTS</th><th>REB</th><th>AST</th><th>STL</th>'
+          : showStats && isBase
+            ? '<th>BA</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>'
+            : '';
         rosterHtml = `
           <div class="roster-section">
             <div class="section-header">Roster</div>
             <div class="roster-wrap">
               <table class="rt">
                 <thead><tr>
-                  <th>#</th><th>Name</th><th>Position</th><th>Grade</th>
+                  <th>#</th><th>Name</th><th>Pronunciation</th>
                   ${showHeight ? '<th>Ht</th>' : ''}
+                  <th>Pos</th><th>Grade</th>
+                  ${statHeaders}
                 </tr></thead>
                 <tbody>${rows}</tbody>
               </table>

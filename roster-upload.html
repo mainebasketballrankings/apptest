@@ -499,16 +499,20 @@
 
     // Insert one row at a time so a single bad row doesn't kill the batch
     let inserted = 0, errors = 0;
+    const errorDetails = [];
     for (const row of toInsert) {
-      const { error } = await sb.from('players').insert(row);
+      const { data, error } = await sb.from('players').insert(row).select('id');
       if (error) {
-        console.error('Insert error for', row.name, ':', error.message);
+        console.error('Insert error for', row.name, ':', JSON.stringify(error));
+        errorDetails.push(`${row.name}: ${error.message}`);
         errors++;
       } else {
         inserted++;
       }
-      // Update progress
       btn.textContent = `Importing… ${inserted + errors}/${toInsert.length}`;
+    }
+    if (errorDetails.length) {
+      console.table(errorDetails);
     }
 
     btn.disabled = false;
@@ -524,8 +528,12 @@
     `;
 
     if (errors) {
-      status.textContent = `Done with ${errors} errors — check console.`;
+      status.textContent = `Done with ${errors} errors — check console for details.`;
       status.className = 'import-status err';
+      if (errorDetails.length) {
+        const errHtml = errorDetails.slice(0,5).map(e => `<div style="font-size:11px;color:var(--red);margin-top:4px">${e}</div>`).join('');
+        document.getElementById('resultGrid').insertAdjacentHTML('afterend', `<div style="margin-top:10px">${errHtml}${errorDetails.length > 5 ? `<div style="font-size:11px;color:var(--lgray)">+${errorDetails.length-5} more in console</div>` : ''}</div>`);
+      }
     } else {
       status.textContent = `✓ Import complete`;
       status.className = 'import-status ok';

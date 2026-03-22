@@ -66,6 +66,17 @@
 
     .no-roster { color: var(--lgray); font-size: 13px; font-style: italic; padding: 12px 0; }
 
+    /* GAME SNIPPETS */
+    .game-snippets { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .game-snippet { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
+    .gs-label { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--lgray); width: 32px; flex-shrink: 0; }
+    .gs-result { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 15px; width: 16px; flex-shrink: 0; }
+    .gs-result.grn { color: var(--green); }
+    .gs-result.red { color: var(--red); }
+    .gs-score { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; color: var(--black); width: 52px; flex-shrink: 0; }
+    .gs-opp { font-weight: 600; color: var(--black); }
+    .gs-date { color: var(--lgray); font-size: 12px; margin-left: auto; white-space: nowrap; }
+
     .loading-state, .error-state { text-align: center; padding: 60px 20px; color: var(--lgray); font-family: 'Barlow Condensed', sans-serif; font-size: 18px; }
     .error-state { color: var(--red); }
 
@@ -197,7 +208,13 @@ function renderRoster(players, sport) {
   </div>`;
 }
 
-function renderSportCard(team, snap, wins, losses, players, sport, showGender) {
+function fdt(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function renderSportCard(team, snap, wins, losses, ties, players, sport, showGender, lastGame, nextGame) {
   const sportName = SPORT_NAME[sport] || sport;
   const gender = team.gender;
   const title = showGender ? `${gender} ${sportName}` : sportName;
@@ -209,11 +226,50 @@ function renderSportCard(team, snap, wins, losses, players, sport, showGender) {
   const cls         = team.team_class || '';
   const reg         = team.team_region || '';
 
+  const record = ties > 0 ? `${wins}–${losses}–${ties}` : `${wins}–${losses}`;
+
+  // Last game snippet
+  let lastGameHtml = '';
+  if (lastGame) {
+    const home = lastGame.home_team_id === team.id;
+    const opp  = home ? lastGame.away_team : lastGame.home_team;
+    const oppName = opp ? opp.school_name : 'Unknown';
+    const ts   = home ? lastGame.home_score : lastGame.away_score;
+    const os   = home ? lastGame.away_score : lastGame.home_score;
+    const result = ts > os ? 'W' : ts < os ? 'L' : 'T';
+    const col  = result === 'W' ? 'grn' : result === 'L' ? 'red' : '';
+    const ha   = home ? 'vs.' : 'at';
+    lastGameHtml = `<div class="game-snippet">
+      <span class="gs-label">Last</span>
+      <span class="gs-result ${col}">${result}</span>
+      <span class="gs-score">${ts}–${os}</span>
+      <span class="gs-opp">${ha} ${oppName}</span>
+      <span class="gs-date">${fdt(lastGame.game_date)}</span>
+    </div>`;
+  }
+
+  // Next game snippet
+  let nextGameHtml = '';
+  if (nextGame) {
+    const home = nextGame.home_team_id === team.id;
+    const opp  = home ? nextGame.away_team : nextGame.home_team;
+    const oppName = opp ? opp.school_name : 'Unknown';
+    const ha   = home ? 'vs.' : 'at';
+    const loc  = nextGame.location ? ` · ${nextGame.location}` : '';
+    nextGameHtml = `<div class="game-snippet">
+      <span class="gs-label">Next</span>
+      <span class="gs-opp">${ha} ${oppName}</span>
+      <span class="gs-date">${fdt(nextGame.game_date)}${loc}</span>
+    </div>`;
+  }
+
+  const gamesHtml = (lastGameHtml || nextGameHtml) ? `<div class="game-snippets">${lastGameHtml}${nextGameHtml}</div>` : '';
+
   const statsRow = `
     <div class="sport-stats-row">
       <div class="sport-stat">
         <span class="sport-stat-lbl">Record</span>
-        <span class="sport-stat-val grn">${wins}–${losses}</span>
+        <span class="sport-stat-val grn">${record}</span>
       </div>
       ${rankOverall ? `<div class="sport-stat">
         <span class="sport-stat-lbl">Rank</span>
@@ -244,6 +300,7 @@ function renderSportCard(team, snap, wins, losses, players, sport, showGender) {
       </div>
       <div class="sport-card-body">
         ${statsRow}
+        ${gamesHtml}
         ${rosterHtml}
       </div>
     </div>`;
@@ -275,21 +332,29 @@ async function load() {
       const regEnd = SPORT_REG_END[sport] || '2026-02-06';
 
       const [games, snaps, players] = await Promise.all([
-        sb(`games?or=(home_team_id.eq.${team.id},away_team_id.eq.${team.id})&sport_id=eq.${team.sport_id}&status=eq.final&select=home_team_id,away_team_id,home_score,away_score`),
+        sb(`games?or=(home_team_id.eq.${team.id},away_team_id.eq.${team.id})&sport_id=eq.${team.sport_id}&order=game_date.asc&select=game_date,status,location,home_team_id,away_team_id,home_score,away_score,home_team:home_team_id(school_name),away_team:away_team_id(school_name)`),
         sb(`rankings_snapshots?team_id=eq.${team.id}&order=snapshot_date.desc&limit=1&select=rank_overall,rank_class,heal_points`),
         sb(`players?team_id=eq.${team.id}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=number,name,height,position,grade,games,ppg,rpg,apg,stl,blk,fgp,tpp,ftp,eff,plusminus,ba,hr,rbi,sb,ops&order=number.asc&limit=100`),
       ]);
 
-      let wins = 0, losses = 0;
-      for (const g of games) {
+      let wins = 0, losses = 0, ties = 0;
+      const today = new Date().toISOString().slice(0, 10);
+      const finalGames = games.filter(g => g.status === 'final').sort((a,b) => a.game_date > b.game_date ? 1 : -1);
+      const upcoming = games.filter(g => g.status === 'scheduled' && g.game_date >= today).sort((a,b) => a.game_date > b.game_date ? 1 : -1);
+
+      for (const g of finalGames) {
         const home = g.home_team_id === team.id;
         const ts = home ? g.home_score : g.away_score;
         const os = home ? g.away_score : g.home_score;
         if (ts > os) wins++;
         else if (ts < os) losses++;
+        else ties++;
       }
 
-      return { team, sport, snap: snaps[0] || null, wins, losses, players };
+      const lastGame = finalGames[finalGames.length - 1] || null;
+      const nextGame = upcoming[0] || null;
+
+      return { team, sport, snap: snaps[0] || null, wins, losses, ties, players, lastGame, nextGame };
     }));
 
     // Sort by sport display order, then Boys before Girls
@@ -310,8 +375,8 @@ async function load() {
       ).filter(([, genders]) => genders.size > 1).map(([sport]) => sport)
     );
 
-    const cardsHtml = teamData.map(({ team, sport, snap, wins, losses, players }) =>
-      renderSportCard(team, snap, wins, losses, players, sport, sportsWithBothGenders.has(sport))
+    const cardsHtml = teamData.map(({ team, sport, snap, wins, losses, ties, players, lastGame, nextGame }) =>
+      renderSportCard(team, snap, wins, losses, ties, players, sport, sportsWithBothGenders.has(sport), lastGame, nextGame)
     ).join('');
 
     document.title = `${schoolDisplayName} — Maine Basketball Rankings`;

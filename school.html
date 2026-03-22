@@ -197,10 +197,10 @@ function renderRoster(players, sport) {
   </div>`;
 }
 
-function renderSportCard(team, snap, wins, losses, players, sport) {
+function renderSportCard(team, snap, wins, losses, players, sport, showGender) {
   const sportName = SPORT_NAME[sport] || sport;
   const gender = team.gender;
-  const title = `${gender} ${sportName}`;
+  const title = showGender ? `${gender} ${sportName}` : sportName;
   const seasonYear = sport === 'basketball' ? 2026 : 2025;
 
   const rankOverall = snap ? snap.rank_overall : null;
@@ -299,9 +299,19 @@ async function load() {
       return a.team.gender === 'Boys' ? -1 : 1;
     });
 
-    // Build page
+    // Build page — only show gender prefix if both Boys + Girls exist for that sport
+    const sportsWithBothGenders = new Set(
+      Object.entries(
+        teamData.reduce((acc, { sport, team }) => {
+          acc[sport] = acc[sport] || new Set();
+          acc[sport].add(team.gender);
+          return acc;
+        }, {})
+      ).filter(([, genders]) => genders.size > 1).map(([sport]) => sport)
+    );
+
     const cardsHtml = teamData.map(({ team, sport, snap, wins, losses, players }) =>
-      renderSportCard(team, snap, wins, losses, players, sport)
+      renderSportCard(team, snap, wins, losses, players, sport, sportsWithBothGenders.has(sport))
     ).join('');
 
     document.title = `${schoolDisplayName} — Maine Basketball Rankings`;

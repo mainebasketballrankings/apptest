@@ -331,7 +331,7 @@ async function load() {
 
     // Paginated fetch helper
     // Fetch roster players for this team
-    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=number.asc`);
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,pts,reb,ast,stl,ba,hr,rbi,sb,ops&order=number.asc`);
 
     async function fetchAll(query) {
       const pageSize = 1000;
@@ -717,42 +717,42 @@ async function load() {
         const urlSport = new URLSearchParams(window.location.search).get('sport') || sport;
         const isBball  = urlSport === 'basketball';
         const isBase   = urlSport === 'baseball' || urlSport === 'softball';
-        const rows = players.map(p => `
-          <tr>
-            <td class="rt-num">${p.number || '—'}</td>
-            <td class="rt-name">${p.name || ''}</td>
-            <td class="rt-pron">${p.pronunciation || ''}</td>
-            ${showHeight ? `<td class="rt-grade">${p.height || ''}</td>` : ''}
-            <td class="rt-pos">${p.position || ''}</td>
-            <td class="rt-grade">${p.grade || ''}</td>
-            ${showStats && isBball ? `
-              <td class="rt-stat">${p.pts != null ? p.pts : ''}</td>
-              <td class="rt-stat">${p.reb != null ? p.reb : ''}</td>
-              <td class="rt-stat">${p.ast != null ? p.ast : ''}</td>
-              <td class="rt-stat">${p.stl != null ? p.stl : ''}</td>` : ''}
-            ${showStats && isBase ? `
-              <td class="rt-stat">${p.ba  != null ? p.ba  : ''}</td>
-              <td class="rt-stat">${p.hr  != null ? p.hr  : ''}</td>
-              <td class="rt-stat">${p.rbi != null ? p.rbi : ''}</td>
-              <td class="rt-stat">${p.sb  != null ? p.sb  : ''}</td>
-              <td class="rt-stat">${p.ops != null ? p.ops : ''}</td>` : ''}
-          </tr>`).join('');
-        const statHeaders = showStats && isBball
-          ? '<th>PTS</th><th>REB</th><th>AST</th><th>STL</th>'
-          : showStats && isBase
-            ? '<th>BA</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>'
-            : '';
+        const rows = players.map(p => {
+          const cells = [
+            `<td class="rt-num">${p.number || '—'}</td>`,
+            `<td class="rt-name">${p.name || ''}</td>`,
+            `<td class="rt-pron">${p.pronunciation || ''}</td>`,
+          ];
+          if (showHeight) cells.push(`<td class="rt-grade">${p.height || ''}</td>`);
+          cells.push(`<td class="rt-pos">${p.position || ''}</td>`);
+          cells.push(`<td class="rt-grade">${p.grade || ''}</td>`);
+          if (showStats && isBball) {
+            cells.push(`<td class="rt-stat">${p.pts != null ? p.pts : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.reb != null ? p.reb : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.ast != null ? p.ast : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.stl != null ? p.stl : ''}</td>`);
+          }
+          if (showStats && isBase) {
+            cells.push(`<td class="rt-stat">${p.ba  != null ? p.ba  : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.hr  != null ? p.hr  : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.rbi != null ? p.rbi : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.sb  != null ? p.sb  : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.ops != null ? p.ops : ''}</td>`);
+          }
+          return `<tr>${cells.join('')}</tr>`;
+        }).join('');
+        const headCells = ['#','Name','Pronunciation'];
+        if (showHeight) headCells.push('Ht');
+        headCells.push('Pos','Grade');
+        if (showStats && isBball) headCells.push('PTS','REB','AST','STL');
+        if (showStats && isBase)  headCells.push('BA','HR','RBI','SB','OPS');
+        const headerRow = headCells.map(h => `<th>${h}</th>`).join('');
         rosterHtml = `
           <div class="roster-section">
             <div class="section-header">Roster</div>
             <div class="roster-wrap">
               <table class="rt">
-                <thead><tr>
-                  <th>#</th><th>Name</th><th>Pronunciation</th>
-                  ${showHeight ? '<th>Ht</th>' : ''}
-                  <th>Pos</th><th>Grade</th>
-                  ${statHeaders}
-                </tr></thead>
+                <thead><tr>${headerRow}</tr></thead>
                 <tbody>${rows}</tbody>
               </table>
             </div>

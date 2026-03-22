@@ -183,6 +183,8 @@
     .rt-grade { font-size: 12px; color: var(--lgray); }
     .rt-pron  { font-size: 11px; color: var(--lgray); font-style: italic; }
     .rt-stat  { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; text-align: right; color: var(--black); }
+    .rt-stat-gap { width: 20px; border-right: 2px solid var(--border); padding: 0; }
+    .rt-stat-gap-th { width: 20px; border-right: 2px solid var(--border); padding: 0; }
     table.rt th:not(:first-child):not(:nth-child(2)) { text-align: right; }
     table.rt th:nth-child(2), table.rt th:nth-child(3) { text-align: left; }
   </style>
@@ -331,7 +333,7 @@ async function load() {
 
     // Paginated fetch helper
     // Fetch roster players for this team
-    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,pts,reb,ast,stl,ba,hr,rbi,sb,ops&order=number.asc`);
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,pts,reb,ast,stl,ba,hr,rbi,sb,ops&order=number.asc&limit=100`);
 
     async function fetchAll(query) {
       const pageSize = 1000;
@@ -709,44 +711,43 @@ async function load() {
     let rosterHtml = '';
     try {
       const players = await playersPromise;
+      console.log('Players fetched:', players?.length, players);
       if (players && players.length) {
-        const showHeight = players.some(p => p.height);
-        const showStats  = players.some(p =>
-          p.pts||p.reb||p.ast||p.stl||p.ba||p.hr||p.rbi||p.sb||p.ops);
-        // Detect sport from URL for stat header labels
-        const urlSport = new URLSearchParams(window.location.search).get('sport') || sport;
-        const isBball  = urlSport === 'basketball';
-        const isBase   = urlSport === 'baseball' || urlSport === 'softball';
+        const isBball = sport === 'basketball';
+        const isBase  = sport === 'baseball' || sport === 'softball';
         const rows = players.map(p => {
+          const n = (v, decimals) => v != null ? (decimals != null ? (+v).toFixed(decimals) : v) : '';
           const cells = [
             `<td class="rt-num">${p.number || '—'}</td>`,
             `<td class="rt-name">${p.name || ''}</td>`,
             `<td class="rt-pron">${p.pronunciation || ''}</td>`,
+            `<td class="rt-grade">${p.height || ''}</td>`,
+            `<td class="rt-pos">${p.position || ''}</td>`,
+            `<td class="rt-grade">${p.grade || ''}</td>`,
+            `<td class="rt-stat-gap"></td>`,
           ];
-          if (showHeight) cells.push(`<td class="rt-grade">${p.height || ''}</td>`);
-          cells.push(`<td class="rt-pos">${p.position || ''}</td>`);
-          cells.push(`<td class="rt-grade">${p.grade || ''}</td>`);
-          if (showStats && isBball) {
-            cells.push(`<td class="rt-stat">${p.pts != null ? p.pts : ''}</td>`);
-            cells.push(`<td class="rt-stat">${p.reb != null ? p.reb : ''}</td>`);
-            cells.push(`<td class="rt-stat">${p.ast != null ? p.ast : ''}</td>`);
-            cells.push(`<td class="rt-stat">${p.stl != null ? p.stl : ''}</td>`);
-          }
-          if (showStats && isBase) {
-            cells.push(`<td class="rt-stat">${p.ba  != null ? p.ba  : ''}</td>`);
-            cells.push(`<td class="rt-stat">${p.hr  != null ? p.hr  : ''}</td>`);
-            cells.push(`<td class="rt-stat">${p.rbi != null ? p.rbi : ''}</td>`);
-            cells.push(`<td class="rt-stat">${p.sb  != null ? p.sb  : ''}</td>`);
-            cells.push(`<td class="rt-stat">${p.ops != null ? p.ops : ''}</td>`);
+          if (isBball) {
+            cells.push(`<td class="rt-stat">${n(p.pts,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.reb,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.ast,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.stl,1)}</td>`);
+          } else if (isBase) {
+            cells.push(`<td class="rt-stat">${n(p.ba,3)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.hr)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.rbi)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.sb)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.ops,3)}</td>`);
           }
           return `<tr>${cells.join('')}</tr>`;
         }).join('');
-        const headCells = ['#','Name','Pronunciation'];
-        if (showHeight) headCells.push('Ht');
-        headCells.push('Pos','Grade');
-        if (showStats && isBball) headCells.push('PTS','REB','AST','STL');
-        if (showStats && isBase)  headCells.push('BA','HR','RBI','SB','OPS');
-        const headerRow = headCells.map(h => `<th>${h}</th>`).join('');
+        const headCells = [
+          '<th>#</th>','<th>Name</th>','<th>Pronunciation</th>',
+          '<th>Ht</th>','<th>Pos</th>','<th>Grade</th>',
+          '<th class="rt-stat-gap-th"></th>',
+        ];
+        if (isBball) headCells.push('<th>PTS</th>','<th>REB</th>','<th>AST</th>','<th>STL</th>');
+        else if (isBase) headCells.push('<th>BA</th>','<th>HR</th>','<th>RBI</th>','<th>SB</th>','<th>OPS</th>');
+        const headerRow = headCells.join('');
         rosterHtml = `
           <div class="roster-section">
             <div class="section-header">Roster</div>

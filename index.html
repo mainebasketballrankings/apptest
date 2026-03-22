@@ -355,6 +355,77 @@
 
     .submit-btn-inline:hover { background: var(--green); color: #fff; }
 
+    .ppd-btn {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 11px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      background: transparent; border: 1px solid var(--lgray);
+      color: var(--lgray); padding: 4px 10px;
+      border-radius: 5px; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .ppd-btn:hover { border-color: #c0392b; color: #c0392b; }
+
+    /* POSTPONED CARD */
+    .game-card.postponed {
+      opacity: 0.55;
+      position: relative;
+    }
+    .ppd-badge {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.92);
+      border: 2px solid #c0392b;
+      color: #c0392b;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900; font-size: 18px;
+      letter-spacing: 2px; text-transform: uppercase;
+      padding: 6px 16px; border-radius: 6px;
+      pointer-events: none; z-index: 2;
+      white-space: nowrap;
+    }
+
+    /* PPD PANEL */
+    .ppd-panel {
+      display: none;
+      background: #f8f9fa;
+      border-top: 1px solid var(--border);
+      padding: 14px;
+    }
+    .ppd-panel.open { display: block; }
+    .ppd-panel h4 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 10px;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--lgray); margin-bottom: 10px;
+    }
+    .ppd-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .ppd-date-input {
+      font-family: 'Barlow', sans-serif; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 5px;
+      padding: 5px 9px; background: var(--white);
+      color: var(--black); outline: none;
+    }
+    .ppd-date-input:focus { border-color: #bbb; }
+    .ppd-submit {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 12px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      background: #c0392b; color: #fff;
+      border: none; border-radius: 5px;
+      padding: 6px 14px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .ppd-submit:hover { opacity: 0.85; }
+    .ppd-hint {
+      font-size: 11px; color: var(--lgray);
+      width: 100%; margin-top: 4px;
+    }
+
     /* SUBMIT PANEL */
     .submit-panel {
       display: none;
@@ -820,7 +891,7 @@
     await loadRanks(ds);
 
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, location, status, stream_url, stax_index,
+      id, game_date, game_time, location, status, new_date, stream_url, stax_index,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock,
       home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, team_class,
@@ -1087,6 +1158,7 @@
     const clsLabel = crossCls ? 'Cross-class' : `Class ${homeCls}`;
     const isFinal = g.status === 'final';
     const isLive  = g.status === 'active';
+    const isPPD   = g.status === 'postponed';
 
     const hSc = isFinal ? g.home_score : (isLive ? g.home_score_live : null);
     const aSc = isFinal ? g.away_score : (isLive ? g.away_score_live : null);
@@ -1105,7 +1177,9 @@
       ? `<div class="card-top"><span>Final</span><span>${clsLabel} · ${home.gender}</span></div>`
       : isLive
         ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>${clsLabel} · ${home.gender}</span></div>`
-        : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>${clsLabel} · ${home.gender}</span></div>`;
+        : isPPD
+          ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span>${clsLabel} · ${home.gender}</span></div>`
+          : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>${clsLabel} · ${home.gender}</span></div>`;
 
     // Score cells
     const hScEl = has
@@ -1136,8 +1210,21 @@
       footerMeta = `<div class="card-meta">${eventEl}${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>`;
     }
 
+    // PPD badge label
+    let ppdLabel = '';
+    if (isPPD) {
+      const nd = g.new_date;
+      if (nd) {
+        const d = new Date(nd + 'T12:00:00');
+        ppdLabel = 'PPD · ' + d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+      } else {
+        ppdLabel = 'PPD';
+      }
+    }
+
     return `
-    <div class="game-card ${isLive ? 'live' : ''}">
+    <div class="game-card ${isLive ? 'live' : ''} ${isPPD ? 'postponed' : ''}">
+      ${isPPD ? `<div class="ppd-badge">${ppdLabel}</div>` : ''}
       ${topBar}
       <div class="card-body">
         <div class="team-row">
@@ -1160,10 +1247,21 @@
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
           ${streamIconEl(streamUrl)}
-          ${!isFinal ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
+          ${!isFinal && !isPPD ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
+          ${!isFinal && !isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
+          ${isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}" style="border-color:#c0392b;color:#c0392b">Edit PPD</button>` : ''}
         </div>
       </div>
       ${!isFinal ? `
+      <div class="ppd-panel" id="ppd-panel-${g.id}">
+        <h4>Report Postponement</h4>
+        <div class="ppd-row">
+          <input type="date" class="ppd-date-input" id="ppd-date-${g.id}" placeholder="Reschedule date (optional)" />
+          <button type="button" class="ppd-submit" data-ppd-submit="${g.id}">Mark PPD</button>
+        </div>
+        <div class="ppd-hint">Leave date blank if rescheduled date is unknown — will show as "PPD"</div>
+      </div>` : ''}
+      ${!isFinal && !isPPD ? `
       <div class="submit-panel" id="panel-${g.id}">
         <h4>Submit Score</h4>
         <form class="score-form" data-id="${g.id}" data-sport="${activeSport}">
@@ -1351,6 +1449,53 @@
     buildFilterButtons();
     loadGames(currentDate);
   });
+
+  // ── PPD ─────────────────────────────────────────────────────────────────
+  document.getElementById('gamesContainer').addEventListener('click', e => {
+    // Toggle PPD panel
+    const ppdBtn = e.target.closest('[data-ppd-id]');
+    if (ppdBtn && !ppdBtn.dataset.ppdSubmit) {
+      const id = ppdBtn.dataset.ppdId;
+      const panel = document.getElementById('ppd-panel-' + id);
+      if (!panel) return;
+      // Close score panel if open
+      const scorePanel = document.getElementById('panel-' + id);
+      if (scorePanel) scorePanel.classList.remove('open');
+      panel.classList.toggle('open');
+      return;
+    }
+
+    // Submit PPD
+    const submitBtn = e.target.closest('[data-ppd-submit]');
+    if (submitBtn) {
+      const id = submitBtn.dataset.ppdSubmit;
+      handlePPD(id, submitBtn);
+    }
+  });
+
+  async function handlePPD(id, btn) {
+    const dateInput = document.getElementById('ppd-date-' + id);
+    const newDate   = dateInput ? dateInput.value.trim() : '';
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const update = { status: 'postponed' };
+    if (newDate) update.new_date = newDate;
+
+    const { error } = await sb.from('games').update(update).eq('id', id);
+
+    if (error) {
+      showToast('Failed: ' + error.message, true);
+      btn.disabled = false;
+      btn.textContent = 'Mark PPD';
+      return;
+    }
+
+    showToast('Game marked as postponed.');
+    setTimeout(() => loadGames(currentDate), 800);
+  }
+  // ── END PPD ──────────────────────────────────────────────────────────────
 
   // ── EXPORT ──────────────────────────────────────────────────────────────
   const SPORT_LABEL = {

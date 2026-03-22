@@ -494,14 +494,46 @@
       }
     }
 
-    // Strip internal helper fields before inserting
-    const toInsert = valid.map(({ _teamId, _matchKey, ...rest }) => rest);
+    // Strip internal helper fields and stat columns — only upsert bio fields
+    // so existing tourney stats are not overwritten
+    const BIO_FIELDS = ['team_id','sport_id','season_year','number','name',
+                        'pronunciation','grade','position','height'];
+    const toInsert = valid.map(({ _teamId, _matchKey, ...rest }) => {
+      const bio = {};
+      for (const k of BIO_FIELDS) if (rest[k] !== undefined) bio[k] = rest[k];
+      return bio;
+    });
 
-    // Insert one row at a time so a single bad row doesn't kill the batch
+    // Upsert one row at a time — merge into existing row if name+team+year matches
     let inserted = 0, errors = 0;
     const errorDetails = [];
     for (const row of toInsert) {
-      const { data, error } = await sb.from('players').insert(row).select('id');
+      // First try to update existing row (bio fields only, preserves stats)
+      const { data: existing } = await sb.from('players')
+        .select('id')
+        .eq('team_id', row.team_id)
+        .eq('name', row.name)
+        .eq('season_year', row.season_year)
+        .maybeSingle();
+
+      let error;
+      if (existing) {
+        // Row exists — update bio fields only
+        const { error: updErr } = await sb.from('players')
+          .update({
+            number: row.number,
+            pronunciation: row.pronunciation,
+            grade: row.grade,
+            position: row.position,
+            height: row.height,
+          })
+          .eq('id', existing.id);
+        error = updErr;
+      } else {
+        // No existing row — insert fresh
+        const { error: insErr } = await sb.from('players').insert(row).select('id');
+        error = insErr;
+      }
       if (error) {
         console.error('Insert error for', row.name, ':', JSON.stringify(error));
         errorDetails.push(`${row.name}: ${error.message}`);

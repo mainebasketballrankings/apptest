@@ -497,18 +497,18 @@
     // Strip internal helper fields before inserting
     const toInsert = valid.map(({ _teamId, _matchKey, ...rest }) => rest);
 
-    // Insert in batches of 200
+    // Insert one row at a time so a single bad row doesn't kill the batch
     let inserted = 0, errors = 0;
-    const BATCH = 200;
-    for (let i = 0; i < toInsert.length; i += BATCH) {
-      const batch = toInsert.slice(i, i + BATCH);
-      const { error } = await sb.from('players').insert(batch);
+    for (const row of toInsert) {
+      const { error } = await sb.from('players').insert(row);
       if (error) {
-        console.error('Insert error:', error);
-        errors += batch.length;
+        console.error('Insert error for', row.name, ':', error.message);
+        errors++;
       } else {
-        inserted += batch.length;
+        inserted++;
       }
+      // Update progress
+      btn.textContent = `Importing… ${inserted + errors}/${toInsert.length}`;
     }
 
     btn.disabled = false;

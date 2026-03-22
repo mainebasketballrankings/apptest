@@ -706,12 +706,14 @@ async function load() {
     try {
       const players = await playersPromise;
       if (players && players.length) {
+        const showHeight = players.some(p => p.height);
         const rows = players.map(p => `
           <tr>
             <td class="rt-num">${p.number || '—'}</td>
             <td class="rt-name">${p.name || ''}</td>
             <td class="rt-pos">${p.position || ''}</td>
             <td class="rt-grade">${p.grade || ''}</td>
+            ${showHeight ? `<td class="rt-grade">${p.height || ''}</td>` : ''}
           </tr>`).join('');
         rosterHtml = `
           <div class="roster-section">
@@ -720,6 +722,7 @@ async function load() {
               <table class="rt">
                 <thead><tr>
                   <th>#</th><th>Name</th><th>Position</th><th>Grade</th>
+                  ${showHeight ? '<th>Ht</th>' : ''}
                 </tr></thead>
                 <tbody>${rows}</tbody>
               </table>

@@ -241,7 +241,7 @@ function renderSportCard(team, snap, wins, losses, ties, players, sport, showGen
   function scLogoEl(t) {
     if (!t) return `<div class="sc-logo-fb">?</div>`;
     const ch = (t.school_name || '?')[0];
-    if (t.logo_url) return `<img src="${t.logo_url}" alt="${t.school_name}" style="max-width:30px;max-height:30px;object-fit:contain;display:block" onerror="this.outerHTML='<div class=\"sc-logo-fb\">${ch}</div>'">`;
+    if (t.logo_url) return `<img src="${t.logo_url}" alt="${t.school_name}" style="max-width:30px;max-height:30px;object-fit:contain;display:block" onerror="this.style.display='none'">`;
     return `<div class="sc-logo-fb">${ch}</div>`;
   }
 

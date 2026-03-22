@@ -369,22 +369,17 @@
 
     /* POSTPONED CARD */
     .game-card.postponed {
-      opacity: 0.55;
-      position: relative;
+      opacity: 0.6;
     }
     .ppd-badge {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(255,255,255,0.92);
-      border: 2px solid #c0392b;
-      color: #c0392b;
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 900; font-size: 18px;
-      letter-spacing: 2px; text-transform: uppercase;
-      padding: 6px 16px; border-radius: 6px;
-      pointer-events: none; z-index: 2;
-      white-space: nowrap;
+      font-weight: 900; font-size: 11px;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: #c0392b;
+      background: rgba(192,57,43,0.1);
+      border: 1px solid rgba(192,57,43,0.3);
+      border-radius: 4px;
+      padding: 1px 7px;
     }
 
     /* PPD PANEL */
@@ -1172,13 +1167,25 @@
     const hR   = hRnk ? `<span class="rnk">#${hRnk} </span>` : '';
     const aR   = aRnk ? `<span class="rnk">#${aRnk} </span>` : '';
 
+    // PPD badge label (needed for topBar)
+    let ppdLabel = '';
+    if (isPPD) {
+      const nd = g.new_date;
+      if (nd) {
+        const d = new Date(nd + 'T12:00:00');
+        ppdLabel = 'PPD · ' + d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+      } else {
+        ppdLabel = 'PPD';
+      }
+    }
+
     // Top status bar
     const topBar = isFinal
       ? `<div class="card-top"><span>Final</span><span>${clsLabel} · ${home.gender}</span></div>`
       : isLive
         ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>${clsLabel} · ${home.gender}</span></div>`
         : isPPD
-          ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span>${clsLabel} · ${home.gender}</span></div>`
+          ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span style="display:flex;align-items:center;gap:6px">${clsLabel} · ${home.gender} <span class="ppd-badge">${ppdLabel}</span></span></div>`
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>${clsLabel} · ${home.gender}</span></div>`;
 
     // Score cells
@@ -1210,21 +1217,8 @@
       footerMeta = `<div class="card-meta">${eventEl}${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>`;
     }
 
-    // PPD badge label
-    let ppdLabel = '';
-    if (isPPD) {
-      const nd = g.new_date;
-      if (nd) {
-        const d = new Date(nd + 'T12:00:00');
-        ppdLabel = 'PPD · ' + d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
-      } else {
-        ppdLabel = 'PPD';
-      }
-    }
-
     return `
     <div class="game-card ${isLive ? 'live' : ''} ${isPPD ? 'postponed' : ''}">
-      ${isPPD ? `<div class="ppd-badge">${ppdLabel}</div>` : ''}
       ${topBar}
       <div class="card-body">
         <div class="team-row">

@@ -54,10 +54,10 @@
 }
 
 .mbr-nav-inner a {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 500;
-  font-size: 12.5px;
-  letter-spacing: 0.7px;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
   color: #555;
   text-decoration: none;

@@ -653,17 +653,21 @@
     }
     .export-col-data {
       font-family: 'Courier New', monospace;
-      font-size: 12px; line-height: 1.7;
+      font-size: 12px;
       background: #f7f7f7;
       border: 1px solid var(--border);
       border-radius: 5px;
-      padding: 8px 10px;
-      white-space: pre;
+      padding: 4px 0;
       cursor: text;
       user-select: text;
       min-height: 48px;
     }
     .export-col-data:focus { outline: 2px solid #bbb; }
+    .export-col-row {
+      padding: 2px 10px;
+      line-height: 1.7;
+      user-select: text;
+    }
 
     @media (max-width: 640px) {
       nav { display: none; }
@@ -1387,10 +1391,11 @@
         (a.home_team?.school_name || '').localeCompare(b.home_team?.school_name || '')
       );
 
-      const homeTeams  = games.map(g => g.home_team?.school_name || '').join('\n');
-      const homeScores = games.map(g => getScore(g, 'home')).join('\n');
-      const awayTeams  = games.map(g => g.away_team?.school_name || '').join('\n');
-      const awayScores = games.map(g => getScore(g, 'away')).join('\n');
+      const toRows = arr => arr.map(v => `<div class="export-col-row">${v}</div>`).join('');
+      const homeTeams  = toRows(games.map(g => g.home_team?.school_name || ''));
+      const homeScores = toRows(games.map(g => getScore(g, 'home')));
+      const awayTeams  = toRows(games.map(g => g.away_team?.school_name || ''));
+      const awayScores = toRows(games.map(g => getScore(g, 'away')));
 
       return `
         <div class="export-section">

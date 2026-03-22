@@ -1238,14 +1238,14 @@
         <div class="team-row">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="school.html?school=${away.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">${aR}${away.school_name}</a>
+            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="team.html?team_id=${away.id}">${aR}${away.school_name}</a>
           </div>
           ${aScEl}
         </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="school.html?school=${home.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">${hR}${home.school_name}</a>
+            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="team.html?team_id=${home.id}">${hR}${home.school_name}</a>
           </div>
           ${hScEl}
         </div>

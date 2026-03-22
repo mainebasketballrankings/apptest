@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roster Upload — MBR Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+    body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--black); min-height: 100vh; }
+    .page { max-width: 1000px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    /* AUTH GATE */
+    #authGate {
+      max-width: 420px; margin: 80px auto; background: var(--white);
+      border: 1px solid var(--border); border-radius: 10px; padding: 36px;
+      text-align: center;
+    }
+    #authGate h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; margin-bottom: 8px; }
+    #authGate p  { font-size: 13px; color: var(--lgray); margin-bottom: 20px; }
+    .auth-input {
+      width: 100%; border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-size: 14px; font-family: 'Barlow', sans-serif;
+      margin-bottom: 10px; outline: none;
+    }
+    .auth-input:focus { border-color: #bbb; }
+    .auth-btn {
+      width: 100%; background: var(--black); color: #fff;
+      border: none; border-radius: 6px; padding: 11px;
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .auth-btn:hover { opacity: 0.8; }
+    .auth-msg { font-size: 13px; margin-top: 12px; color: var(--green); }
+    .auth-msg.err { color: var(--red); }
+
+    /* PAGE HEADER */
+    .page-header {
+      margin-bottom: 24px;
+    }
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-size: 30px; margin-bottom: 4px;
+    }
+    .page-sub { font-size: 13px; color: var(--lgray); }
+
+    /* SECTION */
+    .section { background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+    .section-head {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+      font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--gray); padding: 14px 18px;
+      border-bottom: 1px solid var(--border); background: #fafafa;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-body { padding: 18px; }
+
+    /* TEMPLATE */
+    .template-cols {
+      font-family: 'Courier New', monospace; font-size: 12px;
+      background: #f7f7f7; border: 1px solid var(--border);
+      border-radius: 6px; padding: 12px 14px; line-height: 1.8;
+      color: var(--black); overflow-x: auto; white-space: nowrap;
+      margin-bottom: 12px; user-select: all;
+    }
+    .template-note { font-size: 12px; color: var(--lgray); line-height: 1.6; }
+    .template-note strong { color: var(--black); }
+
+    /* UPLOAD AREA */
+    .upload-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 14px; }
+    .upload-label {
+      font-size: 12px; font-weight: 600; color: var(--gray);
+      margin-bottom: 5px; display: block;
+    }
+    .file-input-wrap {
+      flex: 1; min-width: 220px;
+    }
+    .file-input {
+      width: 100%; font-family: 'Barlow', sans-serif; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; background: var(--white); cursor: pointer;
+    }
+    .paste-area {
+      width: 100%; height: 160px; font-family: 'Courier New', monospace;
+      font-size: 12px; border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; resize: vertical; background: #fafafa;
+      color: var(--black); line-height: 1.5; outline: none;
+    }
+    .paste-area:focus { border-color: #bbb; background: var(--white); }
+
+    /* PREVIEW TABLE */
+    .preview-wrap {
+      overflow-x: auto; border: 1px solid var(--border);
+      border-radius: 6px; margin-bottom: 14px;
+    }
+    table.preview-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.preview-tbl thead tr { background: var(--bg); border-bottom: 2px solid var(--border); }
+    table.preview-tbl th {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--lgray); padding: 7px 10px; text-align: left; white-space: nowrap;
+    }
+    table.preview-tbl td { padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.preview-tbl tr:last-child td { border-bottom: none; }
+    table.preview-tbl tr:hover td { background: #fafafa; }
+    .match-ok  { color: var(--green); font-weight: 600; font-size: 11px; }
+    .match-err { color: var(--red);   font-weight: 600; font-size: 11px; }
+    .match-warn{ color: #e67e22;      font-weight: 600; font-size: 11px; }
+
+    /* IMPORT CONTROLS */
+    .import-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .import-mode {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 0 12px; height: 34px; background: var(--white);
+      color: var(--black); cursor: pointer; outline: none;
+    }
+    .import-btn {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase;
+      background: var(--green); color: #fff; border: none; border-radius: 6px;
+      padding: 0 20px; height: 34px; cursor: pointer; transition: opacity 0.15s;
+    }
+    .import-btn:hover { opacity: 0.85; }
+    .import-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .import-status { font-size: 13px; color: var(--lgray); }
+    .import-status.ok  { color: var(--green); font-weight: 600; }
+    .import-status.err { color: var(--red);   font-weight: 600; }
+
+    /* RESULTS */
+    .result-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px; margin-top: 16px;
+    }
+    .result-card {
+      background: #fafafa; border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px; text-align: center;
+    }
+    .result-card .rc-val {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-size: 30px; line-height: 1;
+    }
+    .result-card .rc-val.ok  { color: var(--green); }
+    .result-card .rc-val.err { color: var(--red); }
+    .result-card .rc-lbl {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase;
+      color: var(--lgray); margin-top: 4px;
+    }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #222; color: #fff; padding: 11px 18px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      opacity: 0; transform: translateY(6px);
+      transition: all 0.22s; z-index: 999; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.err  { background: var(--red); }
+  </style>
+</head>
+<body>
+
+<div id="mbr-header"></div>
+
+<!-- AUTH GATE -->
+<div id="authGate" style="display:none">
+  <h2>MBR Admin</h2>
+  <p>Enter your email to receive a magic link</p>
+  <input type="email" class="auth-input" id="authEmail" placeholder="your@email.com" />
+  <button class="auth-btn" id="authSendBtn">Send Magic Link</button>
+  <div class="auth-msg" id="authMsg"></div>
+</div>
+
+<!-- MAIN PAGE -->
+<div class="page" id="mainPage" style="display:none">
+  <div class="page-header">
+    <div class="page-title">Roster Upload</div>
+    <div class="page-sub">Upload a master CSV to upsert player records into Supabase</div>
+  </div>
+
+  <!-- TEMPLATE -->
+  <div class="section">
+    <div class="section-head">CSV Template</div>
+    <div class="section-body">
+      <div class="template-cols" id="templateCols">school_name	gender	sport	season_year	number	name	pronunciation	grade	position	height	pts	reb	ast	stl	ba	hr	rbi	sb	ops</div>
+      <div class="template-note">
+        <strong>school_name</strong> — must match exactly (e.g. "Camden Hills Regional") ·
+        <strong>gender</strong> — Boys or Girls ·
+        <strong>sport</strong> — basketball, baseball, softball, lacrosse, soccer, field-hockey, football, volleyball ·
+        <strong>season_year</strong> — 2025 or 2026 ·
+        <strong>height</strong> — basketball only (e.g. 6'2") ·
+        <strong>pronunciation</strong> — phonetic spelling if needed, otherwise blank ·
+        Stats columns: leave blank if not applicable for sport.
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="section">
+    <div class="section-head">Load Data</div>
+    <div class="section-body">
+      <label class="upload-label">Upload CSV file</label>
+      <div class="upload-row">
+        <div class="file-input-wrap">
+          <input type="file" class="file-input" id="csvFile" accept=".csv,.tsv,.txt" />
+        </div>
+      </div>
+      <label class="upload-label">— or paste CSV/TSV data directly —</label>
+      <textarea class="paste-area" id="csvPaste" placeholder="Paste rows here (with or without header row)…"></textarea>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="section" id="previewSection" style="display:none">
+    <div class="section-head">
+      <span>Preview</span>
+      <span id="previewCount" style="font-weight:400;color:var(--lgray)"></span>
+    </div>
+    <div class="section-body">
+      <div class="preview-wrap">
+        <table class="preview-tbl" id="previewTable"></table>
+      </div>
+      <div class="import-row">
+        <select class="import-mode" id="importMode">
+          <option value="upsert">Upsert (add + update)</option>
+          <option value="replace">Replace team roster (delete first)</option>
+        </select>
+        <button class="import-btn" id="importBtn">Import to Supabase</button>
+        <span class="import-status" id="importStatus"></span>
+      </div>
+      <div class="result-grid" id="resultGrid" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Sport IDs loaded from Supabase at runtime
+  let SPORT_IDS = {};
+
+  async function loadSportIds() {
+    const { data } = await sb.from('sports').select('id, slug');
+    if (data) data.forEach(s => { SPORT_IDS[s.slug] = s.id; });
+  }
+
+  // ── AUTH ────────────────────────────────────────────────────────────────
+  async function init() {
+    // Try to restore session from URL hash (magic link)
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const { error } = await sb.auth.setSession({
+        access_token:  params.get('access_token'),
+        refresh_token: params.get('refresh_token'),
+      });
+      if (!error) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      await loadSportIds();
+      showMain();
+    } else {
+      document.getElementById('authGate').style.display = 'block';
+    }
+  }
+
+  document.getElementById('authSendBtn').addEventListener('click', async () => {
+    const email = document.getElementById('authEmail').value.trim();
+    const msg   = document.getElementById('authMsg');
+    if (!email) return;
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href }
+    });
+    if (error) {
+      msg.textContent = error.message;
+      msg.className = 'auth-msg err';
+    } else {
+      msg.textContent = 'Magic link sent — check your email.';
+      msg.className = 'auth-msg';
+    }
+  });
+
+  async function showMain() {
+    document.getElementById('authGate').style.display  = 'none';
+    document.getElementById('mainPage').style.display  = 'block';
+    await loadSportIds();
+    loadTeamCache();
+  }
+
+  // ── TEAM CACHE ──────────────────────────────────────────────────────────
+  let teamCache = {}; // "school_name|gender|sport_id" → team_id
+
+  async function loadTeamCache() {
+    const { data } = await sb.from('teams').select('id, school_name, gender, sport_id');
+    if (data) {
+      data.forEach(t => {
+        const key = `${t.school_name.trim().toLowerCase()}|${t.gender}|${t.sport_id}`;
+        teamCache[key] = t.id;
+      });
+    }
+  }
+
+  function resolveTeamId(schoolName, gender, sportSlug) {
+    const sportId = SPORT_IDS[sportSlug?.toLowerCase()];
+    if (!sportId) return null;
+    const key = `${schoolName.trim().toLowerCase()}|${gender}|${sportId}`;
+    return teamCache[key] || null;
+  }
+
+  // ── CSV PARSING ─────────────────────────────────────────────────────────
+  const EXPECTED_COLS = [
+    'school_name','gender','sport','season_year','number','name',
+    'pronunciation','grade','position','height',
+    'pts','reb','ast','stl','ba','hr','rbi','sb','ops'
+  ];
+
+  function parseCSV(raw) {
+    const lines = raw.trim().split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) return [];
+
+    // Detect delimiter
+    const delim = lines[0].includes('\t') ? '\t' : ',';
+
+    // Detect if first row is a header
+    const firstCells = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/"/g,''));
+    const isHeader = EXPECTED_COLS.some(c => firstCells.includes(c));
+    const dataLines = isHeader ? lines.slice(1) : lines;
+    const headers   = isHeader ? firstCells : EXPECTED_COLS;
+
+    return dataLines.map(line => {
+      const cells = line.split(delim).map(c => c.trim().replace(/^"|"$/g, ''));
+      const row = {};
+      headers.forEach((h, i) => { row[h] = cells[i] || ''; });
+      return row;
+    }).filter(r => r.school_name || r.name); // skip blank lines
+  }
+
+  function rowToPlayer(row) {
+    const teamId = resolveTeamId(row.school_name, row.gender, row.sport);
+    const sportId = SPORT_IDS[row.sport?.toLowerCase()] || null;
+    const num = f => (row[f] !== '' && row[f] != null) ? parseFloat(row[f]) : null;
+    const int = f => (row[f] !== '' && row[f] != null) ? parseInt(row[f])   : null;
+    return {
+      _teamId:    teamId,
+      _matchKey:  `${row.school_name} / ${row.gender} / ${row.sport}`,
+      team_id:    teamId,
+      sport_id:   sportId,
+      season_year: parseInt(row.season_year) || null,
+      number:      row.number      || null,
+      name:        row.name        || null,
+      pronunciation: row.pronunciation || null,
+      grade:       row.grade       || null,
+      position:    row.position    || null,
+      height:      row.height      || null,
+      pts:  num('pts'), reb:  num('reb'), ast:  num('ast'), stl:  num('stl'),
+      ba:   num('ba'),  hr:   int('hr'),  rbi:  int('rbi'), sb:   int('sb'),
+      ops:  num('ops'),
+    };
+  }
+
+  // ── PREVIEW ─────────────────────────────────────────────────────────────
+  let parsedRows = [];
+
+  function renderPreview(rows) {
+    parsedRows = rows;
+    const section = document.getElementById('previewSection');
+    const tbl     = document.getElementById('previewTable');
+    const count   = document.getElementById('previewCount');
+
+    if (!rows.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    document.getElementById('resultGrid').style.display = 'none';
+    document.getElementById('importStatus').textContent = '';
+
+    const matched = rows.filter(r => r._teamId).length;
+    count.textContent = `${rows.length} rows — ${matched} matched, ${rows.length - matched} unmatched`;
+
+    const thead = `<thead><tr>
+      <th>Team Match</th><th>#</th><th>Name</th><th>Pronunciation</th>
+      <th>Grade</th><th>Pos</th><th>Height</th>
+      <th>Pts</th><th>Reb</th><th>Ast</th><th>Stl</th>
+      <th>BA</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>
+    </tr></thead>`;
+
+    const tbody = '<tbody>' + rows.map(r => {
+      const matchCls  = r._teamId ? 'match-ok' : 'match-err';
+      const matchTxt  = r._teamId ? '✓ ' + r._matchKey : '✗ ' + r._matchKey;
+      const n = f => r[f] != null ? r[f] : '';
+      return `<tr>
+        <td class="${matchCls}">${matchTxt}</td>
+        <td>${r.number||''}</td>
+        <td><strong>${r.name||''}</strong></td>
+        <td style="color:var(--lgray);font-style:italic">${r.pronunciation||''}</td>
+        <td>${r.grade||''}</td>
+        <td>${r.position||''}</td>
+        <td>${r.height||''}</td>
+        <td>${n('pts')}</td><td>${n('reb')}</td><td>${n('ast')}</td><td>${n('stl')}</td>
+        <td>${n('ba')}</td><td>${n('hr')}</td><td>${n('rbi')}</td><td>${n('sb')}</td><td>${n('ops')}</td>
+      </tr>`;
+    }).join('') + '</tbody>';
+
+    tbl.innerHTML = thead + tbody;
+  }
+
+  // File input
+  document.getElementById('csvFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('csvPaste').value = ev.target.result;
+      renderPreview(parseCSV(ev.target.result).map(rowToPlayer));
+    };
+    reader.readAsText(file);
+  });
+
+  // Paste area
+  document.getElementById('csvPaste').addEventListener('input', e => {
+    const raw = e.target.value;
+    if (raw.trim().split('\n').length >= 2) {
+      renderPreview(parseCSV(raw).map(rowToPlayer));
+    }
+  });
+
+  // ── IMPORT ──────────────────────────────────────────────────────────────
+  document.getElementById('importBtn').addEventListener('click', async () => {
+    const btn    = document.getElementById('importBtn');
+    const status = document.getElementById('importStatus');
+
+    const valid = parsedRows.filter(r => r.team_id && r.name);
+    const skipped = parsedRows.length - valid.length;
+
+    if (!valid.length) {
+      status.textContent = 'No valid rows to import.';
+      status.className = 'import-status err';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Importing…';
+    status.textContent = `Importing ${valid.length} rows…`;
+    status.className = 'import-status';
+
+    const mode = document.getElementById('importMode').value;
+    let deleted = 0;
+
+    // Replace mode: delete existing players for each affected team+sport+season
+    if (mode === 'replace') {
+      const combos = [...new Set(valid.map(r => `${r.team_id}|${r.sport_id}|${r.season_year}`))];
+      for (const combo of combos) {
+        const [tid, sid, sy] = combo.split('|');
+        await sb.from('players')
+          .delete()
+          .eq('team_id', tid)
+          .eq('sport_id', sid)
+          .eq('season_year', sy);
+        deleted++;
+      }
+    }
+
+    // Strip internal helper fields before upserting
+    const toInsert = valid.map(({ _teamId, _matchKey, ...rest }) => rest);
+
+    // Upsert in batches of 200
+    let inserted = 0, errors = 0;
+    const BATCH = 200;
+    for (let i = 0; i < toInsert.length; i += BATCH) {
+      const batch = toInsert.slice(i, i + BATCH);
+      const { error } = await sb.from('players').upsert(batch, {
+        onConflict: 'team_id,sport_id,season_year,number',
+        ignoreDuplicates: false,
+      });
+      if (error) {
+        console.error(error);
+        errors += batch.length;
+      } else {
+        inserted += batch.length;
+      }
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Import to Supabase';
+
+    const resultGrid = document.getElementById('resultGrid');
+    resultGrid.style.display = 'grid';
+    resultGrid.innerHTML = `
+      <div class="result-card"><div class="rc-val ok">${inserted}</div><div class="rc-lbl">Imported</div></div>
+      <div class="result-card"><div class="rc-val" style="color:var(--lgray)">${skipped}</div><div class="rc-lbl">Skipped (no match)</div></div>
+      ${errors ? `<div class="result-card"><div class="rc-val err">${errors}</div><div class="rc-lbl">Errors</div></div>` : ''}
+      ${mode === 'replace' ? `<div class="result-card"><div class="rc-val" style="color:var(--lgray)">${deleted}</div><div class="rc-lbl">Teams Cleared</div></div>` : ''}
+    `;
+
+    if (errors) {
+      status.textContent = `Done with ${errors} errors — check console.`;
+      status.className = 'import-status err';
+    } else {
+      status.textContent = `✓ Import complete`;
+      status.className = 'import-status ok';
+    }
+    showToast(errors ? 'Import finished with errors' : `✓ ${inserted} players imported`);
+  });
+
+  // ── UTILS ────────────────────────────────────────────────────────────────
+  function showToast(msg, isErr = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  // Make template row click-to-copy
+  document.getElementById('templateCols').addEventListener('click', function() {
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(this);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    navigator.clipboard.writeText(this.textContent).then(() => showToast('Header row copied!'));
+  });
+
+  init();
+</script>
+
+<script src="nav.js"></script>
+<script>MBRNav.init({ active: 'admin' });</script>
+</body>
+</html>

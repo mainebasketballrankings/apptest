@@ -73,8 +73,8 @@
 }
 
 .mbr-nav-inner a.active {
-  color: #1a7a4a;
-  border-bottom-color: #1a7a4a;
+  color: #ee6730;
+  border-bottom-color: #ee6730;
 }
 
 /* ── Auth area ── */
@@ -112,7 +112,7 @@
   background: #111;
   color: #fff;
 }
-.mbr-btn-signin:hover { background: #1a7a4a; }
+.mbr-btn-signin:hover { background: #ee6730; }
 
 .mbr-btn-signout {
   background: transparent;

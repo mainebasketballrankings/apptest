@@ -75,7 +75,7 @@ const MBRNav = (() => {
     <p style="font-size:14px; color:#666; margin-bottom:20px;">Enter your email and we'll send you a magic link.</p>
     <input type="email" id="mbrEmailInput" placeholder="you@example.com"
       style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:6px; font-size:14px; margin-bottom:12px; font-family:'Barlow',sans-serif;" />
-    <div id="mbrModalMsg" style="font-size:13px; color:#1a7a4a; margin-bottom:12px; min-height:18px;"></div>
+    <div id="mbrModalMsg" style="font-size:13px; color:#ee6730; margin-bottom:12px; min-height:18px;"></div>
     <button id="mbrSendBtn" class="mbr-btn mbr-btn-signin" style="width:100%; padding:10px;">Send Magic Link</button>
     <button id="mbrCancelBtn" style="width:100%; margin-top:10px; background:none; border:none; color:#999; font-size:13px; cursor:pointer; font-family:'Barlow',sans-serif;">Cancel</button>
   </div>
@@ -103,7 +103,7 @@ const MBRNav = (() => {
       document.getElementById('mbrSignInBtn').addEventListener('click', openModal);
     } else {
       const badge = isPaid
-        ? `<span style="font-size:10px; background:#1a7a4a; color:#fff; padding:2px 6px; border-radius:3px; font-family:'Barlow Condensed',sans-serif; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;">PRO</span>`
+        ? `<span style="font-size:10px; background:#ee6730; color:#fff; padding:2px 6px; border-radius:3px; font-family:'Barlow Condensed',sans-serif; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;">PRO</span>`
         : '';
       area.innerHTML = `
         <div class="mbr-auth-user">${user.email}</div>
@@ -171,7 +171,7 @@ const MBRNav = (() => {
       if (error) {
         msg.style.color = '#c0392b'; msg.textContent = 'Error: ' + error.message;
       } else {
-        msg.style.color = '#1a7a4a'; msg.textContent = '✓ Check your email for the magic link!';
+        msg.style.color = '#ee6730'; msg.textContent = '✓ Check your email for the magic link!';
         document.getElementById('mbrSendBtn').disabled = true;
       }
     });

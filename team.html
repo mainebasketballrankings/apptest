@@ -335,7 +335,7 @@ async function load() {
 
     // Paginated fetch helper
     // Fetch roster players for this team
-    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,pts,reb,ast,stl,ba,hr,rbi,sb,ops&order=number.asc&limit=100`);
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops&order=number.asc&limit=100`);
 
     async function fetchAll(query) {
       const pageSize = 1000;
@@ -729,10 +729,16 @@ async function load() {
             `<td class="rt-stat-gap"></td>`,
           ];
           if (isBball) {
-            cells.push(`<td class="rt-stat">${n(p.pts,1)}</td>`);
-            cells.push(`<td class="rt-stat">${n(p.reb,1)}</td>`);
-            cells.push(`<td class="rt-stat">${n(p.ast,1)}</td>`);
-            cells.push(`<td class="rt-stat">${n(p.stl,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.ppg,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.rpg,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.apg,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.stl)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.blk)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.fgp,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.tpp,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.ftp,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.eff)}</td>`);
+            cells.push(`<td class="rt-stat">${p.plusminus != null ? (p.plusminus > 0 ? '+' : '') + p.plusminus : ''}</td>`);
           } else if (isBase) {
             cells.push(`<td class="rt-stat">${n(p.ba,3)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.hr)}</td>`);
@@ -747,7 +753,7 @@ async function load() {
           '<th>Ht</th>','<th>Pos</th>','<th>Grade</th>',
           '<th class="rt-stat-gap-th"></th>',
         ];
-        if (isBball) headCells.push('<th>PTS</th>','<th>REB</th>','<th>AST</th>','<th>STL</th>');
+        if (isBball) headCells.push('<th>PPG</th>','<th>RPG</th>','<th>APG</th>','<th>STL</th>','<th>BLK</th>','<th>FG%</th>','<th>3P%</th>','<th>FT%</th>','<th>EFF</th>','<th>+/-</th>');
         else if (isBase) headCells.push('<th>BA</th>','<th>HR</th>','<th>RBI</th>','<th>SB</th>','<th>OPS</th>');
         const headerRow = headCells.join('');
         rosterHtml = `

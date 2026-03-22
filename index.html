@@ -257,6 +257,8 @@
     .team-name .rnk { color: var(--lgray); font-weight: 600; }
     .team-name.winner { font-weight: 800; }
     .team-name.loser  { color: var(--lgray); font-weight: 600; }
+    a.team-name { text-decoration: none; color: inherit; }
+    a.team-name:hover { color: var(--green); text-decoration: underline; }
 
     .team-score {
       font-family: 'Barlow Condensed', sans-serif;
@@ -1236,14 +1238,14 @@
         <div class="team-row">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
-            <div class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}">${aR}${away.school_name}</div>
+            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="school.html?school=${away.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">${aR}${away.school_name}</a>
           </div>
           ${aScEl}
         </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
-            <div class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}">${hR}${home.school_name}</div>
+            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="school.html?school=${home.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">${hR}${home.school_name}</a>
           </div>
           ${hScEl}
         </div>

@@ -318,7 +318,7 @@
     const { data } = await sb.from('teams').select('id, school_name, gender, sport_id');
     if (data) {
       data.forEach(t => {
-        const key = `${t.school_name.trim().toLowerCase()}|${t.gender}|${t.sport_id}`;
+        const key = `${t.school_name.trim().toLowerCase()}|${(t.gender||'').toLowerCase()}|${t.sport_id}`;
         teamCache[key] = t.id;
       });
     }
@@ -327,7 +327,7 @@
   function resolveTeamId(schoolName, gender, sportSlug) {
     const sportId = SPORT_IDS[sportSlug?.toLowerCase()];
     if (!sportId) return null;
-    const key = `${schoolName.trim().toLowerCase()}|${gender}|${sportId}`;
+    const key = `${schoolName.trim().toLowerCase()}|${(gender||'').toLowerCase()}|${sportId}`;
     return teamCache[key] || null;
   }
 
@@ -359,6 +359,18 @@
     }).filter(r => r.school_name || r.name); // skip blank lines
   }
 
+  function parseSeasonYear(val) {
+    if (!val) return null;
+    val = String(val).trim();
+    // Handle "2025-26" or "25-26" style → take the ending year
+    const dashMatch = val.match(/(\d{2,4})[-–](\d{2,4})/);
+    if (dashMatch) {
+      const end = dashMatch[2];
+      return end.length === 2 ? 2000 + parseInt(end) : parseInt(end);
+    }
+    return parseInt(val) || null;
+  }
+
   function rowToPlayer(row) {
     const teamId = resolveTeamId(row.school_name, row.gender, row.sport);
     const sportId = SPORT_IDS[row.sport?.toLowerCase()] || null;
@@ -369,7 +381,7 @@
       _matchKey:  `${row.school_name} / ${row.gender} / ${row.sport}`,
       team_id:    teamId,
       sport_id:   sportId,
-      season_year: parseInt(row.season_year) || null,
+      season_year: parseSeasonYear(row.season_year),
       number:      row.number      || null,
       name:        row.name        || null,
       pronunciation: row.pronunciation || null,

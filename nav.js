@@ -47,8 +47,7 @@ const MBRNav = (() => {
       return `<a href="${link.href}" class="${isActive}" ${target}>${link.label}</a>`;
     }).join('');
 
-    // Determine logo path — works from any subdirectory depth
-    const logoSrc = 'logo.png';
+    const logoSrc = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1774220002/ghost-banner-5_sykt26.png';
 
     return `
 <header class="mbr-header" id="mbrHeader">

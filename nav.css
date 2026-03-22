@@ -34,6 +34,8 @@
 .mbr-logo img {
   height: 44px;
   width: auto;
+  max-width: 220px;
+  object-fit: contain;
 }
 
 /* ── Sub-nav bar ── */
@@ -130,15 +132,7 @@
 }
 
 /* ── Wordmark ── */
-.mbr-wordmark {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: #111;
-  line-height: 1.15;
-}
+.mbr-wordmark { display: none; }
 
 @media (max-width: 500px) {
   .mbr-wordmark { display: none; }

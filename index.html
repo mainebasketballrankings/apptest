@@ -595,60 +595,75 @@
     .toast.show { opacity: 1; transform: translateY(0); }
     .toast.error { background: var(--red); }
 
-    /* EXPORT MODAL */
-    .export-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55); z-index: 1000;
-      align-items: center; justify-content: center;
+    /* EXPORT PANEL */
+    .export-trigger-wrap {
+      text-align: center;
+      padding: 32px 0 8px;
     }
-    .export-overlay.open { display: flex; }
-    .export-modal {
-      background: var(--white); border-radius: 10px;
-      width: min(700px, 95vw); max-height: 80vh;
-      display: flex; flex-direction: column;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    .export-trigger {
+      font-size: 11px; color: var(--lgray);
+      background: none; border: none; cursor: pointer;
+      letter-spacing: 0.5px; text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .export-trigger:hover { color: var(--gray); }
+    .export-panel {
+      display: none;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin: 12px 0 40px;
       overflow: hidden;
     }
-    .export-header {
+    .export-panel.open { display: block; }
+    .export-panel-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: #fafafa;
     }
-    .export-header h2 {
+    .export-panel-title {
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 18px;
+      font-weight: 800; font-size: 15px; color: var(--black);
+      letter-spacing: 0.3px;
     }
-    .export-close {
-      background: none; border: none; cursor: pointer;
-      font-size: 22px; color: var(--lgray); line-height: 1;
+    .export-panel-hint {
+      font-size: 11px; color: var(--lgray);
     }
-    .export-close:hover { color: var(--black); }
-    .export-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
-    .export-meta {
-      font-size: 12px; color: var(--lgray); margin-bottom: 10px;
+    .export-section {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
     }
-    .export-textarea {
-      width: 100%; height: 320px;
-      font-family: 'Courier New', monospace; font-size: 12px;
-      border: 1px solid var(--border); border-radius: 6px;
-      padding: 10px; resize: vertical;
-      background: #fafafa; color: var(--black);
-      line-height: 1.5;
-    }
-    .export-footer {
-      padding: 12px 20px; border-top: 1px solid var(--border);
-      display: flex; gap: 8px; justify-content: flex-end;
-    }
-    .export-copy-btn {
+    .export-section:last-child { border-bottom: none; }
+    .export-section-label {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700; font-size: 13px;
-      letter-spacing: 0.5px; text-transform: uppercase;
-      background: var(--black); color: #fff;
-      border: none; border-radius: 6px;
-      padding: 0 18px; height: 34px; cursor: pointer;
-      transition: opacity 0.15s;
+      color: var(--lgray); letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 10px;
     }
-    .export-copy-btn:hover { opacity: 0.8; }
-    .export-copy-btn.copied { background: var(--green); }
+    .export-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .export-col-label {
+      font-size: 10px; font-weight: 700; color: var(--lgray);
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .export-col-data {
+      font-family: 'Courier New', monospace;
+      font-size: 12px; line-height: 1.7;
+      background: #f7f7f7;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 8px 10px;
+      white-space: pre;
+      cursor: text;
+      user-select: text;
+      min-height: 48px;
+    }
+    .export-col-data:focus { outline: 2px solid #bbb; }
 
     @media (max-width: 640px) {
       nav { display: none; }
@@ -670,7 +685,6 @@
       <button class="date-today" id="todayBtn">Today</button>
       <input type="date" class="date-picker" id="datePicker" />
       <button class="date-btn" id="nextDay">&#8594;</button>
-      <button class="date-today" id="exportBtn" title="Export day's scores to Excel">&#128203; Export</button>
     </div>
   </div>
 
@@ -701,21 +715,16 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- EXPORT MODAL -->
-<div class="export-overlay" id="exportOverlay">
-  <div class="export-modal">
-    <div class="export-header">
-      <h2 id="exportTitle">Export Scores</h2>
-      <button class="export-close" id="exportClose">&times;</button>
-    </div>
-    <div class="export-body">
-      <div class="export-meta" id="exportMeta"></div>
-      <textarea class="export-textarea" id="exportText" readonly spellcheck="false"></textarea>
-    </div>
-    <div class="export-footer">
-      <button class="export-copy-btn" id="exportCopyBtn">Copy to Clipboard</button>
-    </div>
+<!-- EXPORT PANEL (bottom of page) -->
+<div class="export-trigger-wrap">
+  <button class="export-trigger" id="exportTrigger">export scores</button>
+</div>
+<div class="export-panel" id="exportPanel">
+  <div class="export-panel-header">
+    <span class="export-panel-title" id="exportPanelTitle">Score Export</span>
+    <span class="export-panel-hint">Drag-select a column, then Ctrl+C → paste into Excel</span>
   </div>
+  <div id="exportSections"></div>
 </div>
 
 <script>
@@ -1340,94 +1349,84 @@
   });
 
   // ── EXPORT ──────────────────────────────────────────────────────────────
-  function buildExportTSV() {
-    if (!allGames || !allGames.length) return { tsv: '', count: 0 };
+  const SPORT_LABEL = {
+    basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
+    lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
+    football: 'Football', volleyball: 'Volleyball'
+  };
 
-    // Sort by home team name
-    const sorted = [...allGames].sort((a, b) =>
-      (a.home_team?.school_name || '').localeCompare(b.home_team?.school_name || '')
-    );
+  function getScore(g, side) {
+    const live  = side === 'home' ? g.home_score_live : g.away_score_live;
+    const final = side === 'home' ? g.home_score      : g.away_score;
+    return live != null ? live : final != null ? final : '';
+  }
 
-    const SPORT_LABEL = {
-      basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
-      lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
-      football: 'Football', volleyball: 'Volleyball'
-    };
+  function renderExportPanel() {
+    if (!allGames || !allGames.length) {
+      document.getElementById('exportSections').innerHTML =
+        '<div style="padding:18px;font-size:13px;color:var(--lgray)">No games loaded.</div>';
+      return;
+    }
 
-    const header = ['Date', 'Sport', 'Gender', 'Home Team', 'Home Score', 'Away Team', 'Away Score', 'Status', 'Clock'].join('\t');
+    const sportLabel = SPORT_LABEL[activeSport] || activeSport;
+    const dateLabel  = document.getElementById('dateHeading').textContent;
+    document.getElementById('exportPanelTitle').textContent = `${sportLabel} \u00b7 ${dateLabel}`;
 
-    const rows = sorted.map(g => {
-      const date   = g.game_date || toISO(currentDate);
-      const sport  = SPORT_LABEL[activeSport] || activeSport;
-      const gender = g.home_team?.gender || '';
-      const home   = g.home_team?.school_name || '';
-      const away   = g.away_team?.school_name || '';
-
-      // Prefer live scores if present, fall back to stored scores
-      const hSc = g.home_score_live != null ? g.home_score_live
-                : g.home_score      != null ? g.home_score : '';
-      const aSc = g.away_score_live != null ? g.away_score_live
-                : g.away_score      != null ? g.away_score : '';
-
-      const status = g.status || '';
-      const clock  = g.game_clock || '';
-
-      return [date, sport, gender, home, hSc, away, aSc, status, clock].join('\t');
+    // Group by gender
+    const groups = {};
+    allGames.forEach(g => {
+      const gender = g.home_team?.gender || 'Unknown';
+      if (!groups[gender]) groups[gender] = [];
+      groups[gender].push(g);
     });
 
-    return { tsv: [header, ...rows].join('\n'), count: sorted.length };
+    const order = ['Boys', 'Girls', ...Object.keys(groups).filter(k => k !== 'Boys' && k !== 'Girls')];
+
+    const html = order.filter(g => groups[g]).map(gender => {
+      const games = [...groups[gender]].sort((a, b) =>
+        (a.home_team?.school_name || '').localeCompare(b.home_team?.school_name || '')
+      );
+
+      const homeTeams  = games.map(g => g.home_team?.school_name || '').join('\n');
+      const homeScores = games.map(g => getScore(g, 'home')).join('\n');
+      const awayTeams  = games.map(g => g.away_team?.school_name || '').join('\n');
+      const awayScores = games.map(g => getScore(g, 'away')).join('\n');
+
+      return `
+        <div class="export-section">
+          <div class="export-section-label">${gender} \u2014 ${games.length} game${games.length !== 1 ? 's' : ''}</div>
+          <div class="export-cols">
+            <div>
+              <div class="export-col-label">Home Team</div>
+              <div class="export-col-data" tabindex="0">${homeTeams}</div>
+            </div>
+            <div>
+              <div class="export-col-label">Home Score</div>
+              <div class="export-col-data" tabindex="0">${homeScores}</div>
+            </div>
+            <div>
+              <div class="export-col-label">Away Team</div>
+              <div class="export-col-data" tabindex="0">${awayTeams}</div>
+            </div>
+            <div>
+              <div class="export-col-label">Away Score</div>
+              <div class="export-col-data" tabindex="0">${awayScores}</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('exportSections').innerHTML = html;
   }
 
-  function openExportModal() {
-    const dateLabel = document.getElementById('dateHeading').textContent;
-    const sportLabel = document.querySelector('.sport-tab.active')?.textContent?.trim() || activeSport;
-    document.getElementById('exportTitle').textContent = `Export — ${sportLabel} · ${dateLabel}`;
-
-    const { tsv, count } = buildExportTSV();
-    const meta = count
-      ? `${count} game${count !== 1 ? 's' : ''}, sorted by home team. Select all → Ctrl+C, or use the button below.`
-      : 'No games loaded for this date/sport.';
-    document.getElementById('exportMeta').textContent = meta;
-    document.getElementById('exportText').value = tsv;
-
-    document.getElementById('exportOverlay').classList.add('open');
-    // Select all text so it's ready to copy manually
-    setTimeout(() => {
-      const ta = document.getElementById('exportText');
-      ta.focus(); ta.select();
-    }, 50);
-  }
-
-  function closeExportModal() {
-    document.getElementById('exportOverlay').classList.remove('open');
-    const btn = document.getElementById('exportCopyBtn');
-    btn.textContent = 'Copy to Clipboard';
-    btn.classList.remove('copied');
-  }
-
-  document.getElementById('exportBtn').addEventListener('click', openExportModal);
-  document.getElementById('exportClose').addEventListener('click', closeExportModal);
-  document.getElementById('exportOverlay').addEventListener('click', e => {
-    if (e.target === document.getElementById('exportOverlay')) closeExportModal();
-  });
-
-  document.getElementById('exportCopyBtn').addEventListener('click', () => {
-    const text = document.getElementById('exportText').value;
-    if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = document.getElementById('exportCopyBtn');
-      btn.textContent = '✓ Copied!';
-      btn.classList.add('copied');
-      setTimeout(() => {
-        btn.textContent = 'Copy to Clipboard';
-        btn.classList.remove('copied');
-      }, 2500);
-    }).catch(() => {
-      // Fallback for older browsers
-      document.getElementById('exportText').select();
-      document.execCommand('copy');
-      showToast('Copied to clipboard!');
-    });
+  document.getElementById('exportTrigger').addEventListener('click', () => {
+    const panel   = document.getElementById('exportPanel');
+    const isOpen  = panel.classList.toggle('open');
+    document.getElementById('exportTrigger').textContent = isOpen ? 'hide export' : 'export scores';
+    if (isOpen) {
+      renderExportPanel();
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   });
   // ── END EXPORT ───────────────────────────────────────────────────────────
 </script>

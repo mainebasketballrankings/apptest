@@ -145,7 +145,7 @@
     .td-rank {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 600; font-size: 17px;
-      color: var(--lgray); width: 40px; text-align: center;
+      color: var(--lgray); width: 28px; text-align: center;
     }
 
     /* team cell */
@@ -502,7 +502,7 @@
         <th data-col="">Rank</th>
         ${th('Team', 'school_name')}
 
-        ${th('Record', 'wins', 'num hide-mobile')}
+        ${th('Record', 'wins', 'num')}
         ${showPF   ? th('PF', 'avg_pf', 'num hide-mobile') : ''}
         ${showPA   ? th('PA', 'avg_pa', 'num hide-mobile') : ''}
         ${showDiff ? th('Diff', 'avg_pf', 'num hide-mobile') : ''}
@@ -551,7 +551,7 @@
           </div>
         </td>
 
-        <td class="td-record td-num hide-mobile">${r.wins}-${r.losses}</td>
+        <td class="td-record td-num">${r.wins}-${r.losses}</td>
         ${showPF   ? `<td class="td-num hide-mobile">${pf}</td>` : ''}
         ${showPA   ? `<td class="td-num hide-mobile">${pa}</td>` : ''}
         ${showDiff ? `<td class="td-num hide-mobile" style="${diffColor};font-weight:700">${diff}</td>` : ''}

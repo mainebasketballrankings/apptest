@@ -420,7 +420,9 @@ async function load() {
 load();
 
 // Load nav
-fetch('nav.html').then(r => r.ok ? r.text() : '').then(h => { if(h) document.getElementById('mbr-header').innerHTML = h; }).catch(()=>{});
+
 </script>
+<script src="nav.js"></script>
+<script>MBRNav.init({ active: '' });</script>
 </body>
 </html>

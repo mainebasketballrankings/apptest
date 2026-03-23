@@ -159,6 +159,16 @@
     .filter-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
 
     /* SECTION LABEL */
+    .sport-section-header {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 700; font-size: 18px;
+      color: var(--black);
+      margin: 24px 0 8px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+    .sport-section-header:first-child { margin-top: 0; }
+
     .section-label {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 600;
@@ -870,22 +880,35 @@
   };
 
   function buildFilterButtons() {
-    const singleGender = SPORT_GENDER[activeSport];
-    const classes = SPORT_CLASSES[activeSport] || ['A','B','C','D'];
-    const genderBtns = singleGender ? '' :
-      `<button class="filter-btn" data-filter="Boys">Boys</button>
-       <button class="filter-btn" data-filter="Girls">Girls</button>`;
-    const classBtns = classes.map(c => `<button class="filter-btn" data-filter="${c}">Class ${c}</button>`).join('');
+    // In 'all' mode, show Boys/Girls only (class filter too complex across sports)
+    // In single sport mode, show full class filter
+    let genderBtns = '';
+    let classBtns  = '';
+
+    if (activeSport === 'all') {
+      genderBtns = `<button class="filter-btn" data-filter="Boys">Boys</button>
+                    <button class="filter-btn" data-filter="Girls">Girls</button>`;
+    } else {
+      const singleGender = SPORT_GENDER[activeSport];
+      const classes = SPORT_CLASSES[activeSport] || ['A','B','C','D'];
+      if (!singleGender) {
+        genderBtns = `<button class="filter-btn" data-filter="Boys">Boys</button>
+                      <button class="filter-btn" data-filter="Girls">Girls</button>`;
+      }
+      classBtns = classes.map(c => `<button class="filter-btn" data-filter="${c}">Class ${c}</button>`).join('');
+    }
     document.getElementById('filters').innerHTML =
       `<button class="filter-btn active" data-filter="all">All</button>${genderBtns}${classBtns}`;
+    activeFilter = 'all';
   }
 
-  let currentDate   = new Date();
-  let allGames      = [];
-  let activeFilter  = 'all';
-  let activeSport   = 'basketball';
-  let activeSeason  = 2026;
-  let rankMap       = {};
+  let currentDate        = new Date();
+  let allGames           = [];   // games for current single-sport view (legacy, kept for submit)
+  let allSportsGames     = {};   // { sportKey: { games, notesMap } }
+  let activeFilter       = 'all';
+  let activeSport        = 'all'; // 'all' = show all sports, or a sport key to filter
+  let activeSeason       = 2026;
+  let rankMap            = {};
 
   function toISO(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -916,14 +939,7 @@
     if (data) data.forEach(r => { if (!rankMap[r.team_id]) rankMap[r.team_id] = r.rank_overall; });
   }
 
-  async function loadGames(date) {
-    const ds = toISO(date);
-    document.getElementById('dateHeading').textContent = fmtHeading(date);
-    document.getElementById('gamesContainer').innerHTML =
-      `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
-
-    await loadRanks(ds);
-
+  async function fetchSportGames(ds, sport, season) {
     const { data, error } = await sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index,
       is_neutral_site, is_tournament,
@@ -933,30 +949,78 @@
       away_team:away_team_id ( id, school_name, gender, logo_url, team_class,
         team_classifications ( classes ( name ) ) )
     `).eq('game_date', ds)
-      .eq('sport_id', SPORT_IDS[activeSport])
-      .eq('season_year', activeSeason)
+      .eq('sport_id', SPORT_IDS[sport])
+      .eq('season_year', season)
       .order('game_time', { ascending: true, nullsFirst: false });
+    if (error || !data) return [];
+    return data.filter(g => g.home_team && g.away_team);
+  }
 
-    if (error) {
-      document.getElementById('gamesContainer').innerHTML =
-        `<div class="games-grid"><div class="empty-state"><div class="icon">⚠️</div><h3>Error</h3><p>${error.message}</p></div></div>`;
-      return;
+  async function fetchNotes(games) {
+    const gameIds = games.map(g => g.id);
+    if (!gameIds.length) return {};
+    const notesMap = {};
+    const { data: subs } = await sb.from('score_submissions')
+      .select('game_id, notes, created_at')
+      .in('game_id', gameIds)
+      .not('notes', 'is', null)
+      .order('created_at', { ascending: false });
+    if (subs) subs.forEach(s => { if (!notesMap[s.game_id]) notesMap[s.game_id] = s.notes; });
+    return notesMap;
+  }
+
+  async function loadGames(date) {
+    const ds = toISO(date);
+    document.getElementById('dateHeading').textContent = fmtHeading(date);
+    document.getElementById('gamesContainer').innerHTML =
+      `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
+
+    await loadRanks(ds);
+
+    // Fetch all sports in parallel
+    const results = await Promise.all(
+      SPORT_PRIORITY.map(({ sport, season }) =>
+        fetchSportGames(ds, sport, season).then(games => ({ sport, season, games }))
+      )
+    );
+
+    // Build allSportsGames, fetch notes for all games
+    allSportsGames = {};
+    const sportsWithGames = results.filter(r => r.games.length > 0);
+
+    await Promise.all(sportsWithGames.map(async ({ sport, season, games }) => {
+      const notesMap = await fetchNotes(games);
+      allSportsGames[sport] = { games, notesMap, season };
+    }));
+
+    // Keep allGames pointing to active sport for submit handler compatibility
+    if (activeSport !== 'all' && allSportsGames[activeSport]) {
+      allGames = allSportsGames[activeSport].games;
+    } else {
+      allGames = sportsWithGames.flatMap(r => r.games);
     }
 
-    // Fetch latest notes from score_submissions for each game
-    const gameIds = (data || []).map(g => g.id);
-    let notesMap = {};
-    if (gameIds.length) {
-      const { data: subs } = await sb.from('score_submissions')
-        .select('game_id, notes, created_at')
-        .in('game_id', gameIds)
-        .not('notes', 'is', null)
-        .order('created_at', { ascending: false });
-      if (subs) subs.forEach(s => { if (!notesMap[s.game_id]) notesMap[s.game_id] = s.notes; });
-    }
+    // Build sport tabs from sports that have games
+    buildSportTabs(sportsWithGames.map(r => r.sport));
+    buildFilterButtons();
+    renderAllGames();
+  }
 
-    allGames = (data || []).filter(g => g.home_team && g.away_team);
-    renderGames(notesMap);
+  function buildSportTabs(sportsWithGames) {
+    const tabsEl = document.getElementById('sportTabs');
+    const SPORT_LABEL_MAP = {
+      basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
+      lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
+      football: 'Football', volleyball: 'Volleyball'
+    };
+    // Always show All tab + only sports with games
+    const tabs = ['all', ...SPORT_PRIORITY.map(s => s.sport).filter(s => sportsWithGames.includes(s))];
+    tabsEl.innerHTML = tabs.map(sport => {
+      const label = sport === 'all' ? 'All' : SPORT_LABEL_MAP[sport] || sport;
+      const season = sport === 'all' ? '' : ` data-season="${SPORT_PRIORITY.find(s => s.sport === sport)?.season || 2026}"`;
+      const isActive = activeSport === sport;
+      return `<button class="sport-tab${isActive ? ' active' : ''}" data-sport="${sport}"${season}>${label}</button>`;
+    }).join('');
   }
 
   function getHomeClass(g) {
@@ -969,32 +1033,64 @@
     return getHomeClass(g) !== getAwayClass(g);
   }
 
-  function renderGames(notesMap = {}) {
+  function filterGames(games, sport) {
+    if (activeFilter === 'all') return games;
+    return games.filter(g => {
+      if (activeFilter === 'Boys' || activeFilter === 'Girls')
+        return g.home_team?.gender === activeFilter;
+      return getHomeClass(g) === activeFilter || getAwayClass(g) === activeFilter;
+    });
+  }
+
+  const SPORT_DISPLAY_NAME = {
+    basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
+    lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
+    football: 'Football', volleyball: 'Volleyball'
+  };
+
+  function renderAllGames() {
     const container = document.getElementById('gamesContainer');
-    let games = allGames;
 
-    if (activeFilter !== 'all') {
-      games = games.filter(g => {
-        if (activeFilter === 'Boys' || activeFilter === 'Girls')
-          return g.home_team?.gender === activeFilter;
-        // Cross-class: show in BOTH class filters
-        return getHomeClass(g) === activeFilter || getAwayClass(g) === activeFilter;
-      });
-    }
+    // Determine which sports to show
+    const sportsToShow = activeSport === 'all'
+      ? SPORT_PRIORITY.map(s => s.sport).filter(s => allSportsGames[s])
+      : [activeSport].filter(s => allSportsGames[s]);
 
-    if (!games.length) {
+    if (!sportsToShow.length) {
       container.innerHTML = `<div class="games-grid"><div class="empty-state">
         <div class="icon">🏀</div><h3>No games on this date</h3>
         <p>Use the arrows to browse other dates.</p></div></div>`;
       return;
     }
 
-    const singleGender = SPORT_GENDER[activeSport];
-    const boys  = games.filter(g => g.home_team?.gender === 'Boys');
-    const girls = games.filter(g => g.home_team?.gender === 'Girls');
     let html = '';
-    if (boys.length  && activeFilter !== 'Girls' && (!singleGender || singleGender === 'Boys'))  html += section('Boys',  boys,  notesMap);
-    if (girls.length && activeFilter !== 'Boys'  && (!singleGender || singleGender === 'Girls')) html += section('Girls', girls, notesMap);
+    for (const sport of sportsToShow) {
+      const { games, notesMap } = allSportsGames[sport];
+      const filtered = filterGames(games, sport);
+      if (!filtered.length) continue;
+
+      const singleGender = SPORT_GENDER[sport];
+      const boys  = filtered.filter(g => g.home_team?.gender === 'Boys');
+      const girls = filtered.filter(g => g.home_team?.gender === 'Girls');
+
+      // Sport header — only show when displaying multiple sports
+      if (activeSport === 'all') {
+        html += `<div class="sport-section-header">${SPORT_DISPLAY_NAME[sport] || sport}</div>`;
+      }
+
+      if (boys.length  && activeFilter !== 'Girls' && (!singleGender || singleGender === 'Boys'))
+        html += section('Boys',  boys,  notesMap);
+      if (girls.length && activeFilter !== 'Boys'  && (!singleGender || singleGender === 'Girls'))
+        html += section('Girls', girls, notesMap);
+    }
+
+    if (!html) {
+      container.innerHTML = `<div class="games-grid"><div class="empty-state">
+        <div class="icon">🏀</div><h3>No games match this filter</h3>
+        <p>Try a different filter.</p></div></div>`;
+      return;
+    }
+
     container.innerHTML = html;
 
     container.querySelectorAll('.submit-btn-inline').forEach(btn => {
@@ -1396,17 +1492,10 @@
     document.getElementById('datePicker').value = toISO(currentDate);
   }
 
-  async function navigateTo(date) {
+  function navigateTo(date) {
     syncDatePicker();
-    const { sport, season } = await detectDefaultSport();
-    if (sport !== activeSport) {
-      activeSport  = sport;
-      activeSeason = season;
-      document.querySelectorAll('.sport-tab').forEach(b => {
-        b.classList.toggle('active', b.dataset.sport === sport);
-      });
-      buildFilterButtons();
-    }
+    activeSport  = 'all';
+    activeFilter = 'all';
     loadGames(date);
   }
 
@@ -1430,10 +1519,14 @@
     document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
     activeSport  = e.target.dataset.sport;
-    activeSeason = parseInt(e.target.dataset.season);
+    activeSeason = parseInt(e.target.dataset.season) || 2026;
     activeFilter = 'all';
+    // Update allGames for submit handler
+    if (activeSport !== 'all' && allSportsGames[activeSport]) {
+      allGames = allSportsGames[activeSport].games;
+    }
     buildFilterButtons();
-    loadGames(currentDate);
+    renderAllGames();
   });
 
   document.getElementById('filters').addEventListener('click', e => {
@@ -1441,7 +1534,7 @@
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
     activeFilter = e.target.dataset.filter;
-    renderGames();
+    renderAllGames();
   });
 
   // Sport priority order for auto-detection
@@ -1472,16 +1565,9 @@
 
   syncDatePicker();
 
-  // Auto-detect sport then load
-  detectDefaultSport().then(({ sport, season }) => {
-    activeSport  = sport;
-    activeSeason = season;
-    document.querySelectorAll('.sport-tab').forEach(b => {
-      b.classList.toggle('active', b.dataset.sport === sport);
-    });
-    buildFilterButtons();
-    loadGames(currentDate);
-  });
+  // Load all sports for today
+  activeSport = 'all';
+  loadGames(currentDate);
 
   // ── PPD ─────────────────────────────────────────────────────────────────
   document.getElementById('gamesContainer').addEventListener('click', e => {

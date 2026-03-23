@@ -176,6 +176,54 @@ const MBRNav = (() => {
     });
   }
 
+  function wireBurger(activeKey) {
+    const topbar = document.querySelector('.mbr-topbar');
+    if (!topbar) return;
+
+    // Burger button
+    const burger = document.createElement('button');
+    burger.id = 'mbr-burger';
+    burger.innerHTML = '&#9776;';
+    burger.setAttribute('aria-label', 'Menu');
+    burger.style.cssText = 'display:none;background:none;border:none;font-size:22px;cursor:pointer;color:#333;padding:4px 8px;margin-left:8px;line-height:1;';
+    topbar.appendChild(burger);
+
+    // Drawer
+    const drawerLinks = NAV_LINKS.map(link => {
+      const isActive = link.key === activeKey ? ' class="active"' : '';
+      const target = link.external ? ' target="_blank" rel="noopener"' : '';
+      return `<a href="${link.href}"${isActive}${target}>${link.label}</a>`;
+    }).join('');
+
+    const drawer = document.createElement('div');
+    drawer.id = 'mbr-drawer';
+    drawer.style.cssText = 'display:none;position:fixed;inset:0;z-index:500;';
+    drawer.innerHTML = `
+      <div id="mbr-drawer-bg" style="position:absolute;inset:0;background:rgba(0,0,0,0.4);"></div>
+      <div id="mbr-drawer-panel" style="position:absolute;top:0;right:0;width:240px;height:100%;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;padding-top:16px;overflow-y:auto;">
+        ${drawerLinks}
+      </div>`;
+    document.body.appendChild(drawer);
+
+    // Drawer link styles
+    const style = document.createElement('style');
+    style.textContent = `
+      #mbr-drawer.open { display: block !important; }
+      #mbr-drawer-panel a { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 16px; color: #222; text-decoration: none; padding: 15px 24px; border-bottom: 1px solid #f0f0f0; display: block; }
+      #mbr-drawer-panel a.active { color: #ee6730; }
+      #mbr-drawer-panel a:hover { background: #f8f8f8; }
+      @media (max-width: 700px) {
+        #mbr-burger { display: block !important; }
+        .mbr-nav { display: none !important; }
+        .mbr-auth-user { display: none !important; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    burger.addEventListener('click', () => drawer.classList.toggle('open'));
+    drawer.querySelector('#mbr-drawer-bg').addEventListener('click', () => drawer.classList.remove('open'));
+  }
+
   function init({ active = '' } = {}) {
     const mount = document.getElementById('mbr-header');
     if (!mount) {
@@ -184,6 +232,7 @@ const MBRNav = (() => {
     }
     mount.innerHTML = buildHeader(active);
     wireModal();
+    wireBurger(active);
     initAuth();
   }
 

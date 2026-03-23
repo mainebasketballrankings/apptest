@@ -145,7 +145,7 @@
     .td-rank {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 600; font-size: 17px;
-      color: var(--lgray); width: 28px; text-align: center;
+      color: var(--lgray); width: 20px; text-align: center;
     }
 
     /* team cell */
@@ -281,6 +281,9 @@
     @media (max-width: 768px) {
       nav { display: none; }
       .hide-mobile { display: none; }
+      .td-logo { width: 24px; height: 24px; }
+      .td-logo-init { width: 24px; height: 24px; font-size: 10px; }
+      .td-team { gap: 7px; }
     }
   </style>
 </head>
@@ -502,7 +505,7 @@
         <th data-col="">Rank</th>
         ${th('Team', 'school_name')}
 
-        ${th('Record', 'wins', 'num')}
+        ${th('W-L', 'wins', 'num')}
         ${showPF   ? th('PF', 'avg_pf', 'num hide-mobile') : ''}
         ${showPA   ? th('PA', 'avg_pa', 'num hide-mobile') : ''}
         ${showDiff ? th('Diff', 'avg_pf', 'num hide-mobile') : ''}

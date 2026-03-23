@@ -97,9 +97,13 @@ const MBRNav = (() => {
 
   function renderAuth(user, isPaid) {
     const area = document.getElementById('mbrAuthArea');
+    // Update drawer auth slot if present
+    const drawerAuth = document.getElementById('mbr-drawer-auth');
+
     if (!user) {
       area.innerHTML = `<button class="mbr-btn mbr-btn-signin" id="mbrSignInBtn">Account</button>`;
       document.getElementById('mbrSignInBtn').addEventListener('click', openModal);
+      if (drawerAuth) drawerAuth.innerHTML = `<button onclick="document.getElementById('mbrSignInBtn')?.click()||MBRNav._openModal()" style="background:#111;color:#fff;border:none;border-radius:4px;padding:8px 16px;font-family:'Barlow',sans-serif;font-weight:600;font-size:13px;cursor:pointer;width:100%;">Sign In</button>`;
     } else {
       const badge = isPaid
         ? `<span style="font-size:10px; background:#ee6730; color:#fff; padding:2px 6px; border-radius:3px; font-family:'Barlow Condensed',sans-serif; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;">PRO</span>`
@@ -110,6 +114,15 @@ const MBRNav = (() => {
         <button class="mbr-btn mbr-btn-signout" id="mbrSignOutBtn">Sign Out</button>
       `;
       document.getElementById('mbrSignOutBtn').addEventListener('click', async () => {
+        await getSB().auth.signOut();
+      });
+      if (drawerAuth) drawerAuth.innerHTML = `
+        <div style="font-size:12px;color:#666;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${user.email}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${isPaid ? `<span style="font-size:10px;background:#ee6730;color:#fff;padding:2px 6px;border-radius:3px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">PRO</span>` : ''}
+          <button id="mbrDrawerSignOut" style="background:transparent;border:1px solid #ddd;color:#777;border-radius:4px;padding:4px 10px;font-family:'Barlow',sans-serif;font-size:12px;cursor:pointer;">Sign Out</button>
+        </div>`;
+      document.getElementById('mbrDrawerSignOut')?.addEventListener('click', async () => {
         await getSB().auth.signOut();
       });
     }
@@ -201,6 +214,7 @@ const MBRNav = (() => {
     drawer.innerHTML = `
       <div id="mbr-drawer-bg" style="position:absolute;inset:0;background:rgba(0,0,0,0.4);"></div>
       <div id="mbr-drawer-panel" style="position:absolute;top:0;right:0;width:240px;height:100%;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;padding-top:16px;overflow-y:auto;">
+        <div id="mbr-drawer-auth" style="padding:16px 24px 12px;border-bottom:2px solid #f0f0f0;font-family:'Barlow',sans-serif;font-size:13px;color:#999;">Not signed in</div>
         ${drawerLinks}
       </div>`;
     document.body.appendChild(drawer);

@@ -501,7 +501,7 @@
       <thead><tr>
         <th data-col="">Rank</th>
         ${th('Team', 'school_name')}
-        ${activeClass === 'all' ? `<th>Class</th>` : ''}
+
         ${th('Record', 'wins', 'num')}
         ${showPF   ? th('PF', 'avg_pf', 'num hide-mobile') : ''}
         ${showPA   ? th('PA', 'avg_pa', 'num hide-mobile') : ''}
@@ -550,7 +550,7 @@
             </div>
           </div>
         </td>
-        ${activeClass === 'all' ? `<td><span class="class-badge">${cls}</span></td>` : ''}
+
         <td class="td-record td-num">${r.wins}-${r.losses}</td>
         ${showPF   ? `<td class="td-num hide-mobile">${pf}</td>` : ''}
         ${showPA   ? `<td class="td-num hide-mobile">${pa}</td>` : ''}

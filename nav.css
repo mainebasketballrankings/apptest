@@ -124,9 +124,9 @@
 
 /* ── Mobile: collapse nav to scrollable strip ── */
 @media (max-width: 700px) {
-  .mbr-topbar { padding: 0 14px; height: 52px; }
-  .mbr-logo img { height: 36px; }
-  .mbr-auth-user { display: none; }
+  .mbr-topbar { padding: 0 14px; height: 44px; }
+  .mbr-logo img { height: 28px; max-width: 160px; }
+  .mbr-auth { display: none; }
   .mbr-nav-inner { padding: 0 8px; }
   .mbr-nav-inner a { font-size: 11.5px; padding: 8px 10px; }
 }

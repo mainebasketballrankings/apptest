@@ -3,12 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta property="og:site_name" content="Maine Basketball Rankings" />
-<meta property="og:title" content="Maine Basketball Rankings" />
-<meta property="og:description" content="Maine high school sports rankings, scores, rosters, and stats." />
-<meta property="og:image" content="https://res.cloudinary.com/dulfssb6y/image/upload/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png" />
-<meta property="og:url" content="https://app.mainebasketballrankings.com" />
-<meta name="twitter:card" content="summary" />
   <title>School — Maine Basketball Rankings</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
@@ -32,15 +26,15 @@
     /* SCHOOL HEADER */
     .school-header { background: var(--white); border-radius: 10px; border: 1px solid var(--border); padding: 24px; display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
     .school-logo-lg { width: 96px; height: 96px; border-radius: 50%; object-fit: contain; background: var(--bg); border: 2px solid var(--border); flex-shrink: 0; }
-    .school-logo-fallback { width: 96px; height: 96px; border-radius: 50%; background: var(--green); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 32px; flex-shrink: 0; }
-    .school-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 38px; line-height: 1; }
+    .school-logo-fallback { width: 96px; height: 96px; border-radius: 50%; background: var(--green); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 32px; flex-shrink: 0; }
+    .school-name { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 34px; line-height: 1; }
     .school-sub { font-size: 14px; color: var(--lgray); margin-top: 6px; }
 
     /* SPORT CARD */
     .sport-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
     .sport-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--bg); }
-    .sport-card-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .sport-card-link { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; color: var(--green); text-decoration: none; border: 1px solid var(--green); border-radius: 20px; padding: 3px 12px; white-space: nowrap; }
+    .sport-card-title { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 18px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .sport-card-link { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 13px; color: var(--green); text-decoration: none; border: 1px solid var(--green); border-radius: 20px; padding: 3px 12px; white-space: nowrap; }
     .sport-card-link:hover { background: var(--green); color: var(--white); }
     .sport-card-body { padding: 16px 18px; }
 
@@ -48,25 +42,25 @@
     .sport-stats-row { display: flex; gap: 0; margin-bottom: 16px; flex-wrap: wrap; }
     .sport-stat { display: flex; flex-direction: column; padding: 6px 20px 6px 0; margin-right: 20px; border-right: 1px solid var(--border); }
     .sport-stat:last-child { border-right: none; }
-    .sport-stat-lbl { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--lgray); margin-bottom: 2px; }
-    .sport-stat-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 24px; color: var(--black); line-height: 1; }
+    .sport-stat-lbl { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.3px; text-transform: uppercase; color: var(--lgray); margin-bottom: 2px; }
+    .sport-stat-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 500; font-size: 24px; color: var(--black); line-height: 1; }
     .sport-stat-val.grn { color: var(--green); }
     .sport-stat-val.red { color: var(--red); }
 
     /* ROSTER TABLE */
     .roster-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .roster-label { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+    .roster-label { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
     table.rt { width: 100%; border-collapse: collapse; font-size: 13px; }
     table.rt thead tr { background: var(--bg); border-bottom: 2px solid var(--border); }
-    table.rt th { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--lgray); padding: 8px 12px; text-align: center; white-space: nowrap; }
+    table.rt th { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--lgray); padding: 8px 12px; text-align: center; white-space: nowrap; }
     table.rt th:nth-child(1), table.rt th:nth-child(2) { text-align: left; }
     table.rt td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     table.rt tr:last-child td { border-bottom: none; }
     table.rt tr:hover td { background: #fafafa; }
-    .rt-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 15px; color: var(--lgray); width: 40px; }
-    .rt-name { font-weight: 600; }
-    .rt-bio  { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; color: var(--gray); text-align: center; }
-    .rt-stat { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; text-align: right; color: var(--black); }
+    .rt-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 15px; color: var(--lgray); width: 40px; }
+    .rt-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; }
+    .rt-bio  { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px; color: var(--gray); text-align: center; }
+    .rt-stat { font-family: 'Barlow Condensed', sans-serif; font-weight: 500; font-size: 14px; text-align: right; color: var(--black); }
     .rt-stat-gap { width: 16px; border-right: 2px solid var(--border); padding: 0; }
     .rt-stat-gap-th { width: 16px; border-right: 2px solid var(--border); padding: 0; }
 
@@ -76,18 +70,18 @@
     .game-cards-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
     .sc-game-card { width: 260px; flex-shrink: 0; }
     .sc-game-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-    .sc-card-top { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; padding: 5px 12px; background: #f0f0f0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; color: var(--lgray); }
+    .sc-card-top { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.3px; text-transform: uppercase; padding: 5px 12px; background: #f0f0f0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; color: var(--lgray); }
     .sc-card-body { padding: 10px 12px 12px; background: var(--white); }
     .sc-team-row { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 8px; margin-bottom: 6px; }
     .sc-team-row:last-child { margin-bottom: 0; }
     .sc-logo { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .sc-logo img { max-width: 30px; max-height: 30px; object-fit: contain; display: block; }
-    .sc-logo-fb { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 12px; color: var(--lgray); }
-    .sc-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--black); text-decoration: none; }
+    .sc-logo-fb { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px; color: var(--lgray); }
+    .sc-name { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--black); text-decoration: none; }
     .sc-name:hover { color: var(--green); text-decoration: underline; }
-    .sc-name.winner { font-weight: 800; }
+    .sc-name.winner { font-weight: 600; }
     .sc-name.loser  { color: var(--lgray); font-weight: 600; }
-    .sc-score { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 22px; line-height: 1; min-width: 28px; text-align: right; color: var(--black); }
+    .sc-score { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 22px; line-height: 1; min-width: 28px; text-align: right; color: var(--black); }
     .sc-score.winner { color: var(--black); }
     .sc-score.loser  { color: var(--lgray); font-weight: 600; }
     .sc-score.empty  { color: var(--lgray); font-size: 16px; font-weight: 600; }

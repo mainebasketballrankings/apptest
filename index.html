@@ -102,6 +102,34 @@
     .sport-tabs {
       display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;
     }
+    @media (max-width: 640px) {
+      .sport-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 4px;
+        margin-left: -16px;
+        margin-right: -16px;
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .sport-tabs::-webkit-scrollbar { display: none; }
+      .sport-tab { flex-shrink: 0; }
+      .filters {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 4px;
+        margin-left: -16px;
+        margin-right: -16px;
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .filters::-webkit-scrollbar { display: none; }
+      .filter-btn { flex-shrink: 0; }
+    }
     .sport-tab {
       padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border);
       background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer;

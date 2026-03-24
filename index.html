@@ -241,10 +241,23 @@
       padding: 5px 12px;
       background: #fafafa;
       border-bottom: 1px solid var(--border);
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
       color: var(--lgray);
+    }
+    .card-top-center {
+      text-align: center;
+      padding: 0 6px;
+    }
+    .card-top > :last-child {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .card-top .submit-btn-inline {
+      font-size: 9px;
+      padding: 2px 7px;
+      letter-spacing: 0.8px;
     }
 
     .live-dot {
@@ -1333,13 +1346,16 @@
     }
 
     // Top status bar
+    const submitBtnTop = !isFinal && !isPPD
+      ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>`
+      : `<span></span>`;
     const topBar = isFinal
-      ? `<div class="card-top"><span>Final</span><span>${clsLabel} · ${home.gender}</span></div>`
+      ? `<div class="card-top"><span>Final</span><span class="card-top-center">${clsLabel} · ${home.gender}</span><span></span></div>`
       : isLive
-        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span>${clsLabel} · ${home.gender}</span></div>`
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`
         : isPPD
-          ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span style="display:flex;align-items:center;gap:6px">${clsLabel} · ${home.gender} <span class="ppd-badge">${ppdLabel}</span></span></div>`
-          : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span>${clsLabel} · ${home.gender}</span></div>`;
+          ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span class="card-top-center" style="display:flex;align-items:center;gap:6px">${clsLabel} · ${home.gender} <span class="ppd-badge">${ppdLabel}</span></span><span></span></div>`
+          : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`;
 
     // Score cells
     const hScEl = has
@@ -1394,7 +1410,6 @@
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
           ${streamIconEl(streamUrl)}
-          ${!isFinal && !isPPD ? `<button class="submit-btn-inline" data-id="${g.id}">Submit Score</button>` : ''}
           ${!isFinal && !isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
           ${isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}" style="border-color:#c0392b;color:#c0392b">Edit PPD</button>` : ''}
         </div>

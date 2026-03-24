@@ -1411,7 +1411,7 @@
       ${!isFinal && !isPPD ? `
       <div class="submit-panel" id="panel-${g.id}">
         <h4>Submit Score</h4>
-        <form class="score-form" data-id="${g.id}" data-sport="${activeSport}">
+        <form class="score-form" data-id="${g.id}" data-sport="${sport}">
           <div class="score-inputs">
             <div class="si-group">
               <label>${home.school_name}</label>
@@ -1425,7 +1425,7 @@
           </div>
           <div class="si-extras">
             <div class="si-clock-row">
-              ${periodClockHTML(activeSport)}
+              ${periodClockHTML(sport)}
             </div>
             <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)"></textarea>
           </div>

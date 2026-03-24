@@ -1097,9 +1097,9 @@
       }
 
       if (boys.length  && activeFilter !== 'Girls' && (!singleGender || singleGender === 'Boys'))
-        html += section('Boys',  boys,  notesMap);
+        html += section('Boys',  boys,  notesMap, sport);
       if (girls.length && activeFilter !== 'Boys'  && (!singleGender || singleGender === 'Girls'))
-        html += section('Girls', girls, notesMap);
+        html += section('Girls', girls, notesMap, sport);
     }
 
     if (!html) {
@@ -1172,9 +1172,9 @@
     });
   }
 
-  function section(label, games, notesMap) {
+  function section(label, games, notesMap, sport) {
     return `<div class="section-label">${label}</div>
-            <div class="games-grid">${games.map(g => card(g, notesMap)).join('')}</div>`;
+            <div class="games-grid">${games.map(g => card(g, notesMap, sport)).join('')}</div>`;
   }
 
   function logoEl(team) {
@@ -1297,7 +1297,7 @@
       <input type="text" name="clock_time" class="si-time" placeholder="4:00" pattern="^([0-9]{1,2}:[0-5][0-9])?$" title="Format: 4:00" />`;
   }
 
-  function card(g, notesMap = {}) {
+  function card(g, notesMap = {}, sport = activeSport) {
     const home    = g.home_team;
     const away    = g.away_team;
     const homeCls = getHomeClass(g);

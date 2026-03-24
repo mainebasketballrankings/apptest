@@ -241,7 +241,7 @@ function renderSportCard(team, snap, wins, losses, ties, players, sport, showGen
 
   const rankOverall = snap ? snap.rank_overall : null;
   const rankClass   = snap ? snap.rank_class   : null;
-  const heals       = snap ? (+snap.heal_points).toFixed(2) : '—';
+  const dirigo      = snap ? (+snap.heal_points).toFixed(2) : '—';
   const cls         = team.team_class || '';
   const reg         = team.team_region || '';
 
@@ -309,8 +309,8 @@ function renderSportCard(team, snap, wins, losses, ties, players, sport, showGen
         <span class="sport-stat-val">#${rankClass}</span>
       </div>` : ''}
       <div class="sport-stat">
-        <span class="sport-stat-lbl">Heal Points</span>
-        <span class="sport-stat-val">${heals}</span>
+        <span class="sport-stat-lbl">DIRIGO</span>
+        <span class="sport-stat-val">${dirigo}</span>
       </div>
       ${cls ? `<div class="sport-stat">
         <span class="sport-stat-lbl">Class</span>

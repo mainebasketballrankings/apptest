@@ -206,12 +206,16 @@ let PLAYERS = [];
 async function loadData() {
   // Fetch teams
   const teamsRes = await fetch(
-    `${SB_URL}/rest/v1/teams?sport_id=eq.${SPORT_ID}&select=id,school_name,team_class,team_region,gender`,
+    `${SB_URL}/rest/v1/teams?sport_id=eq.${SPORT_ID}&select=id,school_name,team_class,team_region,gender,team_classifications(classes(name),regions(name))`,
     { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
   );
   const teams = await teamsRes.json();
   const teamMap = {};
-  (teams || []).forEach(t => { teamMap[t.id] = t; });
+  (teams || []).forEach(t => {
+    const cls = t.team_class || t.team_classifications?.[0]?.classes?.name || '?';
+    const reg = t.team_region || t.team_classifications?.[0]?.regions?.name || '';
+    teamMap[t.id] = { ...t, team_class: cls, team_region: reg };
+  });
 
   // Fetch players paginated
   let all = [], offset = 0;

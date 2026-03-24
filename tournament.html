@@ -255,7 +255,7 @@ async function loadData() {
       '3PA':     p.tpa || 0,
       FTM:       p.ftm || 0,
       FTA:       p.fta || 0,
-      EFF:       p.eff != null ? Math.round(p.eff / games) : 0,
+      EFF:       p.eff != null ? +(p.eff / games).toFixed(1) : 0,
       PLUSMINUS: p.plusminus || 0,
       PPG:       p.ppg != null ? +p.ppg : 0,
       RPG:       p.rpg != null ? +p.rpg : 0,
@@ -450,7 +450,7 @@ function renderPlayers() {
       <td>${(p.FGP||0).toFixed(1)}%</td>
       <td>${(p['3PP']||0).toFixed(1)}%</td>
       <td>${(p.FTP||0).toFixed(1)}%</td>
-      <td>${p.EFF}</td>
+      <td>${(p.EFF||0).toFixed(1)}</td>
       <td>${pm}</td>
     </tr>`;
   }).join('');
@@ -517,7 +517,7 @@ function renderTeamDetail(team) {
       <td>${(p.FGP||0).toFixed(1)}%</td>
       <td>${(p['3PP']||0).toFixed(1)}%</td>
       <td>${(p.FTP||0).toFixed(1)}%</td>
-      <td>${p.EFF}</td><td>${pm}</td>
+      <td>${(p.EFF||0).toFixed(1)}</td><td>${pm}</td>
     </tr>`;
   }).join('');
   document.getElementById('teamDetail').innerHTML = `

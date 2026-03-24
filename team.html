@@ -12,7 +12,6 @@
   gtag('js', new Date());
   gtag('config', 'G-W06E99SPX1');
 </script>
-  
   <title>Team Detail — Maine Basketball Rankings</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
@@ -747,7 +746,7 @@ async function load() {
             cells.push(`<td class="rt-stat">${n(p.fgp,1)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.tpp,1)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.ftp,1)}</td>`);
-            cells.push(`<td class="rt-stat">${p.eff != null && p.games ? Math.round(p.eff / p.games) : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.eff != null && p.games ? (p.eff / p.games).toFixed(1) : ''}</td>`);
             cells.push(`<td class="rt-stat">${p.plusminus != null ? (p.plusminus > 0 ? '+' : '') + p.plusminus : ''}</td>`);
           } else if (isBase) {
             cells.push(`<td class="rt-stat">${n(p.ba,3)}</td>`);

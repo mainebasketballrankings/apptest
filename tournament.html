@@ -13,7 +13,6 @@
   gtag('config', 'G-W06E99SPX1');
 </script>
 
-  
   <title>Maine Basketball Rankings — Tournament Stats</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,276 +31,78 @@
       --white:  #fff;
       --black:  #111;
     }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Barlow', sans-serif;
-      background: var(--bg);
-      color: var(--black);
-      min-height: 100vh;
-    }
-
-
+    body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--black); min-height: 100vh; }
     .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
-
-    .page-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 900; font-size: 36px; letter-spacing: -0.5px;
-      margin-bottom: 2px;
-    }
-
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 36px; letter-spacing: -0.5px; margin-bottom: 2px; }
     .page-sub { font-size: 14px; color: var(--lgray); margin-bottom: 24px; }
-
-    /* VIEW TABS */
-    .view-tabs {
-      display: flex; gap: 0; margin-bottom: 24px;
-      border: 1px solid var(--border); border-radius: 8px;
-      overflow: hidden; background: var(--white);
-      width: fit-content;
-    }
-
-    .view-tab {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 13px; letter-spacing: 0.5px;
-      text-transform: uppercase; padding: 9px 20px;
-      border: none; background: transparent; color: var(--gray);
-      cursor: pointer; transition: all 0.15s; border-right: 1px solid var(--border);
-    }
+    .view-tabs { display: flex; gap: 0; margin-bottom: 24px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--white); width: fit-content; }
+    .view-tab { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; padding: 9px 20px; border: none; background: transparent; color: var(--gray); cursor: pointer; transition: all 0.15s; border-right: 1px solid var(--border); }
     .view-tab:last-child { border-right: none; }
     .view-tab.active { background: var(--green); color: #fff; }
     .view-tab:hover:not(.active) { background: var(--bg); color: var(--black); }
-
-    /* FILTER BAR */
-    .filter-bar {
-      display: flex; flex-wrap: wrap; gap: 10px;
-      align-items: center; margin-bottom: 18px;
-    }
-
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
     .filter-group { display: flex; gap: 4px; align-items: center; }
-
-    .filter-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 11px; letter-spacing: 0.5px;
-      text-transform: uppercase; color: var(--lgray); margin-right: 2px;
-    }
-
-    .filter-btn {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 12px; letter-spacing: 0.5px;
-      text-transform: uppercase; padding: 5px 11px;
-      border-radius: 20px; border: 1px solid var(--border);
-      background: var(--white); color: var(--gray);
-      cursor: pointer; transition: all 0.15s;
-    }
+    .filter-label { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--lgray); margin-right: 2px; }
+    .filter-btn { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border); background: var(--white); color: var(--gray); cursor: pointer; transition: all 0.15s; }
     .filter-btn:hover { color: var(--black); border-color: #bbb; }
     .filter-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
-
-    .search-input {
-      font-family: 'Barlow', sans-serif; font-size: 14px;
-      padding: 6px 12px; border: 1px solid var(--border);
-      border-radius: 20px; background: var(--white);
-      outline: none; width: 200px; transition: border-color 0.15s;
-    }
+    .search-input { font-family: 'Barlow', sans-serif; font-size: 14px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--white); outline: none; width: 200px; transition: border-color 0.15s; }
     .search-input:focus { border-color: var(--green); }
-
-    .min-games-wrap {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 13px; color: var(--lgray); margin-left: auto;
-    }
-    .min-games-wrap select {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 12px;
-      padding: 4px 8px; border: 1px solid var(--border);
-      border-radius: 5px; background: var(--white);
-      color: var(--black); outline: none; cursor: pointer;
-    }
-
-    /* TABLES */
-    .table-wrap {
-      background: var(--white);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%; border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    thead tr {
-      border-bottom: 2px solid var(--border);
-    }
-
-    th {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 11px; letter-spacing: 0.5px;
-      text-transform: uppercase; color: var(--lgray);
-      padding: 10px 12px; text-align: right;
-      white-space: nowrap; cursor: pointer;
-      user-select: none; transition: color 0.15s;
-    }
+    .min-games-wrap { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--lgray); margin-left: auto; }
+    .min-games-wrap select { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--white); color: var(--black); outline: none; cursor: pointer; }
+    .table-wrap { background: var(--white); border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { border-bottom: 2px solid var(--border); }
+    th { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--lgray); padding: 10px 12px; text-align: right; white-space: nowrap; cursor: pointer; user-select: none; transition: color 0.15s; }
     th:first-child, th.left { text-align: left; }
     th:hover { color: var(--black); }
     th.sorted { color: var(--green); }
     th.sorted::after { content: ' ↓'; }
     th.sorted.asc::after { content: ' ↑'; }
-
-    td {
-      padding: 9px 12px; text-align: right;
-      border-bottom: 1px solid var(--bg);
-      white-space: nowrap;
-    }
+    td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--bg); white-space: nowrap; }
     td:first-child, td.left { text-align: left; }
-
     tbody tr:hover { background: #f8f8f8; }
     tbody tr:last-child td { border-bottom: none; }
-
-    .rank-cell {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; color: var(--lgray); font-size: 12px;
-      width: 32px;
-    }
-
-    .player-name {
-      font-weight: 600; color: var(--black);
-    }
-
-    .team-tag {
-      font-size: 11px; color: var(--lgray);
-      font-weight: 400; display: block;
-    }
-
-    .class-badge {
-      display: inline-block;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 10px;
-      padding: 1px 5px; border-radius: 3px;
-      background: var(--bg); color: var(--gray);
-      margin-left: 4px; vertical-align: middle;
-    }
-
+    .rank-cell { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--lgray); font-size: 12px; width: 32px; }
+    .player-name { font-weight: 600; color: var(--black); }
+    .team-tag { font-size: 11px; color: var(--lgray); font-weight: 400; display: block; }
+    .class-badge { display: inline-block; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 10px; padding: 1px 5px; border-radius: 3px; background: var(--bg); color: var(--gray); margin-left: 4px; vertical-align: middle; }
     .highlight { color: var(--green); font-weight: 700; }
-
-    /* STAT LEADERS */
-    .leaders-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 16px;
-    }
-
-    .leader-card {
-      background: var(--white);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      overflow: hidden;
-    }
-
-    .leader-card-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 14px; letter-spacing: 0.5px;
-      text-transform: uppercase; color: var(--white);
-      background: var(--green); padding: 9px 14px;
-    }
-
-    .leader-row {
-      display: flex; align-items: center;
-      padding: 8px 14px; gap: 10px;
-      border-bottom: 1px solid var(--bg);
-      transition: background 0.1s;
-    }
+    .leaders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .leader-card { background: var(--white); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
+    .leader-card-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--white); background: var(--green); padding: 9px 14px; }
+    .leader-row { display: flex; align-items: center; padding: 8px 14px; gap: 10px; border-bottom: 1px solid var(--bg); transition: background 0.1s; }
     .leader-row:last-child { border-bottom: none; }
     .leader-row:hover { background: #f8f8f8; }
-
-    .leader-rank {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 16px; color: var(--lgray);
-      min-width: 20px;
-    }
+    .leader-rank { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; color: var(--lgray); min-width: 20px; }
     .leader-rank.gold   { color: #c9a227; }
     .leader-rank.silver { color: #888; }
     .leader-rank.bronze { color: #a0522d; }
-
     .leader-info { flex: 1; min-width: 0; }
     .leader-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .leader-team { font-size: 11px; color: var(--lgray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .leader-stat {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 20px; color: var(--black);
-    }
-
-    /* TEAM BROWSER */
-    .team-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .team-card {
-      background: var(--white); border-radius: 8px;
-      border: 1px solid var(--border); padding: 12px 14px;
-      cursor: pointer; transition: all 0.15s;
-      display: flex; align-items: center; gap: 10px;
-    }
+    .leader-stat { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px; color: var(--black); }
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .team-card { background: var(--white); border-radius: 8px; border: 1px solid var(--border); padding: 12px 14px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
     .team-card:hover { border-color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
     .team-card.active { border-color: var(--green); border-width: 2px; background: #f0f9f4; }
-
     .team-card-info { flex: 1; min-width: 0; }
-    .team-card-name {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 15px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
+    .team-card-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .team-card-meta { font-size: 11px; color: var(--lgray); }
-
-    .team-card-ppg {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 18px; color: var(--green);
-    }
+    .team-card-ppg { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 18px; color: var(--green); }
     .team-card-ppg span { font-size: 10px; color: var(--lgray); font-weight: 400; display: block; text-align: right; }
-
-    .team-detail {
-      background: var(--white); border-radius: 10px;
-      border: 1px solid var(--border); overflow: hidden;
-    }
-
-    .team-detail-header {
-      padding: 16px 20px;
-      background: var(--green); color: #fff;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-
-    .team-detail-name {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 22px; letter-spacing: 0.5px;
-    }
-
+    .team-detail { background: var(--white); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
+    .team-detail-header { padding: 16px 20px; background: var(--green); color: #fff; display: flex; justify-content: space-between; align-items: center; }
+    .team-detail-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: 0.5px; }
     .team-detail-meta { font-size: 13px; opacity: 0.8; }
-
-    .team-detail-stats {
-      display: flex; gap: 24px; padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-      background: #f8fdf9;
-    }
-
+    .team-detail-stats { display: flex; gap: 24px; padding: 14px 20px; border-bottom: 1px solid var(--border); background: #f8fdf9; }
     .tds-item { text-align: center; }
-    .tds-val {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 22px; color: var(--green);
-    }
+    .tds-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; color: var(--green); }
     .tds-label { font-size: 10px; color: var(--lgray); text-transform: uppercase; letter-spacing: 0.5px; }
-
-    .empty {
-      text-align: center; padding: 48px 20px; color: var(--lgray);
-    }
-    .empty strong {
-      display: block; font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 20px; color: var(--gray); margin-bottom: 4px;
-    }
-
+    .loading-state { text-align: center; padding: 60px 20px; color: var(--lgray); font-family: 'Barlow Condensed', sans-serif; font-size: 18px; }
+    .empty { text-align: center; padding: 48px 20px; color: var(--lgray); }
+    .empty strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px; color: var(--gray); margin-bottom: 4px; }
     @media (max-width: 640px) {
       nav { display: none; }
       .leaders-grid { grid-template-columns: 1fr; }
@@ -317,14 +118,12 @@
   <div class="page-title">Tournament Stats</div>
   <div class="page-sub">2025–26 Maine Basketball Tournament</div>
 
-  <!-- VIEW TABS -->
   <div class="view-tabs">
     <button class="view-tab active" data-view="leaders">Stat Leaders</button>
     <button class="view-tab" data-view="players">All Players</button>
     <button class="view-tab" data-view="teams">Browse by Team</button>
   </div>
 
-  <!-- SHARED GENDER FILTER -->
   <div class="filter-bar" id="sharedFilters">
     <div class="filter-group">
       <span class="filter-label">Gender</span>
@@ -342,12 +141,12 @@
     </div>
   </div>
 
-  <!-- STAT LEADERS VIEW -->
   <div id="view-leaders">
-    <div class="leaders-grid" id="leadersGrid"></div>
+    <div id="leadersGrid" class="leaders-grid">
+      <div class="loading-state">Loading tournament data…</div>
+    </div>
   </div>
 
-  <!-- ALL PLAYERS VIEW -->
   <div id="view-players" style="display:none">
     <div class="filter-bar">
       <input type="text" class="search-input" id="playerSearch" placeholder="Search player or team…" />
@@ -387,7 +186,6 @@
     </div>
   </div>
 
-  <!-- TEAM BROWSER VIEW -->
   <div id="view-teams" style="display:none">
     <div class="filter-bar">
       <input type="text" class="search-input" id="teamSearch" placeholder="Search team…" />
@@ -398,9 +196,75 @@
 </div>
 
 <script>
-// ── DATA ──────────────────────────────────────────────────────────
-const PLAYERS = [
-  
+const SB_URL    = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+const SPORT_ID  = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
+const SEASON    = 2026;
+
+let PLAYERS = [];
+
+async function loadData() {
+  // Fetch teams
+  const teamsRes = await fetch(
+    `${SB_URL}/rest/v1/teams?sport_id=eq.${SPORT_ID}&select=id,school_name,team_class,team_region,gender`,
+    { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+  );
+  const teams = await teamsRes.json();
+  const teamMap = {};
+  (teams || []).forEach(t => { teamMap[t.id] = t; });
+
+  // Fetch players paginated
+  let all = [], offset = 0;
+  while (true) {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/players?sport_id=eq.${SPORT_ID}&season_year=eq.${SEASON}&games=not.is.null` +
+      `&select=name,number,team_id,games,pts,reb,ast,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ppg,rpg,apg,efgp,tsp` +
+      `&limit=1000&offset=${offset}`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Prefer': 'count=none' } }
+    );
+    const batch = await res.json();
+    if (!batch || !batch.length) break;
+    all.push(...batch);
+    if (batch.length < 1000) break;
+    offset += 1000;
+  }
+
+  PLAYERS = all.map(p => {
+    const t = teamMap[p.team_id] || {};
+    const games = p.games || 1;
+    return {
+      NAME:      p.name || '',
+      NUM:       p.number || '',
+      TEAM:      t.school_name || 'Unknown',
+      CLASS:     t.team_class || '?',
+      REGION:    t.team_region || '',
+      GENDER:    t.gender || 'Boys',
+      GAMES:     games,
+      PTS:       p.pts || 0,
+      REB:       p.reb || 0,
+      AST:       p.ast || 0,
+      STL:       p.stl || 0,
+      BLK:       p.blk || 0,
+      FGM:       p.fgm || 0,
+      FGA:       p.fga || 0,
+      '3PM':     p.tpm || 0,
+      '3PA':     p.tpa || 0,
+      FTM:       p.ftm || 0,
+      FTA:       p.fta || 0,
+      EFF:       p.eff != null ? Math.round(p.eff / games) : 0,
+      PLUSMINUS: p.plusminus || 0,
+      PPG:       p.ppg != null ? +p.ppg : 0,
+      RPG:       p.rpg != null ? +p.rpg : 0,
+      APG:       p.apg != null ? +p.apg : 0,
+      FGP:       p.fgp != null ? +p.fgp : 0,
+      '3PP':     p.tpp != null ? +p.tpp : 0,
+      FTP:       p.ftp != null ? +p.ftp : 0,
+      EFGP:      p.efgp != null ? +p.efgp : 0,
+      TSP:       p.tsp != null ? +p.tsp : 0,
+    };
+  });
+}
+
 // ── STATE ─────────────────────────────────────────────────────────
 let activeView   = 'leaders';
 let activeGender = 'Boys';
@@ -441,7 +305,6 @@ document.querySelectorAll('.view-tab').forEach(btn => {
   });
 });
 
-// ── GENDER + CLASS FILTERS ────────────────────────────────────────
 document.querySelectorAll('[data-gender]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('[data-gender]').forEach(b => b.classList.remove('active'));
@@ -462,15 +325,12 @@ document.querySelectorAll('[data-class]').forEach(btn => {
   });
 });
 
-// ── PLAYERS TABLE SORT ────────────────────────────────────────────
 document.querySelectorAll('#playersTable th[data-col]').forEach(th => {
   th.addEventListener('click', () => {
     const col = th.dataset.col;
     if (sortCol === col) { sortAsc = !sortAsc; }
     else { sortCol = col; sortAsc = false; }
-    document.querySelectorAll('#playersTable th').forEach(t => {
-      t.classList.remove('sorted','asc');
-    });
+    document.querySelectorAll('#playersTable th').forEach(t => t.classList.remove('sorted','asc'));
     th.classList.add('sorted');
     if (sortAsc) th.classList.add('asc');
     renderPlayers();
@@ -500,7 +360,6 @@ function render() {
   else renderTeams();
 }
 
-// ── STAT LEADERS ──────────────────────────────────────────────────
 const LEADER_CATS = [
   { key: 'PPG',  label: 'Points Per Game',   fmt: v => v.toFixed(1) },
   { key: 'RPG',  label: 'Rebounds Per Game', fmt: v => v.toFixed(1) },
@@ -519,37 +378,26 @@ const LEADER_CATS = [
 function renderLeaders() {
   const pool = filtered();
   const grid = document.getElementById('leadersGrid');
-
   if (!pool.length) {
     grid.innerHTML = '<div class="empty"><strong>No data</strong>No players match this filter.</div>';
     return;
   }
-
   grid.innerHTML = LEADER_CATS.map(cat => {
-    // For % stats, require at least some attempts
     let sorted = [...pool].sort((a, b) => (b[cat.key] || 0) - (a[cat.key] || 0));
-
-    // Filter out 0s for % categories
     if (['FGP','3PP','FTP'].includes(cat.key)) {
       const attMap = { FGP: 'FGA', '3PP': '3PA', FTP: 'FTA' };
       sorted = sorted.filter(p => (p[attMap[cat.key]] || 0) >= 10);
     }
-
     const top5 = sorted.slice(0, 5);
     const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-
-    const rows = top5.map((p, i) => {
-      const teamShort = p.TEAM.replace(/^#\d+\s+/, '').replace(/\s+(Boys|Girls)$/, '');
-      return `<div class="leader-row">
-        <div class="leader-rank ${rankClass(i)}">${i + 1}</div>
-        <div class="leader-info">
-          <div class="leader-name">${p.NAME}</div>
-          <div class="leader-team">${teamShort} <span class="class-badge">${p.CLASS}</span></div>
-        </div>
-        <div class="leader-stat">${cat.fmt(p[cat.key] || 0)}</div>
-      </div>`;
-    }).join('');
-
+    const rows = top5.map((p, i) => `<div class="leader-row">
+      <div class="leader-rank ${rankClass(i)}">${i + 1}</div>
+      <div class="leader-info">
+        <div class="leader-name">${p.NAME}</div>
+        <div class="leader-team">${p.TEAM} <span class="class-badge">${p.CLASS}</span></div>
+      </div>
+      <div class="leader-stat">${cat.fmt(p[cat.key] || 0)}</div>
+    </div>`).join('');
     return `<div class="leader-card">
       <div class="leader-card-title">${cat.label}</div>
       ${rows || '<div class="leader-row" style="color:var(--lgray);font-size:13px;padding:12px 14px">No qualifying players</div>'}
@@ -557,32 +405,26 @@ function renderLeaders() {
   }).join('');
 }
 
-// ── ALL PLAYERS TABLE ─────────────────────────────────────────────
 function renderPlayers() {
   const body = document.getElementById('playersBody');
   let pool = filtered();
-
   if (playerSearch) {
     pool = pool.filter(p =>
       p.NAME.toLowerCase().includes(playerSearch) ||
       p.TEAM.toLowerCase().includes(playerSearch)
     );
   }
-
   pool.sort((a, b) => {
     const av = a[sortCol] ?? -999;
     const bv = b[sortCol] ?? -999;
     if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
     return sortAsc ? av - bv : bv - av;
   });
-
   if (!pool.length) {
     body.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:40px;color:var(--lgray)">No players found</td></tr>';
     return;
   }
-
   body.innerHTML = pool.map((p, i) => {
-    const teamShort = p.TEAM.replace(/^#\d+\s+/, '').replace(/\s+(Boys|Girls)$/, '');
     const pm = p.PLUSMINUS > 0 ? `<span style="color:var(--green)">+${p.PLUSMINUS}</span>`
              : p.PLUSMINUS < 0 ? `<span style="color:var(--red)">${p.PLUSMINUS}</span>`
              : p.PLUSMINUS;
@@ -590,7 +432,7 @@ function renderPlayers() {
       <td class="rank-cell">${i + 1}</td>
       <td class="left">
         <span class="player-name">${p.NAME}</span>
-        <span class="team-tag">${teamShort} <span class="class-badge">${p.CLASS}</span></span>
+        <span class="team-tag">${p.TEAM} <span class="class-badge">${p.CLASS}</span></span>
       </td>
       <td>${p.GAMES}</td>
       <td>${p.PTS}</td>
@@ -610,57 +452,34 @@ function renderPlayers() {
   }).join('');
 }
 
-// ── TEAM BROWSER ──────────────────────────────────────────────────
 function renderTeams() {
   const allPlayers = teamFiltered();
-
-  // Build team summary
   const teamMap = {};
   allPlayers.forEach(p => {
-    if (!teamMap[p.TEAM]) {
-      teamMap[p.TEAM] = {
-        name: p.TEAM, class: p.CLASS, region: p.REGION,
-        gender: p.GENDER, players: []
-      };
-    }
+    if (!teamMap[p.TEAM]) teamMap[p.TEAM] = { name: p.TEAM, class: p.CLASS, region: p.REGION, gender: p.GENDER, players: [] };
     teamMap[p.TEAM].players.push(p);
   });
-
   let teams = Object.values(teamMap);
-  if (teamSearch) {
-    teams = teams.filter(t => t.name.toLowerCase().includes(teamSearch));
-  }
-
-  teams.sort((a, b) => {
-    // Sort by seed (number in name)
-    const sa = parseInt(a.name.match(/\d+/)?.[0] || 99);
-    const sb = parseInt(b.name.match(/\d+/)?.[0] || 99);
-    if (sa !== sb) return sa - sb;
-    return a.name.localeCompare(b.name);
-  });
-
+  if (teamSearch) teams = teams.filter(t => t.name.toLowerCase().includes(teamSearch));
+  teams.sort((a, b) => a.name.localeCompare(b.name));
   const grid = document.getElementById('teamGrid');
-
   if (!teams.length) {
     grid.innerHTML = '<div class="empty"><strong>No teams found</strong></div>';
     document.getElementById('teamDetail').innerHTML = '';
     return;
   }
-
   grid.innerHTML = teams.map(t => {
-    const pts  = t.players.reduce((s, p) => s + (p.PTS || 0), 0);
-    const gms  = Math.max(...t.players.map(p => p.GAMES));
-    const ppg  = gms > 0 ? (pts / gms).toFixed(1) : '–';
-    const displayName = t.name.replace(/\s+(Boys|Girls)$/, '');
+    const pts = t.players.reduce((s, p) => s + (p.PTS || 0), 0);
+    const gms = Math.max(...t.players.map(p => p.GAMES));
+    const ppg = gms > 0 ? (pts / gms).toFixed(1) : '–';
     return `<div class="team-card ${activeTeam === t.name ? 'active' : ''}" data-team="${t.name}">
       <div class="team-card-info">
-        <div class="team-card-name">${displayName}</div>
+        <div class="team-card-name">${t.name}</div>
         <div class="team-card-meta">Class ${t.class} · ${t.region} · ${t.players.length} players</div>
       </div>
       <div class="team-card-ppg">${ppg}<span>PPG</span></div>
     </div>`;
   }).join('');
-
   grid.querySelectorAll('.team-card').forEach(card => {
     card.addEventListener('click', () => {
       activeTeam = card.dataset.team;
@@ -669,12 +488,8 @@ function renderTeams() {
       document.getElementById('teamDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   });
-
-  if (activeTeam && teamMap[activeTeam]) {
-    renderTeamDetail(teamMap[activeTeam]);
-  } else {
-    document.getElementById('teamDetail').innerHTML = '';
-  }
+  if (activeTeam && teamMap[activeTeam]) renderTeamDetail(teamMap[activeTeam]);
+  else document.getElementById('teamDetail').innerHTML = '';
 }
 
 function renderTeamDetail(team) {
@@ -683,8 +498,6 @@ function renderTeamDetail(team) {
   const totalPts = ps.reduce((s, p) => s + (p.PTS || 0), 0);
   const totalReb = ps.reduce((s, p) => s + (p.REB || 0), 0);
   const totalAst = ps.reduce((s, p) => s + (p.AST || 0), 0);
-  const displayName = team.name.replace(/\s+(Boys|Girls)$/, '');
-
   const rows = ps.map(p => {
     const pm = p.PLUSMINUS > 0 ? `<span style="color:var(--green)">+${p.PLUSMINUS}</span>`
              : p.PLUSMINUS < 0 ? `<span style="color:var(--red)">${p.PLUSMINUS}</span>`
@@ -696,21 +509,18 @@ function renderTeamDetail(team) {
       <td>${(p.PPG||0).toFixed(1)}</td>
       <td>${(p.RPG||0).toFixed(1)}</td>
       <td>${(p.APG||0).toFixed(1)}</td>
-      <td>${p.STL}</td>
-      <td>${p.BLK}</td>
+      <td>${p.STL}</td><td>${p.BLK}</td>
       <td>${(p.FGP||0).toFixed(1)}%</td>
       <td>${(p['3PP']||0).toFixed(1)}%</td>
       <td>${(p.FTP||0).toFixed(1)}%</td>
-      <td>${p.EFF}</td>
-      <td>${pm}</td>
+      <td>${p.EFF}</td><td>${pm}</td>
     </tr>`;
   }).join('');
-
   document.getElementById('teamDetail').innerHTML = `
     <div class="team-detail" style="margin-top:16px">
       <div class="team-detail-header">
         <div>
-          <div class="team-detail-name">${displayName}</div>
+          <div class="team-detail-name">${team.name}</div>
           <div class="team-detail-meta">Class ${team.class} · ${team.region} · ${gms} games played</div>
         </div>
       </div>
@@ -736,7 +546,7 @@ function renderTeamDetail(team) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
-renderLeaders();
+loadData().then(() => renderLeaders());
 </script>
 
 <script src="nav.js"></script>

@@ -260,21 +260,24 @@ async function loadMatchup() {
   const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || '';
   const awayReg = away.team_region || away.team_classifications?.regions?.abbreviation || '';
 
-  // 3. Build rank lookup tables (state, class, region) for each stat
+  // 3. Build rank lookup tables — separate class/region pools for each team
   function makeRanks(statFn, hiGood = true) {
-    const state  = computeRanks(sportSnaps, statFn, hiGood);
-    const cls    = computeRanks(sportSnaps.filter(s => s.team?.team_class === homeCls), statFn, hiGood);
-    const reg    = computeRanks(sportSnaps.filter(s => s.team?.team_region === homeReg), statFn, hiGood);
-    return { state, cls, reg };
+    return {
+      state: computeRanks(sportSnaps, statFn, hiGood),
+      hCls:  computeRanks(sportSnaps.filter(s => s.team?.team_class  === homeCls), statFn, hiGood),
+      aCls:  computeRanks(sportSnaps.filter(s => s.team?.team_class  === awayCls), statFn, hiGood),
+      hReg:  computeRanks(sportSnaps.filter(s => s.team?.team_region === homeReg), statFn, hiGood),
+      aReg:  computeRanks(sportSnaps.filter(s => s.team?.team_region === awayReg), statFn, hiGood),
+    };
   }
 
-  const pfRanks  = makeRanks(s => s.avg_pf,       true);
-  const paRanks  = makeRanks(s => s.avg_pa,        false); // lower PA = better
+  const pfRanks  = makeRanks(s => s.avg_pf, true);
+  const paRanks  = makeRanks(s => s.avg_pa, false);
   const difRanks = makeRanks(s => (s.avg_pf != null && s.avg_pa != null) ? s.avg_pf - s.avg_pa : null, true);
-  const sosRanks = makeRanks(s => s.sos,            true);
-  const pctRanks = makeRanks(s => s.pct_perfect,    true);
-  const t25Ranks = makeRanks(s => s.vs_top_25,      true);
-  const t50Ranks = makeRanks(s => s.vs_top_50,      true);
+  const sosRanks = makeRanks(s => s.sos,          true);
+  const pctRanks = makeRanks(s => s.pct_perfect,  true);
+  const t25Ranks = makeRanks(s => s.vs_top_25,    true);
+  const t50Ranks = makeRanks(s => s.vs_top_50,    true);
 
 
   // 4. Fetch rest days (last game before this one for each team)

@@ -216,7 +216,7 @@ async function loadMatchup() {
   // 1. Fetch game
   const { data: game, error: gErr } = await sb.from('games').select(`
     id, game_date, game_time, location, sport_id, season_year,
-    home_score, away_score, status, stax_index, pick_team, spread,
+    home_score, away_score, status, stax_index, pick_team, spread, is_neutral_site,
     home_team:home_team_id ( id, school_name, gender, logo_url, team_class, team_region,
       team_classifications ( classes(name), regions(name,abbreviation) ) ),
     away_team:away_team_id ( id, school_name, gender, logo_url, team_class, team_region,
@@ -447,13 +447,19 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     const [hc, ac] = betterCls(hRaw, aRaw, hiGood);
     return cmpRow(label,
       fmtFn(hRaw), fmtFn(aRaw),
-      bracketFor(ranks, home.id, homeCls, homeReg, true),
-      bracketFor(ranks, away.id, awayCls, awayReg, false),
+      bracketFor(ranks, home.id, homeCls, homeReg, homeRegName, true),
+      bracketFor(ranks, away.id, awayCls, awayReg, awayRegName, false),
       hc, ac);
   }
 
-  const hDiff = hSnap.avg_pf != null && hSnap.avg_pa != null ? hSnap.avg_pf - hSnap.avg_pa : null;
-  const aDiff = aSnap.avg_pf != null && aSnap.avg_pa != null ? aSnap.avg_pf - aSnap.avg_pa : null;
+  const hGames = (hSnap.wins != null && hSnap.losses != null) ? hSnap.wins + hSnap.losses : null;
+  const aGames = (aSnap.wins != null && aSnap.losses != null) ? aSnap.wins + aSnap.losses : null;
+  const hAvgDiff = hSnap.avg_pf != null && hSnap.avg_pa != null ? hSnap.avg_pf - hSnap.avg_pa : null;
+  const aAvgDiff = aSnap.avg_pf != null && aSnap.avg_pa != null ? aSnap.avg_pf - aSnap.avg_pa : null;
+  const hTotalDiff = hAvgDiff != null && hGames != null ? Math.round(hAvgDiff * hGames) : null;
+  const aTotalDiff = aAvgDiff != null && aGames != null ? Math.round(aAvgDiff * aGames) : null;
+  const hDiff = hAvgDiff;
+  const aDiff = aAvgDiff;
   const [hDc, aDc] = betterCls(hDiff, aDiff, true);
 
   // Rest days
@@ -486,7 +492,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
       <div class="hero-team away">
         ${logoEl(away)}
         <div class="hero-name">${aSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+aSnap.rank_overall+'</span> ' : ''}${away.school_name}</div>
-        <div class="hero-rank-line">${game.location ? '@ '+game.location : ''}</div>
+        <div class="hero-rank-line">${game.location ? '@ '+game.location : game.is_neutral_site ? 'Neutral Site' : '@ '+home.school_name}</div>
         ${isFinal ? `<div class="hero-score">${game.away_score??'–'}</div>` : ''}
       </div>
       <div class="hero-vs">
@@ -496,7 +502,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
       <div class="hero-team home">
         ${logoEl(home)}
         <div class="hero-name">${hSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+hSnap.rank_overall+'</span> ' : ''}${home.school_name}</div>
-        <div class="hero-rank-line">${game.location ? '@ '+game.location : ''}</div>
+        <div class="hero-rank-line">${game.location ? '@ '+game.location : game.is_neutral_site ? 'Neutral Site' : '@ '+home.school_name}</div>
         ${isFinal ? `<div class="hero-score">${game.home_score??'–'}</div>` : ''}
       </div>
     </div>
@@ -510,12 +516,12 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     ${statCmpRow(scoreLabels[1], hSnap.avg_pa, aSnap.avg_pa, paRanks, v=>fmt(v), false)}
     <div class="cmp-row">
       <div class="cmp-cell away">
-        <span class="cmp-val ${aDc}">${fmtDiff(aSnap.avg_pf, aSnap.avg_pa)}</span>
+        <span class="cmp-val ${aDc}">${aTotalDiff != null ? (aTotalDiff >= 0 ? '+' : '') + aTotalDiff : '—'}${aAvgDiff != null ? '<span style="font-size:11px;font-weight:600;color:var(--lgray)"> ('+fmtDiff(aSnap.avg_pf,aSnap.avg_pa)+')</span>' : ''}</span>
         <span class="cmp-ranks">${bracketFor(difRanks, away.id, awayCls, awayReg, awayRegName, false)}</span>
       </div>
       <div class="cmp-label">+/–</div>
       <div class="cmp-cell home">
-        <span class="cmp-val ${hDc}">${fmtDiff(hSnap.avg_pf, hSnap.avg_pa)}</span>
+        <span class="cmp-val ${hDc}">${hTotalDiff != null ? (hTotalDiff >= 0 ? '+' : '') + hTotalDiff : '—'}${hAvgDiff != null ? '<span style="font-size:11px;font-weight:600;color:var(--lgray)"> ('+fmtDiff(hSnap.avg_pf,hSnap.avg_pa)+')</span>' : ''}</span>
         <span class="cmp-ranks">${bracketFor(difRanks, home.id, homeCls, homeReg, homeRegName, true)}</span>
       </div>
     </div>

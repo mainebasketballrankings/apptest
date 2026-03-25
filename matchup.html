@@ -234,7 +234,7 @@ async function loadMatchup() {
     const { data: batch } = await sb.from('rankings_snapshots')
       .select(`team_id, avg_pf, avg_pa, sos, pct_perfect, vs_top_25, vs_top_50,
                win_pct, heal_points, ats_record, wins, losses, rank_overall, snapshot_date,
-               team:team_id(sport_id, gender, team_class, team_region)`)
+               team:team_id(sport_id, gender, team_class, team_region, team_classifications(classes(name), regions(abbreviation)))`)
       .eq('season_year', game.season_year)
       .order('snapshot_date', { ascending: false })
       .range(offset, offset + 999);
@@ -249,27 +249,29 @@ async function loadMatchup() {
   for (const s of allSnaps) {
     if (!latestMap[s.team_id]) latestMap[s.team_id] = s;
   }
+  // Helper to get class/region from snap's team (with team_classifications fallback)
+  function snapCls(s)  { return s.team?.team_class || s.team?.team_classifications?.classes?.name || null; }
+  function snapReg(s)  { return s.team?.team_region || s.team?.team_classifications?.regions?.abbreviation || null; }
+
   const sportSnaps = Object.values(latestMap).filter(s =>
     s.team?.sport_id === game.sport_id && s.team?.gender === home.gender);
 
   const hSnap = latestMap[home.id] || {};
   const aSnap = latestMap[away.id] || {};
 
-  const homeCls = home.team_class || home.team_classifications?.classes?.name || '?';
-  console.log('DEBUG team_class:', home.team_class, home.team_classifications?.classes?.name, 'homeReg:', home.team_region, home.team_classifications?.regions?.abbreviation);
-  console.log('DEBUG snap sample:', JSON.stringify(Object.values(latestMap).slice(0,2).map(s=>({tid:s.team_id,tc:s.team?.team_class,tr:s.team?.team_region}))));
-  const awayCls = away.team_class || away.team_classifications?.classes?.name || '?';
-  const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || '';
-  const awayReg = away.team_region || away.team_classifications?.regions?.abbreviation || '';
+  const homeCls = home.team_class || home.team_classifications?.classes?.name || null;
+  const awayCls = away.team_class || away.team_classifications?.classes?.name || null;
+  const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || null;
+  const awayReg = away.team_region || away.team_classifications?.regions?.abbreviation || null;
 
   // 3. Build rank lookup tables — separate class/region pools for each team
   function makeRanks(statFn, hiGood = true) {
     return {
       state: computeRanks(sportSnaps, statFn, hiGood),
-      hCls:  computeRanks(sportSnaps.filter(s => s.team?.team_class  === homeCls), statFn, hiGood),
-      aCls:  computeRanks(sportSnaps.filter(s => s.team?.team_class  === awayCls), statFn, hiGood),
-      hReg:  computeRanks(sportSnaps.filter(s => s.team?.team_region === homeReg), statFn, hiGood),
-      aReg:  computeRanks(sportSnaps.filter(s => s.team?.team_region === awayReg), statFn, hiGood),
+      hCls:  computeRanks(sportSnaps.filter(s => snapCls(s) === homeCls), statFn, hiGood),
+      aCls:  computeRanks(sportSnaps.filter(s => snapCls(s) === awayCls), statFn, hiGood),
+      hReg:  computeRanks(sportSnaps.filter(s => snapReg(s) === homeReg), statFn, hiGood),
+      aReg:  computeRanks(sportSnaps.filter(s => snapReg(s) === awayReg), statFn, hiGood),
     };
   }
 
@@ -359,7 +361,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
 
   const isFinal = game.status==='final', isLive = game.status==='active';
   const crossCls = homeCls !== awayCls;
-  const clsLabel = crossCls ? `Cross-Class · ${home.gender}` : `Class ${homeCls} · ${home.gender}`;
+  const clsLabel = crossCls ? `Cross-Class · ${home.gender}` : `Class ${homeCls||'?'} · ${home.gender}`;
   const dateStr  = game.game_date
     ? new Date(game.game_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})
     : '';
@@ -417,7 +419,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     const rr = isHome ? ranks.hReg[teamId]  : ranks.aReg[teamId];
     const parts = [];
     if (s)        parts.push(`<span>#${s}</span>`);
-    if (cr)       parts.push(`<span>#${cr} ${cls}</span>`);
+    if (cr && cls) parts.push(`<span>#${cr} ${cls}</span>`);
     if (rr && reg) parts.push(`<span>#${rr} ${reg}</span>`);
     return parts.length ? `[ ${parts.join(' <span style="opacity:.3">|</span> ')} ]` : '';
   }
@@ -465,7 +467,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
       <div class="hero-team away">
         ${logoEl(away)}
         <div class="hero-name">${aSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+aSnap.rank_overall+'</span> ' : ''}${away.school_name}</div>
-        <div class="hero-rank-line">${awayCls}${awayReg ? ' · '+awayReg : ''}</div>
+        <div class="hero-rank-line">${(awayCls||'?')}${awayReg ? ' · '+awayReg : ''}</div>
         ${isFinal ? `<div class="hero-score">${game.away_score??'–'}</div>` : ''}
       </div>
       <div class="hero-vs">
@@ -475,7 +477,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
       <div class="hero-team home">
         ${logoEl(home)}
         <div class="hero-name">${hSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+hSnap.rank_overall+'</span> ' : ''}${home.school_name}</div>
-        <div class="hero-rank-line">${homeCls}${homeReg ? ' · '+homeReg : ''}</div>
+        <div class="hero-rank-line">${(homeCls||'?')}${homeReg ? ' · '+homeReg : ''}</div>
         ${isFinal ? `<div class="hero-score">${game.home_score??'–'}</div>` : ''}
       </div>
     </div>

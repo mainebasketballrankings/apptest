@@ -57,6 +57,7 @@
     .hero-logo-init { width: 56px; height: 56px; background: var(--greenlt); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; color: var(--green); }
     .hero-name   { font-weight: 600; font-size: 17px; line-height: 1.2; }
     .hero-rank-line { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; color: var(--green2); letter-spacing: 0.3px; }
+    .hero-rnk   { color: var(--lgray); font-weight: 600; }
     .hero-score  { font-family: 'Barlow Condensed', sans-serif; font-size: 38px; font-weight: 700; line-height: 1; margin-top: 4px; }
 
     .hero-vs     { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -86,7 +87,7 @@
     .cmp-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
     .cmp-header { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--lgray); padding: 9px 16px; background: #fafafa; border-bottom: 1px solid var(--border); text-align: center; }
 
-    .cmp-row { display: grid; grid-template-columns: 1fr 160px 1fr; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--border); }
+    .cmp-row { display: grid; grid-template-columns: 1fr 140px 1fr; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--border); }
     .cmp-row:last-child { border-bottom: none; }
 
     .cmp-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--lgray); text-align: center; }
@@ -95,7 +96,7 @@
     .cmp-cell.home { align-items: flex-start; }
     .cmp-cell.away { align-items: flex-end; }
 
-    .cmp-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; line-height: 1; }
+    .cmp-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; line-height: 1; }
     .cmp-val.better { color: var(--green2); }
     .cmp-val.worse  { color: var(--lgray); }
 
@@ -274,7 +275,7 @@ async function loadMatchup() {
   const pctRanks = makeRanks(s => s.pct_perfect,    true);
   const t25Ranks = makeRanks(s => s.vs_top_25,      true);
   const t50Ranks = makeRanks(s => s.vs_top_50,      true);
-  const winRanks = makeRanks(s => s.win_pct,        true);
+
 
   // 4. Fetch rest days (last game before this one for each team)
   async function getLastGame(teamId) {
@@ -339,15 +340,6 @@ function staxEl(val) {
   return `<span class="stax-badge ${cls}">⚡${n.toFixed(1)}</span>`;
 }
 
-function rankBracket(ranks, teamId, cls, reg) {
-  const s = ranks.state[teamId], c = ranks.cls[teamId], r = ranks.reg[teamId];
-  const parts = [];
-  if (s) parts.push(`<span>#${s}</span>`);
-  if (c) parts.push(`<span>#${c} ${cls}</span>`);
-  if (r && reg) parts.push(`<span>#${r} ${reg}</span>`);
-  return parts.length ? `[ ${parts.join(' <span style="opacity:.3">|</span> ')} ]` : '';
-}
-
 function betterCls(hv, av, hiGood=true) {
   if (hv==null||av==null||isNaN(hv)||isNaN(av)) return ['',''];
   return (hiGood ? hv>=av : hv<=av) ? ['better','worse'] : ['worse','better'];
@@ -395,7 +387,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
       ${stax ? stax+'<span style="color:var(--border)">·</span>' : ''}
       <span>Model Pick:</span>
       <span class="pick-team-label">${pickName}</span>
-      <span class="spread-label">–${Math.abs(game.spread).toFixed(1)}</span>
+      <span class="spread-label">+${Math.abs(game.spread).toFixed(1)}</span>
     </div>`;
   }
 
@@ -414,12 +406,23 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     </div>`;
   }
 
+  function bracketFor(ranks, teamId, cls, reg, isHome) {
+    const s  = ranks.state[teamId];
+    const cr = isHome ? ranks.hCls[teamId]  : ranks.aCls[teamId];
+    const rr = isHome ? ranks.hReg[teamId]  : ranks.aReg[teamId];
+    const parts = [];
+    if (s)        parts.push(`<span>#${s}</span>`);
+    if (cr)       parts.push(`<span>#${cr} ${cls}</span>`);
+    if (rr && reg) parts.push(`<span>#${rr} ${reg}</span>`);
+    return parts.length ? `[ ${parts.join(' <span style="opacity:.3">|</span> ')} ]` : '';
+  }
+
   function statCmpRow(label, hRaw, aRaw, ranks, fmtFn, hiGood=true) {
     const [hc, ac] = betterCls(hRaw, aRaw, hiGood);
     return cmpRow(label,
       fmtFn(hRaw), fmtFn(aRaw),
-      rankBracket(ranks, home.id, homeCls, homeReg),
-      rankBracket(ranks, away.id, awayCls, awayReg),
+      bracketFor(ranks, home.id, homeCls, homeReg, true),
+      bracketFor(ranks, away.id, awayCls, awayReg, false),
       hc, ac);
   }
 
@@ -456,17 +459,17 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     <div class="hero-teams">
       <div class="hero-team away">
         ${logoEl(away)}
-        <div class="hero-name">${away.school_name}</div>
+        <div class="hero-name">${aSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+aSnap.rank_overall+'</span> ' : ''}${away.school_name}</div>
         <div class="hero-rank-line">${awayCls}${awayReg ? ' · '+awayReg : ''}</div>
         ${isFinal ? `<div class="hero-score">${game.away_score??'–'}</div>` : ''}
       </div>
       <div class="hero-vs">
         <div class="hero-vs-label">vs</div>
-        ${game.location ? `<div class="hero-loc">${game.location}</div>` : ''}
+        ${game.location ? `<div class="hero-loc">@ ${game.location}</div>` : ''}
       </div>
       <div class="hero-team home">
         ${logoEl(home)}
-        <div class="hero-name">${home.school_name}</div>
+        <div class="hero-name">${hSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+hSnap.rank_overall+'</span> ' : ''}${home.school_name}</div>
         <div class="hero-rank-line">${homeCls}${homeReg ? ' · '+homeReg : ''}</div>
         ${isFinal ? `<div class="hero-score">${game.home_score??'–'}</div>` : ''}
       </div>
@@ -482,12 +485,12 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     <div class="cmp-row">
       <div class="cmp-cell away">
         <span class="cmp-val ${aDc}">${fmtDiff(aSnap.avg_pf, aSnap.avg_pa)}</span>
-        <span class="cmp-ranks">${rankBracket(difRanks, away.id, awayCls, awayReg)}</span>
+        <span class="cmp-ranks">${bracketFor(difRanks, away.id, awayCls, awayReg, false)}</span>
       </div>
       <div class="cmp-label">+/–</div>
       <div class="cmp-cell home">
         <span class="cmp-val ${hDc}">${fmtDiff(hSnap.avg_pf, hSnap.avg_pa)}</span>
-        <span class="cmp-ranks">${rankBracket(difRanks, home.id, homeCls, homeReg)}</span>
+        <span class="cmp-ranks">${bracketFor(difRanks, home.id, homeCls, homeReg, true)}</span>
       </div>
     </div>
   </div>
@@ -496,13 +499,13 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     <div class="cmp-header">Schedule &amp; Domination</div>
     ${statCmpRow('SOS',       hSnap.sos,        aSnap.sos,        sosRanks, v=>fmt(v,2), true)}
     ${statCmpRow('%Perfect',  hSnap.pct_perfect, aSnap.pct_perfect, pctRanks, v=>fmtPct(v), true)}
-    ${(hSnap.vs_top_25!=null||aSnap.vs_top_25!=null) ? statCmpRow('%vs Top 25', hSnap.vs_top_25, aSnap.vs_top_25, t25Ranks, v=>fmtPct(v), true) : ''}
-    ${(hSnap.vs_top_50!=null||aSnap.vs_top_50!=null) ? statCmpRow('%vs Top 50', hSnap.vs_top_50, aSnap.vs_top_50, t50Ranks, v=>fmtPct(v), true) : ''}
+    ${statCmpRow('%vs Top 25', hSnap.vs_top_25, aSnap.vs_top_25, t25Ranks, v=>fmtPct(v), true)}
+    ${statCmpRow('%vs Top 50', hSnap.vs_top_50, aSnap.vs_top_50, t50Ranks, v=>fmtPct(v), true)}
   </div>
 
   <div class="cmp-section">
     <div class="cmp-header">Assorted</div>
-    ${statCmpRow('Win %', hSnap.win_pct, aSnap.win_pct, winRanks, v=>fmtPct(v), true)}
+    ${cmpRow('Record', hSnap.wins!=null?hSnap.wins+'-'+(hSnap.losses??0):'—', aSnap.wins!=null?aSnap.wins+'-'+(aSnap.losses??0):'—', '', '', '', '')}
     ${cmpRow('ATS', hAts, aAts, '', '', '', '')}
     ${restRow}
   </div>

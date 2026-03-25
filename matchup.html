@@ -255,6 +255,8 @@ async function loadMatchup() {
 
   const sportSnaps = Object.values(latestMap).filter(s =>
     s.team?.sport_id === game.sport_id && s.team?.gender === home.gender);
+  console.log('homeCls:', homeCls, 'homeReg:', homeReg, 'awayCls:', awayCls, 'awayReg:', awayReg);
+  console.log('snap sample:', JSON.stringify(sportSnaps.slice(0,2).map(s=>({tc:s.team?.team_class, tcc:s.team?.team_classifications?.classes?.name, tr:s.team?.team_region, trc:s.team?.team_classifications?.regions?.abbreviation, cls:snapCls(s), reg:snapReg(s)}))));
 
   const hSnap = latestMap[home.id] || {};
   const aSnap = latestMap[away.id] || {};

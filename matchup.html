@@ -265,8 +265,7 @@ async function loadMatchup() {
     }
   }
 
-  console.log('clsMap home:', clsMap[home.id], 'clsMap away:', clsMap[away.id]);
-  console.log('pfRanks.aCls[away.id]:', pfRanks.aCls[away.id], 'pfRanks.hCls[home.id]:', pfRanks.hCls[home.id]);
+
   function snapCls(s) { return s.team?.team_class || clsMap[s.team_id]?.cls || null; }
   function snapReg(s)     { return s.team?.team_region || clsMap[s.team_id]?.reg || null; }
   function snapRegName(s) { return clsMap[s.team_id]?.regName || snapReg(s) || null; }
@@ -278,7 +277,7 @@ async function loadMatchup() {
   const hSnap = latestMap[home.id] || {};
   const aSnap = latestMap[away.id] || {};
 
-  const homeCls = home.team_class || home.team_classifications?.classes?.name || null;
+  const homeCls = home.team_class || home.team_classifications?.classes?.name || clsMap[home.id]?.cls || null;
   const awayCls = away.team_class || away.team_classifications?.classes?.name || clsMap[away.id]?.cls || null;
   const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || clsMap[home.id]?.reg || null;
   const awayReg     = away.team_region || away.team_classifications?.regions?.abbreviation || clsMap[away.id]?.reg || null;
@@ -297,6 +296,7 @@ async function loadMatchup() {
   }
 
   const pfRanks  = makeRanks(s => s.avg_pf, true);
+  console.log('homeCls:', homeCls, 'awayCls:', awayCls, 'pfRanks.hCls[home.id]:', pfRanks.hCls[home.id], 'pfRanks.aCls[away.id]:', pfRanks.aCls[away.id]);
   const paRanks  = makeRanks(s => s.avg_pa, false);
   const difRanks = makeRanks(s => (s.avg_pf != null && s.avg_pa != null) ? s.avg_pf - s.avg_pa : null, true);
   const sosRanks = makeRanks(s => s.sos,          true);

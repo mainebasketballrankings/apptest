@@ -296,7 +296,6 @@ async function loadMatchup() {
   }
 
   const pfRanks  = makeRanks(s => s.avg_pf, true);
-  console.log('homeCls:', homeCls, 'awayCls:', awayCls, 'pfRanks.hCls[home.id]:', pfRanks.hCls[home.id], 'pfRanks.aCls[away.id]:', pfRanks.aCls[away.id]);
   const paRanks  = makeRanks(s => s.avg_pa, false);
   const difRanks = makeRanks(s => (s.avg_pf != null && s.avg_pa != null) ? s.avg_pf - s.avg_pa : null, true);
   const sosRanks = makeRanks(s => s.sos,          true);

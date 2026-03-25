@@ -492,17 +492,15 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
       <div class="hero-team away">
         ${logoEl(away)}
         <div class="hero-name">${aSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+aSnap.rank_overall+'</span> ' : ''}${away.school_name}</div>
-        <div class="hero-rank-line">${game.location ? '@ '+game.location : game.is_neutral_site ? 'Neutral Site' : '@ '+home.school_name}</div>
         ${isFinal ? `<div class="hero-score">${game.away_score??'–'}</div>` : ''}
       </div>
       <div class="hero-vs">
         <div class="hero-vs-label">vs</div>
-
+        <div class="hero-loc">${game.location ? '@ '+game.location : game.is_neutral_site ? 'Neutral Site' : '@ '+home.school_name}</div>
       </div>
       <div class="hero-team home">
         ${logoEl(home)}
         <div class="hero-name">${hSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+hSnap.rank_overall+'</span> ' : ''}${home.school_name}</div>
-        <div class="hero-rank-line">${game.location ? '@ '+game.location : game.is_neutral_site ? 'Neutral Site' : '@ '+home.school_name}</div>
         ${isFinal ? `<div class="hero-score">${game.home_score??'–'}</div>` : ''}
       </div>
     </div>

@@ -249,23 +249,35 @@ async function loadMatchup() {
   for (const s of allSnaps) {
     if (!latestMap[s.team_id]) latestMap[s.team_id] = s;
   }
-  // Helper to get class/region from snap's team (with team_classifications fallback)
-  function snapCls(s)  { return s.team?.team_class || s.team?.team_classifications?.classes?.name || null; }
-  function snapReg(s)  { return s.team?.team_region || s.team?.team_classifications?.regions?.abbreviation || null; }
+  // Fetch team_classifications for all teams in this sport+gender
+  const allTeamIds = Object.keys(latestMap);
+  const clsMap = {}; // team_id -> { cls, reg }
+  if (allTeamIds.length) {
+    const { data: clsData } = await sb.from('team_classifications')
+      .select('team_id, classes(name), regions(abbreviation)')
+      .in('team_id', allTeamIds);
+    if (clsData) for (const row of clsData) {
+      clsMap[row.team_id] = {
+        cls: row.classes?.name || null,
+        reg: row.regions?.abbreviation || null,
+      };
+    }
+  }
+
+  function snapCls(s) { return s.team?.team_class || clsMap[s.team_id]?.cls || null; }
+  function snapReg(s) { return s.team?.team_region || clsMap[s.team_id]?.reg || null; }
 
   const sportSnaps = Object.values(latestMap).filter(s =>
     s.team?.sport_id === game.sport_id && s.team?.gender === home.gender);
-  console.log('snap sample:', JSON.stringify(sportSnaps.slice(0,2).map(s=>({tc:s.team?.team_class, tcc:s.team?.team_classifications?.classes?.name, tr:s.team?.team_region, trc:s.team?.team_classifications?.regions?.abbreviation, cls:snapCls(s), reg:snapReg(s)}))));
 
 
   const hSnap = latestMap[home.id] || {};
   const aSnap = latestMap[away.id] || {};
 
   const homeCls = home.team_class || home.team_classifications?.classes?.name || null;
-  const awayCls = away.team_class || away.team_classifications?.classes?.name || null;
-  const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || null;
-  const awayReg = away.team_region || away.team_classifications?.regions?.abbreviation || null;
-  console.log('homeCls:', homeCls, 'homeReg:', homeReg, 'awayCls:', awayCls, 'awayReg:', awayReg);
+  const awayCls = away.team_class || away.team_classifications?.classes?.name || clsMap[away.id]?.cls || null;
+  const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || clsMap[home.id]?.reg || null;
+  const awayReg = away.team_region || away.team_classifications?.regions?.abbreviation || clsMap[away.id]?.reg || null;
 
   // 3. Build rank lookup tables — separate class/region pools for each team
   function makeRanks(statFn, hiGood = true) {

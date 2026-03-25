@@ -308,7 +308,7 @@ async function loadMatchup() {
   el.innerHTML = buildMatchup({
     game, home, away, hSnap, aSnap,
     homeCls, awayCls, homeReg, awayReg,
-    pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks, winRanks,
+    pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
     hRest, aRest,
     scoreLabels: SPORT_SCORE_LABELS[sportKey] || ['Pts Scored', 'Pts Allowed'],
   });
@@ -349,7 +349,7 @@ function betterCls(hv, av, hiGood=true) {
 
 function buildMatchup({ game, home, away, hSnap, aSnap,
   homeCls, awayCls, homeReg, awayReg,
-  pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks, winRanks,
+  pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
   hRest, aRest, scoreLabels }) {
 
   const isFinal = game.status==='final', isLive = game.status==='active';

@@ -333,7 +333,7 @@ async function loadMatchup() {
 
   el.innerHTML = buildMatchup({
     game, home, away, hSnap, aSnap,
-    homeCls, awayCls, homeReg, awayReg,
+    homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName,
     pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
     hRest, aRest,
     scoreLabels: SPORT_SCORE_LABELS[sportKey] || ['Pts Scored', 'Pts Allowed'],
@@ -374,7 +374,7 @@ function betterCls(hv, av, hiGood=true) {
 // ── Build ─────────────────────────────────────────────────────────────────────
 
 function buildMatchup({ game, home, away, hSnap, aSnap,
-  homeCls, awayCls, homeReg, awayReg,
+  homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName,
   pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
   hRest, aRest, scoreLabels }) {
 

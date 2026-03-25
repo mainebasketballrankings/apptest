@@ -266,11 +266,7 @@ async function loadMatchup() {
   }
 
   console.log('clsMap home:', clsMap[home.id], 'clsMap away:', clsMap[away.id]);
-  // debug after makeRanks
-  setTimeout(() => {
-    const pfAClsPool = sportSnaps.filter(s => snapCls(s) === awayCls);
-    console.log('awayCls:', awayCls, 'aCls pool size:', pfAClsPool.length, 'away in pool:', pfAClsPool.some(s=>s.team_id===away.id));
-  }, 0);
+  console.log('pfRanks.aCls[away.id]:', pfRanks.aCls[away.id], 'pfRanks.hCls[home.id]:', pfRanks.hCls[home.id]);
   function snapCls(s) { return s.team?.team_class || clsMap[s.team_id]?.cls || null; }
   function snapReg(s)     { return s.team?.team_region || clsMap[s.team_id]?.reg || null; }
   function snapRegName(s) { return clsMap[s.team_id]?.regName || snapReg(s) || null; }

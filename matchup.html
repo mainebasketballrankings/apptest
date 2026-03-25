@@ -233,7 +233,7 @@ async function loadMatchup() {
   while (true) {
     const { data: batch } = await sb.from('rankings_snapshots')
       .select(`team_id, avg_pf, avg_pa, sos, pct_perfect, vs_top_25, vs_top_50,
-               win_pct, heal_points, ats_record, snapshot_date,
+               win_pct, heal_points, ats_record, wins, losses, rank_overall, snapshot_date,
                team:team_id(sport_id, gender, team_class, team_region)`)
       .eq('season_year', game.season_year)
       .order('snapshot_date', { ascending: false })
@@ -256,6 +256,8 @@ async function loadMatchup() {
   const aSnap = latestMap[away.id] || {};
 
   const homeCls = home.team_class || home.team_classifications?.classes?.name || '?';
+  console.log('DEBUG team_class:', home.team_class, home.team_classifications?.classes?.name, 'homeReg:', home.team_region, home.team_classifications?.regions?.abbreviation);
+  console.log('DEBUG snap sample:', JSON.stringify(Object.values(latestMap).slice(0,2).map(s=>({tid:s.team_id,tc:s.team?.team_class,tr:s.team?.team_region}))));
   const awayCls = away.team_class || away.team_classifications?.classes?.name || '?';
   const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || '';
   const awayReg = away.team_region || away.team_classifications?.regions?.abbreviation || '';

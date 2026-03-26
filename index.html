@@ -225,6 +225,7 @@
     }
 
     .game-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.09); }
+    .card-body { cursor: pointer; }
 
     .game-card.live {
       border-color: var(--green2);
@@ -1135,6 +1136,14 @@
 
     container.innerHTML = html;
 
+    container.querySelectorAll('.card-body').forEach(body => {
+      body.addEventListener('click', (e) => {
+        if (e.target.closest('a, button')) return; // don't intercept team links or buttons
+        const gameId = body.closest('.game-card')?.dataset.gameId;
+        if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
+      });
+    });
+
     container.querySelectorAll('.submit-btn-inline').forEach(btn => {
       btn.addEventListener('click', () => {
         const panel = document.getElementById('panel-' + btn.dataset.id);
@@ -1398,7 +1407,7 @@
     }
 
     return `
-    <div class="game-card ${isLive ? 'live' : ''} ${isPPD ? 'postponed' : ''}">
+    <div class="game-card ${isLive ? 'live' : ''} ${isPPD ? 'postponed' : ''}" data-game-id="${g.id}">
       ${topBar}
       <div class="card-body">
         <div class="team-row">

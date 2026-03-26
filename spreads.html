@@ -114,6 +114,7 @@
       transition: box-shadow 0.12s;
     }
     .game-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .card-teams { cursor: pointer; }
     .game-card.is-final { opacity: 0.72; }
     .game-card.is-final:hover { opacity: 1; }
 
@@ -362,7 +363,7 @@ function gameCard(g, snaps) {
     </div>`;
 
   return `
-    <div class="game-card ${isFinal ? 'is-final' : ''}">
+    <div class="game-card ${isFinal ? 'is-final' : ''}" data-game-id="${g.id}">
       <div class="card-teams">
         <div class="team-block">
           ${aRnk ? `<span class="team-rank">${aRnk}</span>` : ''}
@@ -489,6 +490,14 @@ async function loadSpreads() {
   }
 
   document.getElementById('app').innerHTML = html;
+
+  document.querySelectorAll('.card-teams').forEach(ct => {
+    ct.addEventListener('click', (e) => {
+      if (e.target.closest('a, button')) return;
+      const gameId = ct.closest('.game-card')?.dataset.gameId;
+      if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
+    });
+  });
 }
 
 loadSpreads();

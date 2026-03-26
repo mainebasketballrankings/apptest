@@ -408,7 +408,9 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
   // Pick
   let pickHTML = '';
   if (game.pick_team && game.spread != null) {
-    const pickName = game.pick_team===home.id ? home.school_name : away.school_name;
+    const pickName = game.pick_team===home.school_name ? home.school_name
+                     : game.pick_team===away.school_name ? away.school_name
+                     : game.pick_team; // fallback: show raw value
     const stax = staxEl(game.stax_index);
     pickHTML = `<div class="pick-row">
       ${stax ? stax+'<span style="color:var(--border)">·</span>' : ''}

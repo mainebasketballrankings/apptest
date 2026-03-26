@@ -731,7 +731,7 @@ async function load() {
         const rows = players.map(p => {
           const n = (v, decimals) => v != null ? (decimals != null ? (+v).toFixed(decimals) : v) : '';
           const cells = [
-            `<td class="rt-num">${p.number || '—'}</td>`,
+            `<td class="rt-num">${p.number != null ? parseInt(p.number) : '—'}</td>`,
             `<td class="rt-name">${p.name || ''}</td>`,
             `<td class="rt-pron">${p.pronunciation || ''}</td>`,
             `<td class="rt-grade" style="text-align:center">${p.height || ''}</td>`,

@@ -926,6 +926,13 @@ function openRunners(){
   openOv('ovRunners');
 }
 
+function runMoveTo(from,to){
+  if(G.bases[to]){ alert(`${to===2?'2nd':to===3?'3rd':'1st'} is occupied`); return; }
+  const runner=G.bases[from];
+  G.bases[to]=runner; G.bases[from]=null;
+  addPBP(`${runner.name} advances to ${to===2?'2nd':to===3?'3rd':'1st'}`);
+  closeOv('ovRunners'); openRunners(); render();
+}
 function runOut(base){ addPBP(`Runner on ${['1st','2nd','3rd'][base-1]} — out`); G.bases[base]=null; addOut('out'); closeOv('ovRunners'); }
 function runAdv(base){ if(base<3){ G.bases[base+1]=G.bases[base]; G.bases[base]=null; addPBP(`${G.bases[base+1]?.name} advances`); } openRunners(); render(); }
 function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRunners(); render(); }
@@ -1051,15 +1058,7 @@ function render(){
   document.getElementById('cntB').textContent=G.balls;
   document.getElementById('cntS').textContent=G.strikes;
 
-  // Diamond SVG
-  const baseColors={1:'#d97706',2:'#d97706',3:'#d97706'};
-  const baseIds={1:'d1b',2:'d2b',3:'d3b'};
-  [1,2,3].forEach(b=>{
-    const el=document.getElementById(baseIds[b]);
-    if(!el) return;
-    if(G.bases[b]){ el.setAttribute('fill','#fef3c7'); el.setAttribute('stroke','#d97706'); }
-    else { el.setAttribute('fill','none'); el.setAttribute('stroke','#d0d3e8'); }
-  });
+
 
   // Linescore
   let ls='<tr><th></th>';
@@ -1079,19 +1078,18 @@ function render(){
   const pit=curPitcher();
   if(pit){
     const ps=getPS(pit.side,pit.idx);
-    document.getElementById('pitName').textContent=pit.player.name||`Pitcher`;
+    const pnEl=document.getElementById('pitName'); if(pnEl) pnEl.textContent=pit.player.name||'Pitcher';
     const ip=Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
-    document.getElementById('pitIP').textContent=`${ip} IP`;
     const cEl=document.getElementById('pitCount');
-    cEl.textContent=ps.pitches;
-    cEl.className='pit-count';
-    if(G.pitchLimits&&G.sport!=='softball'){
-      const lim=PITCH_LIMITS[G.level];
-      if(ps.pitches>=lim.max) cEl.classList.add('danger');
-      else if(ps.pitches>=lim.warn) cEl.classList.add('warn');
+    if(cEl){ cEl.textContent=ps.pitches; cEl.className='pit-count';
+      if(G.pitchLimits&&G.sport!=='softball'){
+        const lim=PITCH_LIMITS[G.level];
+        if(ps.pitches>=lim.max) cEl.classList.add('danger');
+        else if(ps.pitches>=lim.warn) cEl.classList.add('warn');
+      }
     }
-    document.getElementById('pitLimit').textContent=
-      G.pitchLimits&&G.sport!=='softball'?`/ ${PITCH_LIMITS[G.level].max} max`:'pitches';
+    const plEl=document.getElementById('pitLimit');
+    if(plEl) plEl.textContent=G.pitchLimits&&G.sport!=='softball'?`/ ${PITCH_LIMITS[G.level].max} max`:'pitches';
   }
 
   // Batter

@@ -813,8 +813,8 @@ function forceAdvance(runner){
   G.bases[1]=runner;
 }
 
-function scoreRunner(runner){
-  const side=battingSide();
+function scoreRunner(runner, side){
+  side = side || battingSide();
   G.runs[side]++;
   const inn=G.inning-1;
   if(G.linescore[inn]){ if(G.linescore[inn][side]===null) G.linescore[inn][side]=0; G.linescore[inn][side]++; }
@@ -867,15 +867,16 @@ function clearF(){ G.fldSeq=[]; document.getElementById('fldSeq').textContent='�
 function confirmOut(type){
   const notation=G.fldSeq.length>0?G.fldSeq.join('-'):type;
   const b=curBatter();
-  const isSac=(type==='SAC')||notation.includes('SAC');
-  if(!isSac) b.player.stats.ab++;
+  const isSacBunt=(type==='SAC')||notation.includes('SAC');
+  const isSacFly=(type==='SF');
+  if(!isSacBunt && !isSacFly) b.player.stats.ab++;
   else b.player.stats.sac=(b.player.stats.sac||0)+1;
+  addPBP(`<strong>${b.player.name}</strong> — ${notation}`);
   closeOv('ovInPlay');
   G.curPitches.push('X');
-  addPBP(`<strong>${b.player.name}</strong> — ${notation}`);
   addOut(notation);
-  // SAC: open runners so scorer can advance them
-  if(isSac && hasRunners()){
+  // Both sac bunt and sac fly: open runners so scorer decides what each runner does
+  if((isSacBunt || isSacFly) && hasRunners()){
     setTimeout(()=>{ openRunners(); }, 150);
   }
 }
@@ -1011,7 +1012,7 @@ function confirmRBI(){
   [3,2,1].forEach(base=>{
     const runner=G.bases[base]; if(!runner) return;
     const dec=G.runDecisions[base]||'stay';
-    if(dec==='score'){ scoreRunner(runner); if(isHit) autoRBI++; }
+    if(dec==='score'){ scoreRunner(runner, side); if(isHit) autoRBI++; }
     else if(dec==='to2') newBases[2]=runner;
     else if(dec==='to3') newBases[3]=runner;
     else newBases[base]=runner;
@@ -1027,7 +1028,7 @@ function confirmRBI(){
   if(result==='1B'||result==='E'||result==='FC') newBases[1]=bRunner;
   else if(result==='2B') newBases[2]=bRunner;
   else if(result==='3B') newBases[3]=bRunner;
-  for(let i=0;i<manualRBI;i++) scoreRunner(null);
+  for(let i=0;i<manualRBI;i++) scoreRunner(null, side);
   G.bases=newBases;
   G.hits[side]++;
   const p=curPitcher();
@@ -1089,7 +1090,8 @@ function tapBase(dest){
     if(dest===0){
       // Score
       const r=G.bases[from];
-      scoreRunner(r); G.bases[from]=null;
+      const side=battingSide();
+      scoreRunner(r, side); G.bases[from]=null;
       addPBP(`<strong>${r.name}</strong> scores`);
       deselectRunner(); updateRunnerDiamond(); render(); return;
     }
@@ -1139,8 +1141,9 @@ function tapBase(dest){
 
 function moveRunnerTo(from, dest){
   const r=G.bases[from];
+  const side=battingSide();
   if(dest===0){
-    scoreRunner(r); G.bases[from]=null;
+    scoreRunner(r, side); G.bases[from]=null;
     addPBP(`<strong>${r.name}</strong> scores`);
   } else {
     G.bases[dest]=r; G.bases[from]=null;

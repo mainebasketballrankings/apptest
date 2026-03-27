@@ -220,6 +220,41 @@ input,select,button{font-family:inherit;}
   .pbtn{padding:13px 4px;font-size:13px;}
   .hit-grid{grid-template-columns:1fr 1fr;}
 }
+
+/* ══ NEW GAME LAYOUT ══ */
+.sb-top-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:8px 14px 6px;}
+.sb-team-block{display:flex;flex-direction:column;}
+.sb-center-block{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.sb-half-inn{display:flex;align-items:baseline;gap:3px;}
+.sb-half{font-size:13px;font-weight:700;}
+.sb-inn{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;line-height:1;color:var(--text);}
+.sb-inn-lbl{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.count-row{display:flex;align-items:center;gap:3px;}
+.count-num{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--text);}
+.count-sep{color:var(--ldim);font-size:13px;}
+.count-label-sm{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);}
+.out-pip{width:10px;height:10px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:background .15s;display:inline-block;}
+.out-pip.on{background:var(--yellow);border-color:var(--yellow);}
+
+/* Batter/Pitcher strip */
+.bp-strip{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);background:var(--surface);}
+.bp-batter{display:flex;align-items:center;gap:8px;padding:7px 12px;border-right:1px solid var(--border);}
+.bp-pitcher{display:flex;align-items:center;gap:8px;padding:7px 12px;}
+.bp-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;background:var(--dim);padding:2px 5px;border-radius:3px;flex-shrink:0;}
+.bp-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--text);line-height:1.2;}
+.bp-sub{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);}
+
+/* Pitch sequence bar */
+.pitch-seq-bar{padding:4px 12px;background:var(--surface);border-bottom:1px solid var(--border);min-height:30px;display:flex;align-items:center;}
+
+/* Field */
+.field-wrap{background:#4a7c59;flex-shrink:0;}
+
+/* Pitch count colors */
+.pit-count{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;color:var(--text);}
+.pit-count.warn{color:var(--yellow);}
+.pit-count.danger{color:var(--red);animation:pulse 1s infinite;}
+.pit-limit{font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--dim);}
 </style>
 </head>
 <body>
@@ -292,88 +327,156 @@ input,select,button{font-family:inherit;}
 <!-- ══ GAME SCREEN ══ -->
 <div id="gameScreen">
 
-  <!-- Scoreboard -->
+  <!-- Top bar: score + status -->
   <div class="sb">
-    <div class="sb-teams">
-      <div class="sb-team away">
+    <div class="sb-top-row">
+      <!-- Away score -->
+      <div class="sb-team-block">
         <div class="sb-name" id="sbAwayName">Away</div>
         <div class="sb-runs" id="sbAwayRuns">0</div>
       </div>
-      <div class="sb-mid">
-        <div class="sb-half" id="sbHalf">▲</div>
-        <div class="sb-inn" id="sbInn">1</div>
+      <!-- Center: inning + half -->
+      <div class="sb-center-block">
+        <div class="sb-half-inn">
+          <span class="sb-half" id="sbHalf">▲</span>
+          <span class="sb-inn" id="sbInn">1</span>
+        </div>
         <div class="sb-inn-lbl">Inning</div>
+        <!-- Count row -->
+        <div class="count-row">
+          <span class="count-label-sm">B</span><span class="count-num" id="cntB">0</span>
+          <span class="count-sep"> · </span>
+          <span class="count-label-sm">S</span><span class="count-num" id="cntS">0</span>
+          <span class="count-sep"> · </span>
+          <span class="count-label-sm">O</span>
+          <div class="out-pip" id="pip1"></div>
+          <div class="out-pip" id="pip2"></div>
+        </div>
       </div>
-      <div class="sb-team home">
+      <!-- Home score -->
+      <div class="sb-team-block" style="text-align:right">
         <div class="sb-name" id="sbHomeName">Home</div>
         <div class="sb-runs" id="sbHomeRuns">0</div>
       </div>
     </div>
-    <div class="sb-status">
-      <!-- Outs -->
-      <div class="outs-row">
-        <span class="out-lbl">Out</span>
-        <div class="out-pip" id="pip1"></div>
-        <div class="out-pip" id="pip2"></div>
+  </div>
+
+  <!-- Batter / Pitcher strip -->
+  <div class="bp-strip">
+    <div class="bp-batter">
+      <span class="bp-tag">AB</span>
+      <div>
+        <div class="bp-name" id="abName">—</div>
+        <div class="bp-sub" id="abLine">0/0 · 0 RBI</div>
       </div>
-      <!-- Count -->
-      <div class="count-row">
-        <span class="count-num" id="cntB">0</span>
-        <span class="count-sep">-</span>
-        <span class="count-num" id="cntS">0</span>
-        <span class="count-lbl">Count</span>
-      </div>
-      <!-- Mini diamond -->
-      <div class="diamond-wrap" onclick="toggleField()" style="cursor:pointer" title="Toggle field view">
-        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="32,4 60,32 32,60 4,32" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
-          <polygon points="32,56 29,60 35,60" fill="#6b7280"/>
-          <rect id="d2b" x="26" y="2" width="12" height="12" rx="2" transform="rotate(45 32 8)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
-          <rect id="d3b" x="2" y="26" width="12" height="12" rx="2" transform="rotate(45 8 32)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
-          <rect id="d1b" x="50" y="26" width="12" height="12" rx="2" transform="rotate(45 56 32)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
-        </svg>
+    </div>
+    <div class="bp-pitcher">
+      <span class="bp-tag">P</span>
+      <div>
+        <div class="bp-name" id="pitName">—</div>
+        <div class="bp-sub"><span id="pitCount" class="pit-count">0</span> <span id="pitLimit" class="pit-limit">pitches</span></div>
       </div>
     </div>
   </div>
 
-  <!-- Line score -->
+  <!-- Pitch sequence dots -->
+  <div class="pitch-seq-bar">
+    <div class="pitch-seq" id="pitchSeq"></div>
+  </div>
+
+  <!-- FIELD — primary visual -->
+  <div class="field-wrap">
+    <svg id="fieldSVG" viewBox="0 0 340 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:46vh;display:block;">
+      <!-- Sky / warning track -->
+      <rect x="0" y="0" width="340" height="320" fill="#4a7c59"/>
+      <!-- Outfield grass arc -->
+      <path d="M170,295 L18,140 Q170,8 322,140 Z" fill="#5a9c6e"/>
+      <!-- Infield dirt -->
+      <polygon points="170,235 102,167 170,99 238,167" fill="#c8956a"/>
+      <!-- Basepath dirt circles -->
+      <circle cx="238" cy="167" r="12" fill="#c09060" opacity="0.6"/>
+      <circle cx="170" cy="99" r="12" fill="#c09060" opacity="0.6"/>
+      <circle cx="102" cy="167" r="12" fill="#c09060" opacity="0.6"/>
+      <!-- Pitcher mound -->
+      <circle cx="170" cy="167" r="10" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
+      <!-- Foul lines -->
+      <line x1="170" y1="290" x2="18" y2="130" stroke="white" stroke-width="1.5" opacity="0.7"/>
+      <line x1="170" y1="290" x2="322" y2="130" stroke="white" stroke-width="1.5" opacity="0.7"/>
+      <!-- Baselines -->
+      <line x1="170" y1="235" x2="238" y2="167" stroke="white" stroke-width="1" opacity="0.5"/>
+      <line x1="238" y1="167" x2="170" y2="99"  stroke="white" stroke-width="1" opacity="0.5"/>
+      <line x1="170" y1="99"  x2="102" y2="167" stroke="white" stroke-width="1" opacity="0.5"/>
+      <line x1="102" y1="167" x2="170" y2="235" stroke="white" stroke-width="1" opacity="0.5"/>
+      <!-- Home plate -->
+      <polygon points="170,238 165,248 170,253 175,248" fill="white" stroke="#ccc" stroke-width="0.5"/>
+      <!-- Bases (highlighted when occupied) -->
+      <rect id="f1b" x="231" y="160" width="14" height="14" rx="2" transform="rotate(45 238 167)" fill="white" stroke="#bbb" stroke-width="1.5"/>
+      <rect id="f2b" x="163" y="92"  width="14" height="14" rx="2" transform="rotate(45 170 99)"  fill="white" stroke="#bbb" stroke-width="1.5"/>
+      <rect id="f3b" x="95"  y="160" width="14" height="14" rx="2" transform="rotate(45 102 167)" fill="white" stroke="#bbb" stroke-width="1.5"/>
+
+      <!-- Fielder dots + names (fielding team) -->
+      <g id="fielderGroup">
+        <!-- P -->
+        <circle id="fP"  cx="170" cy="162" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="nP"  x="170" y="152" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">P</text>
+        <!-- C -->
+        <circle id="fC"  cx="170" cy="252" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="nC"  x="170" y="268" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">C</text>
+        <!-- 1B -->
+        <circle id="f1B" cx="247" cy="178" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="n1B" x="262" y="182" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">1B</text>
+        <!-- 2B -->
+        <circle id="f2B" cx="212" cy="138" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="n2B" x="224" y="134" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">2B</text>
+        <!-- 3B -->
+        <circle id="f3B" cx="93"  cy="178" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="n3B" x="78"  y="182" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">3B</text>
+        <!-- SS -->
+        <circle id="fSS" cx="130" cy="136" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="nSS" x="116" y="131" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">SS</text>
+        <!-- LF -->
+        <circle id="fLF" cx="74"  cy="115" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="nLF" x="60"  y="110" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">LF</text>
+        <!-- CF -->
+        <circle id="fCF" cx="170" cy="72"  r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="nCF" x="170" y="60"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">CF</text>
+        <!-- RF -->
+        <circle id="fRF" cx="266" cy="115" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+        <text id="nRF" x="280" y="110" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">RF</text>
+      </g>
+
+      <!-- Runner indicators -->
+      <g id="r1b" style="display:none">
+        <circle cx="238" cy="167" r="11" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r1bTxt" x="238" y="171" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#7c2d12"></text>
+      </g>
+      <g id="r2b" style="display:none">
+        <circle cx="170" cy="99"  r="11" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r2bTxt" x="170" y="103" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#7c2d12"></text>
+      </g>
+      <g id="r3b" style="display:none">
+        <circle cx="102" cy="167" r="11" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r3bTxt" x="102" y="171" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#7c2d12"></text>
+      </g>
+
+      <!-- Batter -->
+      <circle cx="170" cy="282" r="9" fill="#dc2626" stroke="white" stroke-width="2"/>
+      <text id="nBatter" x="170" y="286" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="900" fill="white"></text>
+    </svg>
+  </div>
+
+  <!-- Line score (collapsible, small) -->
   <div class="linescore-wrap">
     <table class="ls" id="lsTable"></table>
   </div>
 
-  <!-- Pitcher strip -->
-  <div class="pitcher-strip">
-    <div class="pit-left">
-      <span class="pit-tag">Pitching</span>
-      <div>
-        <div class="pit-name" id="pitName">—</div>
-        <div class="pit-inn" id="pitIP">0.0 IP</div>
-      </div>
-    </div>
-    <div style="text-align:right">
-      <div class="pit-count" id="pitCount">0</div>
-      <div class="pit-limit" id="pitLimit">pitches</div>
-    </div>
-  </div>
-
-  <!-- At-bat -->
-  <div class="ab-panel">
-    <div class="ab-top">
-      <div class="ab-num" id="abNum">#—</div>
-      <div>
-        <div class="ab-name" id="abName">—</div>
-        <div class="ab-pos" id="abPos">—</div>
-      </div>
-      <div class="ab-line" id="abLine">0/0 · 0 RBI</div>
-    </div>
-    <div class="pitch-seq" id="pitchSeq"></div>
-    <div class="pitch-grid">
-      <button class="pbtn ball"    onclick="logPitch('B')">Ball</button>
-      <button class="pbtn cstrike" onclick="logPitch('K')">Strike ☝</button>
-      <button class="pbtn sstrike" onclick="logPitch('Ks')">Strike ✊</button>
-      <button class="pbtn foul"    onclick="logPitch('F')">Foul</button>
-      <button class="pbtn inplay"  onclick="openInPlay()">In Play →</button>
-    </div>
+  <!-- Pitch buttons -->
+  <div class="pitch-grid" style="padding:8px 12px;gap:7px;">
+    <button class="pbtn ball"    onclick="logPitch('B')">Ball</button>
+    <button class="pbtn cstrike" onclick="logPitch('K')">Strike ☝</button>
+    <button class="pbtn sstrike" onclick="logPitch('Ks')">Strike ✊</button>
+    <button class="pbtn foul"    onclick="logPitch('F')">Foul</button>
+    <button class="pbtn inplay"  onclick="openInPlay()">In Play →</button>
   </div>
 
   <!-- Action bar -->
@@ -386,7 +489,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn danger" onclick="doUndo()">Undo</button>
   </div>
 
-  <!-- PBP -->
+  <!-- PBP Log (scrollable, below fold) -->
   <div class="pbp" id="pbpLog"></div>
 </div>
 
@@ -916,18 +1019,14 @@ function doUndo(){
 // ═══════════════════════════════════════════════
 // FIELD VIEW
 // ═══════════════════════════════════════════════
-let fieldOpen = true;
-function toggleField(){
-  fieldOpen = !fieldOpen;
-  document.getElementById('fieldPanel').style.display = fieldOpen ? '' : 'none';
-  if(fieldOpen) updateField();
-}
+function toggleField(){} // field always visible now
 
 const POS_MAP = {P:'P',C:'C','1B':'1B','2B':'2B','3B':'3B',SS:'SS',LF:'LF',CF:'CF',RF:'RF',DH:'DH'};
 const FIELD_POS_IDS = {P:'P',C:'C','1B':'1B','2B':'2B','3B':'3B',SS:'SS',LF:'LF',CF:'CF',RF:'RF'};
 
 function updateField(){
-  if(!fieldOpen) return;
+  const fieldSVG = document.getElementById('fieldSVG');
+  if(!fieldSVG) return;
   const fSide = fieldingSide();
   const lu = G.teams[fSide].lineup;
 
@@ -972,14 +1071,7 @@ function updateField(){
   const nBat = document.getElementById('nBatter');
   if(nBat) nBat.textContent = (bat.name||'').split(' ').pop().slice(0,5);
 
-  // Mini diamond sync (always visible)
-  [1,2,3].forEach(base => {
-    const ids = {1:'d1b',2:'d2b',3:'d3b'};
-    const el = document.getElementById(ids[base]);
-    if(!el) return;
-    if(G.bases[base]){ el.setAttribute('fill','#fef3c7'); el.setAttribute('stroke','#d97706'); }
-    else { el.setAttribute('fill','none'); el.setAttribute('stroke','#d0d3e8'); }
-  });
+
 }
 
 // ═══════════════════════════════════════════════
@@ -1051,10 +1143,10 @@ function render(){
 
   // Batter
   const {player:bat}=curBatter();
-  document.getElementById('abNum').textContent=bat.number?`#${bat.number}`:'#—';
+  
   document.getElementById('abName').textContent=bat.name||'Batter';
-  document.getElementById('abPos').textContent=bat.pos;
-  document.getElementById('abLine').textContent=`${bat.stats.h}/${bat.stats.ab} · ${bat.stats.rbi} RBI`;
+  
+  document.getElementById('abLine').textContent=`#${bat.number||'—'} ${bat.pos} · ${bat.stats.h}/${bat.stats.ab} · ${bat.stats.rbi} RBI`;
 
   // Pitch dots
   document.getElementById('pitchSeq').innerHTML=G.curPitches.map(p=>`<div class="pdot ${p}">${p}</div>`).join('');

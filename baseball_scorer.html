@@ -386,82 +386,86 @@ input,select,button{font-family:inherit;}
 
   <!-- FIELD — primary visual -->
   <div class="field-wrap">
-    <svg id="fieldSVG" viewBox="0 0 340 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:46vh;display:block;">
-      <!-- Sky / warning track -->
-      <rect x="0" y="0" width="340" height="320" fill="#4a7c59"/>
-      <!-- Outfield grass arc -->
-      <path d="M170,295 L18,140 Q170,8 322,140 Z" fill="#5a9c6e"/>
+    <svg id="fieldSVG" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:50vh;display:block;">
+      <!-- Background: outfield grass -->
+      <rect x="0" y="0" width="340" height="300" fill="#3d7a4e"/>
+      <!-- Warning track arc -->
+      <path d="M170,278 L4,278 L4,100 Q170,4 336,100 L336,278 Z" fill="#3d7a4e"/>
+      <path d="M170,272 L12,272 L12,106 Q170,14 328,106 L328,272 Z" fill="#c8a876" opacity="0.25"/>
+      <!-- Outfield grass (lighter) -->
+      <path d="M170,260 L28,260 L28,112 Q170,22 312,112 L312,260 Z" fill="#4a9060"/>
+      <!-- Infield grass square -->
+      <polygon points="170,200 238,200 238,132 170,132 102,132 102,200" fill="#4a9060"/>
       <!-- Infield dirt -->
-      <polygon points="170,235 102,167 170,99 238,167" fill="#c8956a"/>
-      <!-- Basepath dirt circles -->
-      <circle cx="238" cy="167" r="12" fill="#c09060" opacity="0.6"/>
-      <circle cx="170" cy="99" r="12" fill="#c09060" opacity="0.6"/>
-      <circle cx="102" cy="167" r="12" fill="#c09060" opacity="0.6"/>
+      <polygon points="170,240 238,172 170,104 102,172" fill="#c8956a"/>
+      <!-- Basepath cutouts -->
+      <circle cx="238" cy="172" r="14" fill="#c8956a"/>
+      <circle cx="170" cy="104" r="14" fill="#c8956a"/>
+      <circle cx="102" cy="172" r="14" fill="#c8956a"/>
       <!-- Pitcher mound -->
-      <circle cx="170" cy="167" r="10" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
+      <ellipse cx="170" cy="168" rx="12" ry="10" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
       <!-- Foul lines -->
-      <line x1="170" y1="290" x2="18" y2="130" stroke="white" stroke-width="1.5" opacity="0.7"/>
-      <line x1="170" y1="290" x2="322" y2="130" stroke="white" stroke-width="1.5" opacity="0.7"/>
+      <line x1="170" y1="268" x2="8"   y2="108" stroke="white" stroke-width="1.5" opacity="0.8"/>
+      <line x1="170" y1="268" x2="332" y2="108" stroke="white" stroke-width="1.5" opacity="0.8"/>
       <!-- Baselines -->
-      <line x1="170" y1="235" x2="238" y2="167" stroke="white" stroke-width="1" opacity="0.5"/>
-      <line x1="238" y1="167" x2="170" y2="99"  stroke="white" stroke-width="1" opacity="0.5"/>
-      <line x1="170" y1="99"  x2="102" y2="167" stroke="white" stroke-width="1" opacity="0.5"/>
-      <line x1="102" y1="167" x2="170" y2="235" stroke="white" stroke-width="1" opacity="0.5"/>
-      <!-- Home plate -->
-      <polygon points="170,238 165,248 170,253 175,248" fill="white" stroke="#ccc" stroke-width="0.5"/>
-      <!-- Bases (highlighted when occupied) -->
-      <rect id="f1b" x="231" y="160" width="14" height="14" rx="2" transform="rotate(45 238 167)" fill="white" stroke="#bbb" stroke-width="1.5"/>
-      <rect id="f2b" x="163" y="92"  width="14" height="14" rx="2" transform="rotate(45 170 99)"  fill="white" stroke="#bbb" stroke-width="1.5"/>
-      <rect id="f3b" x="95"  y="160" width="14" height="14" rx="2" transform="rotate(45 102 167)" fill="white" stroke="#bbb" stroke-width="1.5"/>
+      <line x1="170" y1="240" x2="238" y2="172" stroke="white" stroke-width="1.2" opacity="0.7"/>
+      <line x1="238" y1="172" x2="170" y2="104" stroke="white" stroke-width="1.2" opacity="0.7"/>
+      <line x1="170" y1="104" x2="102" y2="172" stroke="white" stroke-width="1.2" opacity="0.7"/>
+      <line x1="102" y1="172" x2="170" y2="240" stroke="white" stroke-width="1.2" opacity="0.7"/>
+      <!-- Home plate area -->
+      <circle cx="170" cy="256" r="14" fill="#b8856a"/>
+      <polygon points="170,248 164,254 167,260 173,260 176,254" fill="white" stroke="#bbb" stroke-width="0.5"/>
+      <!-- Bases -->
+      <rect id="f1b" x="231" y="165" width="14" height="14" rx="2" transform="rotate(45 238 172)" fill="white" stroke="#bbb" stroke-width="1.5"/>
+      <rect id="f2b" x="163" y="97"  width="14" height="14" rx="2" transform="rotate(45 170 104)" fill="white" stroke="#bbb" stroke-width="1.5"/>
+      <rect id="f3b" x="95"  y="165" width="14" height="14" rx="2" transform="rotate(45 102 172)" fill="white" stroke="#bbb" stroke-width="1.5"/>
 
-      <!-- Fielder dots + names (fielding team) -->
-      <g id="fielderGroup">
-        <!-- P -->
-        <circle id="fP"  cx="170" cy="162" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="nP"  x="170" y="152" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">P</text>
-        <!-- C -->
-        <circle id="fC"  cx="170" cy="252" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="nC"  x="170" y="268" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">C</text>
-        <!-- 1B -->
-        <circle id="f1B" cx="247" cy="178" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="n1B" x="262" y="182" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">1B</text>
-        <!-- 2B -->
-        <circle id="f2B" cx="212" cy="138" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="n2B" x="224" y="134" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">2B</text>
-        <!-- 3B -->
-        <circle id="f3B" cx="93"  cy="178" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="n3B" x="78"  y="182" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">3B</text>
-        <!-- SS -->
-        <circle id="fSS" cx="130" cy="136" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="nSS" x="116" y="131" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">SS</text>
-        <!-- LF -->
-        <circle id="fLF" cx="74"  cy="115" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="nLF" x="60"  y="110" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">LF</text>
-        <!-- CF -->
-        <circle id="fCF" cx="170" cy="72"  r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="nCF" x="170" y="60"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">CF</text>
-        <!-- RF -->
-        <circle id="fRF" cx="266" cy="115" r="7" fill="#1565c0" stroke="white" stroke-width="1.5"/>
-        <text id="nRF" x="280" y="110" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="700" fill="white">RF</text>
-      </g>
+      <!-- Fielder dots + name labels -->
+      <!-- P -->
+      <circle id="fP"  cx="170" cy="163" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nP"  x="170" y="153" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1565c0" stroke-width="2" paint-order="stroke">P</text>
+      <!-- C -->
+      <circle id="fC"  cx="170" cy="248" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nC"  x="170" y="238" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">C</text>
+      <!-- 1B -->
+      <circle id="f1B" cx="248" cy="184" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="n1B" x="261" y="188" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">1B</text>
+      <!-- 2B -->
+      <circle id="f2B" cx="210" cy="142" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="n2B" x="223" y="139" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">2B</text>
+      <!-- 3B -->
+      <circle id="f3B" cx="92"  cy="184" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="n3B" x="79"   y="188" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">3B</text>
+      <!-- SS -->
+      <circle id="fSS" cx="130" cy="140" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nSS" x="117"  y="136" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">SS</text>
+      <!-- LF -->
+      <circle id="fLF" cx="76"  cy="108" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nLF" x="63"   y="98"  text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">LF</text>
+      <!-- CF -->
+      <circle id="fCF" cx="170" cy="68"  r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nCF" x="170"  y="56"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">CF</text>
+      <!-- RF -->
+      <circle id="fRF" cx="264" cy="108" r="8" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nRF" x="277"  y="98"  text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#3d7a4e" stroke-width="2" paint-order="stroke">RF</text>
 
-      <!-- Runner indicators -->
+      <!-- Runner indicators (on bases) -->
       <g id="r1b" style="display:none">
-        <circle cx="238" cy="167" r="11" fill="#f59e0b" stroke="white" stroke-width="2"/>
-        <text id="r1bTxt" x="238" y="171" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#7c2d12"></text>
+        <circle cx="238" cy="172" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r1bTxt" x="238" y="176" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
       </g>
       <g id="r2b" style="display:none">
-        <circle cx="170" cy="99"  r="11" fill="#f59e0b" stroke="white" stroke-width="2"/>
-        <text id="r2bTxt" x="170" y="103" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#7c2d12"></text>
+        <circle cx="170" cy="104" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r2bTxt" x="170" y="108" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
       </g>
       <g id="r3b" style="display:none">
-        <circle cx="102" cy="167" r="11" fill="#f59e0b" stroke="white" stroke-width="2"/>
-        <text id="r3bTxt" x="102" y="171" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#7c2d12"></text>
+        <circle cx="102" cy="172" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r3bTxt" x="102" y="176" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
       </g>
 
-      <!-- Batter -->
-      <circle cx="170" cy="282" r="9" fill="#dc2626" stroke="white" stroke-width="2"/>
-      <text id="nBatter" x="170" y="286" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="900" fill="white"></text>
+      <!-- Batter (red dot at home) -->
+      <circle cx="170" cy="274" r="10" fill="#dc2626" stroke="white" stroke-width="2"/>
+      <text id="nBatter" x="170" y="278" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="white"></text>
     </svg>
   </div>
 
@@ -1057,12 +1061,12 @@ function updateField(){
     if(grp) grp.style.display = runner ? '' : 'none';
     if(txt && runner) txt.textContent = runner.name.split(' ').pop().slice(0,4);
 
-    // Highlight bases
+    // Highlight base squares
     const baseEls = {1:'f1b',2:'f2b',3:'f3b'};
     const bEl = document.getElementById(baseEls[base]);
     if(bEl) {
-      if(runner){ bEl.setAttribute('fill','#fef3c7'); bEl.setAttribute('stroke','#d97706'); }
-      else { bEl.setAttribute('fill','white'); bEl.setAttribute('stroke','#aaa'); }
+      if(runner){ bEl.setAttribute('fill','#fef3c7'); bEl.setAttribute('stroke','#f59e0b'); }
+      else { bEl.setAttribute('fill','white'); bEl.setAttribute('stroke','#bbb'); }
     }
   });
 

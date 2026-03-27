@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>MBR Baseball Scorer</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
 <style>
 :root {
   --bg:#f0f2f8; --surface:#fff; --surface2:#e8eaf2; --border:#d0d3e8;
@@ -407,15 +407,15 @@ input,select,button{font-family:inherit;}
       <rect id="f2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
       <rect id="f3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
       <!-- FIELDER LABELS: text only, no dots, populated by updateField() -->
-      <text id="nP"  x="170" y="210" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">P</text>
-      <text id="nC"  x="170" y="296" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">C</text>
-      <text id="n1B" x="254" y="230" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">1B</text>
-      <text id="n2B" x="218" y="190" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">2B</text>
-      <text id="nSS" x="122" y="190" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">SS</text>
-      <text id="n3B" x="86"  y="230" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">3B</text>
-      <text id="nLF" x="66"  y="108" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">LF</text>
-      <text id="nCF" x="170" y="82"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">CF</text>
-      <text id="nRF" x="274" y="108" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">RF</text>
+      <text id="nP"  x="170" y="210" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">P</text>
+      <text id="nC"  x="170" y="296" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">C</text>
+      <text id="n1B" x="254" y="230" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">1B</text>
+      <text id="n2B" x="218" y="190" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">2B</text>
+      <text id="nSS" x="122" y="190" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">SS</text>
+      <text id="n3B" x="86"  y="230" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">3B</text>
+      <text id="nLF" x="66"  y="108" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">LF</text>
+      <text id="nCF" x="170" y="82"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">CF</text>
+      <text id="nRF" x="274" y="108" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">RF</text>
       <!-- RUNNERS: drawn last, always on top -->
       <g id="r3b" style="display:none"><circle cx="102" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r3bTxt" x="102" y="221" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
       <g id="r2b" style="display:none"><circle cx="170" cy="149" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r2bTxt" x="170" y="153" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
@@ -839,14 +839,18 @@ function openRBIResolver(result){
   el.innerHTML=[3,2,1].map(base=>{
     const r=G.bases[base];
     if(!r) return '';
+    // Build specific base destination buttons
+    const baseLabel = base===1?'1st':base===2?'2nd':'3rd';
+    let destBtns = `<button class="rbi-btn" id="rd${base}stay" onclick="setRD(${base},'stay')">Stay</button>`;
+    for(let dest=base+1; dest<=3; dest++){
+      const dLabel = dest===2?'2nd':'3rd';
+      destBtns += `<button class="rbi-btn" id="rd${base}to${dest}" onclick="setRD(${base},'to${dest}')">&rarr;${dLabel}</button>`;
+    }
+    destBtns += `<button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>`;
     return `<div class="rbi-row occ">
-      <span class="rbi-base-lbl">${base===1?'1st':base===2?'2nd':'3rd'}</span>
+      <span class="rbi-base-lbl">${baseLabel}</span>
       <span class="rbi-runner-name">${r.name}</span>
-      <div class="rbi-btns">
-        <button class="rbi-btn" id="rd${base}stay"  onclick="setRD(${base},'stay')">Stay</button>
-        <button class="rbi-btn" id="rd${base}adv"   onclick="setRD(${base},'adv')">Adv</button>
-        <button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>
-      </div>
+      <div class="rbi-btns">${destBtns}</div>
     </div>`;
   }).join('');
   document.getElementById('ovRBITitle').textContent=`${result} — What happens?`;
@@ -856,7 +860,8 @@ function openRBIResolver(result){
 
 function setRD(base, action){
   G.runDecisions[base]=action;
-  ['stay','adv','score'].forEach(a=>{
+  // highlight active button — try all possible button IDs
+  ['stay','to2','to3','score'].forEach(a=>{
     const el=document.getElementById(`rd${base}${a}`);
     if(el){ el.className='rbi-btn'+(a===action?(a==='score'?' active-scr':' active'):''); }
   });
@@ -879,7 +884,9 @@ function confirmRBI(){
     const runner=G.bases[base]; if(!runner) return;
     const dec=G.runDecisions[base]||'stay';
     if(dec==='score') scoreRunner(runner);
-    else if(dec==='adv'){ const nb=Math.min(base+1,3); newBases[nb]=runner; }
+    else if(dec==='to2') newBases[2]=runner;
+    else if(dec==='to3') newBases[3]=runner;
+    else if(dec==='adv'){ const nb=Math.min(base+1,3); newBases[nb]=runner; }  // fallback
     else newBases[base]=runner;
   });
 
@@ -1003,19 +1010,21 @@ function updateField(){
   const posMap = {};
   lu.forEach(p => { if(FIELD_POS_IDS[p.pos]) posMap[p.pos] = p.name || p.pos; });
 
-  // Update fielder name labels
+  // Update fielder name + number labels
   const posToId = {P:'nP',C:'nC','1B':'n1B','2B':'n2B','3B':'n3B',SS:'nSS',LF:'nLF',CF:'nCF',RF:'nRF'};
   Object.entries(posToId).forEach(([pos, elId]) => {
     const el = document.getElementById(elId);
     if(!el) return;
-    const name = posMap[pos] || pos;
-    // Show last name or truncated name
-    const short = name.split(' ').pop().slice(0,6);
-    el.textContent = short;
+    const player = lu.find(p => p.pos === pos);
+    if(player && player.name) {
+      const last = player.name.split(' ').pop().slice(0,8);
+      const num  = player.number ? ' #'+player.number : '';
+      el.textContent = last + num;
+    } else {
+      el.textContent = pos;
+    }
+    el.setAttribute('font-weight','300');
   });
-
-  // Highlight active pitcher
-  // pitcher label highlighted via text color
 
   // Runners — explicit per-base
   [{b:1,g:'r1b',t:'r1bTxt',s:'f1b'},{b:2,g:'r2b',t:'r2bTxt',s:'f2b'},{b:3,g:'r3b',t:'r3bTxt',s:'f3b'}]

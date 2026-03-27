@@ -363,21 +363,30 @@ input,select,button{font-family:inherit;}
 
   <!-- Batter / Pitcher strip -->
   <div class="bp-strip">
+    <!-- Batter side -->
     <div class="bp-batter">
       <span class="bp-tag">AB</span>
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="bp-name" id="abName">—</div>
-        <div class="bp-sub" id="abLine">0/0 · 0 RBI</div>
+        <div class="bp-sub" id="abLine" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">0/0 · 0 RBI</div>
+        <div class="bp-stat-line" id="abStatLine"></div>
       </div>
     </div>
+    <!-- Pitcher side -->
     <div class="bp-pitcher">
       <span class="bp-tag">P</span>
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="bp-name" id="pitName">—</div>
-        <div class="bp-sub"><span id="pitCount" class="pit-count">0</span> <span id="pitLimit" class="pit-limit">pitches</span></div>
+        <div class="bp-sub">
+          <span id="pitCount" class="pit-count">0</span>
+          <span id="pitLimit" class="pit-limit"> pitches</span>
+        </div>
+        <div class="bp-stat-line" id="pitStatLine"></div>
       </div>
     </div>
   </div>
+  <!-- K banner -->
+  <div id="kBanner" style="display:none;background:var(--red);padding:3px 12px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:2px;color:#fff;text-align:center"></div>
 
   <!-- Pitch sequence dots -->
   <div class="pitch-seq-bar">
@@ -750,16 +759,21 @@ function startGame(){
 // ═══════════════════════════════════════════════
 // PITCH LOGIC
 // ═══════════════════════════════════════════════
-function logPitch(type){
-  const b=curBatter(), p=curPitcher();
-  if(!b.player) return;
-  G.curPitches.push(type);
-
+function chargePitch(){
+  // Charge one pitch to the current pitcher — call for every pitch including in-play
+  const p=curPitcher();
   if(p){
     const ps=getPS(p.side,p.idx);
     ps.pitches++;
     checkPitchLimit(ps.pitches);
   }
+}
+
+function logPitch(type){
+  const b=curBatter(), p=curPitcher();
+  if(!b.player) return;
+  G.curPitches.push(type);
+  chargePitch();
 
   if(type==='B'){
     G.balls++;
@@ -881,6 +895,7 @@ function confirmOut(type){
   addPBP(`<strong>${b.player.name}</strong> — ${notation}`);
   closeOv('ovInPlay');
   G.curPitches.push('X');
+  chargePitch();
   // For sac fly: track batter so RBI is credited when runner scores in overlay
   if(isSacFly) G.pendingRBIbatter = b.player;
   addOut(notation);
@@ -974,6 +989,7 @@ function doHR(){
   if(p){ const ps=getPS(p.side,p.idx); ps.hr++; ps.h++; ps.er+=runs; }
   G.hits[side]++;
   G.curPitches.push('X');
+  chargePitch();
   addPBP(`<strong>${b.player.name}</strong> HOME RUN 🎉 (${runs} run${runs>1?'s':''})`);
   nextBatter(); resetCount(); render();
 }
@@ -1045,6 +1061,7 @@ function confirmRBI(){
   const p=curPitcher();
   if(p){ const ps=getPS(p.side,p.idx); ps.h++; ps.er+=autoRBI; }
   G.curPitches.push('X');
+  chargePitch();
   addPBP(`<strong>${b.player.name}</strong> ${result}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
   G.runDecisions={};
   closeOv('ovRBI');
@@ -1332,27 +1349,53 @@ function render(){
   const pit=curPitcher();
   if(pit){
     const ps=getPS(pit.side,pit.idx);
-    document.getElementById('pitName').textContent=pit.player.name||`Pitcher`;
+    const pnEl=document.getElementById('pitName'); if(pnEl) pnEl.textContent=pit.player.name||'Pitcher';
     const ip=Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
-    const pitIPEl=document.getElementById('pitIP'); if(pitIPEl) pitIPEl.textContent=`${ip} IP`;
     const cEl=document.getElementById('pitCount');
-    cEl.textContent=ps.pitches;
-    cEl.className='pit-count';
-    if(G.pitchLimits&&G.sport!=='softball'){
-      const lim=PITCH_LIMITS[G.level];
-      if(ps.pitches>=lim.max) cEl.classList.add('danger');
-      else if(ps.pitches>=lim.warn) cEl.classList.add('warn');
+    if(cEl){ cEl.textContent=ps.pitches; cEl.className='pit-count';
+      if(G.pitchLimits&&G.sport!=='softball'){
+        const lim=PITCH_LIMITS[G.level];
+        if(ps.pitches>=lim.max) cEl.classList.add('danger');
+        else if(ps.pitches>=lim.warn) cEl.classList.add('warn');
+      }
     }
-    document.getElementById('pitLimit').textContent=
-      G.pitchLimits&&G.sport!=='softball'?`/ ${PITCH_LIMITS[G.level].max} max`:'pitches';
+    const plEl=document.getElementById('pitLimit');
+    if(plEl) plEl.textContent=G.pitchLimits&&G.sport!=='softball'?`/ ${PITCH_LIMITS[G.level].max} max`:'pitches';
+    // Pitcher stat line
+    const pslEl=document.getElementById('pitStatLine');
+    if(pslEl){
+      const parts=[`${ip} IP`];
+      if(ps.h)  parts.push(`${ps.h} H`);
+      if(ps.er) parts.push(`${ps.er} ER`);
+      if(ps.bb) parts.push(`${ps.bb} BB`);
+      if(ps.k)  parts.push(`${ps.k} K`);
+      pslEl.textContent=parts.join(' · ');
+    }
+    // K banner — all Ks this game for this pitcher
+    const kBanner=document.getElementById('kBanner');
+    if(kBanner){
+      kBanner.style.display=ps.k>0?'':'none';
+      if(ps.k>0) kBanner.textContent='K'.repeat(ps.k);
+    }
   }
 
   // Batter
   const {player:bat}=curBatter();
-  
-  document.getElementById('abName').textContent=bat.name||'Batter';
-  
-  document.getElementById('abLine').textContent=`#${bat.number||'—'} ${bat.pos} · ${bat.stats.h}/${bat.stats.ab} · ${bat.stats.rbi} RBI`;
+  if(bat){
+    const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
+    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`#${bat.number||'—'} ${bat.pos} · ${bat.stats.h||0}/${bat.stats.ab||0} · ${bat.stats.rbi||0} RBI`;
+    const slEl=document.getElementById('abStatLine');
+    if(slEl){
+      const s=bat.stats;
+      const parts=[];
+      if(s.hr) parts.push(`${s.hr} HR`);
+      if(s.d)  parts.push(`${s.d} 2B`);
+      if(s.t)  parts.push(`${s.t} 3B`);
+      if(s.bb) parts.push(`${s.bb} BB`);
+      if(s.k)  parts.push(`${s.k} K`);
+      slEl.textContent=parts.join(' · ')||'';
+    }
+  }
 
   // Pitch dots
   document.getElementById('pitchSeq').innerHTML=G.curPitches.map(p=>`<div class="pdot ${p}">${p}</div>`).join('');

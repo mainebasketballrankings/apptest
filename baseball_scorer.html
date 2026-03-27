@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>MBR Baseball Scorer</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
 <style>
 :root {
   --bg:#f0f2f8; --surface:#fff; --surface2:#e8eaf2; --border:#d0d3e8;
@@ -387,42 +387,82 @@ input,select,button{font-family:inherit;}
   <!-- FIELD — primary visual -->
   <div class="field-wrap">
     <svg id="fieldSVG" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:50vh;display:block;">
-      <!-- LOCKED: Home(170,285) 1B(238,217) 2B(170,149) 3B(102,217) P(170,220) Arc r=172.9 center(170,60.5) -->
+      <!-- Background -->
+      <rect width="340" height="300" fill="#1a1a2e" opacity="0"/>
+      <!-- Outfield grass: pie-slice bounded by foul lines + arc -->
+      <!-- Arc: center(170,60.5) r=172.9, from LF(9,124) through CF(170,15) to RF(331,124) -->
       <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 Z" fill="#4a8c5c"/>
-      <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>
-      <polygon points="170,285 238,217 170,149 102,217" fill="#c8956a"/>
-      <ellipse cx="170" cy="220" rx="14" ry="11" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
-      <circle cx="170" cy="276" r="16" fill="#b8856a"/>
-      <circle cx="238" cy="217" r="11" fill="#b8856a"/>
-      <circle cx="170" cy="149" r="11" fill="#b8856a"/>
-      <circle cx="102" cy="217" r="11" fill="#b8856a"/>
+      <!-- Warning track: slightly smaller, darker -->
+      <path d="M170,285 L18,130 A163,163 0 0,1 322,130 Z" fill="#4a8c5c"/>
+      <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.5"/>
+      <!-- Infield grass square -->
+      <polygon points="170,217 238,149 170,81 102,149" fill="#4a8c5c"/>
+      <!-- Infield dirt -->
+      <polygon points="170,217 238,149 170,81 102,149" fill="#c8956a"/>
+      <!-- Pitcher's mound -->
+      <ellipse cx="170" cy="183" rx="13" ry="10" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
+      <!-- Foul lines -->
       <line x1="170" y1="285" x2="9"   y2="124" stroke="white" stroke-width="2" opacity="0.85"/>
       <line x1="170" y1="285" x2="331" y2="124" stroke="white" stroke-width="2" opacity="0.85"/>
-      <line x1="170" y1="285" x2="238" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
-      <line x1="238" y1="217" x2="170" y2="149" stroke="white" stroke-width="1.5" opacity="0.8"/>
-      <line x1="170" y1="149" x2="102" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
-      <line x1="102" y1="217" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
-      <polygon points="170,268 163,274 166,282 174,282 177,274" fill="white" stroke="#ccc" stroke-width="0.5"/>
-      <rect id="f1b" x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-      <rect id="f2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-      <rect id="f3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-      <!-- FIELDER LABELS: text only, no dots, populated by updateField() -->
-      <text id="nP"  x="170" y="210" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">P</text>
-      <text id="nC"  x="170" y="296" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">C</text>
-      <text id="n1B" x="254" y="230" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">1B</text>
-      <text id="n2B" x="218" y="190" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">2B</text>
-      <text id="nSS" x="122" y="190" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">SS</text>
-      <text id="n3B" x="86"  y="230" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">3B</text>
-      <text id="nLF" x="66"  y="108" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">LF</text>
-      <text id="nCF" x="170" y="82"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">CF</text>
-      <text id="nRF" x="274" y="108" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">RF</text>
-      <!-- RUNNERS: drawn last, always on top -->
-      <g id="r3b" style="display:none"><circle cx="102" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r3bTxt" x="102" y="221" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
-      <g id="r2b" style="display:none"><circle cx="170" cy="149" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r2bTxt" x="170" y="153" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
-      <g id="r1b" style="display:none"><circle cx="238" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r1bTxt" x="238" y="221" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
-      <!-- BATTER: always visible -->
-      <circle cx="170" cy="285" r="13" fill="#dc2626" stroke="white" stroke-width="2"/>
-      <text id="nBatter" x="170" y="289" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="white"></text>
+      <!-- Baselines -->
+      <line x1="170" y1="253" x2="238" y2="185" stroke="white" stroke-width="1.5" opacity="0.9"/>
+      <line x1="238" y1="185" x2="170" y2="117" stroke="white" stroke-width="1.5" opacity="0.9"/>
+      <line x1="170" y1="117" x2="102" y2="185" stroke="white" stroke-width="1.5" opacity="0.9"/>
+      <line x1="102" y1="185" x2="170" y2="253" stroke="white" stroke-width="1.5" opacity="0.9"/>
+      <!-- Home plate dirt circle -->
+      <ellipse cx="170" cy="268" rx="20" ry="15" fill="#b8856a"/>
+      <!-- Home plate -->
+      <polygon points="170,258 163,264 166,273 174,273 177,264" fill="white" stroke="#ccc" stroke-width="0.5"/>
+      <!-- Base dirt patches -->
+      <circle cx="238" cy="185" r="12" fill="#b8856a"/>
+      <circle cx="170" cy="117" r="12" fill="#b8856a"/>
+      <circle cx="102" cy="185" r="12" fill="#b8856a"/>
+      <!-- BASES (rotated 45°, exact positions) -->
+      <rect id="f1b" x="231" y="178" width="14" height="14" rx="2" transform="rotate(45 238 185)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+      <rect id="f2b" x="163" y="110" width="14" height="14" rx="2" transform="rotate(45 170 117)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+      <rect id="f3b" x="95"  y="178" width="14" height="14" rx="2" transform="rotate(45 102 185)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+      <!-- FIELDERS -->
+      <!-- P: 60.5ft from home = 64.5px up → y=285-64.5=220.5 -->
+      <circle id="fP"  cx="170" cy="213" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nP"  x="170" y="202" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">P</text>
+      <!-- C: just behind home -->
+      <circle id="fC"  cx="170" cy="272" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nC"  x="170" y="288" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">C</text>
+      <!-- 1B: near 1st base -->
+      <circle id="f1B" cx="250" cy="194" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="n1B" x="264" y="198" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">1B</text>
+      <!-- 2B: between 1B and 2B bases -->
+      <circle id="f2B" cx="210" cy="160" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="n2B" x="224" y="156" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">2B</text>
+      <!-- SS: between 3B and 2B bases -->
+      <circle id="fSS" cx="130" cy="160" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nSS" x="116" y="156" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">SS</text>
+      <!-- 3B: near 3rd base -->
+      <circle id="f3B" cx="90"  cy="194" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="n3B" x="76"  y="198" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">3B</text>
+      <!-- Outfielders: ~200ft compressed -->
+      <circle id="fLF" cx="88"  cy="158" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nLF" x="74"  y="148" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">LF</text>
+      <circle id="fCF" cx="170" cy="100" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nCF" x="170" y="88"  text-anchor="middle"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">CF</text>
+      <circle id="fRF" cx="252" cy="158" r="9" fill="#1565c0" stroke="white" stroke-width="1.5"/>
+      <text id="nRF" x="266" y="148" text-anchor="start"   font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">RF</text>
+      <!-- RUNNERS -->
+      <g id="r1b" style="display:none">
+        <circle cx="238" cy="185" r="13" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r1bTxt" x="238" y="189" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
+      </g>
+      <g id="r2b" style="display:none">
+        <circle cx="170" cy="117" r="13" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r2bTxt" x="170" y="121" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
+      </g>
+      <g id="r3b" style="display:none">
+        <circle cx="102" cy="185" r="13" fill="#f59e0b" stroke="white" stroke-width="2"/>
+        <text id="r3bTxt" x="102" y="189" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
+      </g>
+      <!-- BATTER -->
+      <circle cx="170" cy="283" r="10" fill="#dc2626" stroke="white" stroke-width="2"/>
+      <text id="nBatter" x="170" y="287" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="white"></text>
     </svg>
   </div>
 
@@ -448,10 +488,22 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="doWalk('BB')">Walk (BB)</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
+    <button class="abtn" style="grid-column:span 3" onclick="openBoxScore()">Box Score</button>
   </div>
 
   <!-- PBP Log (scrollable, below fold) -->
   <div class="pbp" id="pbpLog"></div>
+</div>
+
+<!-- Box score overlay -->
+<div class="overlay" id="ovBoxScore" style="display:none">
+  <div class="ocard" style="max-height:85vh;overflow-y:auto;border-radius:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="otitle" style="margin:0">Box Score</div>
+      <button class="ocancel" onclick="closeOv('ovBoxScore')">Close</button>
+    </div>
+    <div id="boxScoreContent"></div>
+  </div>
 </div>
 
 <!-- ══ OVERLAYS ══ -->
@@ -534,8 +586,8 @@ input,select,button{font-family:inherit;}
   <div class="ocard">
     <div class="otitle" id="ovRBITitle">Where do runners go?</div>
     <div class="rbi-runners" id="rbiRunners"></div>
-    <div class="rbi-count-row">
-      <span class="rbi-count-lbl">RBI:</span>
+    <div class="rbi-count-row" id="rbiCountRow">
+      <span class="rbi-count-lbl">RBI (manual, errors only):</span>
       <input type="number" class="rbi-num-input" id="rbiInp" min="0" max="4" value="0"/>
     </div>
     <div class="oactions">
@@ -836,76 +888,83 @@ function doHR(){
 function openRBIResolver(result){
   G.runDecisions={};
   const el=document.getElementById('rbiRunners');
+  // Determine batter destination
+  const batterDest = result==='1B'?1 : result==='2B'?2 : result==='3B'?3 : 1;
   el.innerHTML=[3,2,1].map(base=>{
     const r=G.bases[base];
     if(!r) return '';
-    // Build specific base destination buttons
-    const baseLabel = base===1?'1st':base===2?'2nd':'3rd';
-    let destBtns = `<button class="rbi-btn" id="rd${base}stay" onclick="setRD(${base},'stay')">Stay</button>`;
+    const baseLabel=base===1?'1st':base===2?'2nd':'3rd';
+    // Available destinations: any base higher than current, plus Score
+    // Also must not conflict with batter's destination (batter gets their base)
+    let btns=`<button class="rbi-btn" id="rd${base}stay" onclick="setRD(${base},'stay')">Stay</button>`;
     for(let dest=base+1; dest<=3; dest++){
-      const dLabel = dest===2?'2nd':'3rd';
-      destBtns += `<button class="rbi-btn" id="rd${base}to${dest}" onclick="setRD(${base},'to${dest}')">&rarr;${dLabel}</button>`;
+      const dLabel=dest===2?'2nd':'3rd';
+      btns+=`<button class="rbi-btn" id="rd${base}to${dest}" onclick="setRD(${base},'to${dest}')">&rarr;${dLabel}</button>`;
     }
-    destBtns += `<button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>`;
+    btns+=`<button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>`;
     return `<div class="rbi-row occ">
       <span class="rbi-base-lbl">${baseLabel}</span>
       <span class="rbi-runner-name">${r.name}</span>
-      <div class="rbi-btns">${destBtns}</div>
+      <div class="rbi-btns">${btns}</div>
     </div>`;
-  }).join('');
-  document.getElementById('ovRBITitle').textContent=`${result} — What happens?`;
+  }).join('') || '<div style="color:var(--dim);font-size:13px;padding:8px 0">No runners on base</div>';
+  document.getElementById('ovRBITitle').textContent=`${result} — Where do runners go?`;
+  // Hide the manual RBI input for hits — auto-calculated from Score decisions
+  const rbiRow=document.getElementById('rbiCountRow');
+  if(rbiRow) rbiRow.style.display= (result==='E'||result==='FC') ? '' : 'none';
   document.getElementById('rbiInp').value='0';
   openOv('ovRBI');
 }
 
 function setRD(base, action){
   G.runDecisions[base]=action;
-  // highlight active button — try all possible button IDs
   ['stay','to2','to3','score'].forEach(a=>{
     const el=document.getElementById(`rd${base}${a}`);
-    if(el){ el.className='rbi-btn'+(a===action?(a==='score'?' active-scr':' active'):''); }
+    if(el) el.className='rbi-btn'+(a===action?(a==='score'?' active-scr':' active'):'');
   });
 }
 
 function confirmRBI(){
   const result=G.pendingHit;
   const b=curBatter(), side=battingSide();
-  const rbi=parseInt(document.getElementById('rbiInp').value)||0;
+  // Count RBIs from runner decisions (each 'score' = 1 RBI for hits; 0 for errors)
+  const isHit=['1B','2B','3B'].includes(result);
+  let autoRBI=0;
+  const newBases={1:null,2:null,3:null};
+  [3,2,1].forEach(base=>{
+    const runner=G.bases[base]; if(!runner) return;
+    const dec=G.runDecisions[base]||'stay';
+    if(dec==='score'){ scoreRunner(runner); if(isHit) autoRBI++; }
+    else if(dec==='to2') newBases[2]=runner;
+    else if(dec==='to3') newBases[3]=runner;
+    else newBases[base]=runner;
+  });
+  // Manual RBI override only for E/FC
+  const manualRBI=(result==='E'||result==='FC')?parseInt(document.getElementById('rbiInp').value)||0:0;
+  const totalRBI=autoRBI+manualRBI;
 
-  b.player.stats.ab++; b.player.stats.rbi+=rbi;
-  if(['1B','2B','3B'].includes(result)){
+  b.player.stats.ab++; b.player.stats.rbi+=totalRBI;
+  if(isHit){
     b.player.stats.h++;
     if(result==='2B') b.player.stats.d++;
     if(result==='3B') b.player.stats.t++;
   }
 
-  const newBases={1:null,2:null,3:null};
-  [3,2,1].forEach(base=>{
-    const runner=G.bases[base]; if(!runner) return;
-    const dec=G.runDecisions[base]||'stay';
-    if(dec==='score') scoreRunner(runner);
-    else if(dec==='to2') newBases[2]=runner;
-    else if(dec==='to3') newBases[3]=runner;
-    else if(dec==='adv'){ const nb=Math.min(base+1,3); newBases[nb]=runner; }  // fallback
-    else newBases[base]=runner;
-  });
-
+  // Place batter
   const bRunner={name:b.player.name,num:b.player.number};
-  if(result==='1B') newBases[1]=bRunner;
+  if(result==='1B'||result==='E'||result==='FC') newBases[1]=bRunner;
   else if(result==='2B') newBases[2]=bRunner;
   else if(result==='3B') newBases[3]=bRunner;
-  // E / FC — batter on 1st
-  else if(result==='E'||result==='FC') newBases[1]=bRunner;
 
-  for(let i=0;i<rbi;i++) scoreRunner(null);
-
+  for(let i=0;i<manualRBI;i++) scoreRunner(null);
   G.bases=newBases;
   G.hits[side]++;
   const p=curPitcher();
-  if(p){ const ps=getPS(p.side,p.idx); ps.h++; ps.er+=rbi; }
+  if(p){ const ps=getPS(p.side,p.idx); ps.h++; ps.er+=autoRBI; }
 
   G.curPitches.push('X');
-  addPBP(`<strong>${b.player.name}</strong> ${result}${rbi>0?' · '+rbi+' RBI':''}`);
+  const rbiNote=totalRBI>0?` · ${totalRBI} RBI`:'';
+  addPBP(`<strong>${b.player.name}</strong> ${result}${rbiNote}`);
   G.runDecisions={};
   closeOv('ovRBI');
   nextBatter(); resetCount(); render();
@@ -933,13 +992,6 @@ function openRunners(){
   openOv('ovRunners');
 }
 
-function runMoveTo(from,to){
-  if(G.bases[to]){ alert(`${to===2?'2nd':to===3?'3rd':'1st'} is occupied`); return; }
-  const runner=G.bases[from];
-  G.bases[to]=runner; G.bases[from]=null;
-  addPBP(`${runner.name} advances to ${to===2?'2nd':to===3?'3rd':'1st'}`);
-  closeOv('ovRunners'); openRunners(); render();
-}
 function runOut(base){ addPBP(`Runner on ${['1st','2nd','3rd'][base-1]} — out`); G.bases[base]=null; addOut('out'); closeOv('ovRunners'); }
 function runAdv(base){ if(base<3){ G.bases[base+1]=G.bases[base]; G.bases[base]=null; addPBP(`${G.bases[base+1]?.name} advances`); } openRunners(); render(); }
 function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRunners(); render(); }
@@ -1002,7 +1054,6 @@ const FIELD_POS_IDS = {P:'P',C:'C','1B':'1B','2B':'2B','3B':'3B',SS:'SS',LF:'LF'
 function updateField(){
   const fieldSVG = document.getElementById('fieldSVG');
   if(!fieldSVG) return;
-  if(!G.teams.away.lineup.length) return;  // not started yet
   const fSide = fieldingSide();
   const lu = G.teams[fSide].lineup;
 
@@ -1010,29 +1061,36 @@ function updateField(){
   const posMap = {};
   lu.forEach(p => { if(FIELD_POS_IDS[p.pos]) posMap[p.pos] = p.name || p.pos; });
 
-  // Update fielder name + number labels
+  // Update fielder name labels
   const posToId = {P:'nP',C:'nC','1B':'n1B','2B':'n2B','3B':'n3B',SS:'nSS',LF:'nLF',CF:'nCF',RF:'nRF'};
   Object.entries(posToId).forEach(([pos, elId]) => {
     const el = document.getElementById(elId);
     if(!el) return;
-    const player = lu.find(p => p.pos === pos);
-    if(player && player.name) {
-      const last = player.name.split(' ').pop().slice(0,8);
-      const num  = player.number ? ' #'+player.number : '';
-      el.textContent = last + num;
-    } else {
-      el.textContent = pos;
-    }
-    el.setAttribute('font-weight','300');
+    const name = posMap[pos] || pos;
+    // Show last name or truncated name
+    const short = name.split(' ').pop().slice(0,6);
+    el.textContent = short;
   });
 
-  // Runners — explicit per-base
-  [{b:1,g:'r1b',t:'r1bTxt',s:'f1b'},{b:2,g:'r2b',t:'r2bTxt',s:'f2b'},{b:3,g:'r3b',t:'r3bTxt',s:'f3b'}]
-  .forEach(({b,g,t,s})=>{
-    const runner=G.bases[b];
-    const gEl=document.getElementById(g); if(gEl) gEl.style.display=runner?'':'none';
-    const tEl=document.getElementById(t); if(tEl&&runner) tEl.textContent=(runner.name||'').split(' ').pop().slice(0,5);
-    const sEl=document.getElementById(s); if(sEl){ sEl.setAttribute('fill',runner?'#fef3c7':'white'); sEl.setAttribute('stroke',runner?'#f59e0b':'#ccc'); }
+  // Highlight active pitcher
+  const pitEl = document.getElementById('fP');
+  if(pitEl) pitEl.setAttribute('fill', '#c62828');
+
+  // Runners
+  [1,2,3].forEach(base => {
+    const grp = document.getElementById(`r${base}b`);
+    const txt = document.getElementById(`r${base}bTxt`);
+    const runner = G.bases[base];
+    if(grp) grp.style.display = runner ? '' : 'none';
+    if(txt && runner) txt.textContent = runner.name.split(' ').pop().slice(0,4);
+
+    // Highlight base squares
+    const baseEls = {1:'f1b',2:'f2b',3:'f3b'};
+    const bEl = document.getElementById(baseEls[base]);
+    if(bEl) {
+      if(runner){ bEl.setAttribute('fill','#fef3c7'); bEl.setAttribute('stroke','#f59e0b'); }
+      else { bEl.setAttribute('fill','white'); bEl.setAttribute('stroke','#bbb'); }
+    }
   });
 
   // Batter name
@@ -1067,7 +1125,15 @@ function render(){
   document.getElementById('cntB').textContent=G.balls;
   document.getElementById('cntS').textContent=G.strikes;
 
-
+  // Diamond SVG
+  const baseColors={1:'#d97706',2:'#d97706',3:'#d97706'};
+  const baseIds={1:'d1b',2:'d2b',3:'d3b'};
+  [1,2,3].forEach(b=>{
+    const el=document.getElementById(baseIds[b]);
+    if(!el) return;
+    if(G.bases[b]){ el.setAttribute('fill','#fef3c7'); el.setAttribute('stroke','#d97706'); }
+    else { el.setAttribute('fill','none'); el.setAttribute('stroke','#d0d3e8'); }
+  });
 
   // Linescore
   let ls='<tr><th></th>';
@@ -1087,26 +1153,27 @@ function render(){
   const pit=curPitcher();
   if(pit){
     const ps=getPS(pit.side,pit.idx);
-    const pnEl=document.getElementById('pitName'); if(pnEl) pnEl.textContent=pit.player.name||'Pitcher';
+    document.getElementById('pitName').textContent=pit.player.name||`Pitcher`;
     const ip=Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
+    document.getElementById('pitIP').textContent=`${ip} IP`;
     const cEl=document.getElementById('pitCount');
-    if(cEl){ cEl.textContent=ps.pitches; cEl.className='pit-count';
-      if(G.pitchLimits&&G.sport!=='softball'){
-        const lim=PITCH_LIMITS[G.level];
-        if(ps.pitches>=lim.max) cEl.classList.add('danger');
-        else if(ps.pitches>=lim.warn) cEl.classList.add('warn');
-      }
+    cEl.textContent=ps.pitches;
+    cEl.className='pit-count';
+    if(G.pitchLimits&&G.sport!=='softball'){
+      const lim=PITCH_LIMITS[G.level];
+      if(ps.pitches>=lim.max) cEl.classList.add('danger');
+      else if(ps.pitches>=lim.warn) cEl.classList.add('warn');
     }
-    const plEl=document.getElementById('pitLimit');
-    if(plEl) plEl.textContent=G.pitchLimits&&G.sport!=='softball'?`/ ${PITCH_LIMITS[G.level].max} max`:'pitches';
+    document.getElementById('pitLimit').textContent=
+      G.pitchLimits&&G.sport!=='softball'?`/ ${PITCH_LIMITS[G.level].max} max`:'pitches';
   }
 
   // Batter
   const {player:bat}=curBatter();
-  if(bat){
-    const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
-    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`#${bat.number||'—'} ${bat.pos} · ${bat.stats.h}/${bat.stats.ab} · ${bat.stats.rbi} RBI`;
-  }
+  
+  document.getElementById('abName').textContent=bat.name||'Batter';
+  
+  document.getElementById('abLine').textContent=`#${bat.number||'—'} ${bat.pos} · ${bat.stats.h}/${bat.stats.ab} · ${bat.stats.rbi} RBI`;
 
   // Pitch dots
   document.getElementById('pitchSeq').innerHTML=G.curPitches.map(p=>`<div class="pdot ${p}">${p}</div>`).join('');
@@ -1123,6 +1190,92 @@ function render(){
 // ═══════════════════════════════════════════════
 // OVERLAYS
 // ═══════════════════════════════════════════════
+function openBoxScore(){
+  const html = buildBoxScore();
+  document.getElementById('boxScoreContent').innerHTML = html;
+  openOv('ovBoxScore');
+}
+
+function buildBoxScore(){
+  const PL = PITCH_LIMITS[G.level];
+  let html = '';
+  ['away','home'].forEach(side=>{
+    const team = G.teams[side];
+    html += `<div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 4px">${team.name} — Batting</div>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px">
+      <tr style="color:var(--dim);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:3px 4px">#</th>
+        <th style="text-align:left;padding:3px 4px">Name</th>
+        <th style="text-align:left;padding:3px 4px">Pos</th>
+        <th style="padding:3px 6px">AB</th><th style="padding:3px 6px">R</th>
+        <th style="padding:3px 6px">H</th><th style="padding:3px 6px">RBI</th>
+        <th style="padding:3px 6px">BB</th><th style="padding:3px 6px">K</th>
+        <th style="padding:3px 6px">2B</th><th style="padding:3px 6px">3B</th><th style="padding:3px 6px">HR</th>
+      </tr>`;
+    team.lineup.forEach(p=>{
+      const s=p.stats;
+      html += `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
+        <td style="padding:3px 4px;font-weight:600">${p.name||'—'}</td>
+        <td style="padding:3px 4px;color:var(--dim)">${p.pos}</td>
+        <td style="padding:3px 6px;text-align:center">${s.ab}</td>
+        <td style="padding:3px 6px;text-align:center">${s.r}</td>
+        <td style="padding:3px 6px;text-align:center">${s.h}</td>
+        <td style="padding:3px 6px;text-align:center">${s.rbi}</td>
+        <td style="padding:3px 6px;text-align:center">${s.bb}</td>
+        <td style="padding:3px 6px;text-align:center">${s.k}</td>
+        <td style="padding:3px 6px;text-align:center">${s.d}</td>
+        <td style="padding:3px 6px;text-align:center">${s.t}</td>
+        <td style="padding:3px 6px;text-align:center">${s.hr}</td>
+      </tr>`;
+    });
+    // Totals
+    const tot = team.lineup.reduce((a,p)=>({
+      ab:a.ab+p.stats.ab, r:a.r+p.stats.r, h:a.h+p.stats.h, rbi:a.rbi+p.stats.rbi,
+      bb:a.bb+p.stats.bb, k:a.k+p.stats.k, d:a.d+p.stats.d, t:a.t+p.stats.t, hr:a.hr+p.stats.hr
+    }),{ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0});
+    html += `<tr style="font-weight:700;border-top:2px solid var(--border)">
+      <td colspan="3" style="padding:3px 4px">Totals</td>
+      <td style="padding:3px 6px;text-align:center">${tot.ab}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.r}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.h}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.rbi}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.bb}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.k}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.d}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.t}</td>
+      <td style="padding:3px 6px;text-align:center">${tot.hr}</td>
+    </tr></table>`;
+    // Pitching
+    const fSide = side==='away'?'home':'away';
+    html += `<div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 4px">${G.teams[fSide].name} — Pitching</div>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px">
+      <tr style="color:var(--dim);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:3px 4px">Name</th>
+        <th style="padding:3px 6px">IP</th><th style="padding:3px 6px">H</th>
+        <th style="padding:3px 6px">R</th><th style="padding:3px 6px">BB</th>
+        <th style="padding:3px 6px">K</th><th style="padding:3px 6px">P</th>
+        <th style="padding:3px 6px">Rest</th>
+      </tr>`;
+    Object.entries(G.pitStats).filter(([k])=>k.startsWith(fSide+'_')).forEach(([k,ps])=>{
+      const ip = Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
+      const rest = G.sport!=='softball' && G.pitchLimits ? restDays(ps.pitches)+'d' : '—';
+      html += `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:3px 4px;font-weight:600">${ps.name||'—'}</td>
+        <td style="padding:3px 6px;text-align:center">${ip}</td>
+        <td style="padding:3px 6px;text-align:center">${ps.h}</td>
+        <td style="padding:3px 6px;text-align:center">${ps.er}</td>
+        <td style="padding:3px 6px;text-align:center">${ps.bb}</td>
+        <td style="padding:3px 6px;text-align:center">${ps.k}</td>
+        <td style="padding:3px 6px;text-align:center">${ps.pitches}</td>
+        <td style="padding:3px 6px;text-align:center;color:${ps.pitches>=PL.warn?'var(--yellow)':'inherit'}">${rest}</td>
+      </tr>`;
+    });
+    html += '</table>';
+  });
+  return html;
+}
+
 function openOv(id){ document.getElementById(id).style.display='flex'; }
 function closeOv(id){ document.getElementById(id).style.display='none'; }
 

@@ -636,6 +636,7 @@ let G = {
   pbp:[],
   pitStats:{},   // "away_0":{pitches,outs,h,bb,k,er,...}
   pendingHit:null,
+  pendingRBIbatter:null,
   fldSeq:[],
   runDecisions:{},
 };
@@ -818,6 +819,12 @@ function scoreRunner(runner, side){
   G.runs[side]++;
   const inn=G.inning-1;
   if(G.linescore[inn]){ if(G.linescore[inn][side]===null) G.linescore[inn][side]=0; G.linescore[inn][side]++; }
+  // Credit run to the individual player in the lineup
+  if(runner && runner.name){
+    const lu = G.teams[side].lineup;
+    const player = lu.find(p => p.name === runner.name);
+    if(player) player.stats.r = (player.stats.r||0) + 1;
+  }
 }
 
 function addOut(notation){
@@ -874,10 +881,14 @@ function confirmOut(type){
   addPBP(`<strong>${b.player.name}</strong> — ${notation}`);
   closeOv('ovInPlay');
   G.curPitches.push('X');
+  // For sac fly: track batter so RBI is credited when runner scores in overlay
+  if(isSacFly) G.pendingRBIbatter = b.player;
   addOut(notation);
   // Both sac bunt and sac fly: open runners so scorer decides what each runner does
   if((isSacBunt || isSacFly) && hasRunners()){
     setTimeout(()=>{ openRunners(); }, 150);
+  } else {
+    G.pendingRBIbatter = null;
   }
 }
 
@@ -1092,7 +1103,13 @@ function tapBase(dest){
       const r=G.bases[from];
       const side=battingSide();
       scoreRunner(r, side); G.bases[from]=null;
-      addPBP(`<strong>${r.name}</strong> scores`);
+      if(G.pendingRBIbatter){
+        G.pendingRBIbatter.stats.rbi = (G.pendingRBIbatter.stats.rbi||0) + 1;
+        addPBP(`<strong>${r.name}</strong> scores — RBI: ${G.pendingRBIbatter.name}`);
+        G.pendingRBIbatter = null;
+      } else {
+        addPBP(`<strong>${r.name}</strong> scores`);
+      }
       deselectRunner(); updateRunnerDiamond(); render(); return;
     }
     if(from===dest){ deselectRunner(); return; }
@@ -1144,7 +1161,14 @@ function moveRunnerTo(from, dest){
   const side=battingSide();
   if(dest===0){
     scoreRunner(r, side); G.bases[from]=null;
-    addPBP(`<strong>${r.name}</strong> scores`);
+    // Award RBI to pending batter (e.g. sac fly) if set
+    if(G.pendingRBIbatter){
+      G.pendingRBIbatter.stats.rbi = (G.pendingRBIbatter.stats.rbi||0) + 1;
+      addPBP(`<strong>${r.name}</strong> scores — RBI: ${G.pendingRBIbatter.name}`);
+      G.pendingRBIbatter = null;
+    } else {
+      addPBP(`<strong>${r.name}</strong> scores`);
+    }
   } else {
     G.bases[dest]=r; G.bases[from]=null;
     addPBP(`${r.name} advances to ${dest===1?'1st':dest===2?'2nd':'3rd'}`);
@@ -1405,7 +1429,11 @@ function buildBoxScore(){
   return html;
 }
 function openOv(id){ document.getElementById(id).style.display='flex'; }
-function closeOv(id){ document.getElementById(id).style.display='none'; }
+function closeOv(id){
+  document.getElementById(id).style.display='none';
+  // Clear pending RBI if runners overlay closed without scoring
+  if(id==='ovRunners') G.pendingRBIbatter=null;
+}
 
 function addPBP(text){ G.pbp.push({inn:G.inning,half:G.half==='top'?'▲':'▼',text}); }
 

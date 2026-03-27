@@ -465,6 +465,52 @@ input,select,button{font-family:inherit;}
 
 <!-- ══ OVERLAYS ══ -->
 
+<!-- Runners (visual diamond) -->
+<div class="overlay" id="ovRunners" style="display:none">
+  <div class="ocard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="otitle" style="margin:0">Baserunners</div>
+      <button class="ocancel" onclick="closeOv('ovRunners')">Done</button>
+    </div>
+    <!-- Mini diamond with tappable bases -->
+    <div style="position:relative;width:220px;height:220px;margin:0 auto 16px;">
+      <!-- Diamond lines -->
+      <svg viewBox="0 0 220 220" style="position:absolute;inset:0;width:100%;height:100%">
+        <line x1="110" y1="10" x2="200" y2="110" stroke="#d0d3e8" stroke-width="1.5"/>
+        <line x1="200" y1="110" x2="110" y2="200" stroke="#d0d3e8" stroke-width="1.5"/>
+        <line x1="110" y1="200" x2="20" y2="110" stroke="#d0d3e8" stroke-width="1.5"/>
+        <line x1="20" y1="110" x2="110" y2="10" stroke="#d0d3e8" stroke-width="1.5"/>
+      </svg>
+      <!-- 2B (top) -->
+      <div id="rb2" onclick="tapBase(2)" style="position:absolute;top:0;left:50%;transform:translateX(-50%);cursor:pointer">
+        <div id="rb2box" style="width:44px;height:44px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--dim)">2nd</div>
+        <div id="rb2name" style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--yellow);font-weight:700;margin-top:2px;min-height:14px"></div>
+      </div>
+      <!-- 3B (left) -->
+      <div id="rb3" onclick="tapBase(3)" style="position:absolute;top:50%;left:0;transform:translateY(-50%);cursor:pointer">
+        <div id="rb3box" style="width:44px;height:44px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--dim)">3rd</div>
+        <div id="rb3name" style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--yellow);font-weight:700;margin-top:2px;min-height:14px"></div>
+      </div>
+      <!-- 1B (right) -->
+      <div id="rb1" onclick="tapBase(1)" style="position:absolute;top:50%;right:0;transform:translateY(-50%);cursor:pointer">
+        <div id="rb1box" style="width:44px;height:44px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--dim)">1st</div>
+        <div id="rb1name" style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--yellow);font-weight:700;margin-top:2px;min-height:14px"></div>
+      </div>
+      <!-- Home (bottom) — score button -->
+      <div onclick="tapBase(0)" style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);cursor:pointer">
+        <div style="width:44px;height:44px;border-radius:6px;border:2px solid var(--blue-border);background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--blue)">Score</div>
+      </div>
+    </div>
+    <!-- Instructions -->
+    <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);margin-bottom:12px" id="runnerInstruct">Tap a runner's base to move them</div>
+    <!-- Action panel — shown when a runner is selected -->
+    <div id="runnerActionPanel" style="display:none;background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;margin-bottom:10px" id="runnerActionName"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="runnerActionBtns"></div>
+    </div>
+  </div>
+</div>
+
 <!-- In-play -->
 <div class="overlay" id="ovInPlay" style="display:none">
   <div class="ocard">
@@ -506,15 +552,7 @@ input,select,button{font-family:inherit;}
 </div>
 
 <!-- Runners -->
-<div class="overlay" id="ovRunners" style="display:none">
-  <div class="ocard">
-    <div class="otitle">Baserunners</div>
-    <div id="runnerRows"></div>
-    <div class="oactions">
-      <button class="ocancel" onclick="closeOv('ovRunners')">Done</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- Sub -->
 <div class="overlay" id="ovSub" style="display:none">
@@ -919,58 +957,140 @@ function confirmRBI(){
 
 
 function openRunners(){
-  const el=document.getElementById('runnerRows');
-  el.innerHTML=[3,2,1].map(base=>{
-    const r=G.bases[base];
-    const lbl=base===1?'1st':base===2?'2nd':'3rd';
-    if(!r) return `<div class="runner-row"><span class="rbase">${lbl}</span><span class="rname empty">Empty</span></div>`;
-    let advBtns='';
-    for(let dest=base+1;dest<=3;dest++){
-      if(!G.bases[dest]){
-        const dl=dest===2?'2nd':'3rd';
-        advBtns+=`<button class="ract adv" onclick="runMoveTo(${base},${dest})">&rarr;${dl}</button>`;
-      }
-    }
-    return `<div class="runner-row occ">
-      <span class="rbase">${lbl}</span>
-      <span class="rname">${r.name}</span>
-      <div class="ractns">
-        <button class="ract out" onclick="runOut(${base})">Out</button>
-        ${advBtns}
-        <button class="ract scr" onclick="runScore(${base})">Score</button>
-      </div>
-    </div>`;
-  }).join('');
+  updateRunnerDiamond();
+  deselectRunner();
   openOv('ovRunners');
 }
 
-function runMoveTo(from,to){
-  if(G.bases[to]){ alert(`${to===2?'2nd':'3rd'} is occupied`); return; }
-  const runner=G.bases[from];
-  G.bases[to]=runner; G.bases[from]=null;
-  addPBP(`${runner.name} advances to ${to===2?'2nd':'3rd'}`);
-  closeOv('ovRunners'); openRunners(); render();
-}
-function runOut(base){ addPBP(`Runner on ${['1st','2nd','3rd'][base-1]} — out`); G.bases[base]=null; addOut('out'); closeOv('ovRunners'); }
-function runAdv(base){ if(base<3){ G.bases[base+1]=G.bases[base]; G.bases[base]=null; addPBP(`${G.bases[base+1]?.name} advances`); } openRunners(); render(); }
-function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRunners(); render(); }
+let selectedRunnerBase = null;
 
-// ═══════════════════════════════════════════════
-// SUBSTITUTIONS
-// ═══════════════════════════════════════════════
-let subMode='pitcher';
-function openSub(mode){
-  subMode=mode;
-  const side=mode==='pitcher'?fieldingSide():battingSide();
-  document.getElementById('ovSubTitle').textContent=mode==='pitcher'?`Change Pitcher — ${G.teams[side].name}`:'Substitute Batter';
-  document.getElementById('subList').innerHTML=G.teams[side].lineup.map((p,i)=>`
-    <div class="sub-player" onclick="confirmSub('${side}',${i})">
-      <span class="sub-num">${p.number||'—'}</span>
-      <span class="sub-name">${p.name||'Player '+(i+1)}</span>
-      <span class="sub-pos">${p.pos}</span>
-    </div>`).join('');
-  openOv('ovSub');
+function updateRunnerDiamond(){
+  [1,2,3].forEach(base=>{
+    const box = document.getElementById(`rb${base}box`);
+    const nameEl = document.getElementById(`rb${base}name`);
+    const runner = G.bases[base];
+    if(box){
+      if(runner){
+        box.style.background='var(--yellow-bg)';
+        box.style.borderColor='var(--yellow-border)';
+        box.style.color='var(--yellow)';
+        box.textContent=runner.name.split(' ').pop().slice(0,6);
+      } else {
+        box.style.background='var(--surface2)';
+        box.style.borderColor='var(--border)';
+        box.style.color='var(--dim)';
+        box.textContent=base===1?'1st':base===2?'2nd':'3rd';
+      }
+    }
+    if(nameEl) nameEl.textContent='';
+  });
 }
+
+function deselectRunner(){
+  selectedRunnerBase=null;
+  const panel=document.getElementById('runnerActionPanel');
+  if(panel) panel.style.display='none';
+  const inst=document.getElementById('runnerInstruct');
+  if(inst) inst.textContent='Tap a base with a runner to move them';
+  [1,2,3].forEach(base=>{
+    const box=document.getElementById(`rb${base}box`);
+    if(box) box.style.outline='none';
+  });
+}
+
+function tapBase(dest){
+  if(selectedRunnerBase!==null){
+    // A runner is selected — move them to dest
+    const from=selectedRunnerBase;
+    if(dest===0){
+      // Score
+      const r=G.bases[from];
+      scoreRunner(r); G.bases[from]=null;
+      addPBP(`<strong>${r.name}</strong> scores`);
+      deselectRunner(); updateRunnerDiamond(); render(); return;
+    }
+    if(from===dest){ deselectRunner(); return; }
+    if(G.bases[dest] && dest!==0){
+      // Occupied — offer steal/CS
+      showStealPrompt(from, dest); return;
+    }
+    // Move runner
+    const r=G.bases[from];
+    G.bases[dest]=r; G.bases[from]=null;
+    const advancing=dest>from;
+    addPBP(`${r.name} ${advancing?'advances to':'returns to'} ${dest===1?'1st':dest===2?'2nd':'3rd'}`);
+    deselectRunner(); updateRunnerDiamond(); render(); return;
+  }
+  // No runner selected yet — select this base if occupied
+  if(G.bases[dest]){
+    selectedRunnerBase=dest;
+    const box=document.getElementById(`rb${dest}box`);
+    if(box) box.style.outline='3px solid var(--blue)';
+    const inst=document.getElementById('runnerInstruct');
+    if(inst) inst.textContent=`${G.bases[dest].name} selected — tap destination base`;
+    // Show action panel
+    const panel=document.getElementById('runnerActionPanel');
+    const nameEl=document.getElementById('runnerActionName');
+    const btns=document.getElementById('runnerActionBtns');
+    if(panel) panel.style.display='';
+    if(nameEl) nameEl.textContent=G.bases[dest].name+' on '+(dest===1?'1st':dest===2?'2nd':'3rd');
+    if(btns){
+      // Advance options + steal + out
+      let html='';
+      for(let d=dest+1;d<=3;d++){
+        const dl=d===2?'2nd':'3rd';
+        html+=`<button class="ract adv" onclick="moveRunnerTo(${dest},${d})">→${dl}</button>`;
+      }
+      html+=`<button class="ract scr" onclick="moveRunnerTo(${dest},0)">Score</button>`;
+      for(let d=dest+1;d<=3;d++){
+        const dl=d===2?'2nd':'3rd';
+        html+=`<button class="ract" style="border-color:var(--yellow-border);color:var(--yellow);background:var(--yellow-bg)" onclick="doSteal(${dest},${d})">SB→${dl}</button>`;
+        html+=`<button class="ract" style="border-color:var(--red-border);color:var(--red);background:var(--red-bg)" onclick="doCaughtStealing(${dest},${d})">CS→${dl}</button>`;
+      }
+      html+=`<button class="ract out" onclick="runnerPickedOff(${dest})">Out/PO</button>`;
+      btns.innerHTML=html;
+    }
+  }
+}
+
+function moveRunnerTo(from, dest){
+  const r=G.bases[from];
+  if(dest===0){
+    scoreRunner(r); G.bases[from]=null;
+    addPBP(`<strong>${r.name}</strong> scores`);
+  } else {
+    G.bases[dest]=r; G.bases[from]=null;
+    addPBP(`${r.name} advances to ${dest===1?'1st':dest===2?'2nd':'3rd'}`);
+  }
+  deselectRunner(); updateRunnerDiamond(); render();
+}
+
+function doSteal(from, dest){
+  const r=G.bases[from];
+  G.bases[dest]=r; G.bases[from]=null;
+  r.sb=(r.sb||0)+1;
+  addPBP(`${r.name} SB — steals ${dest===2?'2nd':'3rd'}`);
+  deselectRunner(); updateRunnerDiamond(); render();
+}
+
+function doCaughtStealing(from, dest){
+  const r=G.bases[from];
+  G.bases[from]=null;
+  r.cs=(r.cs||0)+1;
+  addPBP(`${r.name} CS — caught stealing ${dest===2?'2nd':'3rd'}`);
+  deselectRunner(); updateRunnerDiamond();
+  addOut('CS'); render();
+}
+
+function runnerPickedOff(base){
+  const r=G.bases[base];
+  G.bases[base]=null;
+  addPBP(`${r.name} — picked off / out`);
+  deselectRunner(); updateRunnerDiamond();
+  addOut('PO'); render();
+}
+
+function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRunners(); render(); }
 
 function confirmSub(side,idx){
   if(subMode==='pitcher'){
@@ -1147,7 +1267,7 @@ function buildBoxScore(){
   let html='';
   ['away','home'].forEach(side=>{
     const team=G.teams[side];
-    const fSide=side==='away'?'home':'away';
+    const pitchingSide=side;  // show THIS team's pitching with THIS team
     html+=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 4px">${team.name} — Batting</div>`;
     html+=`<table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px">
       <tr style="color:var(--dim);border-bottom:1px solid var(--border)">
@@ -1170,14 +1290,14 @@ function buildBoxScore(){
       <td colspan="3" style="padding:3px 4px">Totals</td>
       ${[tot.ab,tot.r,tot.h,tot.rbi,tot.bb,tot.k,tot.d,tot.t,tot.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
     </tr></table>`;
-    html+=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 4px">${G.teams[fSide].name} — Pitching</div>`;
+    html+=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 4px">${team.name} — Pitching</div>`;
     html+=`<table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px">
       <tr style="color:var(--dim);border-bottom:1px solid var(--border)">
         <th style="text-align:left;padding:3px 4px">Name</th>
         <th style="padding:3px 5px">IP</th><th style="padding:3px 5px">H</th><th style="padding:3px 5px">R</th>
         <th style="padding:3px 5px">BB</th><th style="padding:3px 5px">K</th><th style="padding:3px 5px">P</th><th style="padding:3px 5px">Rest</th>
       </tr>`;
-    Object.entries(G.pitStats).filter(([k])=>k.startsWith(fSide+'_')).forEach(([k,ps])=>{
+    Object.entries(G.pitStats).filter(([k])=>k.startsWith(side+'_')).forEach(([k,ps])=>{
       if(!ps.pitches&&!ps.ip_outs) return;
       const ip=Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
       const rest=G.sport!=='softball'&&G.pitchLimits?restDays(ps.pitches)+'d':'—';

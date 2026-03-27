@@ -445,10 +445,22 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="doWalk('BB')">Walk (BB)</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
+    <button class="abtn" style="grid-column:span 3;background:var(--surface2)" onclick="openBoxScore()">Box Score</button>
   </div>
 
   <!-- PBP Log (scrollable, below fold) -->
   <div class="pbp" id="pbpLog"></div>
+</div>
+
+<!-- Box score -->
+<div class="overlay" id="ovBoxScore" style="display:none">
+  <div class="ocard" style="max-height:85vh;overflow-y:auto;border-radius:16px;padding-bottom:32px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="otitle" style="margin:0">Box Score</div>
+      <button class="ocancel" onclick="closeOv('ovBoxScore')">Close</button>
+    </div>
+    <div id="boxScoreContent"></div>
+  </div>
 </div>
 
 <!-- ══ OVERLAYS ══ -->
@@ -531,8 +543,8 @@ input,select,button{font-family:inherit;}
   <div class="ocard">
     <div class="otitle" id="ovRBITitle">Where do runners go?</div>
     <div class="rbi-runners" id="rbiRunners"></div>
-    <div class="rbi-count-row">
-      <span class="rbi-count-lbl">RBI:</span>
+    <div class="rbi-count-row" id="rbiCountRow">
+      <span class="rbi-count-lbl">RBI (errors only):</span>
       <input type="number" class="rbi-num-input" id="rbiInp" min="0" max="4" value="0"/>
     </div>
     <div class="oactions">
@@ -835,96 +847,110 @@ function doHR(){
 function openRBIResolver(result){
   G.runDecisions={};
   const el=document.getElementById('rbiRunners');
+  const isHit=['1B','2B','3B'].includes(result);
   el.innerHTML=[3,2,1].map(base=>{
     const r=G.bases[base];
     if(!r) return '';
+    const lbl=base===1?'1st':base===2?'2nd':'3rd';
+    let btns=`<button class="rbi-btn" id="rd${base}stay" onclick="setRD(${base},'stay')">Stay</button>`;
+    for(let dest=base+1;dest<=3;dest++){
+      const dl=dest===2?'2nd':'3rd';
+      btns+=`<button class="rbi-btn" id="rd${base}to${dest}" onclick="setRD(${base},'to${dest}')">&rarr;${dl}</button>`;
+    }
+    btns+=`<button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>`;
     return `<div class="rbi-row occ">
-      <span class="rbi-base-lbl">${base===1?'1st':base===2?'2nd':'3rd'}</span>
+      <span class="rbi-base-lbl">${lbl}</span>
       <span class="rbi-runner-name">${r.name}</span>
-      <div class="rbi-btns">
-        <button class="rbi-btn" id="rd${base}stay"  onclick="setRD(${base},'stay')">Stay</button>
-        <button class="rbi-btn" id="rd${base}adv"   onclick="setRD(${base},'adv')">Adv</button>
-        <button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>
-      </div>
+      <div class="rbi-btns">${btns}</div>
     </div>`;
-  }).join('');
-  document.getElementById('ovRBITitle').textContent=`${result} — What happens?`;
+  }).join('') || '<div style="color:var(--dim);font-size:13px;padding:8px">No runners on base</div>';
+  document.getElementById('ovRBITitle').textContent=`${result} — Where do runners go?`;
+  // Only show manual RBI input for errors (runs without RBI)
+  const rbiRow=document.getElementById('rbiCountRow');
+  if(rbiRow) rbiRow.style.display=isHit?'none':'';
   document.getElementById('rbiInp').value='0';
   openOv('ovRBI');
 }
 
-function setRD(base, action){
+function setRD(base,action){
   G.runDecisions[base]=action;
-  ['stay','adv','score'].forEach(a=>{
+  ['stay','to2','to3','score'].forEach(a=>{
     const el=document.getElementById(`rd${base}${a}`);
-    if(el){ el.className='rbi-btn'+(a===action?(a==='score'?' active-scr':' active'):''); }
+    if(el) el.className='rbi-btn'+(a===action?(a==='score'?' active-scr':' active'):'');
   });
 }
 
 function confirmRBI(){
   const result=G.pendingHit;
   const b=curBatter(), side=battingSide();
-  const rbi=parseInt(document.getElementById('rbiInp').value)||0;
-
-  b.player.stats.ab++; b.player.stats.rbi+=rbi;
-  if(['1B','2B','3B'].includes(result)){
-    b.player.stats.h++;
-    if(result==='2B') b.player.stats.d++;
-    if(result==='3B') b.player.stats.t++;
-  }
-
+  const isHit=['1B','2B','3B'].includes(result);
+  let autoRBI=0;
   const newBases={1:null,2:null,3:null};
   [3,2,1].forEach(base=>{
     const runner=G.bases[base]; if(!runner) return;
     const dec=G.runDecisions[base]||'stay';
-    if(dec==='score') scoreRunner(runner);
-    else if(dec==='adv'){ const nb=Math.min(base+1,3); newBases[nb]=runner; }
+    if(dec==='score'){ scoreRunner(runner); if(isHit) autoRBI++; }
+    else if(dec==='to2') newBases[2]=runner;
+    else if(dec==='to3') newBases[3]=runner;
     else newBases[base]=runner;
   });
-
+  const manualRBI=isHit?0:(parseInt(document.getElementById('rbiInp').value)||0);
+  const totalRBI=autoRBI+manualRBI;
+  b.player.stats.ab++; b.player.stats.rbi+=totalRBI;
+  if(isHit){ b.player.stats.h++;
+    if(result==='2B') b.player.stats.d++;
+    if(result==='3B') b.player.stats.t++;
+  }
   const bRunner={name:b.player.name,num:b.player.number};
-  if(result==='1B') newBases[1]=bRunner;
+  if(result==='1B'||result==='E'||result==='FC') newBases[1]=bRunner;
   else if(result==='2B') newBases[2]=bRunner;
   else if(result==='3B') newBases[3]=bRunner;
-  // E / FC — batter on 1st
-  else if(result==='E'||result==='FC') newBases[1]=bRunner;
-
-  for(let i=0;i<rbi;i++) scoreRunner(null);
-
+  for(let i=0;i<manualRBI;i++) scoreRunner(null);
   G.bases=newBases;
   G.hits[side]++;
   const p=curPitcher();
-  if(p){ const ps=getPS(p.side,p.idx); ps.h++; ps.er+=rbi; }
-
+  if(p){ const ps=getPS(p.side,p.idx); ps.h++; ps.er+=autoRBI; }
   G.curPitches.push('X');
-  addPBP(`<strong>${b.player.name}</strong> ${result}${rbi>0?' · '+rbi+' RBI':''}`);
+  addPBP(`<strong>${b.player.name}</strong> ${result}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
   G.runDecisions={};
   closeOv('ovRBI');
   nextBatter(); resetCount(); render();
 }
 
-// ═══════════════════════════════════════════════
-// RUNNERS overlay
-// ═══════════════════════════════════════════════
+
 function openRunners(){
   const el=document.getElementById('runnerRows');
-  el.innerHTML=[1,2,3].map(base=>{
+  el.innerHTML=[3,2,1].map(base=>{
     const r=G.bases[base];
-    return `<div class="runner-row ${r?'occ':''}">
-      <span class="rbase">${base===1?'1st':base===2?'2nd':'3rd'}</span>
-      ${r
-        ? `<span class="rname">${r.name}</span>
-           <div class="ractns">
-             <button class="ract out" onclick="runOut(${base})">Out</button>
-             <button class="ract adv" onclick="runAdv(${base})">Adv</button>
-             <button class="ract scr" onclick="runScore(${base})">Score</button>
-           </div>`
-        : `<span class="rname empty">Empty</span>`}
+    const lbl=base===1?'1st':base===2?'2nd':'3rd';
+    if(!r) return `<div class="runner-row"><span class="rbase">${lbl}</span><span class="rname empty">Empty</span></div>`;
+    let advBtns='';
+    for(let dest=base+1;dest<=3;dest++){
+      if(!G.bases[dest]){
+        const dl=dest===2?'2nd':'3rd';
+        advBtns+=`<button class="ract adv" onclick="runMoveTo(${base},${dest})">&rarr;${dl}</button>`;
+      }
+    }
+    return `<div class="runner-row occ">
+      <span class="rbase">${lbl}</span>
+      <span class="rname">${r.name}</span>
+      <div class="ractns">
+        <button class="ract out" onclick="runOut(${base})">Out</button>
+        ${advBtns}
+        <button class="ract scr" onclick="runScore(${base})">Score</button>
+      </div>
     </div>`;
   }).join('');
   openOv('ovRunners');
 }
 
+function runMoveTo(from,to){
+  if(G.bases[to]){ alert(`${to===2?'2nd':'3rd'} is occupied`); return; }
+  const runner=G.bases[from];
+  G.bases[to]=runner; G.bases[from]=null;
+  addPBP(`${runner.name} advances to ${to===2?'2nd':'3rd'}`);
+  closeOv('ovRunners'); openRunners(); render();
+}
 function runOut(base){ addPBP(`Runner on ${['1st','2nd','3rd'][base-1]} — out`); G.bases[base]=null; addOut('out'); closeOv('ovRunners'); }
 function runAdv(base){ if(base<3){ G.bases[base+1]=G.bases[base]; G.bases[base]=null; addPBP(`${G.bases[base+1]?.name} advances`); } openRunners(); render(); }
 function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRunners(); render(); }
@@ -1112,6 +1138,65 @@ function render(){
 // ═══════════════════════════════════════════════
 // OVERLAYS
 // ═══════════════════════════════════════════════
+function openBoxScore(){
+  document.getElementById('boxScoreContent').innerHTML=buildBoxScore();
+  openOv('ovBoxScore');
+}
+function buildBoxScore(){
+  const PL=PITCH_LIMITS[G.level];
+  let html='';
+  ['away','home'].forEach(side=>{
+    const team=G.teams[side];
+    const fSide=side==='away'?'home':'away';
+    html+=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 4px">${team.name} — Batting</div>`;
+    html+=`<table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px">
+      <tr style="color:var(--dim);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:3px 4px">#</th><th style="text-align:left;padding:3px 4px">Name</th><th style="text-align:left;padding:3px 4px">Pos</th>
+        <th style="padding:3px 5px">AB</th><th style="padding:3px 5px">R</th><th style="padding:3px 5px">H</th><th style="padding:3px 5px">RBI</th>
+        <th style="padding:3px 5px">BB</th><th style="padding:3px 5px">K</th><th style="padding:3px 5px">2B</th><th style="padding:3px 5px">3B</th><th style="padding:3px 5px">HR</th>
+      </tr>`;
+    let tot={ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
+    team.lineup.forEach(p=>{
+      const s=p.stats;
+      ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
+      html+=`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
+        <td style="padding:3px 4px;font-weight:600">${p.name||'—'}</td>
+        <td style="padding:3px 4px;color:var(--dim)">${p.pos}</td>
+        ${[s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
+      </tr>`;
+    });
+    html+=`<tr style="font-weight:700;border-top:2px solid var(--border)">
+      <td colspan="3" style="padding:3px 4px">Totals</td>
+      ${[tot.ab,tot.r,tot.h,tot.rbi,tot.bb,tot.k,tot.d,tot.t,tot.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
+    </tr></table>`;
+    html+=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 4px">${G.teams[fSide].name} — Pitching</div>`;
+    html+=`<table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px">
+      <tr style="color:var(--dim);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:3px 4px">Name</th>
+        <th style="padding:3px 5px">IP</th><th style="padding:3px 5px">H</th><th style="padding:3px 5px">R</th>
+        <th style="padding:3px 5px">BB</th><th style="padding:3px 5px">K</th><th style="padding:3px 5px">P</th><th style="padding:3px 5px">Rest</th>
+      </tr>`;
+    Object.entries(G.pitStats).filter(([k])=>k.startsWith(fSide+'_')).forEach(([k,ps])=>{
+      if(!ps.pitches&&!ps.ip_outs) return;
+      const ip=Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
+      const rest=G.sport!=='softball'&&G.pitchLimits?restDays(ps.pitches)+'d':'—';
+      const warn=G.sport!=='softball'&&G.pitchLimits&&ps.pitches>=PL.warn;
+      html+=`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:3px 4px;font-weight:600">${ps.name||'—'}</td>
+        <td style="padding:3px 5px;text-align:center">${ip}</td>
+        <td style="padding:3px 5px;text-align:center">${ps.h}</td>
+        <td style="padding:3px 5px;text-align:center">${ps.er}</td>
+        <td style="padding:3px 5px;text-align:center">${ps.bb}</td>
+        <td style="padding:3px 5px;text-align:center">${ps.k}</td>
+        <td style="padding:3px 5px;text-align:center">${ps.pitches}</td>
+        <td style="padding:3px 5px;text-align:center;color:${warn?'var(--yellow)':'inherit'}">${rest}</td>
+      </tr>`;
+    });
+    html+='</table>';
+  });
+  return html;
+}
 function openOv(id){ document.getElementById(id).style.display='flex'; }
 function closeOv(id){ document.getElementById(id).style.display='none'; }
 

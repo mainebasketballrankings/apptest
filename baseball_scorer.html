@@ -452,6 +452,14 @@ input,select,button{font-family:inherit;}
   <div class="pbp" id="pbpLog"></div>
 </div>
 
+<!-- Double play runner selection -->
+<div class="overlay" id="ovDP" style="display:none">
+  <div class="ocard">
+    <div id="dpPanel"></div>
+    <button class="ocancel" style="margin-top:8px;width:100%" onclick="closeOv('ovDP')">Cancel</button>
+  </div>
+</div>
+
 <!-- Box score -->
 <div class="overlay" id="ovBoxScore" style="display:none">
   <div class="ocard" style="max-height:85vh;overflow-y:auto;border-radius:16px;padding-bottom:32px">
@@ -538,12 +546,17 @@ input,select,button{font-family:inherit;}
       <button class="fbtn" onclick="addF(9)"><span class="fnum">9</span><span class="fpos">RF</span></button>
       <button class="fbtn" onclick="clearF()" style="border-color:var(--red-border);color:var(--red)"><span class="fnum">✕</span><span class="fpos">Clear</span></button>
     </div>
-    <div class="out-type-row">
+    <div class="out-type-row" style="flex-wrap:wrap">
       <button class="otbtn" onclick="confirmOut('GO')">Groundout</button>
       <button class="otbtn" onclick="confirmOut('FO')">Flyout</button>
       <button class="otbtn" onclick="confirmOut('LO')">Lineout</button>
       <button class="otbtn" onclick="confirmOut('PO')">Popup</button>
-      <button class="otbtn" onclick="confirmOut('SAC')">Sac</button>
+      <button class="otbtn" onclick="confirmOut('SAC')">Sac Bunt</button>
+      <button class="otbtn" onclick="confirmOut('SF')">Sac Fly</button>
+    </div>
+    <div class="out-type-row" style="margin-top:4px">
+      <button class="otbtn" style="background:var(--red-bg);color:var(--red);border-color:var(--red-border);flex:1" onclick="confirmDP('DP')">Double Play</button>
+      <button class="otbtn" style="background:var(--red-bg);color:var(--red);border-color:var(--red-border);flex:1" onclick="confirmTP('TP')">Triple Play</button>
     </div>
     <div class="oactions">
       <button class="ocancel" onclick="closeOv('ovInPlay')">Cancel</button>
@@ -853,13 +866,84 @@ function clearF(){ G.fldSeq=[]; document.getElementById('fldSeq').textContent='�
 
 function confirmOut(type){
   const notation=G.fldSeq.length>0?G.fldSeq.join('-'):type;
-  const b=curBatter(), p=curPitcher();
-  b.player.stats.ab++;
+  const b=curBatter();
+  const isSac=(type==='SAC')||notation.includes('SAC');
+  if(!isSac) b.player.stats.ab++;
+  else b.player.stats.sac=(b.player.stats.sac||0)+1;
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation}`);
   addOut(notation);
+  // SAC: open runners so scorer can advance them
+  if(isSac && hasRunners()){
+    setTimeout(()=>{ openRunners(); }, 150);
+  }
 }
+
+function confirmDP(type){
+  // Double play — batter out + one runner out, remaining runners may advance
+  const notation=G.fldSeq.length>0?G.fldSeq.join('-'):type;
+  const b=curBatter();
+  b.player.stats.ab++;
+  closeOv('ovInPlay');
+  G.curPitches.push('X');
+  addPBP(`<strong>${b.player.name}</strong> — ${notation} (DP)`);
+  // Record batter out
+  const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
+  G.outs++;
+  if(G.outs>=3){ endHalf(); return; }
+  nextBatter(); resetCount();
+  // Open DP runner overlay — scorer picks which runner is out
+  openDPOverlay();
+}
+
+function confirmTP(type){
+  const notation=G.fldSeq.length>0?G.fldSeq.join('-'):type;
+  const b=curBatter();
+  b.player.stats.ab++;
+  closeOv('ovInPlay');
+  G.curPitches.push('X');
+  addPBP(`<strong>${b.player.name}</strong> — ${notation} (TP)`);
+  // All 3 outs — just end the half inning
+  const p=curPitcher();
+  if(p){ getPS(p.side,p.idx).ip_outs+=3; }
+  G.outs=3;
+  // Clear all bases
+  G.bases={1:null,2:null,3:null};
+  endHalf();
+}
+
+function openDPOverlay(){
+  // Show which runners are on base — scorer taps the one who is out
+  const runners=[];
+  [1,2,3].forEach(base=>{ if(G.bases[base]) runners.push({base,runner:G.bases[base]}); });
+  if(!runners.length){ render(); return; }
+  // Build a quick overlay
+  const panel=document.getElementById('dpPanel');
+  if(panel){
+    panel.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Which runner is out on the DP?</div>`+
+      runners.map(({base,runner})=>`
+        <button onclick="recordDPRunnerOut(${base})" style="display:block;width:100%;margin-bottom:6px;padding:10px 12px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--red);cursor:pointer;text-align:left">
+          ${runner.name} on ${base===1?'1st':base===2?'2nd':'3rd'}
+        </button>`).join('');
+    openOv('ovDP');
+  }
+}
+
+function recordDPRunnerOut(base){
+  const r=G.bases[base];
+  G.bases[base]=null;
+  addPBP(`${r.name} — out (DP)`);
+  closeOv('ovDP');
+  const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
+  G.outs++;
+  if(G.outs>=3){ endHalf(); return; }
+  render();
+  // Open runners so scorer can advance any remaining runners
+  if(hasRunners()) setTimeout(()=>openRunners(),150);
+}
+
+function hasRunners(){ return !!(G.bases[1]||G.bases[2]||G.bases[3]); }
 
 function resolveHit(result){
   closeOv('ovInPlay');

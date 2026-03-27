@@ -387,56 +387,56 @@ input,select,button{font-family:inherit;}
   <!-- FIELD — primary visual -->
   <div class="field-wrap">
     <svg id="fieldSVG" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:50vh;display:block;">
-      <!-- Outfield grass fan: home(170,285) → LF wall(9,124) → arc → RF wall(331,124) -->
+      <!-- Outfield grass fan -->
       <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 Z" fill="#4a8c5c"/>
       <!-- Warning track -->
       <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>
-      <!-- Infield dirt: the full diamond square (home→1B→2B→3B) -->
-      <polygon points="170,285 238,185 170,117 102,185" fill="#c8956a"/>
-      <!-- Pitcher's mound (slightly raised, darker) -->
+      <!-- Infield dirt diamond: home(170,285)→1B(238,217)→2B(170,149)→3B(102,217) -->
+      <polygon points="170,285 238,217 170,149 102,217" fill="#c8956a"/>
+      <!-- Pitcher mound -->
       <ellipse cx="170" cy="220" rx="14" ry="11" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
-      <!-- Home plate dirt circle -->
+      <!-- Home plate dirt -->
       <circle cx="170" cy="276" r="16" fill="#b8856a"/>
       <!-- Base dirt patches -->
-      <circle cx="238" cy="185" r="11" fill="#b8856a"/>
-      <circle cx="170" cy="117" r="11" fill="#b8856a"/>
-      <circle cx="102" cy="185" r="11" fill="#b8856a"/>
-      <!-- Foul lines -->
+      <circle cx="238" cy="217" r="11" fill="#b8856a"/>
+      <circle cx="170" cy="149" r="11" fill="#b8856a"/>
+      <circle cx="102" cy="217" r="11" fill="#b8856a"/>
+      <!-- Foul lines (exact 45° from home through 1B and 3B to outfield) -->
       <line x1="170" y1="285" x2="9"   y2="124" stroke="white" stroke-width="2" opacity="0.85"/>
       <line x1="170" y1="285" x2="331" y2="124" stroke="white" stroke-width="2" opacity="0.85"/>
       <!-- Baselines -->
-      <line x1="170" y1="285" x2="238" y2="185" stroke="white" stroke-width="1.5" opacity="0.8"/>
-      <line x1="238" y1="185" x2="170" y2="117" stroke="white" stroke-width="1.5" opacity="0.8"/>
-      <line x1="170" y1="117" x2="102" y2="185" stroke="white" stroke-width="1.5" opacity="0.8"/>
-      <line x1="102" y1="185" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
+      <line x1="170" y1="285" x2="238" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
+      <line x1="238" y1="217" x2="170" y2="149" stroke="white" stroke-width="1.5" opacity="0.8"/>
+      <line x1="170" y1="149" x2="102" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
+      <line x1="102" y1="217" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
       <!-- Home plate -->
       <polygon points="170,268 163,274 166,282 174,282 177,274" fill="white" stroke="#ccc" stroke-width="0.5"/>
-      <!-- BASES (rotated squares) -->
-      <rect id="f1b" x="231" y="178" width="14" height="14" rx="2" transform="rotate(45 238 185)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-      <rect id="f2b" x="163" y="110" width="14" height="14" rx="2" transform="rotate(45 170 117)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-      <rect id="f3b" x="95"  y="178" width="14" height="14" rx="2" transform="rotate(45 102 185)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-      <!-- FIELDER NAME LABELS (text only, no dots) -->
+      <!-- BASES (rotated 45°, centered on correct positions) -->
+      <rect id="f1b" x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+      <rect id="f2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+      <rect id="f3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+      <!-- FIELDER LABELS -->
       <text id="nP"  x="170" y="208" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">P</text>
       <text id="nC"  x="170" y="293" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">C</text>
-      <text id="n1B" x="256" y="200" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">1B</text>
-      <text id="n2B" x="218" y="160" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">2B</text>
-      <text id="nSS" x="122" y="160" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">SS</text>
-      <text id="n3B" x="84"  y="200" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">3B</text>
+      <text id="n1B" x="254" y="230" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">1B</text>
+      <text id="n2B" x="216" y="188" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">2B</text>
+      <text id="nSS" x="124" y="188" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">SS</text>
+      <text id="n3B" x="86"  y="230" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">3B</text>
       <text id="nLF" x="66"  y="106" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">LF</text>
       <text id="nCF" x="170" y="80"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">CF</text>
       <text id="nRF" x="274" y="106" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="700" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">RF</text>
-      <!-- RUNNERS — drawn last, always on top -->
+      <!-- RUNNERS — always drawn last, on top of everything -->
       <g id="r3b" style="display:none">
-        <circle cx="102" cy="185" r="14" fill="#f59e0b" stroke="white" stroke-width="2.5"/>
-        <text id="r3bTxt" x="102" y="189" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
+        <circle cx="102" cy="217" r="14" fill="#f59e0b" stroke="white" stroke-width="2.5"/>
+        <text id="r3bTxt" x="102" y="221" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
       </g>
       <g id="r2b" style="display:none">
-        <circle cx="170" cy="117" r="14" fill="#f59e0b" stroke="white" stroke-width="2.5"/>
-        <text id="r2bTxt" x="170" y="121" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
+        <circle cx="170" cy="149" r="14" fill="#f59e0b" stroke="white" stroke-width="2.5"/>
+        <text id="r2bTxt" x="170" y="153" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
       </g>
       <g id="r1b" style="display:none">
-        <circle cx="238" cy="185" r="14" fill="#f59e0b" stroke="white" stroke-width="2.5"/>
-        <text id="r1bTxt" x="238" y="189" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
+        <circle cx="238" cy="217" r="14" fill="#f59e0b" stroke="white" stroke-width="2.5"/>
+        <text id="r1bTxt" x="238" y="221" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900" fill="#431407"></text>
       </g>
       <!-- BATTER -->
       <circle cx="170" cy="285" r="11" fill="#dc2626" stroke="white" stroke-width="2"/>
@@ -1013,38 +1013,37 @@ function updateField(){
   const posMap = {};
   lu.forEach(p => { if(FIELD_POS_IDS[p.pos]) posMap[p.pos] = p.name || p.pos; });
 
-  // Update fielder name labels — show player last name, fall back to position
+  // Update fielder name labels
   const posToId = {P:'nP',C:'nC','1B':'n1B','2B':'n2B','3B':'n3B',SS:'nSS',LF:'nLF',CF:'nCF',RF:'nRF'};
   Object.entries(posToId).forEach(([pos, elId]) => {
     const el = document.getElementById(elId);
     if(!el) return;
-    const player = lu.find(p => p.pos === pos);
-    if(player && player.name) {
-      const last = player.name.split(' ').pop().slice(0,8);
-      const num  = player.number ? ' #'+player.number : '';
-      el.textContent = last + num;
-    } else {
-      el.textContent = pos;
-    }
+    const name = posMap[pos] || pos;
+    // Show last name or truncated name
+    const short = name.split(' ').pop().slice(0,6);
+    el.textContent = short;
   });
 
-  // Active pitcher label in brighter color
-  const activePit = G.teams[fSide].lineup[G.pitchers[fSide]];
+  // Highlight active pitcher
+  const pitEl = document.getElementById('fP');
+  if(pitEl) pitEl.setAttribute('fill', '#c62828');
 
-  // Runners
-  [1,2,3].forEach(base => {
-    const grp = document.getElementById(`r${base}b`);
-    const txt = document.getElementById(`r${base}bTxt`);
+  // Runners — explicit per-base to avoid any key type issues
+  const baseData = [
+    {base:1, grpId:'r1b', txtId:'r1bTxt', sqId:'f1b'},
+    {base:2, grpId:'r2b', txtId:'r2bTxt', sqId:'f2b'},
+    {base:3, grpId:'r3b', txtId:'r3bTxt', sqId:'f3b'},
+  ];
+  baseData.forEach(({base, grpId, txtId, sqId}) => {
     const runner = G.bases[base];
+    const grp = document.getElementById(grpId);
+    const txt = document.getElementById(txtId);
+    const sq  = document.getElementById(sqId);
     if(grp) grp.style.display = runner ? '' : 'none';
-    if(txt && runner) txt.textContent = runner.name.split(' ').pop().slice(0,4);
-
-    // Highlight base squares
-    const baseEls = {1:'f1b',2:'f2b',3:'f3b'};
-    const bEl = document.getElementById(baseEls[base]);
-    if(bEl) {
-      if(runner){ bEl.setAttribute('fill','#fef3c7'); bEl.setAttribute('stroke','#f59e0b'); }
-      else { bEl.setAttribute('fill','white'); bEl.setAttribute('stroke','#bbb'); }
+    if(txt && runner) txt.textContent = (runner.name||'').split(' ').pop().slice(0,5);
+    if(sq) {
+      sq.setAttribute('fill',   runner ? '#fef3c7' : 'white');
+      sq.setAttribute('stroke', runner ? '#f59e0b' : '#ccc');
     }
   });
 

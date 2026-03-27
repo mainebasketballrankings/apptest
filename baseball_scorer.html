@@ -125,17 +125,17 @@ input,select,button{font-family:inherit;}
 
 /* Pitch buttons */
 .pitch-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;}
-.pbtn{padding:14px 4px;border:none;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:.5px;cursor:pointer;text-transform:uppercase;transition:opacity .12s,transform .1s;}
+.pbtn{padding:16px 4px;border:none;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;letter-spacing:.5px;cursor:pointer;text-transform:uppercase;transition:opacity .12s,transform .1s;}
 .pbtn:active{opacity:.75;transform:scale(.97);}
 .pbtn.ball{background:var(--green-bg);color:var(--green);border:2px solid var(--green-border);}
 .pbtn.cstrike{background:var(--red-bg);color:var(--red);border:2px solid var(--red-border);}
 .pbtn.sstrike{background:var(--red);color:#fff;}
 .pbtn.foul{background:var(--yellow-bg);color:var(--yellow);border:2px solid var(--yellow-border);}
-.pbtn.inplay{background:var(--blue);color:#fff;grid-column:span 4;padding:15px;font-size:16px;border:none;}
+.pbtn.inplay{background:var(--blue);color:#fff;grid-column:span 4;padding:17px;font-size:19px;border:none;}
 
 /* Action bar */
 .action-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);}
-.abtn{padding:8px 4px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;}
+.abtn{padding:10px 4px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;}
 .abtn:active{opacity:.7;}
 .abtn.hi{border-color:var(--green-border);color:var(--green);background:var(--green-bg);}
 .abtn.danger{border-color:var(--red-border);color:var(--red);background:var(--red-bg);}
@@ -217,7 +217,7 @@ input,select,button{font-family:inherit;}
 
 @media(max-width:480px){
   .sb-runs{font-size:34px;}
-  .pbtn{padding:13px 4px;font-size:13px;}
+  .pbtn{padding:15px 4px;font-size:16px;}
   .hit-grid{grid-template-columns:1fr 1fr;}
 }
 
@@ -431,10 +431,10 @@ input,select,button{font-family:inherit;}
   <!-- Pitch buttons -->
   <div class="pitch-grid" style="padding:8px 12px;gap:7px;">
     <button class="pbtn ball"    onclick="logPitch('B')">Ball</button>
-    <button class="pbtn cstrike" onclick="logPitch('K')">Strike ☝</button>
-    <button class="pbtn sstrike" onclick="logPitch('Ks')">Strike ✊</button>
+    <button class="pbtn cstrike" onclick="logPitch('K')">Called Strike</button>
+    <button class="pbtn sstrike" onclick="logPitch('Ks')">Swing Strike</button>
     <button class="pbtn foul"    onclick="logPitch('F')">Foul</button>
-    <button class="pbtn inplay"  onclick="openInPlay()">In Play →</button>
+    <button class="pbtn inplay"  onclick="openInPlay()">In Play</button>
   </div>
 
   <!-- Action bar -->
@@ -445,7 +445,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="doWalk('BB')">Walk (BB)</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
-    <button class="abtn" style="grid-column:span 3;background:var(--surface2)" onclick="openBoxScore()">Box Score</button>
+    <button class="abtn" style="grid-column:span 3;font-size:13px" onclick="openBoxScore()">Box Score</button>
   </div>
 
   <!-- PBP Log (scrollable, below fold) -->

@@ -323,17 +323,14 @@ input,select,button{font-family:inherit;}
         <span class="count-num" id="cntS">0</span>
         <span class="count-lbl">Count</span>
       </div>
-      <!-- Diamond -->
-      <div class="diamond-wrap">
+      <!-- Mini diamond -->
+      <div class="diamond-wrap" onclick="toggleField()" style="cursor:pointer" title="Toggle field view">
         <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-          <!-- Base paths -->
           <polygon points="32,4 60,32 32,60 4,32" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
-          <!-- Home plate -->
           <polygon points="32,56 29,60 35,60" fill="#6b7280"/>
-          <!-- Bases: 2nd top, 3rd left, 1st right -->
-          <rect id="d2b" x="26" y="4" width="12" height="12" rx="2" transform="rotate(45 32 10)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
-          <rect id="d3b" x="4" y="26" width="12" height="12" rx="2" transform="rotate(45 10 32)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
-          <rect id="d1b" x="48" y="26" width="12" height="12" rx="2" transform="rotate(45 54 32)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
+          <rect id="d2b" x="26" y="2" width="12" height="12" rx="2" transform="rotate(45 32 8)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
+          <rect id="d3b" x="2" y="26" width="12" height="12" rx="2" transform="rotate(45 8 32)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
+          <rect id="d1b" x="50" y="26" width="12" height="12" rx="2" transform="rotate(45 56 32)" fill="none" stroke="#d0d3e8" stroke-width="1.5"/>
         </svg>
       </div>
     </div>
@@ -915,6 +912,76 @@ function doUndo(){
   render();
 }
 
+
+// ═══════════════════════════════════════════════
+// FIELD VIEW
+// ═══════════════════════════════════════════════
+let fieldOpen = true;
+function toggleField(){
+  fieldOpen = !fieldOpen;
+  document.getElementById('fieldPanel').style.display = fieldOpen ? '' : 'none';
+  if(fieldOpen) updateField();
+}
+
+const POS_MAP = {P:'P',C:'C','1B':'1B','2B':'2B','3B':'3B',SS:'SS',LF:'LF',CF:'CF',RF:'RF',DH:'DH'};
+const FIELD_POS_IDS = {P:'P',C:'C','1B':'1B','2B':'2B','3B':'3B',SS:'SS',LF:'LF',CF:'CF',RF:'RF'};
+
+function updateField(){
+  if(!fieldOpen) return;
+  const fSide = fieldingSide();
+  const lu = G.teams[fSide].lineup;
+
+  // Map position → player name
+  const posMap = {};
+  lu.forEach(p => { if(FIELD_POS_IDS[p.pos]) posMap[p.pos] = p.name || p.pos; });
+
+  // Update fielder name labels
+  const posToId = {P:'nP',C:'nC','1B':'n1B','2B':'n2B','3B':'n3B',SS:'nSS',LF:'nLF',CF:'nCF',RF:'nRF'};
+  Object.entries(posToId).forEach(([pos, elId]) => {
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const name = posMap[pos] || pos;
+    // Show last name or truncated name
+    const short = name.split(' ').pop().slice(0,6);
+    el.textContent = short;
+  });
+
+  // Highlight active pitcher
+  const pitEl = document.getElementById('fP');
+  if(pitEl) pitEl.setAttribute('fill', '#c62828');
+
+  // Runners
+  [1,2,3].forEach(base => {
+    const grp = document.getElementById(`r${base}b`);
+    const txt = document.getElementById(`r${base}bTxt`);
+    const runner = G.bases[base];
+    if(grp) grp.style.display = runner ? '' : 'none';
+    if(txt && runner) txt.textContent = runner.name.split(' ').pop().slice(0,4);
+
+    // Highlight bases
+    const baseEls = {1:'f1b',2:'f2b',3:'f3b'};
+    const bEl = document.getElementById(baseEls[base]);
+    if(bEl) {
+      if(runner){ bEl.setAttribute('fill','#fef3c7'); bEl.setAttribute('stroke','#d97706'); }
+      else { bEl.setAttribute('fill','white'); bEl.setAttribute('stroke','#aaa'); }
+    }
+  });
+
+  // Batter name
+  const {player:bat} = curBatter();
+  const nBat = document.getElementById('nBatter');
+  if(nBat) nBat.textContent = (bat.name||'').split(' ').pop().slice(0,5);
+
+  // Mini diamond sync (always visible)
+  [1,2,3].forEach(base => {
+    const ids = {1:'d1b',2:'d2b',3:'d3b'};
+    const el = document.getElementById(ids[base]);
+    if(!el) return;
+    if(G.bases[base]){ el.setAttribute('fill','#fef3c7'); el.setAttribute('stroke','#d97706'); }
+    else { el.setAttribute('fill','none'); el.setAttribute('stroke','#d0d3e8'); }
+  });
+}
+
 // ═══════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════
@@ -993,6 +1060,7 @@ function render(){
   document.getElementById('pitchSeq').innerHTML=G.curPitches.map(p=>`<div class="pdot ${p}">${p}</div>`).join('');
 
   // PBP
+  updateField();
   document.getElementById('pbpLog').innerHTML=[...G.pbp].reverse().map(e=>`
     <div class="pbp-entry">
       <span class="pbp-inn">${e.inn}${e.half}</span>

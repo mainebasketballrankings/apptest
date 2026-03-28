@@ -1511,10 +1511,17 @@ function updateField(){
 
   // Update fielder name + number labels
   const posToId = {P:'nP',C:'nC','1B':'n1B','2B':'n2B','3B':'n3B',SS:'nSS',LF:'nLF',CF:'nCF',RF:'nRF'};
+  // Active pitcher index takes priority for the P label
+  const activePitcherIdx = G.pitchers[fSide];
   Object.entries(posToId).forEach(([pos, elId]) => {
     const el = document.getElementById(elId);
     if(!el) return;
-    const player = lu.find(p => p.pos === pos);
+    let player;
+    if(pos === 'P' && activePitcherIdx !== null && activePitcherIdx !== undefined){
+      player = lu[activePitcherIdx];
+    } else {
+      player = lu.find(p => p.pos === pos);
+    }
     if(player && player.name) {
       const last = player.name.split(' ').pop().slice(0,8);
       const num  = player.number ? ' #'+player.number : '';
@@ -1676,8 +1683,13 @@ function buildBoxScore(){
         <th style="padding:3px 5px">BB</th><th style="padding:3px 5px">K</th><th style="padding:3px 5px">2B</th><th style="padding:3px 5px">3B</th><th style="padding:3px 5px">HR</th>
       </tr>`;
     let tot={ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
-    team.lineup.forEach(p=>{
+    // Only show batters who have appeared (reached in batting order or have stats)
+    const maxReached = G.batIdx[side] || 0;
+    team.lineup.forEach((p,i)=>{
       const s=p.stats;
+      const hasStats = (s.ab||0)+(s.bb||0)+(s.k||0)+(s.r||0)+(s.h||0)+(s.sac||0) > 0;
+      const hasAppeared = i < maxReached || hasStats;
+      if(!hasAppeared) return;
       ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
       html+=`<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>

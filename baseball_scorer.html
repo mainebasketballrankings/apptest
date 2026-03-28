@@ -1305,22 +1305,31 @@ function confirmPR(base, name, number){
   closeOv('ovDP');
   const replaced = G.bases[base];
   G.bases[base] = {name, number};
-  // Find replaced player in batting order slots and add PR entry
   const bside = battingSide();
+  // Always create a fresh PR player entry so we don't mutate bench objects
+  const prPlayer = {
+    name, number, pos:'PR',
+    subFor: replaced?.name,
+    isPR: true,
+    stats:{ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0,sb:0,ibb:0,sac:0}
+  };
+  // Find which slot the replaced runner is in (check all players in each slot)
   if(G.teams[bside].slots){
+    let found = false;
     G.teams[bside].slots.forEach(slot => {
-      const cur = slot[slot.length-1];
-      if(cur && cur.name === replaced?.name){
-        // Find or create the bench player object
-        const prPlayer = G.teams[bside].bench.find(p=>p.name===name) ||
-                         G.teams[bside].lineup.find(p=>p.name===name) ||
-                         {name, number, pos:'PR', stats:{ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0,sb:0}};
-        prPlayer.subFor = replaced.name;
-        prPlayer.isPR = true;
-        slot.push(prPlayer);
-      }
+      if(found) return;
+      // Check if replaced player is anywhere in this slot
+      const inSlot = slot.some(p => p.name === replaced?.name);
+      if(inSlot){ slot.push(prPlayer); found = true; }
     });
+    if(!found){
+      // Fallback: add as extra slot
+      G.teams[bside].slots.push([prPlayer]);
+    }
   }
+  // Remove from bench if they were a bench player
+  const benchIdx = G.teams[bside].bench.findIndex(p=>p.name===name);
+  if(benchIdx >= 0) G.teams[bside].bench.splice(benchIdx,1);
   addPBP(`PR: <strong>${name}</strong> for <strong>${replaced?.name}</strong>`);
   openRunners(); render();
 }
@@ -1459,14 +1468,38 @@ function confirmSub(side,idx,fromBench){
   const player = fromBench ? G.teams[side].bench[idx] : G.teams[side].lineup[idx];
   if(!player) return;
   if(subMode==='pitcher'){
-    // Pitching change — just update who's on the mound, don't touch batting order
+    // Pitching change — update who's on the mound
+    const prevPitcherIdx = G.pitchers[side];
     if(fromBench){
+      // Add new pitcher to lineup
       G.teams[side].lineup.push(player);
       G.teams[side].bench.splice(idx,1);
-      const newIdx=G.teams[side].lineup.length-1;
-      G.pitchers[side]=newIdx;
-      const ps=getPS(side,newIdx);
+      const newIdx = G.teams[side].lineup.length-1;
+      G.pitchers[side] = newIdx;
+      const ps = getPS(side,newIdx);
       ps.name=player.name; ps.num=player.number;
+      // Add to the previous pitcher's batting slot so they appear in box score
+      if(G.teams[side].slots && prevPitcherIdx !== null){
+        // Find which slot the previous pitcher is in
+        let slotFound = false;
+        G.teams[side].slots.forEach(slot => {
+          if(slotFound) return;
+          if(slot.some(p => p === G.teams[side].lineup[prevPitcherIdx] || 
+                            (G.teams[side].lineup[prevPitcherIdx] && 
+                             p.name === G.teams[side].lineup[prevPitcherIdx].name))){
+            player.subFor = G.teams[side].lineup[prevPitcherIdx]?.name;
+            slot.push(player);
+            slotFound = true;
+          }
+        });
+        if(!slotFound){
+          // Fallback: find slot by pitcher's original position
+          G.teams[side].slots.forEach(slot => {
+            if(slotFound) return;
+            if(slot[0]?.pos === 'P'){ slot.push(player); slotFound = true; }
+          });
+        }
+      }
       addPBP(`Pitching change: <strong>${player.name}</strong>`);
     } else {
       G.pitchers[side]=idx;
@@ -1762,6 +1795,21 @@ function buildBoxScore(){
         </tr>`;
       });
     });
+    // Also show bench players with stats not already in slots
+    const inSlots = new Set();
+    (team.slots||[]).forEach(slot => slot.forEach(p => inSlots.add(p.name)));
+    team.bench.forEach(p => {
+      const s=p.stats;
+      const hasStats=(s.ab||0)+(s.bb||0)+(s.k||0)+(s.r||0)+(s.sac||0) > 0;
+      if(!hasStats || inSlots.has(p.name)) return;
+      ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
+      html+=`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
+        <td style="padding:3px 4px;font-weight:600">${p.name||'—'}</td>
+        <td style="padding:3px 4px;color:var(--dim)">${p.pos}</td>
+        ${[s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
+      </tr>`;
+    });
     html+=`<tr style="font-weight:700;border-top:2px solid var(--border)">
       <td colspan="3" style="padding:3px 4px">Totals</td>
       ${[tot.ab,tot.r,tot.h,tot.rbi,tot.bb,tot.k,tot.d,tot.t,tot.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
@@ -1893,7 +1941,7 @@ function confirmDefSub(pos){
   }
   // Remove old player from position (move them off field — they stay in batting order)
   if(replaced && oldIdx >= 0){
-    lu[oldIdx].pos = 'BN'; // bench/no position
+    // lu[oldIdx] keeps their position — they're still in batting order, just off field
     if(G.pitchers[side]===oldIdx && pos==='P') G.pitchers[side]=lu.length-1;
   }
   addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${replaced?' for '+replaced.name:''}`);

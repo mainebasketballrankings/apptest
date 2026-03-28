@@ -1302,9 +1302,25 @@ function openPinchRunner(base){
 }
 
 function confirmPR(base, name, number){
-  closeOv('ovFC');
+  closeOv('ovDP');
   const replaced = G.bases[base];
   G.bases[base] = {name, number};
+  // Find replaced player in batting order slots and add PR entry
+  const bside = battingSide();
+  if(G.teams[bside].slots){
+    G.teams[bside].slots.forEach(slot => {
+      const cur = slot[slot.length-1];
+      if(cur && cur.name === replaced?.name){
+        // Find or create the bench player object
+        const prPlayer = G.teams[bside].bench.find(p=>p.name===name) ||
+                         G.teams[bside].lineup.find(p=>p.name===name) ||
+                         {name, number, pos:'PR', stats:{ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0,sb:0}};
+        prPlayer.subFor = replaced.name;
+        prPlayer.isPR = true;
+        slot.push(prPlayer);
+      }
+    });
+  }
   addPBP(`PR: <strong>${name}</strong> for <strong>${replaced?.name}</strong>`);
   openRunners(); render();
 }
@@ -1414,7 +1430,7 @@ let subMode='pitcher';
 function openSub(mode){
   saveSnapshot();
   subMode=mode;
-  const side=mode==='pitcher'?fieldingSide():battingSide();
+  const side=(mode==='pitcher'||mode==='defense')?fieldingSide():battingSide();
   const titles={
     pitcher:`Change Pitcher — ${G.teams[side].name}`,
     batter:'Pinch Hitter',
@@ -1733,7 +1749,7 @@ function buildBoxScore(){
         const s=p.stats;
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
         const isFirst = depth===0;
-        const posDisplay = !isFirst ? `PH-${p.pos}` : p.pos;
+        const posDisplay = !isFirst ? (p.isPR ? 'PR' : `PH-${p.pos}`) : p.pos;
         const indent = !isFirst ? 'padding-left:20px;' : '';
         const prefix = !isFirst ? '▸ ' : '';
         html+=`<tr style="border-bottom:1px solid var(--border)">

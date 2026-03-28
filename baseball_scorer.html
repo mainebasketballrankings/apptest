@@ -55,7 +55,7 @@ input,select,button{font-family:inherit;}
 .start-btn{width:100%;max-width:560px;padding:14px;background:var(--green);border:none;border-radius:10px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:8px;}
 
 /* ══ GAME ══ */
-#gameScreen{display:none;flex-direction:column;min-height:100vh;}
+#gameScreen{display:none;flex-direction:column;min-height:100vh;padding-bottom:env(safe-area-inset-bottom,80px);}
 
 /* Top bar — scoreboard */
 .sb{background:var(--surface);border-bottom:1px solid var(--border);padding:0;}
@@ -215,6 +215,10 @@ input,select,button{font-family:inherit;}
 .rbi-count-lbl{font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--dim);}
 .rbi-num-input{width:56px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:16px;font-family:'Barlow Condensed',sans-serif;text-align:center;}
 
+@media(max-height:700px){
+  #fieldSVG{max-height:35vh !important;}
+  .linescore-wrap{display:none;}
+}
 @media(max-width:480px){
   .sb-runs{font-size:30px;padding:2px 6px;}
   .pbtn{padding:15px 4px;font-size:16px;}
@@ -404,15 +408,15 @@ input,select,button{font-family:inherit;}
       <rect id="f1b" x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
       <rect id="f2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
       <rect id="f3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-      <text id="nP"  x="170" y="210" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">P</text>
-      <text id="nC"  x="170" y="296" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">C</text>
-      <text id="n1B" x="254" y="230" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">1B</text>
-      <text id="n2B" x="218" y="190" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">2B</text>
-      <text id="nSS" x="122" y="190" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#7a5a3a" stroke-width="3" paint-order="stroke">SS</text>
-      <text id="n3B" x="86"  y="230" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">3B</text>
-      <text id="nLF" x="66"  y="108" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">LF</text>
-      <text id="nCF" x="170" y="82"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">CF</text>
-      <text id="nRF" x="274" y="108" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="400" fill="white" stroke="#1a4a28" stroke-width="3" paint-order="stroke">RF</text>
+      <text id="nP"  x="170" y="210" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">P</text>
+      <text id="nC"  x="170" y="296" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">C</text>
+      <text id="n1B" x="254" y="230" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">1B</text>
+      <text id="n2B" x="218" y="190" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">2B</text>
+      <text id="nSS" x="122" y="190" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">SS</text>
+      <text id="n3B" x="86"  y="230" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">3B</text>
+      <text id="nLF" x="66"  y="108" text-anchor="end"    font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">LF</text>
+      <text id="nCF" x="170" y="82"  text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">CF</text>
+      <text id="nRF" x="274" y="108" text-anchor="start"  font-family="Barlow Condensed,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">RF</text>
       <g id="r3b" style="display:none"><circle cx="102" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r3bTxt" x="102" y="221" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
       <g id="r2b" style="display:none"><circle cx="170" cy="149" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r2bTxt" x="170" y="153" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
       <g id="r1b" style="display:none"><circle cx="238" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text id="r1bTxt" x="238" y="221" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
@@ -427,7 +431,7 @@ input,select,button{font-family:inherit;}
   </div>
 
   <!-- Pitch buttons -->
-  <div class="pitch-grid" style="padding:8px 12px;gap:7px;">
+  <div class="pitch-grid" style="padding:8px 12px 0;gap:7px;">
     <button class="pbtn ball"    onclick="logPitch('B')">Ball</button>
     <button class="pbtn cstrike" onclick="logPitch('K')">Called Strike</button>
     <button class="pbtn sstrike" onclick="logPitch('Ks')">Swing Strike</button>

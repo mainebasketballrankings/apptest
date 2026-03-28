@@ -464,6 +464,26 @@ input,select,button{font-family:inherit;}
   </div>
 </div>
 
+<!-- Error fielder assignment -->
+<div class="overlay" id="ovError" style="display:none">
+  <div class="ocard">
+    <div class="otitle">Error — which fielder?</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);margin-bottom:12px">Batter reaches 1st on the error</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px">
+      <button class="otbtn" onclick="confirmError(1,'P')">1 — P</button>
+      <button class="otbtn" onclick="confirmError(2,'C')">2 — C</button>
+      <button class="otbtn" onclick="confirmError(3,'1B')">3 — 1B</button>
+      <button class="otbtn" onclick="confirmError(4,'2B')">4 — 2B</button>
+      <button class="otbtn" onclick="confirmError(5,'3B')">5 — 3B</button>
+      <button class="otbtn" onclick="confirmError(6,'SS')">6 — SS</button>
+      <button class="otbtn" onclick="confirmError(7,'LF')">7 — LF</button>
+      <button class="otbtn" onclick="confirmError(8,'CF')">8 — CF</button>
+      <button class="otbtn" onclick="confirmError(9,'RF')">9 — RF</button>
+    </div>
+    <button class="ocancel" style="width:100%" onclick="closeOv('ovError')">Cancel</button>
+  </div>
+</div>
+
 <!-- Double play runner selection -->
 <div class="overlay" id="ovDP" style="display:none">
   <div class="ocard">
@@ -541,7 +561,7 @@ input,select,button{font-family:inherit;}
       <button class="hbtn d"  onclick="resolveHit('2B')">Double</button>
       <button class="hbtn t"  onclick="resolveHit('3B')">Triple</button>
       <button class="hbtn hr" onclick="resolveHit('HR')">Home Run</button>
-      <button class="hbtn"    onclick="resolveHit('E')">Error</button>
+      <button class="hbtn"    onclick="openErrorOverlay()">Error</button>
       <button class="hbtn"    onclick="openFCOverlay()">Fielder's Choice</button>
     </div>
     <div class="sec-lbl">Out — tap fielders in sequence</div>
@@ -649,6 +669,8 @@ let G = {
   pitStats:{},   // "away_0":{pitches,outs,h,bb,k,er,...}
   pendingHit:null,
   pendingRBIbatter:null,
+  pendingErrorNotation:null,
+  pendingErrorFielder:null,
   fldSeq:[],
   runDecisions:{},
 };
@@ -1083,7 +1105,11 @@ function confirmRBI(){
   if(p){ const ps=getPS(p.side,p.idx); ps.h++; ps.er+=autoRBI; }
   G.curPitches.push('X');
   chargePitch();
-  addPBP(`<strong>${b.player.name}</strong> ${result}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
+  const notation = result==='E' && G.pendingErrorNotation
+    ? G.pendingErrorNotation + (G.pendingErrorFielder ? ` (${G.pendingErrorFielder})` : '')
+    : result;
+  addPBP(`<strong>${b.player.name}</strong> ${notation}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
+  G.pendingErrorNotation=null; G.pendingErrorFielder=null;
   G.runDecisions={};
   closeOv('ovRBI');
   nextBatter(); resetCount(); render();
@@ -1537,6 +1563,26 @@ function confirmFC(outBase){
   if(outBase!==1) G.bases[1]=bRunner;
   addOut('FC');
   render();
+}
+
+function openErrorOverlay(){
+  closeOv('ovInPlay');
+  G.curPitches.push('X');
+  chargePitch();
+  openOv('ovError');
+}
+
+function confirmError(pos, posName){
+  closeOv('ovError');
+  const fSide = fieldingSide();
+  // Find player at this position
+  const fielder = G.teams[fSide].lineup.find(p => p.pos === posName);
+  const fielderName = fielder ? fielder.name : posName;
+  G.errors[fSide]++;
+  G.pendingHit = 'E';
+  G.pendingErrorNotation = `E${pos}`;
+  G.pendingErrorFielder = fielderName;
+  openRBIResolver('E');
 }
 
 function openOv(id){ document.getElementById(id).style.display='flex'; }

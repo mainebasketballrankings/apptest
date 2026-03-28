@@ -1132,9 +1132,12 @@ function confirmRBI(){
   else if(result==='3B') newBases[3]=bRunner;
   for(let i=0;i<manualRBI;i++) scoreRunner(null, side);
   G.bases=newBases;
-  G.hits[side]++;
+  if(isHit) G.hits[side]++;
   const p=curPitcher();
-  if(p){ const ps=getPS(p.side,p.idx); ps.h++; ps.er+=autoRBI; }
+  if(p){ const ps=getPS(p.side,p.idx);
+    if(isHit) ps.h++;           // errors don't count as hits allowed
+    ps.er+=autoRBI;             // but runs that score ARE earned if no error caused them
+  }
   G.curPitches.push('X');
   chargePitch();
   const notation = result==='E' && G.pendingErrorNotation
@@ -1614,7 +1617,9 @@ function updateField(){
     if(pos === 'P' && activePitcherIdx !== null && activePitcherIdx !== undefined){
       player = lu[activePitcherIdx];
     } else {
-      player = lu.find(p => p.pos === pos);
+      // Prefer active (non-offField) players at this position
+      player = lu.find(p => p.pos === pos && !p.offField);
+      if(!player) player = lu.find(p => p.pos === pos);
     }
     if(player && player.name) {
       const last = player.name.split(' ').pop().slice(0,8);
@@ -1784,7 +1789,7 @@ function buildBoxScore(){
         const s=p.stats;
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
         const isFirst = depth===0;
-        const posDisplay = !isFirst ? (p.isPR ? 'PR' : `PH-${p.pos}`) : p.pos;
+        const posDisplay = !isFirst ? (p.isPR ? 'PR' : p.isDefSub ? `DS-${p.pos}` : `PH-${p.pos}`) : p.pos;
         const indent = !isFirst ? 'padding-left:20px;' : '';
         const prefix = !isFirst ? '▸ ' : '';
         html+=`<tr style="border-bottom:1px solid var(--border)">
@@ -1929,19 +1934,24 @@ function confirmDefSub(pos){
   player.subFor = replaced ? replaced.name : '';
   player.isDefSub = true;
   if(fromBench){
-    // Add to lineup, remove from bench
+    // Add to lineup and remove from bench
     G.teams[side].lineup.push(player);
     G.teams[side].bench.splice(idx,1);
     const newIdx = G.teams[side].lineup.length-1;
     if(pos==='P') G.pitchers[side]=newIdx;
+    // Add to box score slots — defensive subs get their own slot entry
+    if(G.teams[side].slots){
+      G.teams[side].slots.push([player]);
+    }
   } else {
-    // Existing lineup player moving to new position — just update pos
     lu[idx].pos = pos;
     if(pos==='P') G.pitchers[side]=idx;
   }
-  // Remove old player from position (move them off field — they stay in batting order)
+  // Mark replaced player as no longer on field (but keep in batting order)
+  // Give replaced player a unique "off-field" marker so field display skips them
   if(replaced && oldIdx >= 0){
-    // lu[oldIdx] keeps their position — they're still in batting order, just off field
+    replaced.offField = true;
+    replaced.offFieldPos = pos; // which position they vacated
     if(G.pitchers[side]===oldIdx && pos==='P') G.pitchers[side]=lu.length-1;
   }
   addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${replaced?' for '+replaced.name:''}`);

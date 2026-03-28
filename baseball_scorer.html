@@ -447,6 +447,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="doWalk('BB')">Walk (BB)</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
+    <button class="abtn" style="grid-column:span 3;border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Fielding Error (no pitch)</button>
     <button class="abtn" style="grid-column:span 3;font-size:13px" onclick="openBoxScore()">Box Score</button>
   </div>
 
@@ -468,18 +469,7 @@ input,select,button{font-family:inherit;}
 <div class="overlay" id="ovError" style="display:none">
   <div class="ocard">
     <div class="otitle">Error — which fielder?</div>
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);margin-bottom:12px">Batter reaches 1st on the error</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px">
-      <button class="otbtn" onclick="confirmError(1,'P')">1 — P</button>
-      <button class="otbtn" onclick="confirmError(2,'C')">2 — C</button>
-      <button class="otbtn" onclick="confirmError(3,'1B')">3 — 1B</button>
-      <button class="otbtn" onclick="confirmError(4,'2B')">4 — 2B</button>
-      <button class="otbtn" onclick="confirmError(5,'3B')">5 — 3B</button>
-      <button class="otbtn" onclick="confirmError(6,'SS')">6 — SS</button>
-      <button class="otbtn" onclick="confirmError(7,'LF')">7 — LF</button>
-      <button class="otbtn" onclick="confirmError(8,'CF')">8 — CF</button>
-      <button class="otbtn" onclick="confirmError(9,'RF')">9 — RF</button>
-    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px" id="errorFielderGrid"></div>
     <button class="ocancel" style="width:100%" onclick="closeOv('ovError')">Cancel</button>
   </div>
 </div>
@@ -671,6 +661,9 @@ let G = {
   pendingRBIbatter:null,
   pendingErrorNotation:null,
   pendingErrorFielder:null,
+  pendingErrorFrom:null,
+  pendingErrorDest:null,
+  pendingErrorCallback:null,
   fldSeq:[],
   runDecisions:{},
 };
@@ -1204,16 +1197,24 @@ function tapBase(dest){
     if(btns){
       // Advance options + steal + out
       let html='';
+      // Normal advances
       for(let d=dest+1;d<=3;d++){
         const dl=d===2?'2nd':'3rd';
         html+=`<button class="ract adv" onclick="moveRunnerTo(${dest},${d})">→${dl}</button>`;
       }
       html+=`<button class="ract scr" onclick="moveRunnerTo(${dest},0)">Score</button>`;
+      // Stolen base options
       for(let d=dest+1;d<=3;d++){
         const dl=d===2?'2nd':'3rd';
         html+=`<button class="ract" style="border-color:var(--yellow-border);color:var(--yellow);background:var(--yellow-bg)" onclick="doSteal(${dest},${d})">SB→${dl}</button>`;
         html+=`<button class="ract" style="border-color:var(--red-border);color:var(--red);background:var(--red-bg)" onclick="doCaughtStealing(${dest},${d})">CS→${dl}</button>`;
       }
+      // Error advances — advance or score on a fielding error
+      for(let d=dest+1;d<=3;d++){
+        const dl=d===2?'2nd':'3rd';
+        html+=`<button class="ract" style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="advanceOnError(${dest},${d})">E→${dl}</button>`;
+      }
+      html+=`<button class="ract" style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="advanceOnError(${dest},0)">E→Score</button>`;
       html+=`<button class="ract out" onclick="runnerPickedOff(${dest})">Out/PO</button>`;
       btns.innerHTML=html;
     }
@@ -1238,6 +1239,76 @@ function moveRunnerTo(from, dest){
     addPBP(`${r.name} advances to ${dest===1?'1st':dest===2?'2nd':'3rd'}`);
   }
   deselectRunner(); updateRunnerDiamond(); render();
+}
+
+function advanceOnError(from, dest){
+  // Show fielder picker, then advance runner and charge error
+  G.pendingErrorFrom = from;
+  G.pendingErrorDest = dest;
+  openErrorFielderPicker('advanceOnErrorConfirm');
+}
+
+function advanceOnErrorConfirm(posNum, posName, fielderName){
+  const from = G.pendingErrorFrom;
+  const dest = G.pendingErrorDest;
+  const r = G.bases[from];
+  const fSide = fieldingSide();
+  G.errors[fSide]++;
+  if(dest === 0){
+    const side = battingSide();
+    scoreRunner(r, side);
+    G.bases[from] = null;
+    addPBP(`<strong>${r.name}</strong> scores on E${posNum} (${fielderName})`);
+  } else {
+    G.bases[dest] = r;
+    G.bases[from] = null;
+    const dl = dest===2?'2nd':'3rd';
+    addPBP(`${r.name} advances to ${dl} on E${posNum} (${fielderName})`);
+  }
+  G.pendingErrorFrom = null; G.pendingErrorDest = null;
+  deselectRunner(); updateRunnerDiamond(); closeOv('ovRunners'); render();
+}
+
+function openFieldingErrorOverlay(){
+  // Error with no pitch — just pick fielder, no batter involved
+  G.pendingErrorFrom = -1; // signal: standalone error
+  openErrorFielderPicker('fieldingErrorNoPlay');
+}
+
+function fieldingErrorNoPlay(posNum, posName, fielderName){
+  const fSide = fieldingSide();
+  G.errors[fSide]++;
+  addPBP(`E${posNum} (${fielderName}) — fielding error`);
+  render();
+}
+
+function openErrorFielderPicker(callback){
+  // Reuse the error overlay but with a dynamic callback
+  G.pendingErrorCallback = callback;
+  // Populate fielder buttons with actual player names from lineup
+  const fSide = fieldingSide();
+  const lu = G.teams[fSide].lineup;
+  const posMap = {};
+  lu.forEach(p => { if(p.pos) posMap[p.pos] = p.name || p.pos; });
+  const positions = [[1,'P'],[2,'C'],[3,'1B'],[4,'2B'],[5,'3B'],[6,'SS'],[7,'LF'],[8,'CF'],[9,'RF']];
+  const grid = document.getElementById('errorFielderGrid');
+  if(grid){
+    grid.innerHTML = positions.map(([num, pos]) => {
+      const name = posMap[pos] || pos;
+      const short = name.split(' ').pop().slice(0,8);
+      return `<button class="otbtn" onclick="confirmErrorFielder(${num},'${pos}','${name}')">${num} — ${short}</button>`;
+    }).join('');
+  }
+  openOv('ovError');
+}
+
+function confirmErrorFielder(posNum, posName, fielderName){
+  closeOv('ovError');
+  const cb = G.pendingErrorCallback;
+  G.pendingErrorCallback = null;
+  if(cb === 'advanceOnErrorConfirm') advanceOnErrorConfirm(posNum, posName, fielderName);
+  else if(cb === 'fieldingErrorNoPlay') fieldingErrorNoPlay(posNum, posName, fielderName);
+  else if(cb === 'confirmError') confirmError(posNum, posName); // original hit error flow
 }
 
 function doSteal(from, dest){
@@ -1569,15 +1640,15 @@ function openErrorOverlay(){
   closeOv('ovInPlay');
   G.curPitches.push('X');
   chargePitch();
-  openOv('ovError');
+  openErrorFielderPicker('confirmError');
 }
 
-function confirmError(pos, posName){
-  closeOv('ovError');
+function confirmError(pos, posName, fielderName){
   const fSide = fieldingSide();
-  // Find player at this position
-  const fielder = G.teams[fSide].lineup.find(p => p.pos === posName);
-  const fielderName = fielder ? fielder.name : posName;
+  if(!fielderName){
+    const fielder = G.teams[fSide].lineup.find(p => p.pos === posName);
+    fielderName = fielder ? fielder.name : posName;
+  }
   G.errors[fSide]++;
   G.pendingHit = 'E';
   G.pendingErrorNotation = `E${pos}`;

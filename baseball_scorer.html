@@ -63,8 +63,8 @@ input,select,button{font-family:inherit;}
 .sb-team{display:flex;flex-direction:column;}
 .sb-team.away{align-items:flex-start;}
 .sb-team.home{align-items:flex-end;}
-.sb-name{font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:var(--dim);}
-.sb-runs{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;line-height:1;color:var(--text);}
+.sb-name{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;}
+.sb-runs{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:900;line-height:1;color:var(--text);flex-shrink:0;}
 .sb-mid{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .sb-half{font-size:12px;color:var(--green);}
 .sb-inn{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--text);line-height:1;}
@@ -216,18 +216,18 @@ input,select,button{font-family:inherit;}
 .rbi-num-input{width:56px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:16px;font-family:'Barlow Condensed',sans-serif;text-align:center;}
 
 @media(max-width:480px){
-  .sb-runs{font-size:28px;}
+  .sb-runs{font-size:32px;}
   .pbtn{padding:15px 4px;font-size:16px;}
   .hit-grid{grid-template-columns:1fr 1fr;}
 }
 
 /* ══ NEW GAME LAYOUT ══ */
-.sb-top-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:8px 14px;}
-.sb-team-block{display:flex;flex-direction:row;align-items:center;gap:10px;}
+.sb-top-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:10px 14px;}
+.sb-team-block{display:flex;flex-direction:row;align-items:center;gap:12px;}
 .sb-center-block{display:flex;flex-direction:column;align-items:center;gap:2px;}
 .sb-half-inn{display:flex;align-items:baseline;gap:3px;}
-.sb-half{font-size:13px;font-weight:700;}
-.sb-inn{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;line-height:1;color:var(--text);}
+.sb-half{font-size:14px;font-weight:700;}
+.sb-inn{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1;color:var(--text);}
 .sb-inn-lbl{font-family:'Barlow',sans-serif;font-size:10px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);}
 .count-row{display:flex;align-items:center;gap:3px;}
 .count-num{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--text);}
@@ -348,8 +348,8 @@ input,select,button{font-family:inherit;}
         </div>
       </div>
       <div class="sb-team-block" style="justify-content:flex-end">
-        <div class="sb-name" id="sbHomeName">Home</div>
         <div class="sb-runs" id="sbHomeRuns">0</div>
+        <div class="sb-name" id="sbHomeName">Home</div>
       </div>
     </div>
   </div>

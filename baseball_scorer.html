@@ -1908,6 +1908,7 @@ function buildBoxScore(){
         <td style="padding:3px 4px;font-weight:600">${ps.name||'—'}</td>
         <td style="padding:3px 5px;text-align:center">${ip}</td>
         <td style="padding:3px 5px;text-align:center">${ps.h}</td>
+        <td style="padding:3px 5px;text-align:center">${(ps.er||0)+(ps.uner||0)}</td>
         <td style="padding:3px 5px;text-align:center">${ps.er||0}</td>
         <td style="padding:3px 5px;text-align:center">${ps.bb}</td>
         <td style="padding:3px 5px;text-align:center">${ps.k}</td>
@@ -1964,8 +1965,7 @@ function confirmFC(outBase){
 
 function openErrorOverlay(){
   closeOv('ovInPlay');
-  G.curPitches.push('X');
-  chargePitch();
+  // Do NOT charge pitch here — confirmRBI handles push('X') + chargePitch()
   openErrorFielderPicker('confirmError');
 }
 

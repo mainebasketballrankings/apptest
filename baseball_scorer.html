@@ -790,6 +790,7 @@ function chargePitch(){
 function logPitch(type){
   const b=curBatter(), p=curPitcher();
   if(!b.player) return;
+  saveSnapshot();
   G.curPitches.push(type);
   chargePitch();
 
@@ -837,6 +838,7 @@ function doStrikeout(type){
 }
 
 function doWalk(type){
+  saveSnapshot();
   const b=curBatter(), p=curPitcher();
   if(type==='BB'){ b.player.stats.bb++; if(p) getPS(p.side,p.idx).bb++; }
   const runner={name:b.player.name,num:b.player.number};
@@ -922,6 +924,7 @@ function addF(n){ G.fldSeq.push(n); document.getElementById('fldSeq').textConten
 function clearF(){ G.fldSeq=[]; document.getElementById('fldSeq').textContent='—'; }
 
 function confirmOut(type){
+  saveSnapshot();
   const notation=G.fldSeq.length>0?G.fldSeq.join('-'):type;
   const b=curBatter();
   const isSacBunt=(type==='SAC')||notation.includes('SAC');
@@ -943,7 +946,7 @@ function confirmOut(type){
   }
 }
 
-function confirmDP(type){
+function confirmDP(type){ saveSnapshot();
   // Double play — batter out + one runner out, remaining runners may advance
   const notation=G.fldSeq.length>0?G.fldSeq.join('-'):type;
   const b=curBatter();
@@ -960,7 +963,7 @@ function confirmDP(type){
   openDPOverlay();
 }
 
-function confirmTP(type){
+function confirmTP(type){ saveSnapshot();
   const notation=G.fldSeq.length>0?G.fldSeq.join('-'):type;
   const b=curBatter();
   b.player.stats.ab++;
@@ -1016,6 +1019,7 @@ function resolveHit(result){
 }
 
 function doHR(){
+  saveSnapshot();
   const b=curBatter(), side=battingSide();
   let runs=1;
   [3,2,1].forEach(base=>{ if(G.bases[base]){ runs++; G.bases[base]=null; } });
@@ -1067,6 +1071,7 @@ function setRD(base,action){
 }
 
 function confirmRBI(){
+  saveSnapshot();
   const result=G.pendingHit;
   const b=curBatter(), side=battingSide();
   const isHit=['1B','2B','3B'].includes(result);
@@ -1222,6 +1227,7 @@ function tapBase(dest){
 }
 
 function moveRunnerTo(from, dest){
+  saveSnapshot();
   const r=G.bases[from];
   const side=battingSide();
   if(dest===0){
@@ -1280,6 +1286,8 @@ function fieldingErrorNoPlay(posNum, posName, fielderName){
   G.errors[fSide]++;
   addPBP(`E${posNum} (${fielderName}) — fielding error`);
   render();
+  // Open runners overlay so scorer can advance any runners on the error
+  if(hasRunners()) setTimeout(()=>openRunners(), 150);
 }
 
 function openErrorFielderPicker(callback){
@@ -1312,6 +1320,7 @@ function confirmErrorFielder(posNum, posName, fielderName){
 }
 
 function doSteal(from, dest){
+  saveSnapshot();
   const r=G.bases[from];
   G.bases[dest]=r; G.bases[from]=null;
   r.sb=(r.sb||0)+1;
@@ -1357,13 +1366,52 @@ function confirmSub(side,idx){
 // ═══════════════════════════════════════════════
 // UNDO
 // ═══════════════════════════════════════════════
+// Undo stack — save snapshots of critical state before each action
+let undoStack = [];
+const MAX_UNDO = 20;
+
+function saveSnapshot(){
+  const snap = {
+    inning:G.inning, half:G.half, outs:G.outs, balls:G.balls, strikes:G.strikes,
+    bases:JSON.parse(JSON.stringify(G.bases)),
+    runs:JSON.parse(JSON.stringify(G.runs)),
+    hits:JSON.parse(JSON.stringify(G.hits)),
+    errors:JSON.parse(JSON.stringify(G.errors)),
+    linescore:JSON.parse(JSON.stringify(G.linescore)),
+    batIdx:JSON.parse(JSON.stringify(G.batIdx)),
+    curPitches:[...G.curPitches],
+    pbpLen:G.pbp.length,
+    // Snapshot each player's stats
+    lineupStats:{
+      away: G.teams.away.lineup.map(p=>JSON.parse(JSON.stringify(p.stats))),
+      home: G.teams.home.lineup.map(p=>JSON.parse(JSON.stringify(p.stats))),
+    },
+    // Snapshot pitcher stats
+    pitStats: JSON.parse(JSON.stringify(G.pitStats)),
+    pitchers: JSON.parse(JSON.stringify(G.pitchers)),
+  };
+  undoStack.push(snap);
+  if(undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
 function doUndo(){
-  if(!G.curPitches.length) return;
-  const last=G.curPitches.pop();
-  if(last==='B'&&G.balls>0) G.balls--;
-  else if((last==='K'||last==='Ks')&&G.strikes>0) G.strikes--;
-  else if(last==='F'&&G.strikes>0) G.strikes--;
-  if(G.pbp.length) G.pbp.pop();
+  if(!undoStack.length){ showAlert('Nothing to undo'); return; }
+  const snap = undoStack.pop();
+  G.inning=snap.inning; G.half=snap.half; G.outs=snap.outs;
+  G.balls=snap.balls; G.strikes=snap.strikes;
+  G.bases=snap.bases;
+  G.runs=snap.runs; G.hits=snap.hits; G.errors=snap.errors;
+  G.linescore=snap.linescore;
+  G.batIdx=snap.batIdx;
+  G.curPitches=snap.curPitches;
+  G.pitStats=snap.pitStats;
+  G.pitchers=snap.pitchers;
+  // Restore player stats
+  ['away','home'].forEach(side=>{
+    G.teams[side].lineup.forEach((p,i)=>{ p.stats=snap.lineupStats[side][i]; });
+  });
+  // Trim PBP to snapshot length
+  G.pbp = G.pbp.slice(0, snap.pbpLen);
   render();
 }
 
@@ -1614,6 +1662,7 @@ function openFCOverlay(){
 }
 
 function confirmFC(outBase){
+  saveSnapshot();
   closeOv('ovFC');
   const b=curBatter(), side=battingSide();
   b.player.stats.ab++;

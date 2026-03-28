@@ -692,6 +692,7 @@ let G = {
   pendingErrorFielder:null,
   errorThisHalf:false,
   pendingScore:null,
+  phantomOuts:0,  // outs that would have occurred without errors
   pendingUnearnedCheck:null,
   pendingUnearnedQueue:null,
   pendingErrorFrom:null,
@@ -960,7 +961,7 @@ function endHalf(){
   if(G.linescore[inn] && G.linescore[inn][scoringSide] === null){
     G.linescore[inn][scoringSide] = 0;
   }
-  G.bases={1:null,2:null,3:null}; G.outs=0; resetCount(); G.curPitches=[]; G.errorThisHalf=false;
+  G.bases={1:null,2:null,3:null}; G.outs=0; resetCount(); G.curPitches=[]; G.errorThisHalf=false; G.phantomOuts=0;
   const h=G.half==='top'?'Top':'Bottom';
   document.getElementById('ovHalfTitle').textContent=`End of ${h} ${G.inning}`;
   document.getElementById('ovHalfSummary').textContent=
@@ -1149,12 +1150,18 @@ function confirmRBI(){
     const runner=G.bases[base]; if(!runner) return;
     const dec=G.runDecisions[base]||'stay';
     if(dec==='score'){
-      if(G.errorThisHalf && !isHit){
-        // Queue for earned/unearned prompt after overlay closes
+      if(G.errorThisHalf && inningIsUnearned()){
+        // Past phantom 3rd out — auto unearned
+        scoreRunner(runner, side, true);
+      } else if(G.errorThisHalf && !isHit){
+        // Ambiguous — queue for prompt
         G.pendingUnearnedCheck = G.pendingUnearnedCheck || [];
         G.pendingUnearnedCheck.push({runner, side});
+        scoreRunner(runner, side, false); // default earned; corrected by prompt
+      } else {
+        scoreRunner(runner, side, false);
       }
-      scoreRunner(runner, side, false); if(isHit) autoRBI++;
+      if(isHit) autoRBI++;
     }
     else if(dec==='to2') newBases[2]=runner;
     else if(dec==='to3') newBases[3]=runner;
@@ -1951,6 +1958,7 @@ function confirmError(pos, posName, fielderName){
   }
   G.errors[fSide]++;
   G.errorThisHalf=true;
+  G.phantomOuts++;  // batter would have been out
   G.pendingHit = 'E';
   G.pendingErrorNotation = `E${pos}`;
   G.pendingErrorFielder = fielderName;
@@ -2010,6 +2018,11 @@ function confirmDefSub(pos){
   }
   addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${replaced?' for '+replaced.name:''}`);
   closeOv('ovSub'); render();
+}
+
+function inningIsUnearned(){
+  // If errors have created enough phantom outs to end inning, all runs now are unearned
+  return (G.outs + G.phantomOuts) >= 3;
 }
 
 function processUnearnedQueue(){

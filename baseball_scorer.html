@@ -1515,14 +1515,13 @@ function saveSnapshot(){
     batIdx:JSON.parse(JSON.stringify(G.batIdx)),
     curPitches:[...G.curPitches],
     pbpLen:G.pbp.length,
-    // Snapshot each player's stats
-    lineupStats:{
-      away: G.teams.away.lineup.map(p=>JSON.parse(JSON.stringify(p.stats))),
-      home: G.teams.home.lineup.map(p=>JSON.parse(JSON.stringify(p.stats))),
-    },
-    // Snapshot pitcher stats
     pitStats: JSON.parse(JSON.stringify(G.pitStats)),
     pitchers: JSON.parse(JSON.stringify(G.pitchers)),
+    // Full lineup/bench/slots snapshot
+    lineups: JSON.parse(JSON.stringify({
+      away: { lineup: G.teams.away.lineup, bench: G.teams.away.bench, slots: G.teams.away.slots },
+      home: { lineup: G.teams.home.lineup, bench: G.teams.home.bench, slots: G.teams.home.slots },
+    })),
   };
   undoStack.push(snap);
   if(undoStack.length > MAX_UNDO) undoStack.shift();
@@ -1540,11 +1539,14 @@ function doUndo(){
   G.curPitches=snap.curPitches;
   G.pitStats=snap.pitStats;
   G.pitchers=snap.pitchers;
-  // Restore player stats
-  ['away','home'].forEach(side=>{
-    G.teams[side].lineup.forEach((p,i)=>{ p.stats=snap.lineupStats[side][i]; });
-  });
-  // Trim PBP to snapshot length
+  // Restore full lineup/bench/slots
+  if(snap.lineups){
+    ['away','home'].forEach(side=>{
+      G.teams[side].lineup = snap.lineups[side].lineup;
+      G.teams[side].bench  = snap.lineups[side].bench;
+      G.teams[side].slots  = snap.lineups[side].slots;
+    });
+  }
   G.pbp = G.pbp.slice(0, snap.pbpLen);
   render();
 }
@@ -1871,20 +1873,30 @@ function confirmDefSub(pos){
   closeOv('ovError');
   const {side,idx,fromBench,player} = G.pendingDefSub;
   G.pendingDefSub = null;
-  // Find who currently plays this position and replace them
   const lu = G.teams[side].lineup;
+  // Find who currently plays this position
   const oldIdx = lu.findIndex(p => p.pos === pos);
+  const replaced = oldIdx >= 0 ? lu[oldIdx] : null;
   player.pos = pos;
-  player.subFor = oldIdx >= 0 ? lu[oldIdx].name : '';
+  player.subFor = replaced ? replaced.name : '';
+  player.isDefSub = true;
   if(fromBench){
+    // Add to lineup, remove from bench
     G.teams[side].lineup.push(player);
     G.teams[side].bench.splice(idx,1);
-    if(pos==='P') G.pitchers[side]=G.teams[side].lineup.length-1;
+    const newIdx = G.teams[side].lineup.length-1;
+    if(pos==='P') G.pitchers[side]=newIdx;
   } else {
-    lu[idx].pos = pos; // just update their position
+    // Existing lineup player moving to new position — just update pos
+    lu[idx].pos = pos;
     if(pos==='P') G.pitchers[side]=idx;
   }
-  addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${player.subFor?' for '+player.subFor:''}`);
+  // Remove old player from position (move them off field — they stay in batting order)
+  if(replaced && oldIdx >= 0){
+    lu[oldIdx].pos = 'BN'; // bench/no position
+    if(G.pitchers[side]===oldIdx && pos==='P') G.pitchers[side]=lu.length-1;
+  }
+  addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${replaced?' for '+replaced.name:''}`);
   closeOv('ovSub'); render();
 }
 

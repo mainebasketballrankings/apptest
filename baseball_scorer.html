@@ -327,22 +327,19 @@ input,select,button{font-family:inherit;}
 <!-- ══ GAME SCREEN ══ -->
 <div id="gameScreen">
 
-  <!-- Top bar: score + status -->
+  <!-- Scoreboard -->
   <div class="sb">
     <div class="sb-top-row">
-      <!-- Away score -->
       <div class="sb-team-block">
         <div class="sb-name" id="sbAwayName">Away</div>
         <div class="sb-runs" id="sbAwayRuns">0</div>
       </div>
-      <!-- Center: inning + half -->
       <div class="sb-center-block">
         <div class="sb-half-inn">
           <span class="sb-half" id="sbHalf">▲</span>
           <span class="sb-inn" id="sbInn">1</span>
         </div>
         <div class="sb-inn-lbl">Inning</div>
-        <!-- Count row -->
         <div class="count-row">
           <span class="count-label-sm">B</span><span class="count-num" id="cntB">0</span>
           <span class="count-sep"> · </span>
@@ -353,8 +350,7 @@ input,select,button{font-family:inherit;}
           <div class="out-pip" id="pip2"></div>
         </div>
       </div>
-      <!-- Home score -->
-      <div class="sb-team-block" style="text-align:right">
+      <div class="sb-team-block" style="align-items:flex-end">
         <div class="sb-name" id="sbHomeName">Home</div>
         <div class="sb-runs" id="sbHomeRuns">0</div>
       </div>
@@ -363,30 +359,26 @@ input,select,button{font-family:inherit;}
 
   <!-- Batter / Pitcher strip -->
   <div class="bp-strip">
-    <!-- Batter side -->
     <div class="bp-batter">
-      <span class="bp-tag">AB</span>
-      <div style="flex:1;min-width:0">
+      <div class="bp-tag-pill">AB</div>
+      <div class="bp-info">
         <div class="bp-name" id="abName">—</div>
-        <div class="bp-sub" id="abLine" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">0/0 · 0 RBI</div>
+        <div class="bp-sub" id="abLine">0–0, 0 RBI</div>
         <div class="bp-stat-line" id="abStatLine"></div>
       </div>
     </div>
-    <!-- Pitcher side -->
     <div class="bp-pitcher">
-      <span class="bp-tag">P</span>
-      <div style="flex:1;min-width:0">
+      <div class="bp-tag-pill bp-tag-p">P</div>
+      <div class="bp-info">
         <div class="bp-name" id="pitName">—</div>
         <div class="bp-sub">
-          <span id="pitCount" class="pit-count">0</span>
-          <span id="pitLimit" class="pit-limit"> pitches</span>
+          <span id="pitCount" class="pit-count">0</span><span id="pitLimit" class="pit-limit"> pitches</span>
         </div>
         <div class="bp-stat-line" id="pitStatLine"></div>
       </div>
     </div>
   </div>
-  <!-- K banner -->
-  <div id="kBanner" style="display:none;background:var(--red);padding:3px 12px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:2px;color:#fff;text-align:center"></div>
+  <div id="kBanner" style="display:none;background:var(--red);padding:4px 14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:3px;color:#fff;text-align:center"></div>
 
   <!-- Pitch sequence dots -->
   <div class="pitch-seq-bar">

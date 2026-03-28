@@ -851,19 +851,31 @@ function addOut(notation){
   const p=curPitcher();
   if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
-  if(G.outs>=3) endHalf();
-  else { nextBatter(); resetCount(); render(); }
+  if(G.outs>=3){
+    // DO NOT call nextBatter here — the 3rd out batter stays in the
+    // batting order slot; next half inning starts with the NEXT batter
+    nextBatter();  // advance past the batter who made the 3rd out
+    endHalf();
+  } else {
+    nextBatter(); resetCount(); render();
+  }
 }
 
 function nextBatter(){ const s=battingSide(); G.batIdx[s]=(G.batIdx[s]+1)%G.teams[s].lineup.length; G.curPitches=[]; }
 function resetCount(){ G.balls=0; G.strikes=0; }
 
 function endHalf(){
+  // Lock in linescore for this half — set to 0 if no runs scored (null = not yet played)
+  const scoringSide = battingSide();
+  const inn = G.inning - 1;
+  if(G.linescore[inn] && G.linescore[inn][scoringSide] === null){
+    G.linescore[inn][scoringSide] = 0;
+  }
   G.bases={1:null,2:null,3:null}; G.outs=0; resetCount(); G.curPitches=[];
   const h=G.half==='top'?'Top':'Bottom';
   document.getElementById('ovHalfTitle').textContent=`End of ${h} ${G.inning}`;
   document.getElementById('ovHalfSummary').textContent=
-    `${G.runs[battingSide()]} run(s). 3 outs. Click to continue.`;
+    `${G.runs[scoringSide]} run(s). 3 outs. Click to continue.`;
   openOv('ovHalfEnd');
 }
 

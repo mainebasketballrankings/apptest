@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://res.cloudinary.com/dulfssb6y/image/upload/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png" />
 <meta property="og:url" content="https://app.mainebasketballrankings.com" />
 <meta name="twitter:card" content="summary" />
-<title>Maine Basketball Rankings Live</title>
+<title>Maine Basketball Rankings · Live</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -178,12 +178,72 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 }
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--rule);border-radius:2px;}
+
+/* WORDMARK — smaller for full name */
+.mbr-wordmark{font-size:13px;}
+
+/* BASEBALL SCOREBOARD META */
+.sb-inn-state{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:11px;color:var(--ink3);}
+.sb-inn-arrow{font-size:14px;font-weight:700;}
+.sb-inn-arrow.top{color:var(--green);}
+.sb-inn-arrow.bot{color:var(--gold);}
+.sb-inn-num{font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--ink);}
+.sb-inn-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);}
+
+/* LINESCORE */
+.ls-wrap{width:100%;margin-top:6px;border-top:1px solid var(--rule2);padding-top:5px;overflow-x:auto;}
+.ls-tbl{border-collapse:collapse;font-family:'DM Mono',monospace;font-size:10px;white-space:nowrap;width:100%;}
+.ls-tbl th{color:var(--ink3);font-weight:700;padding:1px 4px;text-align:center;border-bottom:1px solid var(--rule2);}
+.ls-tbl td{padding:1px 4px;text-align:center;}
+.ls-tbl .ls-tn{text-align:left;font-weight:700;font-size:9px;letter-spacing:.04em;color:var(--ink2);padding-left:2px;}
+.ls-tbl .ls-sep{border-left:2px solid var(--ink3);}
+.ls-tbl .ls-tot{font-weight:700;color:var(--ink);}
+.ls-tbl .ls-cur{background:var(--rule2);border-radius:2px;font-weight:700;color:var(--ink);}
+
+/* BASEBALL CENTRE COLUMN — status row */
+.bb-status{display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 10px;background:var(--paper);border-bottom:1px solid var(--rule2);}
+.bb-inn-blk{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.bb-count-blk{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.bb-count-row{display:flex;align-items:center;gap:3px;font-family:'DM Mono',monospace;font-size:11px;color:var(--ink3);}
+.bb-count-num{font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--ink);}
+.bb-out-pips{display:flex;gap:3px;align-items:center;}
+.bb-out-pip{width:9px;height:9px;border-radius:50%;border:2px solid var(--rule);background:transparent;}
+.bb-out-pip.on{background:var(--gold);border-color:var(--gold);}
+.bb-bases-blk{position:relative;width:44px;height:44px;flex-shrink:0;}
+.bb-bases-blk svg{position:absolute;inset:0;}
+
+/* BATTER/PITCHER STRIP — baseball */
+.bb-bp-strip{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--rule2);background:var(--paper2);}
+.bb-bp-cell{display:flex;align-items:center;gap:7px;padding:6px 10px;}
+.bb-bp-cell:first-child{border-right:1px solid var(--rule2);}
+.bb-bp-tag{font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.1em;color:#fff;background:var(--ink3);padding:2px 5px;border-radius:3px;flex-shrink:0;}
+.bb-bp-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ink);line-height:1.2;}
+.bb-bp-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);}
+
+/* BASEBALL FIELD SVG */
+#bb-field-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;}
+#bb-field-legend{display:flex;align-items:center;justify-content:center;gap:14px;padding:4px 10px;border-top:1px solid var(--rule2);font-size:10px;color:var(--ink3);font-family:'DM Mono',monospace;}
+
+/* BASEBALL STAT PANELS */
+.bb-pl-row{padding:5px 10px;border-bottom:1px solid var(--rule2);background:var(--paper2);}
+.bb-pl-row.bench{opacity:.45;}
+.bb-pl-top{display:flex;align-items:baseline;justify-content:space-between;gap:4px;margin-bottom:1px;}
+.bb-pl-line{display:flex;gap:6px;font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);}
+.bb-pl-line span{color:var(--ink2);}
+
+/* Sport-specific show/hide */
+.bball-only{display:none;}
+.bb-only{display:none;}
+body.sport-basketball .bball-only{display:revert;}
+body.sport-basketball .bb-only{display:none;}
+body.sport-baseball .bb-only{display:revert;}
+body.sport-baseball .bball-only{display:none;}
 </style>
 </head>
 <body style="display:flex;flex-direction:column;min-height:100dvh;">
 
 <header id="site-header">
-  <a class="mbr-wordmark" href="#">MBR<span>·</span>LIVE</a>
+  <a class="mbr-wordmark" href="#">Maine Basketball Rankings<span>·</span>Live</a>
   <div id="header-centre">
     <div id="header-event">Class A South Quarterfinal</div>
     <div id="header-venue">Augusta Civic Center</div>
@@ -203,41 +263,65 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
         <div class="sb-middle">
           <div class="sb-name" id="home-name">Camden Hills</div>
           <div class="sb-meta">
-            <span class="sb-foul" id="home-foul-lbl">0 fouls</span>
-            <span id="home-to-lbl">5 TO left</span>
+            <span class="sb-foul bball-only" id="home-foul-lbl">0 fouls</span>
+            <span class="bball-only" id="home-to-lbl">5 TO left</span>
+            <span class="bb-only" id="home-hits-lbl">0 H</span>
+            <span class="bb-only" id="home-err-lbl">0 E</span>
           </div>
         </div>
         <div class="sb-pts" id="home-score">0</div>
       </div>
 
-      <!-- CENTRE: clock + period + possession + qtr grid -->
+      <!-- CENTRE: basketball = clock+period+possession+qtr grid | baseball = inning+linescore -->
       <div class="sb-centre">
-        <div class="sb-clock" id="fan-clock">8:00</div>
-        <div class="sb-period" id="fan-period">1st Quarter</div>
-        <div class="sb-poss home" id="poss-disp">CAM</div>
-        <div class="sb-qtrs">
-          <div class="qtr-tabs">
-            <button class="qtab active" onclick="setQtab('pts',this)">PTS</button>
-            <button class="qtab" onclick="setQtab('reb',this)">REB</button>
-            <button class="qtab" onclick="setQtab('to',this)">TO</button>
-            <button class="qtab" onclick="setQtab('fg',this)">FG%</button>
-            <button class="qtab" onclick="setQtab('3p',this)">3PT%</button>
+        <!-- BASKETBALL -->
+        <div class="bball-only" style="display:flex;flex-direction:column;align-items:center;gap:4px;width:100%">
+          <div class="sb-clock" id="fan-clock">8:00</div>
+          <div class="sb-period" id="fan-period">1st Quarter</div>
+          <div class="sb-poss home" id="poss-disp">CAM</div>
+          <div class="sb-qtrs">
+            <div class="qtr-tabs">
+              <button class="qtab active" onclick="setQtab('pts',this)">PTS</button>
+              <button class="qtab" onclick="setQtab('reb',this)">REB</button>
+              <button class="qtab" onclick="setQtab('to',this)">TO</button>
+              <button class="qtab" onclick="setQtab('fg',this)">FG%</button>
+              <button class="qtab" onclick="setQtab('3p',this)">3PT%</button>
+            </div>
+            <div class="qtr-grid">
+              <div class="qc lbl"></div>
+              <div class="qc">Q1</div><div class="qc">Q2</div><div class="qc">Q3</div><div class="qc">Q4</div>
+              <div class="qc sep"></div>
+              <div class="qc lbl" style="font-weight:700;color:var(--ink2)">TOT</div>
+              <div class="qc tn" id="qhl">CAM</div>
+              <div class="qc hv" id="qh1">—</div><div class="qc hv" id="qh2">—</div>
+              <div class="qc hv" id="qh3">—</div><div class="qc hv" id="qh4">—</div>
+              <div class="qc sep"></div>
+              <div class="qc tot hv" id="qh-tot">0</div>
+              <div class="qc tn" id="qal">CAP</div>
+              <div class="qc av" id="qa1">—</div><div class="qc av" id="qa2">—</div>
+              <div class="qc av" id="qa3">—</div><div class="qc av" id="qa4">—</div>
+              <div class="qc sep"></div>
+              <div class="qc tot av" id="qa-tot">0</div>
+            </div>
           </div>
-          <div class="qtr-grid">
-            <div class="qc lbl"></div>
-            <div class="qc">Q1</div><div class="qc">Q2</div><div class="qc">Q3</div><div class="qc">Q4</div>
-            <div class="qc sep"></div>
-            <div class="qc lbl" style="font-weight:700;color:var(--ink2)">TOT</div>
-            <div class="qc tn" id="qhl">CAM</div>
-            <div class="qc hv" id="qh1">—</div><div class="qc hv" id="qh2">—</div>
-            <div class="qc hv" id="qh3">—</div><div class="qc hv" id="qh4">—</div>
-            <div class="qc sep"></div>
-            <div class="qc tot hv" id="qh-tot">0</div>
-            <div class="qc tn" id="qal">CAP</div>
-            <div class="qc av" id="qa1">—</div><div class="qc av" id="qa2">—</div>
-            <div class="qc av" id="qa3">—</div><div class="qc av" id="qa4">—</div>
-            <div class="qc sep"></div>
-            <div class="qc tot av" id="qa-tot">0</div>
+        </div>
+        <!-- BASEBALL -->
+        <div class="bb-only" style="display:flex;flex-direction:column;align-items:center;gap:3px;width:100%">
+          <!-- Inning indicator -->
+          <div style="display:flex;align-items:baseline;gap:5px;">
+            <span class="sb-inn-arrow top" id="bb-half-arrow">▲</span>
+            <span class="sb-inn-num" id="bb-inn-num">1</span>
+            <span class="sb-inn-lbl">Inning</span>
+          </div>
+          <!-- Linescore -->
+          <div class="ls-wrap">
+            <table class="ls-tbl" id="bb-linescore">
+              <thead><tr id="bb-ls-hdr"></tr></thead>
+              <tbody>
+                <tr id="bb-ls-away"></tr>
+                <tr id="bb-ls-home"></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -248,8 +332,10 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
         <div class="sb-middle">
           <div class="sb-name" id="away-name">Cape Elizabeth</div>
           <div class="sb-meta">
-            <span class="sb-foul" id="away-foul-lbl">0 fouls</span>
-            <span id="away-to-lbl">5 TO left</span>
+            <span class="sb-foul bball-only" id="away-foul-lbl">0 fouls</span>
+            <span class="bball-only" id="away-to-lbl">5 TO left</span>
+            <span class="bb-only" id="away-hits-lbl">0 H</span>
+            <span class="bb-only" id="away-err-lbl">0 E</span>
           </div>
         </div>
         <div class="sb-logo" id="away-logo">C</div>
@@ -280,14 +366,15 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   <div class="stat-panel home" id="home-panel">
     <div class="panel-hdr hh">
       <span id="home-panel-name">Camden Hills</span>
-      <span class="panel-hdr-sub" id="home-fg-sub">0/0 FG</span>
+      <span class="panel-hdr-sub bball-only" id="home-fg-sub">0/0 FG</span>
+      <span class="panel-hdr-sub bb-only" id="home-pit-sub"></span>
     </div>
     <div class="team-summary" id="home-team-sum"></div>
     <div class="pl-rows" id="home-pl-rows"></div>
   </div>
 
-  <!-- COURT + FEED -->
-  <div id="court-col">
+  <!-- COURT + FEED — Basketball -->
+  <div id="court-col" class="bball-only">
     <div id="court-wrap">
       <div id="court-svg-wrap">
         <!--
@@ -380,11 +467,124 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
     </div>
   </div>
 
+  <!-- BASEBALL CENTRE COLUMN -->
+  <div id="bb-col" class="bb-only" style="display:flex;flex-direction:column;gap:10px;">
+
+    <!-- Status row: inning/half · B-S-O · bases diamond -->
+    <div id="bb-field-wrap" style="border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;">
+      <div class="bb-status">
+        <!-- Inning + half -->
+        <div class="bb-inn-blk">
+          <div style="display:flex;align-items:baseline;gap:4px;">
+            <span class="sb-inn-arrow top" id="bb-half-arrow2">▲</span>
+            <span style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--ink)" id="bb-inn-num2">1</span>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)">INN</div>
+        </div>
+        <!-- Count B-S-O -->
+        <div class="bb-count-blk">
+          <div class="bb-count-row">
+            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.05em">B</span>
+            <span class="bb-count-num" id="bb-balls">0</span>
+            <span style="color:var(--rule);margin:0 1px">·</span>
+            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.05em">S</span>
+            <span class="bb-count-num" id="bb-strikes">0</span>
+            <span style="color:var(--rule);margin:0 1px">·</span>
+            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.05em">O</span>
+            <div class="bb-out-pips">
+              <div class="bb-out-pip" id="bb-out1"></div>
+              <div class="bb-out-pip" id="bb-out2"></div>
+            </div>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);text-align:center;margin-top:1px">Count</div>
+        </div>
+        <!-- Bases diamond -->
+        <div class="bb-bases-blk">
+          <svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" width="44" height="44">
+            <!-- 2B top -->
+            <rect id="bb-base2" x="17" y="2" width="10" height="10" rx="2"
+              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5" transform="rotate(45 22 7)"/>
+            <!-- 3B left -->
+            <rect id="bb-base3" x="2" y="17" width="10" height="10" rx="2"
+              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5" transform="rotate(45 7 22)"/>
+            <!-- 1B right -->
+            <rect id="bb-base1" x="32" y="17" width="10" height="10" rx="2"
+              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5" transform="rotate(45 37 22)"/>
+            <!-- Home plate -->
+            <polygon points="22,38 18,34 18,31 26,31 26,34"
+              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Batter / Pitcher strip -->
+      <div class="bb-bp-strip">
+        <div class="bb-bp-cell">
+          <span class="bb-bp-tag">AB</span>
+          <div>
+            <div class="bb-bp-name" id="bb-batter-name">—</div>
+            <div class="bb-bp-sub" id="bb-batter-line"></div>
+          </div>
+        </div>
+        <div class="bb-bp-cell">
+          <span class="bb-bp-tag">P</span>
+          <div>
+            <div class="bb-bp-name" id="bb-pitcher-name">—</div>
+            <div class="bb-bp-sub" id="bb-pitcher-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Baseball field SVG (bird's eye, 340×260 viewBox) -->
+      <div style="padding:6px;">
+        <svg id="bb-fsvg" viewBox="0 0 340 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <!-- Sky/outfield -->
+          <rect width="340" height="260" fill="#5a9e6e"/>
+          <!-- Outfield grass arc -->
+          <path d="M 170,245 L 15,110 A 175,175 0 0,1 325,110 Z" fill="#4e8f61"/>
+          <!-- Warning track -->
+          <path d="M 170,245 L 8,108 A 183,183 0 0,1 332,108 Z" fill="none" stroke="#8a7a5a" stroke-width="7" stroke-opacity="0.6"/>
+          <!-- Infield dirt -->
+          <polygon points="170,245 238,177 170,109 102,177" fill="#c4a97a"/>
+          <!-- Infield grass -->
+          <polygon points="170,220 220,177 170,134 120,177" fill="#5a9e6e"/>
+          <!-- Foul lines -->
+          <line x1="170" y1="245" x2="9" y2="110" stroke="#fff" stroke-width="1.5" opacity="0.5"/>
+          <line x1="170" y1="245" x2="331" y2="110" stroke="#fff" stroke-width="1.5" opacity="0.5"/>
+          <!-- Pitcher's mound -->
+          <circle cx="170" cy="177" r="9" fill="#c4a97a" stroke="#b89060" stroke-width="1.2"/>
+          <!-- Bases -->
+          <rect x="163" y="102" width="14" height="14" rx="2" fill="#fff" opacity="0.85"/>
+          <rect x="231" y="170" width="14" height="14" rx="2" fill="#fff" opacity="0.85" transform="rotate(45 238 177)"/>
+          <rect x="95" y="170" width="14" height="14" rx="2" fill="#fff" opacity="0.85" transform="rotate(45 102 177)"/>
+          <!-- Home plate -->
+          <polygon points="170,245 163,238 163,232 177,232 177,238" fill="#fff" opacity="0.85"/>
+          <!-- Hit location dots -->
+          <g id="bb-hit-dots"></g>
+        </svg>
+      </div>
+      <div id="bb-field-legend">
+        <div class="leg"><div class="leg-dot" style="background:#15803d"></div>Hit</div>
+        <div class="leg"><div class="leg-dot" style="background:#b45309"></div>Extra base</div>
+        <div class="leg"><div class="leg-dot" style="background:#1a56db"></div>HR</div>
+        <div class="leg" style="gap:3px"><span style="font-size:14px;color:#c0392b;line-height:1">×</span>Out</div>
+      </div>
+    </div>
+
+    <!-- Play by Play -->
+    <div id="bb-feed-wrap" style="background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;max-height:220px;">
+      <div class="feed-hdr">Play by Play</div>
+      <div id="bb-feed-list" style="overflow-y:auto;flex:1;"></div>
+    </div>
+
+  </div>
+
   <!-- AWAY STATS (right) -->
   <div class="stat-panel away" id="away-panel">
     <div class="panel-hdr ah">
       <span id="away-panel-name">Cape Elizabeth</span>
-      <span class="panel-hdr-sub" id="away-fg-sub">0/0 FG</span>
+      <span class="panel-hdr-sub bball-only" id="away-fg-sub">0/0 FG</span>
+      <span class="panel-hdr-sub bb-only" id="away-pit-sub"></span>
     </div>
     <div class="team-summary" id="away-team-sum"></div>
     <div class="pl-rows" id="away-pl-rows"></div>
@@ -401,6 +601,11 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 //  realtime subscription when scorer integration is ready.
 //  Event object shape is identical to scorer's pushEvt.
 // ══════════════════════════════════════════════════════
+
+// ── SPORT CONSTANT — set before any init runs ─────────
+// 'basketball' | 'baseball'
+// In production: derive from URL param or Supabase game row
+const SPORT = 'baseball';
 
 const GAME = {
   home:{ name:'Camden Hills', short:'CAM', short2:'CHILLS', score:0, fouls:0, tof:3, to3:2 },
@@ -585,6 +790,7 @@ function renderQtrGrid() {
 }
 
 function updScoreboard(){
+  if(SPORT!=='basketball') return;
   document.getElementById('home-score').textContent=GAME.home.score;
   document.getElementById('away-score').textContent=GAME.away.score;
   document.getElementById('fan-clock').textContent=fmt(GAME.clockSec);
@@ -615,6 +821,7 @@ function updScoreboard(){
 }
 
 function updPanels(){
+  if(SPORT!=='basketball') return;
   ['home','away'].forEach(side=>{
     const ts=GAME.ts[side];
     const tppct=ts.tpa?Math.round(100*ts.tpm/ts.tpa)+'%':'—';
@@ -630,6 +837,7 @@ function updPanels(){
 }
 
 function updFeed(){
+  if(SPORT!=='basketball') return;
   const list=document.getElementById('feed-list');
   list.innerHTML='';
   evts.slice(0,50).forEach((e,i)=>{
@@ -892,7 +1100,7 @@ function initView(home,away){
     GAME[s].name=t.name; GAME[s].short=t.short; GAME[s].short2=t.short2||t.short;
     document.getElementById(s+'-name').textContent=t.name;
     document.getElementById(s+'-panel-name').textContent=t.name;
-    document.getElementById(s==='home'?'qhl':'qal').textContent=GAME[s].short2;
+    if(SPORT==='basketball') document.getElementById(s==='home'?'qhl':'qal').textContent=GAME[s].short2;
     document.getElementById(s+'-logo').textContent=t.name.charAt(0);
     if(t.logoUrl){
       const img=document.createElement('img');
@@ -901,16 +1109,379 @@ function initView(home,away){
       el.textContent=''; el.appendChild(img);
     }
   });
-  updScoreboard(); updPanels(); updFeed();
+  if(SPORT==='basketball'){ updScoreboard(); updPanels(); updFeed(); }
+  else { bbUpdScoreboard(); bbUpdPanels(); bbUpdFeed(); bbUpdLinescore(); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initView(
-    {name:'Camden Hills',  short:'CAM', short2:'CHILLS', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/camden-hills.png'},
-    {name:'Cape Elizabeth',short:'CAP', short2:'CAPE',   logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/cape-elizabeth.png'}
-  );
-  setTimeout(runSim, 1000);
+  document.body.classList.add('sport-'+SPORT);
+  if(SPORT==='basketball'){
+    initView(
+      {name:'Camden Hills',  short:'CAM', short2:'CHILLS', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/camden-hills.png'},
+      {name:'Cape Elizabeth',short:'CAP', short2:'CAPE',   logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/cape-elizabeth.png'}
+    );
+    setTimeout(runSim, 1000);
+  } else {
+    initView(
+      {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:''},
+      {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:''}
+    );
+    setTimeout(bbRunSim, 1000);
+  }
 });
+
+// ══════════════════════════════════════════════════════
+//  BASEBALL ENGINE
+// ══════════════════════════════════════════════════════
+
+const BB = {
+  home:{ name:'', short:'', score:0, hits:0, errors:0 },
+  away:{ name:'', short:'', score:0, hits:0, errors:0 },
+  inning:1, half:'top', // 'top'|'bot'
+  outs:0, balls:0, strikes:0,
+  bases:[false,false,false], // [1B,2B,3B]
+  innings:{ home:[], away:[] }, // runs per inning
+  batter:{ name:'—', side:'away', line:'' },
+  pitcher:{ name:'—', side:'home', pitches:0, ip:'0.0' },
+  // batting stats per player: { name, num, ab,r,h,rbi,bb,k }
+  batters:{ home:[], away:[] },
+  // pitching stats: { name, num, ip_outs, h, r, er, bb, k, pitches }
+  pitchers:{ home:[], away:[] },
+};
+
+let bbEvts = [];
+
+const BB_KLBL = {
+  'single':'Single','double':'Double','triple':'Triple','hr':'Home Run',
+  'groundout':'Groundout','flyout':'Flyout','lineout':'Lineout','popup':'Popup',
+  'strikeout':'Strikeout','walk':'Walk','hbp':'Hit by pitch',
+  'sac_bunt':'Sac bunt','sac_fly':'Sac fly',
+  'fielders_choice':'Fielder\'s choice','error':'Error',
+  'stolen_base':'Stolen base','caught_stealing':'Caught stealing',
+  'wild_pitch':'Wild pitch','passed_ball':'Passed ball',
+  'pickoff':'Pickoff','balk':'Balk',
+  'sub_pitcher':'Pitching change','sub_batter':'Pinch hitter',
+};
+
+function bbUpdScoreboard(){
+  document.getElementById('home-score').textContent = BB.home.score;
+  document.getElementById('away-score').textContent = BB.away.score;
+  // Hits / errors
+  const hH=document.getElementById('home-hits-lbl'); if(hH) hH.textContent=BB.home.hits+' H';
+  const hE=document.getElementById('home-err-lbl');  if(hE) hE.textContent=BB.home.errors+' E';
+  const aH=document.getElementById('away-hits-lbl'); if(aH) aH.textContent=BB.away.hits+' H';
+  const aE=document.getElementById('away-err-lbl');  if(aE) aE.textContent=BB.away.errors+' E';
+  // Inning display (scoreboard centre + status row)
+  ['bb-half-arrow','bb-half-arrow2'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.textContent = BB.half==='top'?'▲':'▼';
+    el.className = 'sb-inn-arrow '+(BB.half==='top'?'top':'bot');
+  });
+  ['bb-inn-num','bb-inn-num2'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent=BB.inning;
+  });
+  // Count
+  document.getElementById('bb-balls').textContent   = BB.balls;
+  document.getElementById('bb-strikes').textContent = BB.strikes;
+  [1,2].forEach(i=>{
+    const pip=document.getElementById('bb-out'+i);
+    if(pip) pip.className='bb-out-pip'+(BB.outs>=i?' on':'');
+  });
+  // Bases
+  const baseColors = { 1:'#f59e0b', 2:'#f59e0b', 3:'#f59e0b' };
+  ['bb-base1','bb-base2','bb-base3'].forEach((id,idx)=>{
+    const el=document.getElementById(id); if(!el) return;
+    const occ=BB.bases[idx];
+    el.setAttribute('fill', occ?'#f59e0b':'var(--rule2)');
+    el.setAttribute('stroke', occ?'#d97706':'var(--rule)');
+  });
+  // Batter/pitcher strip
+  const bn=document.getElementById('bb-batter-name'); if(bn) bn.textContent=BB.batter.name;
+  const bl=document.getElementById('bb-batter-line'); if(bl) bl.textContent=BB.batter.line;
+  const pn=document.getElementById('bb-pitcher-name'); if(pn) pn.textContent=BB.pitcher.name;
+  const pl=document.getElementById('bb-pitcher-line'); if(pl) pl.textContent=`${BB.pitcher.pitches}P · ${BB.pitcher.ip} IP`;
+}
+
+function bbUpdLinescore(){
+  const maxInn = Math.max(BB.inning, BB.innings.home.length, BB.innings.away.length, 7);
+  const hdr = document.getElementById('bb-ls-hdr');
+  const awayRow = document.getElementById('bb-ls-away');
+  const homeRow = document.getElementById('bb-ls-home');
+  if(!hdr||!awayRow||!homeRow) return;
+
+  let hdrHtml = `<th class="ls-tn"></th>`;
+  let awayHtml = `<td class="ls-tn">${BB.away.short}</td>`;
+  let homeHtml = `<td class="ls-tn">${BB.home.short}</td>`;
+
+  for(let i=1;i<=maxInn;i++){
+    const cur = i===BB.inning;
+    hdrHtml += `<th${cur?' class="ls-cur"':''}>${i}</th>`;
+    const av = BB.innings.away[i-1];
+    const hv = BB.innings.home[i-1];
+    awayHtml += `<td${cur&&BB.half==='top'?' class="ls-cur"':''}>${av!==undefined?av:'—'}</td>`;
+    homeHtml += `<td${cur&&BB.half==='bot'?' class="ls-cur"':''}>${hv!==undefined?hv:'—'}</td>`;
+  }
+  // Separator + R H E
+  hdrHtml += `<th class="ls-sep"></th><th>R</th><th>H</th><th>E</th>`;
+  awayHtml += `<td class="ls-sep"></td><td class="ls-tot">${BB.away.score}</td><td>${BB.away.hits}</td><td>${BB.away.errors}</td>`;
+  homeHtml += `<td class="ls-sep"></td><td class="ls-tot">${BB.home.score}</td><td>${BB.home.hits}</td><td>${BB.home.errors}</td>`;
+
+  hdr.innerHTML = hdrHtml;
+  awayRow.innerHTML = awayHtml;
+  homeRow.innerHTML = homeHtml;
+}
+
+function bbUpdPanels(){
+  ['home','away'].forEach(side=>{
+    // Panel sub (pitching summary)
+    const pitchers = BB.pitchers[side];
+    const curP = pitchers[pitchers.length-1];
+    const subEl = document.getElementById(side+'-pit-sub');
+    if(subEl && curP) subEl.textContent = `${curP.name} · ${curP.pitches}P`;
+
+    // Batting rows
+    const cont = document.getElementById(side+'-pl-rows');
+    if(!cont) return;
+    cont.innerHTML='';
+    // Team totals summary
+    const sumEl = document.getElementById(side+'-team-sum');
+    if(sumEl){
+      const batters = BB.batters[side];
+      const totH = batters.reduce((a,b)=>a+(b.h||0),0);
+      const totRBI = batters.reduce((a,b)=>a+(b.rbi||0),0);
+      const totBB = batters.reduce((a,b)=>a+(b.bb||0),0);
+      const totK = batters.reduce((a,b)=>a+(b.k||0),0);
+      sumEl.innerHTML=`
+        <div class="ts-stat"><div class="ts-val">${BB[side].hits}</div><div class="ts-lbl">H</div></div>
+        <div class="ts-stat"><div class="ts-val">${totRBI}</div><div class="ts-lbl">RBI</div></div>
+        <div class="ts-stat"><div class="ts-val">${totBB}</div><div class="ts-lbl">BB</div></div>
+        <div class="ts-stat"><div class="ts-val">${totK}</div><div class="ts-lbl">K</div></div>
+        <div class="ts-stat"><div class="ts-val">${BB[side].errors}</div><div class="ts-lbl">E</div></div>`;
+    }
+
+    // Batting rows
+    BB.batters[side].forEach(p=>{
+      const div = document.createElement('div');
+      div.className = 'bb-pl-row';
+      const avg = p.ab ? (p.h/p.ab).toFixed(3).replace('0.','.'): '.000';
+      div.innerHTML=`
+        <div class="bb-pl-top">
+          <div class="pl-ident"><span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
+          <div class="pl-pts">${p.h||0}</div>
+        </div>
+        <div class="bb-pl-line">
+          <span>${p.ab||0}-<span>AB</span></span>
+          <span>${p.r||0} <span>R</span></span>
+          <span>${p.rbi||0} <span>RBI</span></span>
+          <span>${p.bb||0} <span>BB</span></span>
+          <span>${p.k||0} <span>K</span></span>
+        </div>`;
+      cont.appendChild(div);
+    });
+
+    // Pitching section
+    if(BB.pitchers[side].length){
+      const hdr = document.createElement('div');
+      hdr.style.cssText='font-family:\'DM Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:5px 10px 3px;border-top:1.5px solid var(--rule);border-bottom:1px solid var(--rule2);background:var(--paper);';
+      hdr.textContent='Pitching';
+      cont.appendChild(hdr);
+      BB.pitchers[side].forEach(p=>{
+        const ip_str = Math.floor(p.ip_outs/3)+'.'+(p.ip_outs%3);
+        const div=document.createElement('div');
+        div.className='bb-pl-row';
+        div.innerHTML=`
+          <div class="bb-pl-top">
+            <div class="pl-ident"><span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
+            <div class="pl-pts" style="font-size:12px">${ip_str}</div>
+          </div>
+          <div class="bb-pl-line">
+            <span>${p.h||0} <span>H</span></span>
+            <span>${(p.r||0)} <span>R</span></span>
+            <span>${p.bb||0} <span>BB</span></span>
+            <span>${p.k||0} <span>K</span></span>
+            <span>${p.pitches||0} <span>P</span></span>
+          </div>`;
+        cont.appendChild(div);
+      });
+    }
+  });
+}
+
+function bbUpdFeed(){
+  const list = document.getElementById('bb-feed-list');
+  if(!list) return;
+  list.innerHTML='';
+  bbEvts.slice(0,50).forEach((e,i)=>{
+    const row=document.createElement('div'); row.className='fr'+(i===0?' new':'');
+    const dot=document.createElement('div'); dot.className='fr-dot';
+    dot.style.background=e.side==='home'?'var(--home)':'var(--away)';
+    const body=document.createElement('div'); body.className='fr-body';
+    const who=e.pnum?`<b>#${e.pnum} ${e.plast}</b>`:`<b>${BB[e.side]?.name||''}</b>`;
+    const action=BB_KLBL[e.key]||e.key;
+    const halfLbl=e.half==='top'?'▲':'▼';
+    body.innerHTML=`<div class="fr-desc">${who} — ${action}</div><div class="fr-meta">${halfLbl}${e.inning}</div>`;
+    const sc=document.createElement('div'); sc.className='fr-score';
+    sc.style.color=e.side==='home'?'var(--home)':'var(--away)';
+    if(e.scoreSnap!=null) sc.textContent=`${e.scoreSnap.away}–${e.scoreSnap.home}`;
+    row.appendChild(dot); row.appendChild(body); row.appendChild(sc);
+    list.appendChild(row);
+    if(i===0) setTimeout(()=>row.classList.remove('new'),1800);
+  });
+}
+
+function bbAddDot(x, y, type){
+  // x,y in field SVG space (340×260)
+  const g = document.getElementById('bb-hit-dots');
+  if(!g) return;
+  const colors = { hit:'#15803d', xbh:'#b45309', hr:'#1a56db', out:'#c0392b' };
+  if(type==='out'){
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',x); t.setAttribute('y',y+5);
+    t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','14');
+    t.setAttribute('fill','#c0392b'); t.setAttribute('font-weight','bold');
+    t.textContent='×'; g.appendChild(t);
+  } else {
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r','6');
+    c.setAttribute('fill', colors[type]||'#15803d');
+    c.setAttribute('fill-opacity','.82');
+    c.setAttribute('stroke','rgba(255,255,255,.5)'); c.setAttribute('stroke-width','1.5');
+    g.appendChild(c);
+  }
+}
+
+function bbOnEvent(e){
+  const s = e.side, opp = s==='home'?'away':'home';
+  BB.inning = e.inning; BB.half = e.half;
+  e.scoreSnap = BB.away.score+'-'+BB.home.score; // store as string for feed
+
+  // Ensure inning arrays are long enough
+  while(BB.innings.home.length < e.inning) BB.innings.home.push(0);
+  while(BB.innings.away.length < e.inning) BB.innings.away.push(0);
+
+  // Ensure batter/pitcher exist
+  let batter = BB.batters[s].find(p=>p.name===e.plast);
+  if(!batter && e.plast){ batter={name:e.plast,num:e.pnum||'',ab:0,r:0,h:0,rbi:0,bb:0,k:0}; BB.batters[s].push(batter); }
+  let pitcher = BB.pitchers[opp][BB.pitchers[opp].length-1];
+  if(!pitcher||pitcher.name!==e.pitcher){ pitcher={name:e.pitcher||'—',num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}; BB.pitchers[opp].push(pitcher); }
+
+  // Update pitcher strip
+  BB.batter  = { name: e.plast||'—', side:s, line:'' };
+  BB.pitcher = { name: pitcher.name, side:opp, pitches:pitcher.pitches, ip:`${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}` };
+  if(batter) BB.batter.line = `${batter.h||0}–${batter.ab||0}, ${batter.rbi||0} RBI`;
+
+  // Count state
+  BB.balls   = e.balls   !== undefined ? e.balls   : BB.balls;
+  BB.strikes = e.strikes !== undefined ? e.strikes : BB.strikes;
+  BB.outs    = e.outs    !== undefined ? e.outs    : BB.outs;
+  BB.bases   = e.bases   !== undefined ? e.bases   : BB.bases;
+
+  const inn = e.inning - 1;
+  const halfSide = e.half==='top' ? 'away' : 'home'; // batting side
+
+  if(e.key==='single'||e.key==='double'||e.key==='triple'||e.key==='hr'){
+    if(batter){ batter.h++; batter.ab++; }
+    BB[halfSide].hits++;
+    if(pitcher) pitcher.h++;
+    const dotType = e.key==='hr'?'hr': (e.key==='double'||e.key==='triple')?'xbh':'hit';
+    if(e.x!=null) bbAddDot(e.x, e.y, dotType);
+    toast(`<b>#${e.pnum} ${e.plast}</b> — ${BB_KLBL[e.key]}${e.rbi?' · '+e.rbi+' RBI':''}`);
+  } else if(['groundout','flyout','lineout','popup','strikeout'].includes(e.key)){
+    if(batter) batter.ab++;
+    if(e.key==='strikeout'&&batter) batter.k++;
+    if(e.key==='strikeout'&&pitcher) pitcher.k++;
+    if(pitcher) { pitcher.ip_outs++; }
+    if(e.x!=null) bbAddDot(e.x, e.y, 'out');
+  } else if(e.key==='walk'){
+    if(batter) batter.bb++;
+    if(pitcher) pitcher.bb++;
+  } else if(e.key==='hbp'){
+    if(pitcher) pitcher.bb++;
+  } else if(e.key==='error'){
+    BB[opp].errors++;
+  } else if(e.key==='sub_pitcher'){
+    pitcher = {name:e.pitcher||'—',num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
+    BB.pitchers[opp].push(pitcher);
+    toast(`Pitching change — ${e.pitcher}`);
+  }
+
+  // Runs scored this event
+  if(e.runs){
+    BB[halfSide].score += e.runs;
+    BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
+    if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
+    if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
+    e.scoreSnap = BB.away.score+'-'+BB.home.score;
+  }
+
+  // Pitcher pitch count
+  if(pitcher && e.pitches) pitcher.pitches += e.pitches;
+  BB.pitcher.pitches = pitcher ? pitcher.pitches : BB.pitcher.pitches;
+  BB.pitcher.ip = pitcher ? `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}` : '0.0';
+
+  // Half-inning end resets count
+  if(e.newHalf){ BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false]; }
+
+  bbEvts.unshift(e);
+  bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed();
+}
+
+// ── BASEBALL SIMULATOR ────────────────────────────────
+const BB_SIM = (()=>{
+  const mk = (side, plast, pnum, key, inning, half, opts={}) =>
+    ({side, plast, pnum, key, inning, half, pitcher:opts.pitcher||'Crockett',
+      balls:opts.b??0, strikes:opts.s??0, outs:opts.o??0,
+      bases:opts.bases||[false,false,false],
+      runs:opts.runs||0, rbi:opts.rbi||0, pitches:opts.p||1,
+      x:opts.x??null, y:opts.y??null, newHalf:opts.newHalf||false });
+  return [
+    // Top 1st — Away bats
+    mk('away','Reynolds',3,'groundout',   1,'top',{b:1,s:1,o:1,p:4,x:210,y:210}),
+    mk('away','Torres',  7,'single',      1,'top',{b:2,s:1,o:1,bases:[true,false,false],p:5,x:195,y:175}),
+    mk('away','Whitfield',24,'strikeout', 1,'top',{b:1,s:2,o:2,bases:[true,false,false],p:6}),
+    mk('away','Kimball', 11,'single',     1,'top',{b:0,s:1,o:2,bases:[true,false,true],p:3,runs:1,rbi:1,x:240,y:155}),
+    mk('away','Doucette',18,'flyout',     1,'top',{b:1,s:2,o:3,bases:[true,false,true],p:5,x:170,y:115,newHalf:true}),
+    // Bot 1st — Home bats
+    mk('home','Peaslee', 5,'walk',        1,'bot',{b:3,s:2,o:0,bases:[true,false,false],p:8,pitcher:'Beal'}),
+    mk('home','Larson',  14,'double',     1,'bot',{b:1,s:0,o:0,bases:[false,true,false],p:4,runs:1,rbi:1,x:260,y:130}),
+    mk('home','Pinkham', 22,'groundout',  1,'bot',{b:0,s:1,o:1,bases:[false,true,false],p:3,x:225,y:215}),
+    mk('home','Oakes',   8,'strikeout',   1,'bot',{b:1,s:2,o:2,bases:[false,true,false],p:7}),
+    mk('home','Winslow', 33,'flyout',     1,'bot',{b:2,s:1,o:3,p:4,x:155,y:120,newHalf:true}),
+    // Top 2nd
+    mk('away','Foss',    9,'single',      2,'top',{b:0,s:0,o:0,bases:[true,false,false],p:3,x:205,y:180}),
+    mk('away','Norwood', 2,'groundout',   2,'top',{b:1,s:1,o:1,bases:[true,false,false],p:4,x:215,y:220}),
+    mk('away','Reynolds',3,'hr',          2,'top',{b:2,s:1,o:1,bases:[false,false,false],p:5,runs:2,rbi:2,x:175,y:108}),
+    mk('away','Torres',  7,'strikeout',   2,'top',{b:0,s:2,o:2,p:5}),
+    mk('away','Whitfield',24,'walk',      2,'top',{b:3,s:1,o:2,bases:[true,false,false],p:7}),
+    mk('away','Kimball', 11,'flyout',     2,'top',{b:1,s:1,o:3,p:3,x:280,y:120,newHalf:true}),
+    // Bot 2nd
+    mk('home','Hamlin',  17,'single',     2,'bot',{b:1,s:0,o:0,bases:[true,false,false],p:4,x:230,y:165}),
+    mk('home','Peaslee', 5,'double',      2,'bot',{b:0,s:1,o:0,bases:[false,true,false],p:3,runs:1,rbi:1,x:270,y:130}),
+    mk('home','Larson',  14,'groundout',  2,'bot',{b:2,s:2,o:1,bases:[false,true,false],p:6,x:200,y:210}),
+    mk('home','Pinkham', 22,'single',     2,'bot',{b:1,s:1,o:1,bases:[true,false,true],p:4,runs:1,rbi:1,x:240,y:178}),
+    mk('home','Oakes',   8,'strikeout',   2,'bot',{b:0,s:2,o:2,p:5}),
+    mk('home','Winslow', 33,'groundout',  2,'bot',{b:1,s:0,o:3,p:3,x:185,y:215,newHalf:true}),
+    // Top 3rd
+    mk('away','Doucette',18,'walk',       3,'top',{b:3,s:2,o:0,bases:[true,false,false],p:8,pitcher:'Crockett'}),
+    mk('away','Foss',    9,'strikeout',   3,'top',{b:1,s:2,o:1,p:5}),
+    mk('away','Norwood', 2,'single',      3,'top',{b:0,s:1,o:1,bases:[true,false,true],p:3,runs:1,rbi:1,x:220,y:170}),
+    mk('away','Reynolds',3,'flyout',      3,'top',{b:2,s:1,o:2,p:4,x:145,y:118}),
+    mk('away','Torres',  7,'groundout',   3,'top',{b:1,s:0,o:3,p:3,x:190,y:210,newHalf:true}),
+  ];
+})();
+
+let bbSimIdx = 0;
+function bbRunSim(){
+  if(bbSimIdx >= BB_SIM.length){
+    document.getElementById('live-pill').classList.add('final');
+    document.getElementById('live-lbl').textContent='FINAL';
+    return;
+  }
+  const evt = BB_SIM[bbSimIdx++];
+  bbOnEvent(evt);
+  const big = ['single','double','triple','hr'].includes(evt.key);
+  setTimeout(bbRunSim, (big?3000:2000)+Math.random()*900);
+}
 </script>
 </body>
 </html>

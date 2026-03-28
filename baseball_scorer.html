@@ -463,6 +463,15 @@ input,select,button{font-family:inherit;}
   <div class="pbp" id="pbpLog" style="padding-bottom:env(safe-area-inset-bottom,60px)"></div>
 </div>
 
+<!-- Defensive sub position picker -->
+<div class="overlay" id="ovDefPos" style="display:none">
+  <div class="ocard">
+    <div class="otitle">Playing what position?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px" id="defPosGrid"></div>
+    <button class="ocancel" style="width:100%" onclick="closeOv('ovDefPos')">Cancel</button>
+  </div>
+</div>
+
 <!-- Fielder's Choice -->
 <div class="overlay" id="ovFC" style="display:none">
   <div class="ocard">
@@ -683,6 +692,8 @@ let G = {
   pendingErrorFielder:null,
   errorThisHalf:false,
   pendingScore:null,
+  pendingUnearnedCheck:null,
+  pendingUnearnedQueue:null,
   pendingErrorFrom:null,
   pendingErrorDest:null,
   pendingErrorCallback:null,
@@ -1137,7 +1148,14 @@ function confirmRBI(){
   [3,2,1].forEach(base=>{
     const runner=G.bases[base]; if(!runner) return;
     const dec=G.runDecisions[base]||'stay';
-    if(dec==='score'){ scoreRunner(runner, side); if(isHit) autoRBI++; }
+    if(dec==='score'){
+      if(G.errorThisHalf && !isHit){
+        // Queue for earned/unearned prompt after overlay closes
+        G.pendingUnearnedCheck = G.pendingUnearnedCheck || [];
+        G.pendingUnearnedCheck.push({runner, side});
+      }
+      scoreRunner(runner, side, false); if(isHit) autoRBI++;
+    }
     else if(dec==='to2') newBases[2]=runner;
     else if(dec==='to3') newBases[3]=runner;
     else newBases[base]=runner;
@@ -1170,7 +1188,12 @@ function confirmRBI(){
   G.pendingErrorNotation=null; G.pendingErrorFielder=null;
   G.runDecisions={};
   closeOv('ovRBI');
-  nextBatter(); resetCount(); render();
+  nextBatter(); resetCount();
+  if(G.pendingUnearnedCheck && G.pendingUnearnedCheck.length){
+    G.pendingUnearnedQueue = G.pendingUnearnedCheck;
+    G.pendingUnearnedCheck = null;
+    processUnearnedQueue();
+  } else { render(); }
 }
 
 
@@ -1535,9 +1558,8 @@ function confirmSub(side,idx,fromBench){
       addPBP(`Pitching change: <strong>${player.name||'P'+(idx+1)}</strong>`);
     }
   } else if(subMode==='defense'){
-    // Defensive sub — replace player at a position, keep batting order intact
-    // Ask which position they're playing
     G.pendingDefSub={side,idx,fromBench,player};
+    closeOv('ovSub');  // close player picker FIRST
     openDefPositionPicker();
     return;
   } else {
@@ -1825,20 +1847,18 @@ function buildBoxScore(){
         </tr>`;
       });
     });
-    // Show lineup players not in slots only if they have batting stats (e.g. late-added pitchers)
+    // Show all substitutes not already in slots (def subs, extra pitchers, etc.)
     const inSlots = new Set();
     (team.slots||[]).forEach(slot => slot.forEach(p => inSlots.add(p.name)));
     team.lineup.forEach(p => {
-      if(inSlots.has(p.name)) return;
-      if(p.isDefSub) return; // pure defensive subs don't appear in batting box score
+      if(inSlots.has(p.name)) return; // already shown via slots
       const s=p.stats;
-      const hasStats=(s.ab||0)+(s.bb||0)+(s.k||0)+(s.r||0)+(s.sac||0) > 0;
-      if(!hasStats) return;
       ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
+      const posDisplay = p.isDefSub ? `DS-${p.pos}` : p.pos;
       html+=`<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
-        <td style="padding:3px 4px;font-weight:600">${p.name||'—'}</td>
-        <td style="padding:3px 4px;color:var(--dim)">${p.pos}</td>
+        <td style="padding:3px 4px;font-weight:600;padding-left:20px">▸ ${p.name||'—'}</td>
+        <td style="padding:3px 4px;color:var(--dim)">${posDisplay}</td>
         ${[s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
       </tr>`;
     });
@@ -1938,20 +1958,19 @@ function confirmError(pos, posName, fielderName){
 }
 
 function openDefPositionPicker(){
-  const {side,idx,fromBench,player} = G.pendingDefSub;
+  const {player} = G.pendingDefSub;
   const positions = ['P','C','1B','2B','3B','SS','LF','CF','RF'];
-  const grid = document.getElementById('errorFielderGrid');
-  document.querySelector('#ovError .otitle').textContent='Defensive Sub — what position?';
+  const grid = document.getElementById('defPosGrid');
   if(grid){
     grid.innerHTML = positions.map(pos =>
       `<button class="otbtn" onclick="confirmDefSub('${pos}')">${pos}</button>`
     ).join('');
   }
-  openOv('ovError');
+  openOv('ovDefPos');
 }
 
 function confirmDefSub(pos){
-  closeOv('ovError');
+  closeOv('ovDefPos');
   const {side,idx,fromBench,player} = G.pendingDefSub;
   G.pendingDefSub = null;
   const lu = G.teams[side].lineup;
@@ -1993,6 +2012,13 @@ function confirmDefSub(pos){
   closeOv('ovSub'); render();
 }
 
+function processUnearnedQueue(){
+  if(!G.pendingUnearnedQueue || !G.pendingUnearnedQueue.length){ render(); return; }
+  const {runner, side} = G.pendingUnearnedQueue.shift();
+  G.pendingScore = {runner, side, from:null, rbiNote:null, fromQueue:true};
+  showEarnedPrompt();
+}
+
 function showEarnedPrompt(){
   const ps = G.pendingScore;
   if(!ps) return;
@@ -2006,8 +2032,22 @@ function confirmEarned(isUnearned){
   const ps = G.pendingScore;
   G.pendingScore = null;
   if(!ps) return;
+  // If fromQueue, run already scored — just fix the ER/uner accounting
+  if(ps.fromQueue){
+    const p = curPitcher();
+    if(p && isUnearned){
+      const pstat = getPS(p.side, p.idx);
+      if(pstat.er > 0){ pstat.er--; pstat.uner = (pstat.uner||0)+1; }
+    }
+    const rbiName = ps.rbiNote;
+    addPBP(`${ps.runner?.name} — run marked ${isUnearned?'unearned':'earned'}`);
+    if(G.pendingUnearnedQueue && G.pendingUnearnedQueue.length){
+      processUnearnedQueue(); return;
+    }
+    render(); return;
+  }
   scoreRunner(ps.runner, ps.side, isUnearned);
-  G.bases[ps.from] = null;
+  if(ps.from !== null) G.bases[ps.from] = null;
   const rbiNote = ps.rbiNote;
   if(rbiNote){
     const batter = G.teams[ps.side].lineup.find(p=>p.name===rbiNote);

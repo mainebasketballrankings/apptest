@@ -482,6 +482,18 @@ input,select,button{font-family:inherit;}
   </div>
 </div>
 
+<!-- Earned/Unearned run prompt -->
+<div class="overlay" id="ovEarned" style="display:none">
+  <div class="ocard">
+    <div class="otitle">Run scored — earned or unearned?</div>
+    <div style="font-family:'Barlow',sans-serif;font-size:13px;color:var(--dim);margin-bottom:14px" id="earnedRunnerName"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button class="otbtn" style="background:var(--green-bg);border-color:var(--green-border);color:var(--green);padding:14px" onclick="confirmEarned(false)">Earned Run</button>
+      <button class="otbtn" style="background:var(--red-bg);border-color:var(--red-border);color:var(--red);padding:14px" onclick="confirmEarned(true)">Unearned</button>
+    </div>
+  </div>
+</div>
+
 <!-- Double play runner selection -->
 <div class="overlay" id="ovDP" style="display:none">
   <div class="ocard">
@@ -670,6 +682,7 @@ let G = {
   pendingErrorNotation:null,
   pendingErrorFielder:null,
   errorThisHalf:false,
+  pendingScore:null,
   pendingErrorFrom:null,
   pendingErrorDest:null,
   pendingErrorCallback:null,
@@ -1812,13 +1825,15 @@ function buildBoxScore(){
         </tr>`;
       });
     });
-    // Also show bench players with stats not already in slots
+    // Show lineup players not in slots only if they have batting stats (e.g. late-added pitchers)
     const inSlots = new Set();
     (team.slots||[]).forEach(slot => slot.forEach(p => inSlots.add(p.name)));
-    team.bench.forEach(p => {
+    team.lineup.forEach(p => {
+      if(inSlots.has(p.name)) return;
+      if(p.isDefSub) return; // pure defensive subs don't appear in batting box score
       const s=p.stats;
       const hasStats=(s.ab||0)+(s.bb||0)+(s.k||0)+(s.r||0)+(s.sac||0) > 0;
-      if(!hasStats || inSlots.has(p.name)) return;
+      if(!hasStats) return;
       ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
       html+=`<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
@@ -1976,6 +1991,34 @@ function confirmDefSub(pos){
   }
   addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${replaced?' for '+replaced.name:''}`);
   closeOv('ovSub'); render();
+}
+
+function showEarnedPrompt(){
+  const ps = G.pendingScore;
+  if(!ps) return;
+  const el = document.getElementById('earnedRunnerName');
+  if(el) el.textContent = `${ps.runner?.name} scores`;
+  openOv('ovEarned');
+}
+
+function confirmEarned(isUnearned){
+  closeOv('ovEarned');
+  const ps = G.pendingScore;
+  G.pendingScore = null;
+  if(!ps) return;
+  scoreRunner(ps.runner, ps.side, isUnearned);
+  G.bases[ps.from] = null;
+  const rbiNote = ps.rbiNote;
+  if(rbiNote){
+    const batter = G.teams[ps.side].lineup.find(p=>p.name===rbiNote);
+    if(batter) batter.stats.rbi = (batter.stats.rbi||0)+1;
+    addPBP(`<strong>${ps.runner?.name}</strong> scores${isUnearned?' (UE)':''} — RBI: ${rbiNote}`);
+    G.pendingRBIbatter = null;
+  } else {
+    addPBP(`<strong>${ps.runner?.name}</strong> scores${isUnearned?' (UE)':''}`);
+  }
+  if(ps.fromTapBase){ deselectRunner(); updateRunnerDiamond(); }
+  render();
 }
 
 function openOv(id){ document.getElementById(id).style.display='flex'; }

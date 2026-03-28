@@ -461,6 +461,16 @@ input,select,button{font-family:inherit;}
   <div class="pbp" id="pbpLog"></div>
 </div>
 
+<!-- Fielder's Choice -->
+<div class="overlay" id="ovFC" style="display:none">
+  <div class="ocard">
+    <div class="otitle">Fielder's Choice — who is out?</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);margin-bottom:10px">Batter reaches 1st. Select the runner who is retired:</div>
+    <div id="fcRunnerList"></div>
+    <button class="ocancel" style="width:100%;margin-top:10px" onclick="closeOv('ovFC')">Cancel</button>
+  </div>
+</div>
+
 <!-- Double play runner selection -->
 <div class="overlay" id="ovDP" style="display:none">
   <div class="ocard">
@@ -539,7 +549,7 @@ input,select,button{font-family:inherit;}
       <button class="hbtn t"  onclick="resolveHit('3B')">Triple</button>
       <button class="hbtn hr" onclick="resolveHit('HR')">Home Run</button>
       <button class="hbtn"    onclick="resolveHit('E')">Error</button>
-      <button class="hbtn"    onclick="resolveHit('FC')">Fielder's Choice</button>
+      <button class="hbtn"    onclick="openFCOverlay()">Fielder's Choice</button>
     </div>
     <div class="sec-lbl">Out — tap fielders in sequence</div>
     <div class="fielder-seq" id="fldSeq">—</div>
@@ -805,8 +815,14 @@ function restDays(pitches){
 function doStrikeout(type){
   const b=curBatter(), p=curPitcher();
   b.player.stats.ab++; b.player.stats.k++;
-  if(p){ getPS(p.side,p.idx).k++; }
+  if(p){
+    const ps=getPS(p.side,p.idx);
+    ps.k++;
+    if(type==='K')  ps.calledK=(ps.calledK||0)+1;
+    else            ps.swingK=(ps.swingK||0)+1;
+  }
   G.curPitches.push(type);
+  chargePitch();
   const sym=type==='K'?'ꓘ':'K';
   addPBP(`<strong>${b.player.name}</strong> ${sym}`);
   addOut(`K`);
@@ -1375,7 +1391,11 @@ function render(){
     const kBanner=document.getElementById('kBanner');
     if(kBanner){
       kBanner.style.display=ps.k>0?'':'none';
-      if(ps.k>0) kBanner.textContent='K'.repeat(ps.k);
+      // Build K string: ꓘ for called strikes, K for swinging
+      const kStr = (ps.calledK||0) > 0 || (ps.swingK||0) > 0
+        ? ('ꓘ'.repeat(ps.calledK||0) + 'K'.repeat(ps.swingK||0))
+        : 'K'.repeat(ps.k);
+      kBanner.textContent = kStr;
     }
   }
 
@@ -1398,7 +1418,8 @@ function render(){
   }
 
   // Pitch dots
-  document.getElementById('pitchSeq').innerHTML=G.curPitches.map(p=>`<div class="pdot ${p}">${p}</div>`).join('');
+  const pitchSymbols={B:'B',K:'ꓘ',Ks:'K',F:'F',X:'X'};
+  document.getElementById('pitchSeq').innerHTML=G.curPitches.map(p=>`<div class="pdot ${p}">${pitchSymbols[p]||p}</div>`).join('');
 
   // PBP
   updateField();
@@ -1471,6 +1492,48 @@ function buildBoxScore(){
   });
   return html;
 }
+function openFCOverlay(){
+  closeOv('ovInPlay');
+  G.curPitches.push('X');
+  chargePitch();
+  const runners=[];
+  [1,2,3].forEach(base=>{ if(G.bases[base]) runners.push({base,runner:G.bases[base]}); });
+  const el=document.getElementById('fcRunnerList');
+  if(!runners.length){
+    // No runners — treat as a regular groundout, batter reaches on error-like play
+    confirmFC(null);
+    return;
+  }
+  el.innerHTML=runners.map(({base,runner})=>`
+    <button onclick="confirmFC(${base})" style="display:block;width:100%;margin-bottom:7px;padding:11px 14px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--red);cursor:pointer;text-align:left">
+      ${runner.name} on ${base===1?'1st':base===2?'2nd':'3rd'}
+    </button>`).join('');
+  openOv('ovFC');
+}
+
+function confirmFC(outBase){
+  closeOv('ovFC');
+  const b=curBatter(), side=battingSide();
+  b.player.stats.ab++;
+  const bRunner={name:b.player.name,num:b.player.number};
+  if(outBase!==null && G.bases[outBase]){
+    const retired=G.bases[outBase];
+    G.bases[outBase]=null;
+    addPBP(`<strong>${b.player.name}</strong> FC — ${retired.name} out at ${outBase===1?'1st':outBase===2?'2nd':'3rd'}, batter reaches 1st`);
+  } else {
+    addPBP(`<strong>${b.player.name}</strong> FC — reaches 1st`);
+  }
+  // Batter goes to 1st (may need to shift runners)
+  if(G.bases[1] && outBase!==1){
+    // 1st is still occupied — force advance
+    if(!G.bases[2]) G.bases[2]=G.bases[1];
+    else if(!G.bases[3]) G.bases[3]=G.bases[2];
+  }
+  if(outBase!==1) G.bases[1]=bRunner;
+  addOut('FC');
+  render();
+}
+
 function openOv(id){ document.getElementById(id).style.display='flex'; }
 function closeOv(id){
   document.getElementById(id).style.display='none';

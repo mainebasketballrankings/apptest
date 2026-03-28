@@ -822,7 +822,7 @@ function doStrikeout(type){
     else            ps.swingK=(ps.swingK||0)+1;
   }
   G.curPitches.push(type);
-  chargePitch();
+  // No chargePitch here — the final strike was already charged by logPitch()
   const sym=type==='K'?'ꓘ':'K';
   addPBP(`<strong>${b.player.name}</strong> ${sym}`);
   addOut(`K`);

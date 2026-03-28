@@ -895,6 +895,17 @@ function doStrikeout(type){
   addOut(`K`);
 }
 
+function doIBB(){
+  saveSnapshot();
+  const b=curBatter(), p=curPitcher();
+  b.player.stats.ibb=(b.player.stats.ibb||0)+1;
+  if(p){ const ps=getPS(p.side,p.idx); ps.ibb=(ps.ibb||0)+1; }
+  const runner={name:b.player.name,num:b.player.number};
+  forceAdvance(runner);
+  addPBP(`<strong>${b.player.name}</strong> IBB — intentional walk`);
+  nextBatter(); resetCount(); render();
+}
+
 function doWalk(type){
   saveSnapshot();
   const b=curBatter(), p=curPitcher();
@@ -1150,17 +1161,11 @@ function confirmRBI(){
     const runner=G.bases[base]; if(!runner) return;
     const dec=G.runDecisions[base]||'stay';
     if(dec==='score'){
-      if(G.errorThisHalf && inningIsUnearned()){
-        // Past phantom 3rd out — auto unearned
-        scoreRunner(runner, side, true);
-      } else if(G.errorThisHalf && !isHit){
-        // Ambiguous — queue for prompt
+      if(G.errorThisHalf){
         G.pendingUnearnedCheck = G.pendingUnearnedCheck || [];
         G.pendingUnearnedCheck.push({runner, side});
-        scoreRunner(runner, side, false); // default earned; corrected by prompt
-      } else {
-        scoreRunner(runner, side, false);
       }
+      scoreRunner(runner, side, false);
       if(isHit) autoRBI++;
     }
     else if(dec==='to2') newBases[2]=runner;
@@ -2000,10 +2005,19 @@ function confirmDefSub(pos){
     G.teams[side].bench.splice(idx,1);
     const newIdx = G.teams[side].lineup.length-1;
     if(pos==='P') G.pitchers[side]=newIdx;
-    // Only add to slots if not already there (e.g. PR who then plays defense)
+    // Attach def sub to replaced player's slot, or add standalone if no replacement
     if(G.teams[side].slots){
       const alreadyInSlots = G.teams[side].slots.some(slot => slot.some(p => p.name === player.name));
-      if(!alreadyInSlots) G.teams[side].slots.push([player]);
+      if(!alreadyInSlots){
+        let attached = false;
+        if(replaced){
+          G.teams[side].slots.forEach(slot => {
+            if(attached) return;
+            if(slot.some(p => p.name === replaced.name)){ slot.push(player); attached = true; }
+          });
+        }
+        if(!attached) G.teams[side].slots.push([player]);
+      }
     }
   } else {
     lu[idx].pos = pos;

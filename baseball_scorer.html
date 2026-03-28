@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Baseball Scorer</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
 <style>
@@ -16,7 +16,7 @@
   --ball-clr:#16a34a; --strike-clr:#dc2626; --foul-clr:#d97706; --inplay-clr:#2563eb;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom,0px);}
 .bc{font-family:'Barlow Condensed',sans-serif;}
 input,select,button{font-family:inherit;}
 
@@ -63,7 +63,7 @@ input,select,button{font-family:inherit;}
 .sb-team{display:flex;flex-direction:column;}
 .sb-team.away{align-items:flex-start;}
 .sb-team.home{align-items:flex-end;}
-.sb-name{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--text);line-height:1.2;}
+.sb-name{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--text);line-height:1.2;word-break:break-word;}
 .sb-runs{font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:900;line-height:1;color:var(--text);flex-shrink:0;background:var(--surface2);padding:2px 8px;border-radius:6px;}
 .sb-mid{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .sb-half{font-size:12px;color:var(--green);}
@@ -124,7 +124,7 @@ input,select,button{font-family:inherit;}
 .pdot.X{background:var(--blue-bg);color:var(--blue);border:2px solid var(--blue-border);}
 
 /* Pitch buttons */
-.pitch-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;}
+.pitch-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;padding-left:max(0px,env(safe-area-inset-left));padding-right:max(0px,env(safe-area-inset-right));}
 .pbtn{padding:16px 4px;border:none;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;letter-spacing:.5px;cursor:pointer;text-transform:uppercase;transition:opacity .12s,transform .1s;}
 .pbtn:active{opacity:.75;transform:scale(.97);}
 .pbtn.ball{background:var(--green-bg);color:var(--green);border:2px solid var(--green-border);}
@@ -134,7 +134,7 @@ input,select,button{font-family:inherit;}
 .pbtn.inplay{background:var(--blue);color:#fff;grid-column:span 4;padding:17px;font-size:19px;border:none;}
 
 /* Action bar */
-.action-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);}
+.action-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 14px;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));border-bottom:1px solid var(--border);background:var(--surface);}
 .abtn{padding:10px 4px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;}
 .abtn:active{opacity:.7;}
 .abtn.hi{border-color:var(--green-border);color:var(--green);background:var(--green-bg);}
@@ -222,7 +222,7 @@ input,select,button{font-family:inherit;}
 }
 
 /* ══ NEW GAME LAYOUT ══ */
-.sb-top-row{display:grid;grid-template-columns:1fr 100px 1fr;align-items:center;padding:8px 12px;gap:0;}
+.sb-top-row{display:grid;grid-template-columns:1fr 100px 1fr;align-items:center;padding:8px 12px;padding-right:max(12px,env(safe-area-inset-right));padding-left:max(12px,env(safe-area-inset-left));gap:0;}
 .sb-team-block{display:flex;flex-direction:row;align-items:center;gap:8px;}
 .sb-center-block{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .sb-half-inn{display:flex;align-items:baseline;gap:3px;}
@@ -384,7 +384,7 @@ input,select,button{font-family:inherit;}
 
   <!-- FIELD — primary visual -->
   <div class="field-wrap">
-    <svg id="fieldSVG" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:50vh;display:block;">
+    <svg id="fieldSVG" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:45vh;display:block;">
       <!-- LOCKED: Home(170,285) 1B(238,217) 2B(170,149) 3B(102,217) P(170,220) Arc r=172.9 center(170,60.5) -->
       <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 Z" fill="#4a8c5c"/>
       <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>

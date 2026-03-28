@@ -311,14 +311,20 @@ input,select,button{font-family:inherit;}
         <input type="text" class="sinput" id="awayNameInp" placeholder="Visiting Team"/></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:8px 0 6px">Order · Name · # · Pos</div>
       <div id="awayLU"></div>
-      <button class="add-btn" onclick="addPlayer('away')">+ Add Batter</button>
+      <button class="add-btn" onclick="addPlayer('away')">+ Add to Lineup</button>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px">Bench / Extra Pitchers <span style="color:var(--ldim);font-size:9px">— available for substitution</span></div>
+      <div id="awayBench"></div>
+      <button class="add-btn" onclick="addBench('away')">+ Add Bench Player</button>
     </div>
     <div id="homeSetup" style="display:none">
       <div class="srow"><span class="slabel">Team Name</span>
         <input type="text" class="sinput" id="homeNameInp" placeholder="Home Team"/></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:8px 0 6px">Order · Name · # · Pos</div>
       <div id="homeLU"></div>
-      <button class="add-btn" onclick="addPlayer('home')">+ Add Batter</button>
+      <button class="add-btn" onclick="addPlayer('home')">+ Add to Lineup</button>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px">Bench / Extra Pitchers <span style="color:var(--ldim);font-size:9px">— available for substitution</span></div>
+      <div id="homeBench"></div>
+      <button class="add-btn" onclick="addBench('home')">+ Add Bench Player</button>
     </div>
   </div>
 
@@ -647,7 +653,7 @@ const TEST_NAMES_B = ['Jones','King','Lewis','Moore','Nash','Owen','Price','Quin
 // ═══════════════════════════════════════════════
 let G = {
   sport:'baseball', level:'varsity', date:'', loc:'', maxInn:7, mercy:true, pitchLimits:true, mode:'both',
-  teams:{ away:{name:'Away',lineup:[]}, home:{name:'Home',lineup:[]} },
+  teams:{ away:{name:'Away',lineup:[],bench:[]}, home:{name:'Home',lineup:[],bench:[]} },
   pitchers:{ away:0, home:0 },   // active pitcher index per side
   inning:1, half:'top', outs:0, balls:0, strikes:0,
   bases:{1:null,2:null,3:null},
@@ -744,6 +750,24 @@ function renderLU(side){
 }
 
 function addPlayer(side){ G.teams[side].lineup.push(newPlayer(G.teams[side].lineup.length+1,'')); renderLU(side); }
+function addBench(side){ G.teams[side].bench.push(newPlayer(0,'')); renderBench(side); }
+
+function renderBench(side){
+  const el=document.getElementById(side+'Bench');
+  if(!el) return;
+  el.innerHTML=G.teams[side].bench.map((p,i)=>`
+    <div class="lu-row">
+      <span class="lu-num">B</span>
+      <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].bench[${i}].name=this.value"/>
+      <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].bench[${i}].number=this.value"/>
+      <select class="lu-input" style="padding:5px 3px" onchange="G.teams['${side}'].bench[${i}].pos=this.value">
+        ${POSITIONS.map(pos=>`<option value="${pos}" ${pos===p.pos?'selected':''}>${pos}</option>`).join('')}
+      </select>
+      <button class="lu-del" onclick="removeBench('${side}',${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeBench(side,i){ G.teams[side].bench.splice(i,1); renderBench(side); }
 function removePlayer(side,i){ G.teams[side].lineup.splice(i,1); renderLU(side); }
 
 function startGame(){
@@ -1349,17 +1373,66 @@ function runnerPickedOff(base){
 
 function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRunners(); render(); }
 
-function confirmSub(side,idx){
-  if(subMode==='pitcher'){
-    G.pitchers[side]=idx;
-    const ps=getPS(side,idx);
-    ps.name=G.teams[side].lineup[idx].name;
-    ps.num=G.teams[side].lineup[idx].number;
-    addPBP(`Pitching change: <strong>${G.teams[side].lineup[idx].name||'P'+(idx+1)}</strong>`);
+let subMode='pitcher';
+
+function openSub(mode){
+  saveSnapshot();
+  subMode=mode;
+  const side=mode==='pitcher'?fieldingSide():battingSide();
+  document.getElementById('ovSubTitle').textContent=
+    mode==='pitcher'?`Change Pitcher — ${G.teams[side].name}`:'Substitute Batter';
+  const lineupHTML = G.teams[side].lineup.map((p,i)=>`
+    <div class="sub-player" onclick="confirmSub('${side}',${i},false)">
+      <span class="sub-num">${p.number||'—'}</span>
+      <span class="sub-name">${p.name||'Player '+(i+1)}</span>
+      <span class="sub-pos">${p.pos}</span>
+    </div>`).join('');
+  const benchHTML = G.teams[side].bench.length ? 
+    `<div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px;padding:0 2px">Bench</div>` +
+    G.teams[side].bench.map((p,i)=>`
+      <div class="sub-player" onclick="confirmSub('${side}',${i},true)">
+        <span class="sub-num">${p.number||'—'}</span>
+        <span class="sub-name">${p.name||'Bench '+(i+1)}</span>
+        <span class="sub-pos">${p.pos}</span>
+      </div>`).join('') : '';
+  document.getElementById('subList').innerHTML = lineupHTML + benchHTML;
+  openOv('ovSub');
+}
+
+function confirmSub(side,idx,fromBench){
+  const player = fromBench ? G.teams[side].bench[idx] : G.teams[side].lineup[idx];
+  if(!player) return;
+  if(fromBench){
+    // Move bench player into lineup at current position
+    const bside=battingSide();
+    if(subMode==='pitcher'){
+      // Add to lineup, set as pitcher
+      G.teams[side].lineup.push(player);
+      G.teams[side].bench.splice(idx,1);
+      const newIdx=G.teams[side].lineup.length-1;
+      G.pitchers[side]=newIdx;
+      const ps=getPS(side,newIdx);
+      ps.name=player.name; ps.num=player.number;
+      addPBP(`Pitching change: <strong>${player.name}</strong> (from bench)`);
+    } else {
+      // Pinch hitter from bench — replace current batter slot
+      const batIdx=G.batIdx[bside]%G.teams[bside].lineup.length;
+      const old=G.teams[bside].lineup[batIdx];
+      G.teams[bside].lineup[batIdx]=player;
+      G.teams[bside].bench.splice(idx,1);
+      addPBP(`PH: <strong>${player.name}</strong> for <strong>${old.name}</strong> (from bench)`);
+    }
   } else {
-    const bside=battingSide(), batIdx=G.batIdx[bside]%G.teams[bside].lineup.length;
-    addPBP(`PH: <strong>${G.teams[bside].lineup[idx].name}</strong> for <strong>${G.teams[bside].lineup[batIdx].name}</strong>`);
-    G.batIdx[bside]=idx;
+    if(subMode==='pitcher'){
+      G.pitchers[side]=idx;
+      const ps=getPS(side,idx);
+      ps.name=player.name; ps.num=player.number;
+      addPBP(`Pitching change: <strong>${player.name||'P'+(idx+1)}</strong>`);
+    } else {
+      const bside=battingSide(), batIdx=G.batIdx[bside]%G.teams[bside].lineup.length;
+      addPBP(`PH: <strong>${player.name}</strong> for <strong>${G.teams[bside].lineup[batIdx].name}</strong>`);
+      G.batIdx[bside]=idx;
+    }
   }
   closeOv('ovSub');
   render();

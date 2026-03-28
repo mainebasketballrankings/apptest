@@ -811,6 +811,8 @@ function startGame(){
   G.mode=document.getElementById('modeSel').value;
   G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
+  G.pitStats = {};
+  G.linescore = [];
   for(let i=0;i<G.maxInn;i++) G.linescore.push({away:null,home:null});
   // Initialize batting order slots (each slot tracks all players at that position)
   ['away','home'].forEach(s=>{
@@ -1101,17 +1103,29 @@ function resolveHit(result){
 function doHR(){
   saveSnapshot();
   const b=curBatter(), side=battingSide();
-  let runs=1;
-  [3,2,1].forEach(base=>{ if(G.bases[base]){ runs++; G.bases[base]=null; } });
-  for(let i=0;i<runs;i++) scoreRunner(null);
+  // Collect runners before clearing bases
+  const runners=[];
+  [3,2,1].forEach(base=>{ if(G.bases[base]){ runners.push(G.bases[base]); G.bases[base]=null; } });
+  const runs = 1 + runners.length;
+  // Score batter + all runners (default earned; prompt will adjust if errorThisHalf)
+  scoreRunner({name:b.player.name}, side, false);
+  runners.forEach(r => scoreRunner(r, side, false));
   b.player.stats.ab++; b.player.stats.h++; b.player.stats.hr++; b.player.stats.r++; b.player.stats.rbi+=runs;
   const p=curPitcher();
-  if(p){ const ps=getPS(p.side,p.idx); ps.hr++; ps.h++; } // ER tracked in scoreRunner
+  if(p){ const ps=getPS(p.side,p.idx); ps.hr++; ps.h++; }
   G.hits[side]++;
   G.curPitches.push('X');
   chargePitch();
   addPBP(`<strong>${b.player.name}</strong> HOME RUN 🎉 (${runs} run${runs>1?'s':''})`);
-  nextBatter(); resetCount(); render();
+  nextBatter(); resetCount();
+  // If error this half, queue all runs for earned/unearned prompt
+  if(G.errorThisHalf){
+    G.pendingUnearnedQueue = [{runner:{name:b.player.name}, side, fromQueue:true},
+      ...runners.map(r=>({runner:r, side, fromQueue:true}))];
+    processUnearnedQueue();
+  } else {
+    render();
+  }
 }
 
 function openRBIResolver(result){

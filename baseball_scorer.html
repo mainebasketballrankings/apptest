@@ -55,10 +55,10 @@ input,select,button{font-family:inherit;}
 .start-btn{width:100%;max-width:560px;padding:14px;background:var(--green);border:none;border-radius:10px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:8px;}
 
 /* ══ GAME ══ */
-#gameScreen{display:none;flex-direction:column;min-height:100vh;padding-bottom:env(safe-area-inset-bottom,80px);}
+#gameScreen{display:none;flex-direction:column;height:100dvh;overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0px);}
 
 /* Top bar — scoreboard */
-.sb{background:var(--surface);border-bottom:1px solid var(--border);padding:0;}
+.sb{background:var(--surface);border-bottom:1px solid var(--border);padding:0;flex-shrink:0;}
 .sb-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:6px;}
 .sb-team{display:flex;flex-direction:column;}
 .sb-team.away{align-items:flex-start;}
@@ -134,15 +134,15 @@ input,select,button{font-family:inherit;}
 .pbtn.inplay{background:var(--blue);color:#fff;grid-column:span 4;padding:17px;font-size:19px;border:none;}
 
 /* Action bar */
-.action-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 14px;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));border-bottom:1px solid var(--border);background:var(--surface);}
-.abtn{padding:10px 4px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;}
+.action-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;padding:6px 12px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.abtn{padding:8px 4px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;flex-shrink:0;}
 .abtn:active{opacity:.7;}
 .abtn.hi{border-color:var(--green-border);color:var(--green);background:var(--green-bg);}
 .abtn.danger{border-color:var(--red-border);color:var(--red);background:var(--red-bg);}
 .abtn.blue{border-color:var(--blue-border);color:var(--blue);background:var(--blue-bg);}
 
 /* PBP */
-.pbp{flex:1;overflow-y:auto;background:var(--surface);}
+.pbp{flex:1;overflow-y:auto;background:var(--surface);min-height:0;}
 .pbp-entry{display:flex;gap:8px;padding:7px 14px;border-bottom:1px solid var(--border);align-items:flex-start;}
 .pbp-inn{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);min-width:28px;flex-shrink:0;}
 .pbp-txt{font-size:13px;color:var(--text);flex:1;}
@@ -216,7 +216,6 @@ input,select,button{font-family:inherit;}
 .rbi-num-input{width:56px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:16px;font-family:'Barlow Condensed',sans-serif;text-align:center;}
 
 @media(max-height:700px){
-  #fieldSVG{max-height:35vh !important;}
   .linescore-wrap{display:none;}
 }
 @media(max-width:480px){
@@ -241,7 +240,7 @@ input,select,button{font-family:inherit;}
 .out-pip.on{background:var(--yellow);border-color:var(--yellow);}
 
 /* Batter/Pitcher strip */
-.bp-strip{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);background:var(--surface);}
+.bp-strip{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .bp-batter{display:flex;align-items:center;gap:8px;padding:7px 12px;border-right:1px solid var(--border);}
 .bp-pitcher{display:flex;align-items:center;gap:8px;padding:7px 12px;}
 .bp-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;background:var(--dim);padding:2px 5px;border-radius:3px;flex-shrink:0;}
@@ -249,10 +248,10 @@ input,select,button{font-family:inherit;}
 .bp-sub{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);}
 
 /* Pitch sequence bar */
-.pitch-seq-bar{padding:4px 12px;background:var(--surface);border-bottom:1px solid var(--border);min-height:30px;display:flex;align-items:center;}
+.pitch-seq-bar{padding:3px 12px;background:var(--surface);border-bottom:1px solid var(--border);min-height:24px;display:flex;align-items:center;flex-shrink:0;}
 
 /* Field */
-.field-wrap{background:#4a7c59;flex-shrink:0;}
+.field-wrap{background:#4a7c59;flex:1;overflow:hidden;display:flex;align-items:stretch;min-height:0;}
 
 /* Pitch count colors */
 
@@ -388,7 +387,7 @@ input,select,button{font-family:inherit;}
 
   <!-- FIELD — primary visual -->
   <div class="field-wrap">
-    <svg id="fieldSVG" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:45vh;display:block;">
+    <svg id="fieldSVG" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;max-height:100%;display:block;">
       <!-- LOCKED: Home(170,285) 1B(238,217) 2B(170,149) 3B(102,217) P(170,220) Arc r=172.9 center(170,60.5) -->
       <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 Z" fill="#4a8c5c"/>
       <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>
@@ -431,7 +430,7 @@ input,select,button{font-family:inherit;}
   </div>
 
   <!-- Pitch buttons -->
-  <div class="pitch-grid" style="padding:8px 12px 0;gap:7px;">
+  <div class="pitch-grid" style="padding:6px 12px;gap:6px;flex-shrink:0;">
     <button class="pbtn ball"    onclick="logPitch('B')">Ball</button>
     <button class="pbtn cstrike" onclick="logPitch('K')">Called Strike</button>
     <button class="pbtn sstrike" onclick="logPitch('Ks')">Swing Strike</button>

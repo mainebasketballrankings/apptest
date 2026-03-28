@@ -841,6 +841,8 @@ function doWalk(type){
   saveSnapshot();
   const b=curBatter(), p=curPitcher();
   if(type==='BB'){ b.player.stats.bb++; if(p) getPS(p.side,p.idx).bb++; }
+  // HBP counts as a pitch (BB's 4th ball already charged by logPitch)
+  if(type==='HBP'){ G.curPitches.push('B'); chargePitch(); }
   const runner={name:b.player.name,num:b.player.number};
   forceAdvance(runner);
   addPBP(`<strong>${b.player.name}</strong> ${type} — reaches 1B`);

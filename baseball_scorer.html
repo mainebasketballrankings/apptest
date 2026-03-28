@@ -451,11 +451,12 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="openSub('batter')">Pinch Hit</button>
     <button class="abtn"        onclick="openSub('defense')">Def. Sub</button>
     <button class="abtn blue"   onclick="openRunners()">Runners</button>
-    <button class="abtn"        onclick="doWalk('BB')">Walk (BB)</button>
+    <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
+    <button class="abtn" style="grid-column:span 4" onclick="openBoxScore()">Box Score</button>
     <button class="abtn" style="grid-column:span 3;border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Fielding Error (no pitch)</button>
-    <button class="abtn" style="grid-column:span 3;font-size:13px" onclick="openBoxScore()">Box Score</button>
+
   </div>
 
   <!-- PBP Log (scrollable, below fold) -->
@@ -654,7 +655,7 @@ const TEST_NAMES_B = ['Jones','King','Lewis','Moore','Nash','Owen','Price','Quin
 // ═══════════════════════════════════════════════
 let G = {
   sport:'baseball', level:'varsity', date:'', loc:'', maxInn:7, mercy:true, pitchLimits:true, mode:'both',
-  teams:{ away:{name:'Away',lineup:[],bench:[]}, home:{name:'Home',lineup:[],bench:[]} },
+  teams:{ away:{name:'Away',lineup:[],bench:[],slots:[]}, home:{name:'Home',lineup:[],bench:[],slots:[]} },
   pitchers:{ away:0, home:0 },   // active pitcher index per side
   inning:1, half:'top', outs:0, balls:0, strikes:0,
   bases:{1:null,2:null,3:null},
@@ -785,6 +786,10 @@ function startGame(){
   G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
   for(let i=0;i<G.maxInn;i++) G.linescore.push({away:null,home:null});
+  // Initialize batting order slots (each slot tracks all players at that position)
+  ['away','home'].forEach(s=>{
+    G.teams[s].slots = G.teams[s].lineup.map(p => [p]);
+  });
   // Set first pitcher
   ['away','home'].forEach(s=>{
     const pi=G.teams[s].lineup.findIndex(p=>p.pos==='P');
@@ -1280,21 +1285,20 @@ function moveRunnerTo(from, dest){
 function openPinchRunner(base){
   G.pendingPRbase = base;
   const bside = battingSide();
-  // Show available players (bench + lineup players not currently on field or bases)
   const onBases = [G.bases[1]?.name, G.bases[2]?.name, G.bases[3]?.name].filter(Boolean);
   const avail = [
     ...G.teams[bside].bench,
-    ...G.teams[bside].lineup.filter(p => !onBases.includes(p.name))
+    ...G.teams[bside].lineup.filter(p => p.name && !onBases.includes(p.name))
   ].filter(p => p.name);
-  const el = document.getElementById('fcRunnerList');
-  if(el){
-    el.innerHTML = `<div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);margin-bottom:8px">Select pinch runner for <strong>${G.bases[base]?.name}</strong></div>` +
-      avail.map((p,i) => `<button onclick="confirmPR(${base},'${p.name}','${p.number||''}')" style="display:block;width:100%;margin-bottom:6px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;text-align:left">
-        #${p.number||'—'} ${p.name} <span style="color:var(--dim);font-size:12px">${p.pos}</span>
-      </button>`).join('');
+  // Build PR overlay using dpPanel (reuse ovDP overlay)
+  const panel = document.getElementById('dpPanel');
+  if(panel){
+    panel.innerHTML = `<div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Pinch runner for <strong>${G.bases[base]?.name}</strong></div>` +
+      (avail.length ? avail.map(p => `<button onclick="confirmPR(${base},'${p.name.replace(/'/g,"\'")}','${p.number||''}')" style="display:block;width:100%;margin-bottom:6px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;text-align:left">#${p.number||'—'} ${p.name} <span style="color:var(--dim);font-size:12px">${p.pos}</span></button>`).join('')
+      : '<div style="color:var(--dim);font-size:13px">No available players</div>');
   }
   closeOv('ovRunners');
-  openOv('ovFC');
+  openOv('ovDP');
 }
 
 function confirmPR(base, name, number){
@@ -1461,17 +1465,16 @@ function confirmSub(side,idx,fromBench){
     openDefPositionPicker();
     return;
   } else {
-    // Pinch hitter — replace current batter in their batting order slot
+    // Pinch hitter — add to slot, replace in active lineup
     const bside=battingSide();
     const batIdx=G.batIdx[bside]%G.teams[bside].lineup.length;
     const replaced=G.teams[bside].lineup[batIdx];
-    if(fromBench){
-      player.subFor=replaced.name;
-      G.teams[bside].lineup[batIdx]=player;
-      G.teams[bside].bench.splice(idx,1);
-    } else {
-      player.subFor=replaced.name;
-    }
+    player.subFor=replaced.name;
+    player.subPos=replaced.pos; // inherit fielding position
+    G.teams[bside].lineup[batIdx]=player;
+    // Add to slot history
+    if(G.teams[bside].slots[batIdx]) G.teams[bside].slots[batIdx].push(player);
+    if(fromBench) G.teams[bside].bench.splice(idx,1);
     addPBP(`PH: <strong>${player.name}</strong> for <strong>${replaced.name}</strong>`);
   }
   closeOv('ovSub');
@@ -1723,22 +1726,23 @@ function buildBoxScore(){
         <th style="padding:3px 5px">BB</th><th style="padding:3px 5px">K</th><th style="padding:3px 5px">2B</th><th style="padding:3px 5px">3B</th><th style="padding:3px 5px">HR</th>
       </tr>`;
     let tot={ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
-    // Show all 9 batting order slots; bench players only if they have stats
-    team.lineup.forEach((p,i)=>{
-      const s=p.stats;
-      const inOrder = i < 9;  // original batting order
-      const hasStats = (s.ab||0)+(s.bb||0)+(s.k||0)+(s.r||0)+(s.h||0)+(s.sac||0)+(s.ibb||0) > 0;
-      if(!inOrder && !hasStats) return;
-      ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
-      // Show sub notation if this player replaced someone (posHistory)
-      const posDisplay = (p.subFor ? `PH-${p.pos}` : p.pos);
-      const indent = p.subFor ? 'padding-left:16px;' : '';
-      html+=`<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
-        <td style="padding:3px 4px;font-weight:600;${indent}">${p.subFor?'▸ ':''} ${p.name||'—'}</td>
-        <td style="padding:3px 4px;color:var(--dim)">${posDisplay}</td>
-        ${[s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
-      </tr>`;
+    // Use slots for box score — shows full substitution history per batting order slot
+    const slots = team.slots && team.slots.length ? team.slots : team.lineup.map(p=>[p]);
+    slots.forEach((slot, slotIdx)=>{
+      slot.forEach((p, depth)=>{
+        const s=p.stats;
+        ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
+        const isFirst = depth===0;
+        const posDisplay = !isFirst ? `PH-${p.pos}` : p.pos;
+        const indent = !isFirst ? 'padding-left:20px;' : '';
+        const prefix = !isFirst ? '▸ ' : '';
+        html+=`<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
+          <td style="padding:3px 4px;font-weight:600;${indent}">${prefix}${p.name||'—'}</td>
+          <td style="padding:3px 4px;color:var(--dim)">${posDisplay}</td>
+          ${[s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
+        </tr>`;
+      });
     });
     html+=`<tr style="font-weight:700;border-top:2px solid var(--border)">
       <td colspan="3" style="padding:3px 4px">Totals</td>

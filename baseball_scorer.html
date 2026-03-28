@@ -669,6 +669,7 @@ let G = {
   pendingRBIbatter:null,
   pendingErrorNotation:null,
   pendingErrorFielder:null,
+  errorThisHalf:false,
   pendingErrorFrom:null,
   pendingErrorDest:null,
   pendingErrorCallback:null,
@@ -687,7 +688,7 @@ function newPlayer(order, name, pos) {
 function psKey(side,idx){ return side+'_'+idx; }
 function getPS(side,idx){
   const k = psKey(side,idx);
-  if(!G.pitStats[k]) G.pitStats[k]={pitches:0,ip_outs:0,h:0,bb:0,k:0,er:0,hr:0,name:'',num:''};
+  if(!G.pitStats[k]) G.pitStats[k]={pitches:0,ip_outs:0,h:0,bb:0,k:0,er:0,uner:0,hr:0,name:'',num:''};
   return G.pitStats[k];
 }
 function battingSide(){ return G.half==='top'?'away':'home'; }
@@ -888,16 +889,25 @@ function forceAdvance(runner){
   G.bases[1]=runner;
 }
 
-function scoreRunner(runner, side){
+function scoreRunner(runner, side, unearned){
   side = side || battingSide();
   G.runs[side]++;
   const inn=G.inning-1;
   if(G.linescore[inn]){ if(G.linescore[inn][side]===null) G.linescore[inn][side]=0; G.linescore[inn][side]++; }
-  // Credit run to the individual player in the lineup
+  // Credit run to the individual player
   if(runner && runner.name){
     const lu = G.teams[side].lineup;
     const player = lu.find(p => p.name === runner.name);
     if(player) player.stats.r = (player.stats.r||0) + 1;
+  }
+  // Track earned/unearned for pitcher
+  // If unearned param passed, use it; else if error this half, it's potentially unearned
+  const isUnearned = unearned || false;
+  const p = curPitcher();
+  if(p){
+    const ps = getPS(p.side, p.idx);
+    if(isUnearned) ps.uner = (ps.uner||0) + 1;
+    else ps.er++;
   }
 }
 
@@ -926,7 +936,7 @@ function endHalf(){
   if(G.linescore[inn] && G.linescore[inn][scoringSide] === null){
     G.linescore[inn][scoringSide] = 0;
   }
-  G.bases={1:null,2:null,3:null}; G.outs=0; resetCount(); G.curPitches=[];
+  G.bases={1:null,2:null,3:null}; G.outs=0; resetCount(); G.curPitches=[]; G.errorThisHalf=false;
   const h=G.half==='top'?'Top':'Bottom';
   document.getElementById('ovHalfTitle').textContent=`End of ${h} ${G.inning}`;
   document.getElementById('ovHalfSummary').textContent=
@@ -1060,7 +1070,7 @@ function doHR(){
   for(let i=0;i<runs;i++) scoreRunner(null);
   b.player.stats.ab++; b.player.stats.h++; b.player.stats.hr++; b.player.stats.r++; b.player.stats.rbi+=runs;
   const p=curPitcher();
-  if(p){ const ps=getPS(p.side,p.idx); ps.hr++; ps.h++; ps.er+=runs; }
+  if(p){ const ps=getPS(p.side,p.idx); ps.hr++; ps.h++; } // ER tracked in scoreRunner
   G.hits[side]++;
   G.curPitches.push('X');
   chargePitch();
@@ -1136,7 +1146,7 @@ function confirmRBI(){
   const p=curPitcher();
   if(p){ const ps=getPS(p.side,p.idx);
     if(isHit) ps.h++;           // errors don't count as hits allowed
-    ps.er+=autoRBI;             // but runs that score ARE earned if no error caused them
+    // ER tracked in scoreRunner() directly
   }
   G.curPitches.push('X');
   chargePitch();
@@ -1374,6 +1384,7 @@ function openFieldingErrorOverlay(){
 function fieldingErrorNoPlay(posNum, posName, fielderName){
   const fSide = fieldingSide();
   G.errors[fSide]++;
+  G.errorThisHalf=true;
   addPBP(`E${posNum} (${fielderName}) — fielding error`);
   render();
   // Open runners overlay so scorer can advance any runners on the error
@@ -1713,7 +1724,8 @@ function render(){
     if(pslEl){
       const parts=[`${ip} IP`];
       if(ps.h)  parts.push(`${ps.h} H`);
-      if(ps.er) parts.push(`${ps.er} ER`);
+      const totalR=(ps.er||0)+(ps.uner||0);
+      if(totalR) parts.push(`${totalR} R${ps.er?'/'+ps.er+' ER':''}`);
       if(ps.bb) parts.push(`${ps.bb} BB`);
       if(ps.k)  parts.push(`${ps.k} K`);
       pslEl.textContent=parts.join(' · ');
@@ -1823,7 +1835,7 @@ function buildBoxScore(){
     html+=`<table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px">
       <tr style="color:var(--dim);border-bottom:1px solid var(--border)">
         <th style="text-align:left;padding:3px 4px">Name</th>
-        <th style="padding:3px 5px">IP</th><th style="padding:3px 5px">H</th><th style="padding:3px 5px">R</th>
+        <th style="padding:3px 5px">IP</th><th style="padding:3px 5px">H</th><th style="padding:3px 5px">R</th><th style="padding:3px 5px">ER</th>
         <th style="padding:3px 5px">BB</th><th style="padding:3px 5px">K</th><th style="padding:3px 5px">P</th><th style="padding:3px 5px">Rest</th>
       </tr>`;
     Object.entries(G.pitStats).filter(([k])=>k.startsWith(side+'_')).forEach(([k,ps])=>{
@@ -1835,7 +1847,7 @@ function buildBoxScore(){
         <td style="padding:3px 4px;font-weight:600">${ps.name||'—'}</td>
         <td style="padding:3px 5px;text-align:center">${ip}</td>
         <td style="padding:3px 5px;text-align:center">${ps.h}</td>
-        <td style="padding:3px 5px;text-align:center">${ps.er}</td>
+        <td style="padding:3px 5px;text-align:center">${ps.er||0}</td>
         <td style="padding:3px 5px;text-align:center">${ps.bb}</td>
         <td style="padding:3px 5px;text-align:center">${ps.k}</td>
         <td style="padding:3px 5px;text-align:center">${ps.pitches}</td>
@@ -1903,6 +1915,7 @@ function confirmError(pos, posName, fielderName){
     fielderName = fielder ? fielder.name : posName;
   }
   G.errors[fSide]++;
+  G.errorThisHalf=true;
   G.pendingHit = 'E';
   G.pendingErrorNotation = `E${pos}`;
   G.pendingErrorFielder = fielderName;
@@ -1931,17 +1944,24 @@ function confirmDefSub(pos){
   const oldIdx = lu.findIndex(p => p.pos === pos);
   const replaced = oldIdx >= 0 ? lu[oldIdx] : null;
   player.pos = pos;
-  player.subFor = replaced ? replaced.name : '';
+  if(!player.subFor) player.subFor = replaced ? replaced.name : '';
   player.isDefSub = true;
+  // If already in slots (e.g. came in as PR), update their pos there too
+  if(G.teams[side].slots){
+    G.teams[side].slots.forEach(slot => slot.forEach(p => {
+      if(p.name === player.name) p.pos = pos;
+    }));
+  }
   if(fromBench){
     // Add to lineup and remove from bench
     G.teams[side].lineup.push(player);
     G.teams[side].bench.splice(idx,1);
     const newIdx = G.teams[side].lineup.length-1;
     if(pos==='P') G.pitchers[side]=newIdx;
-    // Add to box score slots — defensive subs get their own slot entry
+    // Only add to slots if not already there (e.g. PR who then plays defense)
     if(G.teams[side].slots){
-      G.teams[side].slots.push([player]);
+      const alreadyInSlots = G.teams[side].slots.some(slot => slot.some(p => p.name === player.name));
+      if(!alreadyInSlots) G.teams[side].slots.push([player]);
     }
   } else {
     lu[idx].pos = pos;

@@ -232,15 +232,21 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .bb-pl-line span{color:var(--ink2);}
 
 /* Sport-specific show/hide */
-.bball-only{display:none;}
-.bb-only{display:none;}
-body.sport-basketball .bball-only{display:revert;}
-body.sport-basketball .bb-only{display:none;}
-body.sport-baseball .bb-only{display:revert;}
-body.sport-baseball .bball-only{display:none;}
+.bball-only{display:none !important;}
+.bb-only{display:none !important;}
+body.sport-basketball .bball-only{display:revert !important;}
+body.sport-basketball .bb-only{display:none !important;}
+body.sport-baseball .bb-only{display:revert !important;}
+body.sport-baseball .bball-only{display:none !important;}
+/* bb-col needs flex for its internal layout */
+body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10px;}
+/* Explicit grid placement so bb-col always lands in centre */
+#home-panel{grid-column:1;}
+#away-panel{grid-column:3;}
+#court-col, #bb-col{grid-column:2;}
 </style>
 </head>
-<body style="display:flex;flex-direction:column;min-height:100dvh;">
+<body class="sport-baseball" style="display:flex;flex-direction:column;min-height:100dvh;">
 
 <header id="site-header">
   <a class="mbr-wordmark" href="#">Maine Basketball Rankings<span>·</span>Live</a>
@@ -1110,11 +1116,14 @@ function initView(home,away){
     }
   });
   if(SPORT==='basketball'){ updScoreboard(); updPanels(); updFeed(); }
-  else { bbUpdScoreboard(); bbUpdPanels(); bbUpdFeed(); bbUpdLinescore(); }
+  else {
+    ['home','away'].forEach(s=>{ const t=s==='home'?home:away; BB[s].name=t.name; BB[s].short=t.short; });
+    bbUpdScoreboard(); bbUpdPanels(); bbUpdFeed(); bbUpdLinescore();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.body.classList.add('sport-'+SPORT);
+  document.body.className = document.body.className.replace(/sport-\w+/,'') + ' sport-'+SPORT;
   if(SPORT==='basketball'){
     initView(
       {name:'Camden Hills',  short:'CAM', short2:'CHILLS', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/camden-hills.png'},
@@ -1353,7 +1362,7 @@ function bbAddDot(x, y, type){
 function bbOnEvent(e){
   const s = e.side, opp = s==='home'?'away':'home';
   BB.inning = e.inning; BB.half = e.half;
-  e.scoreSnap = BB.away.score+'-'+BB.home.score; // store as string for feed
+  e.scoreSnap = { away: BB.away.score, home: BB.home.score };
 
   // Ensure inning arrays are long enough
   while(BB.innings.home.length < e.inning) BB.innings.home.push(0);
@@ -1411,7 +1420,7 @@ function bbOnEvent(e){
     BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
     if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
     if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
-    e.scoreSnap = BB.away.score+'-'+BB.home.score;
+    e.scoreSnap = { away: BB.away.score, home: BB.home.score };
   }
 
   // Pitcher pitch count

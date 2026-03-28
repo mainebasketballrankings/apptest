@@ -63,12 +63,12 @@ input,select,button{font-family:inherit;}
 .sb-team{display:flex;flex-direction:column;}
 .sb-team.away{align-items:flex-start;}
 .sb-team.home{align-items:flex-end;}
-.sb-name{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.sb-name{font-family:'Barlow',sans-serif;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);}
 .sb-runs{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;line-height:1;color:var(--text);}
 .sb-mid{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .sb-half{font-size:12px;color:var(--green);}
 .sb-inn{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--text);line-height:1;}
-.sb-inn-lbl{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.sb-inn-lbl{font-family:'Barlow',sans-serif;font-size:10px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);}
 
 /* Status row: outs + count + bases */
 .sb-status{display:flex;align-items:center;justify-content:space-between;}
@@ -100,10 +100,10 @@ input,select,button{font-family:inherit;}
 .pit-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
 .pit-name{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text);}
 .pit-inn{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);}
-.pit-count{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--text);}
+.pit-count{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--text);}
 .pit-count.warn{color:var(--yellow);}
 .pit-count.danger{color:var(--red);animation:pulse 1s infinite;}
-.pit-limit{font-family:'Barlow Condensed',sans-serif;font-size:9px;color:var(--dim);}
+.pit-limit{font-family:'Barlow',sans-serif;font-size:11px;font-weight:400;color:var(--dim);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 /* At-bat panel */
@@ -228,11 +228,11 @@ input,select,button{font-family:inherit;}
 .sb-half-inn{display:flex;align-items:baseline;gap:3px;}
 .sb-half{font-size:13px;font-weight:700;}
 .sb-inn{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;line-height:1;color:var(--text);}
-.sb-inn-lbl{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.sb-inn-lbl{font-family:'Barlow',sans-serif;font-size:10px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);}
 .count-row{display:flex;align-items:center;gap:3px;}
 .count-num{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--text);}
 .count-sep{color:var(--ldim);font-size:13px;}
-.count-label-sm{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);}
+.count-label-sm{font-family:'Barlow',sans-serif;font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:var(--dim);}
 .out-pip{width:10px;height:10px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:background .15s;display:inline-block;}
 .out-pip.on{background:var(--yellow);border-color:var(--yellow);}
 
@@ -1403,7 +1403,7 @@ function render(){
   const {player:bat}=curBatter();
   if(bat){
     const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
-    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`#${bat.number||'—'} ${bat.pos} · ${bat.stats.h||0}/${bat.stats.ab||0} · ${bat.stats.rbi||0} RBI`;
+    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`${bat.stats.h||0}–${bat.stats.ab||0}, ${bat.stats.rbi||0} RBI · #${bat.number||'—'} ${bat.pos}`;
     const slEl=document.getElementById('abStatLine');
     if(slEl){
       const s=bat.stats;

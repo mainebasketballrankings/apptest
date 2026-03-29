@@ -1151,8 +1151,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(runSim, 1000);
   } else {
     // Seed lineups so all players show from the start
-    BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0,sb:0}));
-    BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0,sb:0}));
+    BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
+    BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
     BB_LINEUPS.pitchers.away.forEach(p=>BB.pitchers.away.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
     BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
     BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
@@ -1288,8 +1288,10 @@ function bbUpdPanels(){
       const totRBI = batters.reduce((a,b)=>a+(b.rbi||0),0);
       const totBB = batters.reduce((a,b)=>a+(b.bb||0),0);
       const totK = batters.reduce((a,b)=>a+(b.k||0),0);
+      const totHR = batters.reduce((a,b)=>a+(b.hr||0),0);
       sumEl.innerHTML=`
         <div class="ts-stat"><div class="ts-val">${BB[side].hits}</div><div class="ts-lbl">H</div></div>
+        <div class="ts-stat"><div class="ts-val">${totHR||0}</div><div class="ts-lbl">HR</div></div>
         <div class="ts-stat"><div class="ts-val">${totRBI}</div><div class="ts-lbl">RBI</div></div>
         <div class="ts-stat"><div class="ts-val">${totBB}</div><div class="ts-lbl">BB</div></div>
         <div class="ts-stat"><div class="ts-val">${totK}</div><div class="ts-lbl">K</div></div>
@@ -1308,7 +1310,8 @@ function bbUpdPanels(){
         : [];
       const basePips = baseLabels.map(lbl=>`<span style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:#fff;background:var(--gold);border-radius:3px;padding:1px 4px;margin-left:3px;flex-shrink:0;">${lbl}</span>`).join('');
       const statLine = [
-        p.r   ? `${p.r} <span>R</span>`   : '',
+        p.hr  ? `${p.hr} <span>HR</span>`  : '',
+        p.r   ? `${p.r} <span>R</span>`    : '',
         p.rbi ? `${p.rbi} <span>RBI</span>` : '',
         p.bb  ? `${p.bb} <span>BB</span>`  : '',
         p.k   ? `${p.k} <span>K</span>`    : '',
@@ -1505,7 +1508,7 @@ function bbOnEvent(e){
   }
 
   if(e.key==='single'||e.key==='double'||e.key==='triple'||e.key==='hr'){
-    if(batter){ batter.h++; batter.ab++; }
+    if(batter){ batter.h++; batter.ab++; if(e.key==='hr') batter.hr++; }
     BB[halfSide].hits++;
     if(pitcher) pitcher.h++;
     const dotType = e.key==='hr'?'hr': (e.key==='double'||e.key==='triple')?'xbh':'hit';
@@ -1580,7 +1583,7 @@ const BB_SIM = (()=>{
   const mk = (side, plast, pnum, key, inning, half, opts={}) =>
     ({side, plast, pnum, key, inning, half, pitcher:opts.pitcher||'Crockett',
       balls:opts.b??0, strikes:opts.s??0, outs:opts.o??0,
-      bases:opts.bases||[false,false,false],
+      bases:opts.bases!==undefined?opts.bases:undefined,
       runs:opts.runs||0, rbi:opts.rbi||0, pitches:opts.p||1,
       x:opts.x??null, y:opts.y??null, newHalf:opts.newHalf||false });
   return [

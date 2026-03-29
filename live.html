@@ -1476,6 +1476,25 @@ function bbOnEvent(e){
   const inn = e.inning - 1;
   const halfSide = e.half==='top' ? 'away' : 'home'; // batting side
 
+  // Runs scored — credit BEFORE batter placement overwrites bases
+  if(e.runs){
+    BB[halfSide].score += e.runs;
+    BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
+    if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
+    if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
+    e.scoreSnap = { away: BB.away.score, home: BB.home.score };
+    const stillOnBase = BB.bases.filter(b=>b&&b.num).map(b=>b.num);
+    let runsToCredit = e.runs;
+    if(e.key==='hr' && batter){ batter.r=(batter.r||0)+1; runsToCredit--; }
+    oldBasesSnap.forEach(runner=>{
+      if(runsToCredit<=0) return;
+      if(runner && runner.num && !stillOnBase.includes(runner.num)){
+        const scorer = BB.batters[s].find(p=>p.num===runner.num);
+        if(scorer){ scorer.r=(scorer.r||0)+1; runsToCredit--; }
+      }
+    });
+  }
+
   if(e.key==='single'||e.key==='double'||e.key==='triple'||e.key==='hr'){
     if(batter){ batter.h++; batter.ab++; }
     BB[halfSide].hits++;
@@ -1504,28 +1523,6 @@ function bbOnEvent(e){
     pitcher = {name:e.pitcher||'—',num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     BB.pitchers[opp].push(pitcher);
     toast(`Pitching change — ${e.pitcher}`);
-  }
-
-  // Runs scored this event
-  if(e.runs){
-    BB[halfSide].score += e.runs;
-    BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
-    if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
-    if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
-    e.scoreSnap = { away: BB.away.score, home: BB.home.score };
-    // Nums still on base after this play (enriched)
-    const stillOnBase = BB.bases.filter(b=>b&&b.num).map(b=>b.num);
-    let runsToCredit = e.runs;
-    // HR — batter scores
-    if(e.key==='hr' && batter){ batter.r=(batter.r||0)+1; runsToCredit--; }
-    // Credit R to known runners who were on base and are no longer on any base
-    oldBasesSnap.forEach(runner=>{
-      if(runsToCredit<=0) return;
-      if(runner && runner.num && !stillOnBase.includes(runner.num)){
-        const scorer = BB.batters[s].find(p=>p.num===runner.num);
-        if(scorer){ scorer.r=(scorer.r||0)+1; runsToCredit--; }
-      }
-    });
   }
 
   // Pitcher pitch count
@@ -1583,7 +1580,7 @@ const BB_SIM = (()=>{
     mk('away','Torres',  7,'single',      1,'top',{b:2,s:1,o:1,bases:[true,false,false],p:5,x:195,y:175}),
     mk('away','Whitfield',24,'strikeout', 1,'top',{b:1,s:2,o:2,bases:[true,false,false],p:6}),
     mk('away','Kimball', 11,'single',     1,'top',{b:0,s:1,o:2,bases:[true,false,false],p:3,runs:1,rbi:1,x:240,y:155}),
-    mk('away','Doucette',18,'flyout',     1,'top',{b:1,s:2,o:3,bases:[true,false,true],p:5,x:170,y:115,newHalf:true}),
+    mk('away','Doucette',18,'flyout',     1,'top',{b:1,s:2,o:3,p:5,x:170,y:115,newHalf:true}),
     // Bot 1st — Home bats
     mk('home','Peaslee', 5,'walk',        1,'bot',{b:3,s:2,o:0,bases:[true,false,false],p:8,pitcher:'Beal'}),
     mk('home','Larson',  14,'double',     1,'bot',{b:1,s:0,o:0,bases:[false,true,false],p:4,runs:1,rbi:1,x:260,y:130}),

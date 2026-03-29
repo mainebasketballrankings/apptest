@@ -236,12 +236,15 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 /* Sport-specific show/hide */
 .bball-only{display:none !important;}
 .bb-only{display:none !important;}
-body.sport-basketball .bball-only{display:revert !important;}
+body.sport-basketball .bball-only{display:block !important;}
+body.sport-basketball #court-col{display:flex !important;}
+body.sport-basketball #mobile-panel{display:block !important;}
 body.sport-basketball .bb-only{display:none !important;}
-body.sport-baseball .bb-only{display:revert !important;}
-body.sport-baseball .bball-only{display:none !important;}
-/* bb-col needs flex for its internal layout */
+body.sport-baseball .bb-only{display:block !important;}
 body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10px;}
+body.sport-baseball .bball-only{display:none !important;}
+/* Mobile lineup panel — hidden by default, shown on mobile via @media */
+#bb-mob-lineup{display:none !important;}
 /* Explicit grid placement so bb-col always lands in centre */
 #home-panel{grid-column:1;}
 #away-panel{grid-column:3;}
@@ -539,7 +542,7 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>
           <polygon points="170,285 238,217 170,149 102,217" fill="#c8956a"/>
           <ellipse cx="170" cy="220" rx="14" ry="11" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
-          <circle cx="170" cy="280" r="16" fill="#b8856a"/>
+          <circle cx="170" cy="277" r="16" fill="#b8856a"/>
           <circle cx="238" cy="217" r="11" fill="#b8856a"/>
           <circle cx="170" cy="149" r="11" fill="#b8856a"/>
           <circle cx="102" cy="217" r="11" fill="#b8856a"/>
@@ -549,19 +552,19 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <line x1="238" y1="217" x2="170" y2="149" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <line x1="170" y1="149" x2="102" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <line x1="102" y1="217" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
-          <polygon points="170,293 163,287 163,281 177,281 177,287" fill="white" stroke="#ccc" stroke-width="0.5"/>
+          <polygon points="170,290 163,284 163,278 177,278 177,284" fill="white" stroke="#ccc" stroke-width="0.5"/>
           <rect id="bb-sq1b" x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect id="bb-sq2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect id="bb-sq3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <text id="bb-fn-p"  x="170" y="208" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
-          <text id="bb-fn-c"  x="170" y="300" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
+          <text id="bb-fn-c"  x="170" y="297" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-1b" x="256" y="232" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
-          <text id="bb-fn-2b" x="220" y="188" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
-          <text id="bb-fn-ss" x="120" y="188" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
+          <text id="bb-fn-2b" x="205" y="188" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
+          <text id="bb-fn-ss" x="135" y="188" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-3b" x="84"  y="232" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
-          <text id="bb-fn-lf" x="60"  y="108" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
+          <text id="bb-fn-lf" x="75"  y="108" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-cf" x="170" y="78"  text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
-          <text id="bb-fn-rf" x="280" y="108" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
+          <text id="bb-fn-rf" x="265" y="108" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <!-- Hit location dot — last ball in play only -->
           <g id="bb-hit-dots"></g>
         </svg>

@@ -1379,10 +1379,17 @@ function bbUpdFeed(){
     const dot=document.createElement('div'); dot.className='fr-dot';
     dot.style.background=e.side==='home'?'var(--home)':'var(--away)';
     const body=document.createElement('div'); body.className='fr-body';
-    const who=e.pnum?`<b>#${e.pnum} ${e.plast}</b>`:`<b>${BB[e.side]?.name||''}</b>`;
+    const who=`<b>#${e.pnum} ${e.plast}</b>`;
     const action=BB_KLBL[e.key]||e.key;
     const halfLbl=e.half==='top'?'▲':'▼';
-    body.innerHTML=`<div class="fr-desc">${who} — ${action}</div><div class="fr-meta">${halfLbl}${e.inning}</div>`;
+    // Build description
+    let desc = `${who} — ${action}`;
+    if(e.scorers && e.scorers.length){
+      const scored = e.scorers.join(', ');
+      desc += `. <span style="color:var(--green);font-weight:600">${scored} score${e.scorers.length>1?'':'s'}.</span>`;
+    }
+    if(e.rbi) desc += ` <span style="color:var(--ink3)">${e.rbi} RBI</span>`;
+    body.innerHTML=`<div class="fr-desc">${desc}</div><div class="fr-meta">${halfLbl}${e.inning}</div>`;
     const sc=document.createElement('div'); sc.className='fr-score';
     sc.style.color=e.side==='home'?'var(--home)':'var(--away)';
     if(e.scoreSnap!=null) sc.textContent=`${e.scoreSnap.away}–${e.scoreSnap.home}`;
@@ -1487,24 +1494,21 @@ function bbOnEvent(e){
     if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
     e.scoreSnap = { away: BB.away.score, home: BB.home.score };
     let runsToCredit = e.runs;
+    const scorers = [];
     // HR — batter scores first
-    if(e.key==='hr' && batter){ batter.r=(batter.r||0)+1; runsToCredit--; }
-    // Find runners who vacated their base (base was occupied, now e.bases shows empty OR batter is landing there)
-    // Use e.bases boolean array — if old runner's base is now empty in e.bases, they either scored or were out
-    // We credit up to runsToCredit known runners whose base cleared
+    if(e.key==='hr' && batter){ batter.r=(batter.r||0)+1; runsToCredit--; scorers.push(batter.name); }
     const newOccRaw = e.bases || [false,false,false];
-    // Batter's target base (will be occupied by batter, not the old runner)
     const batterBase = e.key==='single'?0:e.key==='double'?1:e.key==='triple'?2:-1;
     oldBasesSnap.forEach((runner, idx)=>{
       if(runsToCredit<=0) return;
       if(!runner || !runner.num) return;
-      // Runner vacated if: base is now empty, OR batter is landing on this base (displaced runner)
       const vacated = !newOccRaw[idx] || idx===batterBase;
       if(vacated){
         const scorer = BB.batters[s].find(p=>p.num===runner.num);
-        if(scorer){ scorer.r=(scorer.r||0)+1; runsToCredit--; }
+        if(scorer){ scorer.r=(scorer.r||0)+1; runsToCredit--; scorers.push(runner.name); }
       }
     });
+    e.scorers = scorers;
   }
 
   if(e.key==='single'||e.key==='double'||e.key==='triple'||e.key==='hr'){

@@ -556,14 +556,14 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <text id="bb-fn-cf" x="170" y="78"  text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-rf" x="280" y="108" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <!-- Runner circles — toggled by bbUpdBases() -->
-          <g id="bb-r3b" style="display:none"><circle cx="102" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="102" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
-          <g id="bb-r2b" style="display:none"><circle cx="170" cy="149" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="170" y="153" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
-          <g id="bb-r1b" style="display:none"><circle cx="238" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="238" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
+          <g id="bb-r3b" style="display:none"><circle cx="102" cy="217" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/><text x="102" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="#431407"></text></g>
+          <g id="bb-r2b" style="display:none"><circle cx="170" cy="149" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/><text x="170" y="153" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="#431407"></text></g>
+          <g id="bb-r1b" style="display:none"><circle cx="238" cy="217" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/><text x="238" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="#431407"></text></g>
           <!-- Hit location dots rendered on top -->
           <g id="bb-hit-dots"></g>
           <!-- Current batter indicator -->
-          <circle cx="170" cy="285" r="13" fill="#dc2626" stroke="white" stroke-width="2"/>
-          <text id="bb-batter-dot" x="170" y="289" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="white"></text>
+          <circle cx="170" cy="285" r="11" fill="#dc2626" stroke="white" stroke-width="2"/>
+          <text id="bb-batter-dot" x="170" y="289" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="white"></text>
         </svg>
       </div>
       <div id="bb-field-legend">
@@ -1199,10 +1199,13 @@ function bbUpdScoreboard(){
     const pip=document.getElementById('bb-out'+i);
     if(pip) pip.className='bb-out-pip'+(BB.outs>=i?' on':'');
   });
-  // Bases — show/hide runner circles on field SVG
+  // Bases — show/hide runner circles on field SVG, show jersey number
   [[1,'bb-r1b'],[2,'bb-r2b'],[3,'bb-r3b']].forEach(([base,id])=>{
     const el=document.getElementById(id); if(!el) return;
-    el.style.display = BB.bases[base-1] ? '' : 'none';
+    const runner=BB.bases[base-1];
+    el.style.display = runner ? '' : 'none';
+    const txt=el.querySelector('text');
+    if(txt) txt.textContent = runner && runner.num ? runner.num : '';
   });
   // Batter dot number
   const bdot=document.getElementById('bb-batter-dot');
@@ -1278,11 +1281,12 @@ function bbUpdPanels(){
       div.innerHTML=`
         <div class="bb-pl-top">
           <div class="pl-ident">
-            <span class="pl-num" style="min-width:14px;color:var(--ink3)">${idx+1}</span>
+            <span class="pl-num" style="min-width:12px;color:var(--ink3);font-size:9px">${idx+1}</span>
             <span class="pl-num">#${p.num||'—'}</span>
             <span class="pl-name">${p.name}</span>
+            <span class="pl-num" style="color:var(--ink3);margin-left:2px">${p.pos||''}</span>
           </div>
-          <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:17px;line-height:1;flex-shrink:0;color:var(--ink)">${p.h||0}</div>
+          <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:15px;line-height:1;flex-shrink:0;color:var(--ink)">${p.h||0}</div>
         </div>
         <div class="bb-pl-line">
           <span>${p.ab||0}-<span>AB</span></span>
@@ -1307,7 +1311,7 @@ function bbUpdPanels(){
         div.innerHTML=`
           <div class="bb-pl-top">
             <div class="pl-ident"><span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
-            <div class="pl-pts" style="font-size:12px">${ip_str}</div>
+            <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:14px;line-height:1;flex-shrink:0;color:var(--ink)">${ip_str}</div>
           </div>
           <div class="bb-pl-line">
             <span>${p.h||0} <span>H</span></span>
@@ -1403,7 +1407,15 @@ function bbOnEvent(e){
   BB.balls   = e.balls   !== undefined ? e.balls   : BB.balls;
   BB.strikes = e.strikes !== undefined ? e.strikes : BB.strikes;
   BB.outs    = e.outs    !== undefined ? e.outs    : BB.outs;
-  BB.bases   = e.bases   !== undefined ? e.bases   : BB.bases;
+  // Bases — enrich boolean sim data with runner nums where possible
+  if(e.bases !== undefined){
+    BB.bases = e.bases.map((occ, idx)=>{
+      if(!occ) return false;
+      // Try to find who's on this base from prior state or use batter
+      const prior = BB.bases[idx];
+      return prior && prior.num ? prior : (batter ? {num: batter.num, name: batter.name} : true);
+    });
+  }
 
   const inn = e.inning - 1;
   const halfSide = e.half==='top' ? 'away' : 'home'; // batting side
@@ -1414,6 +1426,11 @@ function bbOnEvent(e){
     if(pitcher) pitcher.h++;
     const dotType = e.key==='hr'?'hr': (e.key==='double'||e.key==='triple')?'xbh':'hit';
     if(e.x!=null) bbAddDot(e.x, e.y, dotType);
+    // Place batter as runner object on the correct base
+    if(batter && e.key!=='hr'){
+      const targetBase = e.key==='single'?0:e.key==='double'?1:2;
+      BB.bases[targetBase] = {num:batter.num, name:batter.name};
+    }
     toast(`<b>#${e.pnum} ${e.plast}</b> — ${BB_KLBL[e.key]}${e.rbi?' · '+e.rbi+' RBI':''}`);
   } else if(['groundout','flyout','lineout','popup','strikeout'].includes(e.key)){
     if(batter) batter.ab++;
@@ -1421,11 +1438,10 @@ function bbOnEvent(e){
     if(e.key==='strikeout'&&pitcher) pitcher.k++;
     if(pitcher) { pitcher.ip_outs++; }
     if(e.x!=null) bbAddDot(e.x, e.y, 'out');
-  } else if(e.key==='walk'){
-    if(batter) batter.bb++;
+  } else if(e.key==='walk'||e.key==='hbp'){
+    if(e.key==='walk'&&batter) batter.bb++;
     if(pitcher) pitcher.bb++;
-  } else if(e.key==='hbp'){
-    if(pitcher) pitcher.bb++;
+    if(batter) BB.bases[0] = {num:batter.num, name:batter.name};
   } else if(e.key==='error'){
     BB[opp].errors++;
   } else if(e.key==='sub_pitcher'){

@@ -1342,7 +1342,7 @@ function bbUpdPanels(){
         div.innerHTML=`
           <div class="bb-pl-top">
             <div class="pl-ident"><span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
-            <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;color:var(--ink);letter-spacing:-.02em;text-align:right">${ip_str} IP<br><span style="font-size:11px;font-weight:400;color:var(--ink3)">${p.k||0} K</span></div>
+            <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;color:var(--ink);letter-spacing:-.02em;text-align:right;white-space:nowrap">${ip_str} IP · ${p.k||0} K</div>
           </div>
           <div class="bb-pl-line">${[
             p.h   ? `${p.h} <span>H</span>`   : '',
@@ -1515,14 +1515,18 @@ function bbOnEvent(e){
     if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
     if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
     e.scoreSnap = { away: BB.away.score, home: BB.home.score };
-    // Credit R to batter on HR
-    if(e.key==='hr' && batter) batter.r = (batter.r||0) + 1;
-    // Credit R to known runners who were on base and are now cleared
+    // Credit R: find runners who vacated a base and didn't appear on any new base
     const newBaseState = e.bases || [false,false,false];
-    oldBasesSnap.forEach((runner, idx)=>{
-      if(runner && runner.num && !newBaseState[idx]){
+    const newNums = newBaseState.map(b=>b&&b.num?b.num:null).filter(Boolean);
+    let runsToCredit = e.runs;
+    // HR — batter scores too
+    if(e.key==='hr' && batter){ batter.r=(batter.r||0)+1; runsToCredit--; }
+    // Runners who left a base and aren't on any new base scored
+    oldBasesSnap.forEach(runner=>{
+      if(runsToCredit<=0) return;
+      if(runner && runner.num && !newNums.includes(runner.num)){
         const scorer = BB.batters[s].find(p=>p.num===runner.num);
-        if(scorer) scorer.r = (scorer.r||0) + 1;
+        if(scorer){ scorer.r=(scorer.r||0)+1; runsToCredit--; }
       }
     });
   }
@@ -1581,7 +1585,7 @@ const BB_SIM = (()=>{
     mk('away','Reynolds',3,'groundout',   1,'top',{b:1,s:1,o:1,p:4,x:210,y:210}),
     mk('away','Torres',  7,'single',      1,'top',{b:2,s:1,o:1,bases:[true,false,false],p:5,x:195,y:175}),
     mk('away','Whitfield',24,'strikeout', 1,'top',{b:1,s:2,o:2,bases:[true,false,false],p:6}),
-    mk('away','Kimball', 11,'single',     1,'top',{b:0,s:1,o:2,bases:[true,false,true],p:3,runs:1,rbi:1,x:240,y:155}),
+    mk('away','Kimball', 11,'single',     1,'top',{b:0,s:1,o:2,bases:[true,false,false],p:3,runs:1,rbi:1,x:240,y:155}),
     mk('away','Doucette',18,'flyout',     1,'top',{b:1,s:2,o:3,bases:[true,false,true],p:5,x:170,y:115,newHalf:true}),
     // Bot 1st — Home bats
     mk('home','Peaslee', 5,'walk',        1,'bot',{b:3,s:2,o:0,bases:[true,false,false],p:8,pitcher:'Beal'}),
@@ -1591,7 +1595,7 @@ const BB_SIM = (()=>{
     mk('home','Winslow', 33,'flyout',     1,'bot',{b:2,s:1,o:3,p:4,x:155,y:120,newHalf:true}),
     // Top 2nd
     mk('away','Foss',    9,'single',      2,'top',{b:0,s:0,o:0,bases:[true,false,false],p:3,x:205,y:180}),
-    mk('away','Norwood', 2,'groundout',   2,'top',{b:1,s:1,o:1,bases:[true,false,false],p:4,x:215,y:220}),
+    mk('away','Norwood', 2,'groundout',   2,'top',{b:1,s:1,o:1,bases:[false,false,false],p:4,x:215,y:220}),
     mk('away','Reynolds',3,'hr',          2,'top',{b:2,s:1,o:1,bases:[false,false,false],p:5,runs:2,rbi:2,x:175,y:108}),
     mk('away','Torres',  7,'strikeout',   2,'top',{b:0,s:2,o:2,p:5}),
     mk('away','Whitfield',24,'walk',      2,'top',{b:3,s:1,o:2,bases:[true,false,false],p:7}),
@@ -1606,7 +1610,7 @@ const BB_SIM = (()=>{
     // Top 3rd
     mk('away','Doucette',18,'walk',       3,'top',{b:3,s:2,o:0,bases:[true,false,false],p:8,pitcher:'Crockett'}),
     mk('away','Foss',    9,'strikeout',   3,'top',{b:1,s:2,o:1,p:5}),
-    mk('away','Norwood', 2,'single',      3,'top',{b:0,s:1,o:1,bases:[true,false,true],p:3,runs:1,rbi:1,x:220,y:170}),
+    mk('away','Norwood', 2,'single',      3,'top',{b:0,s:1,o:1,bases:[true,false,false],p:3,runs:1,rbi:1,x:220,y:170}),
     mk('away','Reynolds',3,'flyout',      3,'top',{b:2,s:1,o:2,p:4,x:145,y:118}),
     mk('away','Torres',  7,'groundout',   3,'top',{b:1,s:0,o:3,p:3,x:190,y:210,newHalf:true}),
   ];

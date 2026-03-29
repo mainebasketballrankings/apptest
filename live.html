@@ -478,8 +478,8 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
 
     <!-- Status row: inning/half · B-S-O · bases diamond -->
     <div id="bb-field-wrap" style="border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;">
+      <!-- Status bar: inning + count + runners -->
       <div class="bb-status">
-        <!-- Inning + half -->
         <div class="bb-inn-blk">
           <div style="display:flex;align-items:baseline;gap:4px;">
             <span class="sb-inn-arrow top" id="bb-half-arrow2">▲</span>
@@ -487,16 +487,15 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           </div>
           <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)">INN</div>
         </div>
-        <!-- Count B-S-O -->
         <div class="bb-count-blk">
           <div class="bb-count-row">
-            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.05em">B</span>
+            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3)">B</span>
             <span class="bb-count-num" id="bb-balls">0</span>
             <span style="color:var(--rule);margin:0 1px">·</span>
-            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.05em">S</span>
+            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3)">S</span>
             <span class="bb-count-num" id="bb-strikes">0</span>
             <span style="color:var(--rule);margin:0 1px">·</span>
-            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.05em">O</span>
+            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3)">O</span>
             <div class="bb-out-pips">
               <div class="bb-out-pip" id="bb-out1"></div>
               <div class="bb-out-pip" id="bb-out2"></div>
@@ -504,23 +503,30 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           </div>
           <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);text-align:center;margin-top:1px">Count</div>
         </div>
+        <!-- Runners on base -->
+        <div style="display:flex;gap:12px;padding-left:12px;border-left:1px solid var(--rule2);font-family:'DM Mono',monospace;font-size:10px;align-items:center;flex:1;">
+          <div><span style="color:var(--ink3)">1B </span><span id="bb-on1b" style="color:var(--ink2);font-weight:600">—</span></div>
+          <div><span style="color:var(--ink3)">2B </span><span id="bb-on2b" style="color:var(--ink2);font-weight:600">—</span></div>
+          <div><span style="color:var(--ink3)">3B </span><span id="bb-on3b" style="color:var(--ink2);font-weight:600">—</span></div>
+        </div>
       </div>
 
-      <!-- Batter / Pitcher strip -->
-      <div class="bb-bp-strip">
-        <div class="bb-bp-cell">
+      <!-- Batter / Pitcher strip — bigger -->
+      <div class="bb-bp-strip" style="grid-template-columns:1fr auto 1fr;">
+        <div class="bb-bp-cell" style="padding:10px 14px;">
           <span class="bb-bp-tag">AB</span>
           <div>
-            <div class="bb-bp-name" id="bb-batter-name">—</div>
+            <div class="bb-bp-name" id="bb-batter-name" style="font-size:16px;">—</div>
             <div class="bb-bp-sub" id="bb-batter-line"></div>
           </div>
         </div>
-        <div class="bb-bp-cell">
-          <span class="bb-bp-tag">P</span>
-          <div>
-            <div class="bb-bp-name" id="bb-pitcher-name">—</div>
+        <div style="display:flex;align-items:center;padding:0 8px;color:var(--rule);font-family:'DM Mono',monospace;font-size:11px;">vs</div>
+        <div class="bb-bp-cell" style="padding:10px 14px;justify-content:flex-end;text-align:right;">
+          <div style="text-align:right;">
+            <div class="bb-bp-name" id="bb-pitcher-name" style="font-size:16px;">—</div>
             <div class="bb-bp-sub" id="bb-pitcher-line"></div>
           </div>
+          <span class="bb-bp-tag" style="margin-left:6px;">P</span>
         </div>
       </div>
 
@@ -543,9 +549,9 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <line x1="170" y1="149" x2="102" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <line x1="102" y1="217" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <polygon points="170,268 163,274 166,282 174,282 177,274" fill="white" stroke="#ccc" stroke-width="0.5"/>
-          <rect x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-          <rect x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-          <rect x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+          <rect id="bb-sq1b" x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+          <rect id="bb-sq2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+          <rect id="bb-sq3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <text id="bb-fn-p"  x="170" y="208" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-c"  x="170" y="296" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-1b" x="256" y="232" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
@@ -555,15 +561,8 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <text id="bb-fn-lf" x="60"  y="108" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-cf" x="170" y="78"  text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-rf" x="280" y="108" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
-          <!-- Runner circles — toggled by bbUpdBases() -->
-          <g id="bb-r3b" style="display:none"><circle cx="102" cy="217" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/><text x="102" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="#431407"></text></g>
-          <g id="bb-r2b" style="display:none"><circle cx="170" cy="149" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/><text x="170" y="153" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="#431407"></text></g>
-          <g id="bb-r1b" style="display:none"><circle cx="238" cy="217" r="12" fill="#f59e0b" stroke="white" stroke-width="2"/><text x="238" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="#431407"></text></g>
-          <!-- Hit location dots rendered on top -->
+          <!-- Hit location dot — last ball in play only -->
           <g id="bb-hit-dots"></g>
-          <!-- Current batter indicator -->
-          <circle cx="170" cy="285" r="11" fill="#dc2626" stroke="white" stroke-width="2"/>
-          <text id="bb-batter-dot" x="170" y="289" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" font-weight="900" fill="white"></text>
         </svg>
       </div>
       <div id="bb-field-legend">
@@ -1199,18 +1198,22 @@ function bbUpdScoreboard(){
     const pip=document.getElementById('bb-out'+i);
     if(pip) pip.className='bb-out-pip'+(BB.outs>=i?' on':'');
   });
-  // Bases — show/hide runner circles on field SVG, show jersey number
-  [[1,'bb-r1b'],[2,'bb-r2b'],[3,'bb-r3b']].forEach(([base,id])=>{
-    const el=document.getElementById(id); if(!el) return;
+  // Runners — populate text spans in status bar + highlight base squares
+  [[1,'bb-on1b','bb-sq1b'],[2,'bb-on2b','bb-sq2b'],[3,'bb-on3b','bb-sq3b']].forEach(([base,txtId,sqId])=>{
     const runner=BB.bases[base-1];
-    el.style.display = runner ? '' : 'none';
-    const txt=el.querySelector('text');
-    if(txt) txt.textContent = runner && runner.num ? runner.num : '';
+    const txt=document.getElementById(txtId);
+    if(txt){
+      txt.textContent = runner && runner.num ? `#${runner.num} ${runner.name}` : '—';
+      txt.style.color = runner ? 'var(--gold)' : 'var(--ink3)';
+      txt.style.fontWeight = runner ? '700' : '400';
+    }
+    const sq=document.getElementById(sqId);
+    if(sq){
+      sq.setAttribute('fill', runner ? '#f59e0b' : 'white');
+      sq.setAttribute('stroke', runner ? '#d97706' : '#ccc');
+    }
   });
-  // Batter dot number
-  const bdot=document.getElementById('bb-batter-dot');
-  if(bdot) bdot.textContent = BB.batter.num||'';
-  // Batter/pitcher strip — # Name format
+  // Batter/pitcher strip
   const bn=document.getElementById('bb-batter-name'); if(bn) bn.textContent=BB.batter.num?`#${BB.batter.num} ${BB.batter.name}`:BB.batter.name;
   const bl=document.getElementById('bb-batter-line'); if(bl) bl.textContent=BB.batter.line;
   const pn=document.getElementById('bb-pitcher-name'); if(pn) pn.textContent=BB.pitcher.num?`#${BB.pitcher.num} ${BB.pitcher.name}`:BB.pitcher.name;

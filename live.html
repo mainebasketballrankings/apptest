@@ -546,15 +546,15 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <rect x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
-          <text x="170" y="210" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">P</text>
-          <text x="170" y="296" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">C</text>
-          <text x="254" y="230" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">1B</text>
-          <text x="218" y="190" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">2B</text>
-          <text x="122" y="190" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">SS</text>
-          <text x="86"  y="230" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">3B</text>
-          <text x="66"  y="108" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">LF</text>
-          <text x="170" y="82"  text-anchor="middle" font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">CF</text>
-          <text x="274" y="108" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">RF</text>
+          <text id="bb-fn-p"  x="170" y="208" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-c"  x="170" y="296" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-1b" x="256" y="232" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-2b" x="220" y="188" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-ss" x="120" y="188" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-3b" x="84"  y="232" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-lf" x="60"  y="108" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-cf" x="170" y="78"  text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke"></text>
+          <text id="bb-fn-rf" x="280" y="108" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke"></text>
           <!-- Runner circles — toggled by bbUpdBases() -->
           <g id="bb-r3b" style="display:none"><circle cx="102" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="102" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
           <g id="bb-r2b" style="display:none"><circle cx="170" cy="149" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="170" y="153" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
@@ -1115,7 +1115,7 @@ function initView(home,away){
   if(SPORT==='basketball'){ updScoreboard(); updPanels(); updFeed(); }
   else {
     ['home','away'].forEach(s=>{ const t=s==='home'?home:away; BB[s].name=t.name; BB[s].short=t.short; });
-    bbUpdScoreboard(); bbUpdPanels(); bbUpdFeed(); bbUpdLinescore();
+    bbUpdScoreboard(); bbUpdPanels(); bbUpdFeed(); bbUpdLinescore(); bbUpdField();
   }
 }
 
@@ -1341,10 +1341,23 @@ function bbUpdFeed(){
   });
 }
 
+function bbUpdField(){
+  // Fielding side = opposite of batting side (top=away bats, home fields; bot=home bats, away fields)
+  const fieldingSide = BB.half==='top' ? 'home' : 'away';
+  const def = BB_LINEUPS.defense[fieldingSide];
+  const posMap = {P:'bb-fn-p',C:'bb-fn-c','1B':'bb-fn-1b','2B':'bb-fn-2b',
+                  '3B':'bb-fn-3b',SS:'bb-fn-ss',LF:'bb-fn-lf',CF:'bb-fn-cf',RF:'bb-fn-rf'};
+  Object.entries(posMap).forEach(([pos,id])=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = def[pos] || '';
+  });
+}
+
 function bbAddDot(x, y, type){
-  // x,y in field SVG space (340×260)
+  // Keep only the most recent dot — clear previous each time
   const g = document.getElementById('bb-hit-dots');
   if(!g) return;
+  g.innerHTML = '';
   const colors = { hit:'#15803d', xbh:'#b45309', hr:'#1a56db', out:'#c0392b' };
   if(type==='out'){
     const t=document.createElementNS('http://www.w3.org/2000/svg','text');
@@ -1354,10 +1367,10 @@ function bbAddDot(x, y, type){
     t.textContent='×'; g.appendChild(t);
   } else {
     const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r','6');
+    c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r','7');
     c.setAttribute('fill', colors[type]||'#15803d');
-    c.setAttribute('fill-opacity','.82');
-    c.setAttribute('stroke','rgba(255,255,255,.5)'); c.setAttribute('stroke-width','1.5');
+    c.setAttribute('fill-opacity','.85');
+    c.setAttribute('stroke','rgba(255,255,255,.6)'); c.setAttribute('stroke-width','1.5');
     g.appendChild(c);
   }
 }
@@ -1436,24 +1449,35 @@ function bbOnEvent(e){
   if(e.newHalf){ BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false]; }
 
   bbEvts.unshift(e);
-  bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed();
+  bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
 }
 
 // ── BASEBALL LINEUPS (pre-seeded so all players show from start) ──
 const BB_LINEUPS = {
   away: [
-    {name:'Reynolds', num:3},{name:'Torres',   num:7},{name:'Whitfield',num:24},
-    {name:'Kimball',  num:11},{name:'Doucette', num:18},{name:'Foss',    num:9},
-    {name:'Norwood',  num:2},
+    {name:'Reynolds', num:3, pos:'CF'},{name:'Torres',   num:7,  pos:'SS'},
+    {name:'Whitfield',num:24,pos:'1B'},{name:'Kimball',  num:11, pos:'LF'},
+    {name:'Doucette', num:18,pos:'3B'},{name:'Foss',     num:9,  pos:'RF'},
+    {name:'Norwood',  num:2, pos:'2B'},{name:'Callahan', num:15, pos:'C'},
+    {name:'Beal',     num:22,pos:'P'},
   ],
   home: [
-    {name:'Peaslee',  num:5},{name:'Larson',   num:14},{name:'Pinkham', num:22},
-    {name:'Oakes',    num:8},{name:'Winslow',  num:33},{name:'Hamlin',  num:17},
-    {name:'Bouchard', num:21},
+    {name:'Peaslee',  num:5, pos:'2B'},{name:'Larson',   num:14, pos:'CF'},
+    {name:'Pinkham',  num:22,pos:'SS'},{name:'Oakes',    num:8,  pos:'1B'},
+    {name:'Winslow',  num:33,pos:'LF'},{name:'Hamlin',   num:17, pos:'3B'},
+    {name:'Bouchard', num:21,pos:'RF'},{name:'Ingraham', num:6,  pos:'C'},
+    {name:'Crockett', num:44,pos:'P'},
   ],
   pitchers: {
-    away: [{name:'Crockett',num:''}],
-    home: [{name:'Beal',num:''}],
+    away: [{name:'Beal',    num:22}],
+    home: [{name:'Crockett',num:44}],
+  },
+  // Fielding side lineup (who's on defense) — away bats top, so home fields
+  defense: {
+    home: {P:'Crockett 44',C:'Ingraham 6','1B':'Oakes 8','2B':'Peaslee 5',
+           '3B':'Hamlin 17',SS:'Pinkham 22',LF:'Winslow 33',CF:'Larson 14',RF:'Bouchard 21'},
+    away: {P:'Beal 22',C:'Callahan 15','1B':'Whitfield 24','2B':'Norwood 2',
+           '3B':'Doucette 18',SS:'Torres 7',LF:'Kimball 11',CF:'Reynolds 3',RF:'Foss 9'},
   }
 };
 

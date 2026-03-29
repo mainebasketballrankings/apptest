@@ -535,16 +535,20 @@ body.sport-baseball .bball-only{display:none !important;}
       <div style="padding:6px 6px 0;">
         <svg id="bb-fsvg" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
           <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 Z" fill="#4a8c5c"/>
-          <!-- MBR logo mowed into outfield — clipped to grass area -->
+          <!-- MBR logo mowed into outfield — desaturated, clipped to grass -->
           <defs>
             <clipPath id="bb-outfield-clip">
               <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 Z"/>
             </clipPath>
+            <filter id="bb-logo-desat">
+              <feColorMatrix type="saturate" values="0"/>
+            </filter>
           </defs>
           <image href="https://res.cloudinary.com/dulfssb6y/image/upload/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png"
-            x="110" y="40" width="120" height="120"
+            x="110" y="18" width="120" height="120"
             clip-path="url(#bb-outfield-clip)"
-            opacity="0.13"
+            filter="url(#bb-logo-desat)"
+            opacity="0.18"
             preserveAspectRatio="xMidYMid meet"/>
           <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>
           <polygon points="170,285 238,217 170,149 102,217" fill="#c8956a"/>

@@ -203,7 +203,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .ls-tbl .ls-cur{background:var(--rule2);border-radius:2px;font-weight:700;color:var(--ink);}
 
 /* BASEBALL CENTRE COLUMN — status row */
-.bb-status{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--paper);border-bottom:1px solid var(--rule2);overflow:hidden;}
+.bb-status{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--paper);border-bottom:1px solid var(--rule2);width:100%;box-sizing:border-box;}
 .bb-inn-blk{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .bb-count-blk{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .bb-count-row{display:flex;align-items:center;gap:3px;font-family:'DM Mono',monospace;font-size:11px;color:var(--ink3);}
@@ -223,7 +223,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .bb-bp-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);}
 
 /* BASEBALL FIELD SVG */
-#bb-field-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;}
+#bb-field-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;width:100%;box-sizing:border-box;}
 #bb-field-legend{display:flex;align-items:center;justify-content:center;gap:14px;padding:4px 10px;border-top:1px solid var(--rule2);font-size:10px;color:var(--ink3);font-family:'DM Mono',monospace;}
 
 /* BASEBALL STAT PANELS */
@@ -502,7 +502,7 @@ body.sport-baseball .bball-only{display:none !important;}
           <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);text-align:center;margin-top:1px">Count</div>
         </div>
         <!-- Runners on base -->
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 4px;padding-left:10px;border-left:1px solid var(--rule2);font-family:'DM Mono',monospace;font-size:9px;width:140px;flex-shrink:0;">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px 4px;padding-left:10px;border-left:1px solid var(--rule2);font-family:'DM Mono',monospace;font-size:9px;flex:1;min-width:0;overflow:hidden;">
           <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:var(--ink3)">1B </span><span id="bb-on1b" style="font-weight:600">—</span></div>
           <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:var(--ink3)">2B </span><span id="bb-on2b" style="font-weight:600">—</span></div>
           <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:var(--ink3)">3B </span><span id="bb-on3b" style="font-weight:600">—</span></div>
@@ -1220,7 +1220,7 @@ function bbUpdScoreboard(){
     const runner=BB.bases[base-1];
     const txt=document.getElementById(txtId);
     if(txt){
-      txt.textContent = runner && runner.num ? `#${runner.num}` : '—';
+      txt.textContent = runner && runner.num ? `#${runner.num} ${runner.name}` : '—';
       txt.style.color = runner ? 'var(--gold)' : 'var(--ink3)';
       txt.style.fontWeight = runner ? '700' : '400';
     }
@@ -1299,15 +1299,20 @@ function bbUpdPanels(){
       const div = document.createElement('div');
       div.className = 'bb-pl-row';
       const hab = `${p.h||0}-${p.ab||0}`;
+      // Check if this player is on base
+      const onBase = BB.bases.findIndex(b=>b && b.num===p.num);
+      const baseLabel = onBase===0?'1B':onBase===1?'2B':onBase===2?'3B':'';
+      const basePip = baseLabel ? `<span style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:#fff;background:var(--gold);border-radius:3px;padding:1px 4px;margin-left:4px;flex-shrink:0;">${baseLabel}</span>` : '';
       div.innerHTML=`
         <div class="bb-pl-top">
-          <div class="pl-ident">
-            <span class="pl-num" style="min-width:12px;color:var(--ink3);font-size:9px">${idx+1}</span>
-            <span class="pl-num">#${p.num||'—'}</span>
+          <div class="pl-ident" style="min-width:0;overflow:hidden;">
+            <span class="pl-num" style="min-width:12px;color:var(--ink3);font-size:9px;flex-shrink:0">${idx+1}</span>
+            <span class="pl-num" style="flex-shrink:0">#${p.num||'—'}</span>
             <span class="pl-name">${p.name}</span>
-            <span class="pl-num" style="color:var(--ink3);margin-left:2px">${p.pos||''}</span>
+            <span class="pl-num" style="color:var(--ink3);margin-left:2px;flex-shrink:0">${p.pos||''}</span>
+            ${basePip}
           </div>
-          <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0;letter-spacing:-.02em">${hab}</div>
+          <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0;letter-spacing:-.02em;margin-left:4px">${hab}</div>
         </div>
         <div class="bb-pl-line">
           <span>${p.r||0} <span>R</span></span>

@@ -203,7 +203,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .ls-tbl .ls-cur{background:var(--rule2);border-radius:2px;font-weight:700;color:var(--ink);}
 
 /* BASEBALL CENTRE COLUMN — status row */
-.bb-status{display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 10px;background:var(--paper);border-bottom:1px solid var(--rule2);}
+.bb-status{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--paper);border-bottom:1px solid var(--rule2);overflow:hidden;}
 .bb-inn-blk{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .bb-count-blk{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .bb-count-row{display:flex;align-items:center;gap:3px;font-family:'DM Mono',monospace;font-size:11px;color:var(--ink3);}
@@ -316,14 +316,8 @@ body.sport-baseball .bball-only{display:none !important;}
             </div>
           </div>
         </div>
-        <!-- BASEBALL -->
-        <div class="bb-only" style="display:flex;flex-direction:column;align-items:center;gap:3px;width:100%">
-          <!-- Inning indicator -->
-          <div style="display:flex;align-items:baseline;gap:5px;">
-            <span class="sb-inn-arrow top" id="bb-half-arrow">▲</span>
-            <span class="sb-inn-num" id="bb-inn-num">1</span>
-            <span class="sb-inn-lbl">Inning</span>
-          </div>
+        <!-- BASEBALL — linescore only, inning/count in status bar below -->
+        <div class="bb-only" style="width:100%;padding:4px 0;">
           <!-- Linescore -->
           <div class="ls-wrap">
             <table class="ls-tbl" id="bb-linescore">
@@ -508,10 +502,10 @@ body.sport-baseball .bball-only{display:none !important;}
           <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);text-align:center;margin-top:1px">Count</div>
         </div>
         <!-- Runners on base -->
-        <div style="display:flex;gap:12px;padding-left:12px;border-left:1px solid var(--rule2);font-family:'DM Mono',monospace;font-size:10px;align-items:center;flex:1;">
-          <div><span style="color:var(--ink3)">1B </span><span id="bb-on1b" style="color:var(--ink2);font-weight:600">—</span></div>
-          <div><span style="color:var(--ink3)">2B </span><span id="bb-on2b" style="color:var(--ink2);font-weight:600">—</span></div>
-          <div><span style="color:var(--ink3)">3B </span><span id="bb-on3b" style="color:var(--ink2);font-weight:600">—</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 6px;padding-left:10px;border-left:1px solid var(--rule2);font-family:'DM Mono',monospace;font-size:9px;flex:1;min-width:0;">
+          <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:var(--ink3)">1B </span><span id="bb-on1b" style="font-weight:600">—</span></div>
+          <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:var(--ink3)">2B </span><span id="bb-on2b" style="font-weight:600">—</span></div>
+          <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:var(--ink3)">3B </span><span id="bb-on3b" style="font-weight:600">—</span></div>
         </div>
       </div>
 
@@ -1161,8 +1155,8 @@ document.addEventListener('DOMContentLoaded', () => {
     BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
     BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
     initView(
-      {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:''},
-      {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:''}
+      {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
+      {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/oceanside.png'}
     );
     setTimeout(bbRunSim, 1000);
   }
@@ -1210,14 +1204,10 @@ function bbUpdScoreboard(){
   const aH=document.getElementById('away-hits-lbl'); if(aH) aH.textContent=BB.away.hits+' H';
   const aE=document.getElementById('away-err-lbl');  if(aE) aE.textContent=BB.away.errors+' E';
   // Inning display (scoreboard centre + status row)
-  ['bb-half-arrow','bb-half-arrow2'].forEach(id=>{
-    const el=document.getElementById(id); if(!el) return;
-    el.textContent = BB.half==='top'?'▲':'▼';
-    el.className = 'sb-inn-arrow '+(BB.half==='top'?'top':'bot');
-  });
-  ['bb-inn-num','bb-inn-num2'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.textContent=BB.inning;
-  });
+  const halfArrow = document.getElementById('bb-half-arrow2');
+  if(halfArrow){ halfArrow.textContent=BB.half==='top'?'▲':'▼'; halfArrow.className='sb-inn-arrow '+(BB.half==='top'?'top':'bot'); }
+  const innNum = document.getElementById('bb-inn-num2');
+  if(innNum) innNum.textContent=BB.inning;
   // Count
   document.getElementById('bb-balls').textContent   = BB.balls;
   document.getElementById('bb-strikes').textContent = BB.strikes;

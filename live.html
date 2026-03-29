@@ -502,10 +502,10 @@ body.sport-baseball .bball-only{display:none !important;}
           <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);text-align:center;margin-top:1px">Count</div>
         </div>
         <!-- Runners on base -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 6px;padding-left:10px;border-left:1px solid var(--rule2);font-family:'DM Mono',monospace;font-size:9px;flex:1;min-width:0;">
-          <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:var(--ink3)">1B </span><span id="bb-on1b" style="font-weight:600">—</span></div>
-          <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:var(--ink3)">2B </span><span id="bb-on2b" style="font-weight:600">—</span></div>
-          <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:var(--ink3)">3B </span><span id="bb-on3b" style="font-weight:600">—</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 4px;padding-left:10px;border-left:1px solid var(--rule2);font-family:'DM Mono',monospace;font-size:9px;width:140px;flex-shrink:0;">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:var(--ink3)">1B </span><span id="bb-on1b" style="font-weight:600">—</span></div>
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:var(--ink3)">2B </span><span id="bb-on2b" style="font-weight:600">—</span></div>
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:var(--ink3)">3B </span><span id="bb-on3b" style="font-weight:600">—</span></div>
         </div>
       </div>
 
@@ -1220,7 +1220,7 @@ function bbUpdScoreboard(){
     const runner=BB.bases[base-1];
     const txt=document.getElementById(txtId);
     if(txt){
-      txt.textContent = runner && runner.num ? `#${runner.num} ${runner.name}` : '—';
+      txt.textContent = runner && runner.num ? `#${runner.num}` : '—';
       txt.style.color = runner ? 'var(--gold)' : 'var(--ink3)';
       txt.style.fontWeight = runner ? '700' : '400';
     }

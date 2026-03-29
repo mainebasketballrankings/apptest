@@ -170,6 +170,8 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   .sb-meta{font-size:9px;}
   .sb-middle{gap:4px;}
   #main{grid-template-columns:1fr;padding:8px;gap:8px;}
+  #court-col, #bb-col{grid-column:1;}
+  #home-panel, #away-panel{grid-column:1;}
   /* Basketball mobile */
   body.sport-basketball #court-col{display:none !important;}
   body.sport-basketball #mobile-panel{display:block !important;}
@@ -1443,13 +1445,15 @@ function bbOnEvent(e){
   BB.balls   = e.balls   !== undefined ? e.balls   : BB.balls;
   BB.strikes = e.strikes !== undefined ? e.strikes : BB.strikes;
   BB.outs    = e.outs    !== undefined ? e.outs    : BB.outs;
-  // Bases — enrich boolean sim data with runner nums where possible
+  // Bases — carry forward known runners, clear vacated bases
   if(e.bases !== undefined){
     BB.bases = e.bases.map((occ, idx)=>{
       if(!occ) return false;
-      // Try to find who's on this base from prior state or use batter
+      // Keep prior runner if still on this base
       const prior = BB.bases[idx];
-      return prior && prior.num ? prior : (batter ? {num: batter.num, name: batter.name} : true);
+      if(prior && prior.num) return prior;
+      // Unknown runner — store as true (no num to avoid false indicators)
+      return true;
     });
   }
 
@@ -1493,6 +1497,17 @@ function bbOnEvent(e){
     if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
     if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
     e.scoreSnap = { away: BB.away.score, home: BB.home.score };
+    // Credit R to runners who scored — find bases that were occupied before and are now cleared
+    // For HRs, batter scores too
+    if(e.key==='hr' && batter) batter.r = (batter.r||0) + 1;
+    // Credit R to known runners on cleared bases
+    const newBases = e.bases || [false,false,false];
+    BB.bases.forEach((runner, idx)=>{
+      if(runner && runner.num && !newBases[idx]){
+        const scorer = BB.batters[s].find(p=>p.num===runner.num);
+        if(scorer) scorer.r = (scorer.r||0) + 1;
+      }
+    });
   }
 
   // Pitcher pitch count

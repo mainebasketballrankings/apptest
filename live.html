@@ -1451,25 +1451,23 @@ function bbOnEvent(e){
   // Capture old bases BEFORE enrichment for R crediting
   const oldBasesSnap = BB.bases.slice();
 
-  // Bases — smart enrichment: detect runner advances
+  // Bases — smart enrichment
   if(e.bases !== undefined){
-    const oldBases = oldBasesSnap;
-    const newOcc = e.bases;
+    const newOcc = e.bases; // boolean array from sim
     const newBases = [false, false, false];
-    // First pass: keep runners whose base is still occupied
+    // Pass 1: keep runners who stayed on their same base
     for(let i=0;i<3;i++){
-      if(newOcc[i] && oldBases[i] && oldBases[i].num) newBases[i] = oldBases[i];
+      if(newOcc[i] && oldBasesSnap[i] && oldBasesSnap[i].num) newBases[i] = oldBasesSnap[i];
     }
-    // Second pass: advance runners from lower to higher bases
-    for(let i=0;i<3;i++){
-      if(!newOcc[i] || newBases[i]) continue; // empty or already filled
-      // Look for a known runner who was on a lower base
+    // Pass 2: advance runners — scan from highest base down to find who moved up
+    for(let i=2;i>=0;i--){
+      if(!newOcc[i] || newBases[i]) continue;
+      // Find nearest known runner on a lower base that vacated
       for(let j=i-1;j>=0;j--){
-        if(oldBases[j] && oldBases[j].num && !newOcc[j]){
-          newBases[i] = oldBases[j]; break;
+        if(oldBasesSnap[j] && oldBasesSnap[j].num && !newOcc[j] && !newBases[i]){
+          newBases[i] = oldBasesSnap[j]; break;
         }
       }
-      // Still unknown — mark occupied without num
       if(!newBases[i]) newBases[i] = true;
     }
     BB.bases = newBases;
@@ -1515,16 +1513,15 @@ function bbOnEvent(e){
     if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
     if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
     e.scoreSnap = { away: BB.away.score, home: BB.home.score };
-    // Credit R: find runners who vacated a base and didn't appear on any new base
-    const newBaseState = e.bases || [false,false,false];
-    const newNums = newBaseState.map(b=>b&&b.num?b.num:null).filter(Boolean);
+    // Nums still on base after this play (enriched)
+    const stillOnBase = BB.bases.filter(b=>b&&b.num).map(b=>b.num);
     let runsToCredit = e.runs;
-    // HR — batter scores too
+    // HR — batter scores
     if(e.key==='hr' && batter){ batter.r=(batter.r||0)+1; runsToCredit--; }
-    // Runners who left a base and aren't on any new base scored
+    // Credit R to known runners who were on base and are no longer on any base
     oldBasesSnap.forEach(runner=>{
       if(runsToCredit<=0) return;
-      if(runner && runner.num && !newNums.includes(runner.num)){
+      if(runner && runner.num && !stillOnBase.includes(runner.num)){
         const scorer = BB.batters[s].find(p=>p.num===runner.num);
         if(scorer){ scorer.r=(scorer.r||0)+1; runsToCredit--; }
       }
@@ -1595,7 +1592,7 @@ const BB_SIM = (()=>{
     mk('home','Winslow', 33,'flyout',     1,'bot',{b:2,s:1,o:3,p:4,x:155,y:120,newHalf:true}),
     // Top 2nd
     mk('away','Foss',    9,'single',      2,'top',{b:0,s:0,o:0,bases:[true,false,false],p:3,x:205,y:180}),
-    mk('away','Norwood', 2,'groundout',   2,'top',{b:1,s:1,o:1,bases:[false,false,false],p:4,x:215,y:220}),
+    mk('away','Norwood', 2,'groundout',   2,'top',{b:1,s:1,o:1,bases:[true,false,false],p:4,x:215,y:220}),
     mk('away','Reynolds',3,'hr',          2,'top',{b:2,s:1,o:1,bases:[false,false,false],p:5,runs:2,rbi:2,x:175,y:108}),
     mk('away','Torres',  7,'strikeout',   2,'top',{b:0,s:2,o:2,p:5}),
     mk('away','Whitfield',24,'walk',      2,'top',{b:3,s:1,o:2,bases:[true,false,false],p:7}),

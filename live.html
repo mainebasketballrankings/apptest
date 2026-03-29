@@ -504,23 +504,6 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           </div>
           <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);text-align:center;margin-top:1px">Count</div>
         </div>
-        <!-- Bases diamond -->
-        <div class="bb-bases-blk">
-          <svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" width="44" height="44">
-            <!-- 2B top -->
-            <rect id="bb-base2" x="17" y="2" width="10" height="10" rx="2"
-              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5" transform="rotate(45 22 7)"/>
-            <!-- 3B left -->
-            <rect id="bb-base3" x="2" y="17" width="10" height="10" rx="2"
-              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5" transform="rotate(45 7 22)"/>
-            <!-- 1B right -->
-            <rect id="bb-base1" x="32" y="17" width="10" height="10" rx="2"
-              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5" transform="rotate(45 37 22)"/>
-            <!-- Home plate -->
-            <polygon points="22,38 18,34 18,31 26,31 26,34"
-              fill="var(--rule2)" stroke="var(--rule)" stroke-width="1.5"/>
-          </svg>
-        </div>
       </div>
 
       <!-- Batter / Pitcher strip -->
@@ -541,32 +524,46 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
         </div>
       </div>
 
-      <!-- Baseball field SVG (bird's eye, 340×260 viewBox) -->
-      <div style="padding:6px;">
-        <svg id="bb-fsvg" viewBox="0 0 340 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
-          <!-- Sky/outfield -->
-          <rect width="340" height="260" fill="#5a9e6e"/>
-          <!-- Outfield grass arc -->
-          <path d="M 170,245 L 15,110 A 175,175 0 0,1 325,110 Z" fill="#4e8f61"/>
-          <!-- Warning track -->
-          <path d="M 170,245 L 8,108 A 183,183 0 0,1 332,108 Z" fill="none" stroke="#8a7a5a" stroke-width="7" stroke-opacity="0.6"/>
-          <!-- Infield dirt -->
-          <polygon points="170,245 238,177 170,109 102,177" fill="#c4a97a"/>
-          <!-- Infield grass -->
-          <polygon points="170,220 220,177 170,134 120,177" fill="#5a9e6e"/>
-          <!-- Foul lines -->
-          <line x1="170" y1="245" x2="9" y2="110" stroke="#fff" stroke-width="1.5" opacity="0.5"/>
-          <line x1="170" y1="245" x2="331" y2="110" stroke="#fff" stroke-width="1.5" opacity="0.5"/>
-          <!-- Pitcher's mound -->
-          <circle cx="170" cy="177" r="9" fill="#c4a97a" stroke="#b89060" stroke-width="1.2"/>
-          <!-- Bases -->
-          <rect x="163" y="102" width="14" height="14" rx="2" fill="#fff" opacity="0.85"/>
-          <rect x="231" y="170" width="14" height="14" rx="2" fill="#fff" opacity="0.85" transform="rotate(45 238 177)"/>
-          <rect x="95" y="170" width="14" height="14" rx="2" fill="#fff" opacity="0.85" transform="rotate(45 102 177)"/>
-          <!-- Home plate -->
-          <polygon points="170,245 163,238 163,232 177,232 177,238" fill="#fff" opacity="0.85"/>
-          <!-- Hit location dots -->
+      <!-- Baseball field SVG — LOCKED geometry from baseball_scorer.html -->
+      <!-- viewBox 340×300: Home(170,285) 1B(238,217) 2B(170,149) 3B(102,217) P(170,220) Arc r=172.9 center(170,60.5) -->
+      <div style="padding:6px 6px 0;">
+        <svg id="bb-fsvg" viewBox="0 0 340 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <path d="M170,285 L9,124 A172.9,172.9 0 0,1 331,124 Z" fill="#4a8c5c"/>
+          <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>
+          <polygon points="170,285 238,217 170,149 102,217" fill="#c8956a"/>
+          <ellipse cx="170" cy="220" rx="14" ry="11" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
+          <circle cx="170" cy="276" r="16" fill="#b8856a"/>
+          <circle cx="238" cy="217" r="11" fill="#b8856a"/>
+          <circle cx="170" cy="149" r="11" fill="#b8856a"/>
+          <circle cx="102" cy="217" r="11" fill="#b8856a"/>
+          <line x1="170" y1="285" x2="9"   y2="124" stroke="white" stroke-width="2" opacity="0.85"/>
+          <line x1="170" y1="285" x2="331" y2="124" stroke="white" stroke-width="2" opacity="0.85"/>
+          <line x1="170" y1="285" x2="238" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
+          <line x1="238" y1="217" x2="170" y2="149" stroke="white" stroke-width="1.5" opacity="0.8"/>
+          <line x1="170" y1="149" x2="102" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
+          <line x1="102" y1="217" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
+          <polygon points="170,268 163,274 166,282 174,282 177,274" fill="white" stroke="#ccc" stroke-width="0.5"/>
+          <rect x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+          <rect x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+          <rect x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
+          <text x="170" y="210" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">P</text>
+          <text x="170" y="296" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">C</text>
+          <text x="254" y="230" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">1B</text>
+          <text x="218" y="190" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">2B</text>
+          <text x="122" y="190" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#7a5a3a" stroke-width="2.5" paint-order="stroke">SS</text>
+          <text x="86"  y="230" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">3B</text>
+          <text x="66"  y="108" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">LF</text>
+          <text x="170" y="82"  text-anchor="middle" font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">CF</text>
+          <text x="274" y="108" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="12" font-weight="300" fill="white" stroke="#1a4a28" stroke-width="2.5" paint-order="stroke">RF</text>
+          <!-- Runner circles — toggled by bbUpdBases() -->
+          <g id="bb-r3b" style="display:none"><circle cx="102" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="102" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
+          <g id="bb-r2b" style="display:none"><circle cx="170" cy="149" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="170" y="153" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
+          <g id="bb-r1b" style="display:none"><circle cx="238" cy="217" r="15" fill="#f59e0b" stroke="white" stroke-width="2.5"/><text x="238" y="221" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="#431407"></text></g>
+          <!-- Hit location dots rendered on top -->
           <g id="bb-hit-dots"></g>
+          <!-- Current batter indicator -->
+          <circle cx="170" cy="285" r="13" fill="#dc2626" stroke="white" stroke-width="2"/>
+          <text id="bb-batter-dot" x="170" y="289" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="900" fill="white"></text>
         </svg>
       </div>
       <div id="bb-field-legend">
@@ -1131,6 +1128,12 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     setTimeout(runSim, 1000);
   } else {
+    // Seed lineups so all players show from the start
+    BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0}));
+    BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0}));
+    BB_LINEUPS.pitchers.away.forEach(p=>BB.pitchers.away.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
+    BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
+    BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
     initView(
       {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:''},
       {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:''}
@@ -1196,14 +1199,14 @@ function bbUpdScoreboard(){
     const pip=document.getElementById('bb-out'+i);
     if(pip) pip.className='bb-out-pip'+(BB.outs>=i?' on':'');
   });
-  // Bases
-  const baseColors = { 1:'#f59e0b', 2:'#f59e0b', 3:'#f59e0b' };
-  ['bb-base1','bb-base2','bb-base3'].forEach((id,idx)=>{
+  // Bases — show/hide runner circles on field SVG
+  [[1,'bb-r1b'],[2,'bb-r2b'],[3,'bb-r3b']].forEach(([base,id])=>{
     const el=document.getElementById(id); if(!el) return;
-    const occ=BB.bases[idx];
-    el.setAttribute('fill', occ?'#f59e0b':'var(--rule2)');
-    el.setAttribute('stroke', occ?'#d97706':'var(--rule)');
+    el.style.display = BB.bases[base-1] ? '' : 'none';
   });
+  // Batter dot number
+  const bdot=document.getElementById('bb-batter-dot');
+  if(bdot) bdot.textContent = BB.batter.num||'';
   // Batter/pitcher strip
   const bn=document.getElementById('bb-batter-name'); if(bn) bn.textContent=BB.batter.name;
   const bl=document.getElementById('bb-batter-line'); if(bl) bl.textContent=BB.batter.line;
@@ -1368,11 +1371,12 @@ function bbOnEvent(e){
   while(BB.innings.home.length < e.inning) BB.innings.home.push(0);
   while(BB.innings.away.length < e.inning) BB.innings.away.push(0);
 
-  // Ensure batter/pitcher exist
+  // Look up existing batter and pitcher — pre-seeded from BB_LINEUPS
   let batter = BB.batters[s].find(p=>p.name===e.plast);
+  let pitcher = BB.pitchers[opp].find(p=>p.name===e.pitcher);
+  // Fallback: create if somehow not pre-seeded
   if(!batter && e.plast){ batter={name:e.plast,num:e.pnum||'',ab:0,r:0,h:0,rbi:0,bb:0,k:0}; BB.batters[s].push(batter); }
-  let pitcher = BB.pitchers[opp][BB.pitchers[opp].length-1];
-  if(!pitcher||pitcher.name!==e.pitcher){ pitcher={name:e.pitcher||'—',num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}; BB.pitchers[opp].push(pitcher); }
+  if(!pitcher && e.pitcher){ pitcher={name:e.pitcher,num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}; BB.pitchers[opp].push(pitcher); }
 
   // Update pitcher strip
   BB.batter  = { name: e.plast||'—', side:s, line:'' };
@@ -1434,6 +1438,24 @@ function bbOnEvent(e){
   bbEvts.unshift(e);
   bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed();
 }
+
+// ── BASEBALL LINEUPS (pre-seeded so all players show from start) ──
+const BB_LINEUPS = {
+  away: [
+    {name:'Reynolds', num:3},{name:'Torres',   num:7},{name:'Whitfield',num:24},
+    {name:'Kimball',  num:11},{name:'Doucette', num:18},{name:'Foss',    num:9},
+    {name:'Norwood',  num:2},
+  ],
+  home: [
+    {name:'Peaslee',  num:5},{name:'Larson',   num:14},{name:'Pinkham', num:22},
+    {name:'Oakes',    num:8},{name:'Winslow',  num:33},{name:'Hamlin',  num:17},
+    {name:'Bouchard', num:21},
+  ],
+  pitchers: {
+    away: [{name:'Crockett',num:''}],
+    home: [{name:'Beal',num:''}],
+  }
+};
 
 // ── BASEBALL SIMULATOR ────────────────────────────────
 const BB_SIM = (()=>{

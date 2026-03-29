@@ -1307,6 +1307,13 @@ function bbUpdPanels(){
         ? BB.bases.map((b,i)=>b&&b.num===p.num?(['1B','2B','3B'][i]):'').filter(Boolean)
         : [];
       const basePips = baseLabels.map(lbl=>`<span style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:#fff;background:var(--gold);border-radius:3px;padding:1px 4px;margin-left:3px;flex-shrink:0;">${lbl}</span>`).join('');
+      const statLine = [
+        p.r   ? `${p.r} <span>R</span>`   : '',
+        p.rbi ? `${p.rbi} <span>RBI</span>` : '',
+        p.bb  ? `${p.bb} <span>BB</span>`  : '',
+        p.k   ? `${p.k} <span>K</span>`    : '',
+        p.sb  ? `${p.sb} <span>SB</span>`  : '',
+      ].filter(Boolean).join(' ') || `<span style="color:var(--ink3)">—</span>`;
       div.innerHTML=`
         <div class="bb-pl-top">
           <div class="pl-ident" style="min-width:0;overflow:hidden;">
@@ -1318,13 +1325,7 @@ function bbUpdPanels(){
           </div>
           <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0;letter-spacing:-.02em;margin-left:4px">${hab}</div>
         </div>
-        <div class="bb-pl-line">
-          <span>${p.r||0} <span>R</span></span>
-          <span>${p.rbi||0} <span>RBI</span></span>
-          <span>${p.bb||0} <span>BB</span></span>
-          <span>${p.k||0} <span>K</span></span>
-          <span>${p.sb||0} <span>SB</span></span>
-        </div>`;
+        <div class="bb-pl-line">${statLine}</div>`;
       cont.appendChild(div);
     });
 
@@ -1341,15 +1342,14 @@ function bbUpdPanels(){
         div.innerHTML=`
           <div class="bb-pl-top">
             <div class="pl-ident"><span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
-            <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;color:var(--ink);letter-spacing:-.02em">${ip_str} IP</div>
+            <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;color:var(--ink);letter-spacing:-.02em;text-align:right">${ip_str} IP<br><span style="font-size:11px;font-weight:400;color:var(--ink3)">${p.k||0} K</span></div>
           </div>
-          <div class="bb-pl-line">
-            <span>${p.h||0} <span>H</span></span>
-            <span>${p.r||0} <span>R</span></span>
-            <span>${p.bb||0} <span>BB</span></span>
-            <span>${p.k||0} <span>K</span></span>
-            <span>${p.pitches||0} <span>P</span></span>
-          </div>`;
+          <div class="bb-pl-line">${[
+            p.h   ? `${p.h} <span>H</span>`   : '',
+            p.r   ? `${p.r} <span>R</span>`   : '',
+            p.bb  ? `${p.bb} <span>BB</span>` : '',
+            p.pitches ? `${p.pitches} <span>P</span>` : '',
+          ].filter(Boolean).join(' ') || '<span style="color:var(--ink3)">—</span>'}</div>`;
         cont.appendChild(div);
       });
     }
@@ -1448,9 +1448,12 @@ function bbOnEvent(e){
   BB.balls   = e.balls   !== undefined ? e.balls   : BB.balls;
   BB.strikes = e.strikes !== undefined ? e.strikes : BB.strikes;
   BB.outs    = e.outs    !== undefined ? e.outs    : BB.outs;
+  // Capture old bases BEFORE enrichment for R crediting
+  const oldBasesSnap = BB.bases.slice();
+
   // Bases — smart enrichment: detect runner advances
   if(e.bases !== undefined){
-    const oldBases = BB.bases.slice();
+    const oldBases = oldBasesSnap;
     const newOcc = e.bases;
     const newBases = [false, false, false];
     // First pass: keep runners whose base is still occupied
@@ -1512,13 +1515,12 @@ function bbOnEvent(e){
     if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
     if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
     e.scoreSnap = { away: BB.away.score, home: BB.home.score };
-    // Credit R to runners who scored — find bases that were occupied before and are now cleared
-    // For HRs, batter scores too
+    // Credit R to batter on HR
     if(e.key==='hr' && batter) batter.r = (batter.r||0) + 1;
-    // Credit R to known runners on cleared bases
-    const newBases = e.bases || [false,false,false];
-    BB.bases.forEach((runner, idx)=>{
-      if(runner && runner.num && !newBases[idx]){
+    // Credit R to known runners who were on base and are now cleared
+    const newBaseState = e.bases || [false,false,false];
+    oldBasesSnap.forEach((runner, idx)=>{
+      if(runner && runner.num && !newBaseState[idx]){
         const scorer = BB.batters[s].find(p=>p.num===runner.num);
         if(scorer) scorer.r = (scorer.r||0) + 1;
       }

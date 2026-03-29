@@ -169,12 +169,14 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   .sb-pts{font-size:40px;}
   .sb-meta{font-size:9px;}
   .sb-middle{gap:4px;}
-
   #main{grid-template-columns:1fr;padding:8px;gap:8px;}
-  #court-col{display:none;}
-  #mobile-panel{display:block;}
-  #home-panel{display:none;}
-  #away-panel{display:none;}
+  /* Basketball mobile */
+  body.sport-basketball #court-col{display:none !important;}
+  body.sport-basketball #mobile-panel{display:block !important;}
+  body.sport-basketball #home-panel,body.sport-basketball #away-panel{display:none !important;}
+  /* Baseball mobile */
+  body.sport-baseball #home-panel,body.sport-baseball #away-panel{display:none !important;}
+  body.sport-baseball #bb-mob-lineup{display:block !important;}
 }
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--rule);border-radius:2px;}
@@ -352,8 +354,7 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
 
 <div id="main">
 
-  <!-- MOBILE PLAYER PANEL (shown instead of court on small screens) -->
-  <div id="mobile-panel">
+  <div id="mobile-panel" class="bball-only">
     <div class="mob-tabs">
       <button class="mob-tab active" onclick="setMobTab('home',this)" id="mob-tab-home">Camden Hills</button>
       <button class="mob-tab" onclick="setMobTab('away',this)" id="mob-tab-away">Cape Elizabeth</button>
@@ -548,7 +549,7 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <line x1="238" y1="217" x2="170" y2="149" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <line x1="170" y1="149" x2="102" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <line x1="102" y1="217" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
-          <polygon points="170,268 163,274 166,282 174,282 177,274" fill="white" stroke="#ccc" stroke-width="0.5"/>
+          <polygon points="170,285 163,279 163,272 177,272 177,279" fill="white" stroke="#ccc" stroke-width="0.5"/>
           <rect id="bb-sq1b" x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect id="bb-sq2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect id="bb-sq3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
@@ -577,6 +578,22 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
     <div id="bb-feed-wrap" style="background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;max-height:220px;">
       <div class="feed-hdr">Play by Play</div>
       <div id="bb-feed-list" style="overflow-y:auto;flex:1;"></div>
+    </div>
+
+    <!-- Mobile lineup tabs — only shown on small screens -->
+    <div id="bb-mob-lineup" style="display:none;background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;">
+      <div class="mob-tabs">
+        <button class="mob-tab active" onclick="setBBMobTab('home',this)" id="bb-mob-tab-home">Home</button>
+        <button class="mob-tab" onclick="setBBMobTab('away',this)" id="bb-mob-tab-away">Away</button>
+      </div>
+      <div id="bb-mob-home" class="mob-side">
+        <div class="team-summary" id="bb-mob-home-sum"></div>
+        <div class="pl-rows" id="bb-mob-home-rows"></div>
+      </div>
+      <div id="bb-mob-away" class="mob-side" style="display:none">
+        <div class="team-summary" id="bb-mob-away-sum"></div>
+        <div class="pl-rows" id="bb-mob-away-rows"></div>
+      </div>
     </div>
 
   </div>
@@ -707,6 +724,13 @@ function setMobTab(side, btn) {
   btn.classList.add('active');
   document.getElementById('mob-home').style.display = side==='home' ? '' : 'none';
   document.getElementById('mob-away').style.display = side==='away' ? '' : 'none';
+}
+
+function setBBMobTab(side, btn) {
+  document.querySelectorAll('#bb-mob-lineup .mob-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('bb-mob-home').style.display = side==='home' ? '' : 'none';
+  document.getElementById('bb-mob-away').style.display = side==='away' ? '' : 'none';
 }
 
 function buildPlayerRows(side, rowsId, sumId) {
@@ -1289,7 +1313,7 @@ function bbUpdPanels(){
             <span class="pl-name">${p.name}</span>
             <span class="pl-num" style="color:var(--ink3);margin-left:2px">${p.pos||''}</span>
           </div>
-          <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:15px;line-height:1;flex-shrink:0;color:var(--ink)">${p.h||0}</div>
+          <div style="font-family:'DM Mono',monospace;font-weight:600;font-size:12px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0">${p.h||0}H</div>
         </div>
         <div class="bb-pl-line">
           <span>${p.ab||0}-<span>AB</span></span>
@@ -1327,6 +1351,17 @@ function bbUpdPanels(){
       });
     }
   });
+  // Mirror to mobile lineup tabs
+  ['home','away'].forEach(side=>{
+    const mobRows = document.getElementById('bb-mob-'+side+'-rows');
+    const mobSum  = document.getElementById('bb-mob-'+side+'-sum');
+    const src = document.getElementById(side+'-pl-rows');
+    const srcSum = document.getElementById(side+'-team-sum');
+    if(mobRows && src) mobRows.innerHTML = src.innerHTML;
+    if(mobSum && srcSum) mobSum.innerHTML = srcSum.innerHTML;
+  });
+  const ht=document.getElementById('bb-mob-tab-home'); if(ht) ht.textContent=BB.home.name||'Home';
+  const at=document.getElementById('bb-mob-tab-away'); if(at) at.textContent=BB.away.name||'Away';
 }
 
 function bbUpdFeed(){

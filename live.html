@@ -511,20 +511,20 @@ body.sport-baseball .bball-only{display:none !important;}
 
       <!-- Batter / Pitcher strip — bigger -->
       <div class="bb-bp-strip" style="grid-template-columns:1fr auto 1fr;">
-        <div class="bb-bp-cell" style="padding:10px 14px;">
-          <span class="bb-bp-tag">AB</span>
-          <div>
-            <div class="bb-bp-name" id="bb-batter-name" style="font-size:16px;">—</div>
+        <div class="bb-bp-cell" style="padding:10px 14px;min-width:0;overflow:hidden;">
+          <span class="bb-bp-tag" style="flex-shrink:0">AB</span>
+          <div style="min-width:0;overflow:hidden;">
+            <div class="bb-bp-name" id="bb-batter-name" style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</div>
             <div class="bb-bp-sub" id="bb-batter-line"></div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;padding:0 8px;color:var(--rule);font-family:'DM Mono',monospace;font-size:11px;">vs</div>
-        <div class="bb-bp-cell" style="padding:10px 14px;justify-content:flex-end;text-align:right;">
-          <div style="text-align:right;">
-            <div class="bb-bp-name" id="bb-pitcher-name" style="font-size:16px;">—</div>
+        <div style="display:flex;align-items:center;padding:0 8px;color:var(--rule);font-family:'DM Mono',monospace;font-size:11px;flex-shrink:0;">vs</div>
+        <div class="bb-bp-cell" style="padding:10px 14px;justify-content:flex-end;text-align:right;min-width:0;overflow:hidden;">
+          <div style="text-align:right;min-width:0;overflow:hidden;">
+            <div class="bb-bp-name" id="bb-pitcher-name" style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</div>
             <div class="bb-bp-sub" id="bb-pitcher-line"></div>
           </div>
-          <span class="bb-bp-tag" style="margin-left:6px;">P</span>
+          <span class="bb-bp-tag" style="margin-left:6px;flex-shrink:0;">P</span>
         </div>
       </div>
 
@@ -1299,10 +1299,9 @@ function bbUpdPanels(){
       const div = document.createElement('div');
       div.className = 'bb-pl-row';
       const hab = `${p.h||0}-${p.ab||0}`;
-      // Check if this player is on base
-      const onBase = BB.bases.findIndex(b=>b && b.num===p.num);
-      const baseLabel = onBase===0?'1B':onBase===1?'2B':onBase===2?'3B':'';
-      const basePip = baseLabel ? `<span style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:#fff;background:var(--gold);border-radius:3px;padding:1px 4px;margin-left:4px;flex-shrink:0;">${baseLabel}</span>` : '';
+      // Check all bases this player occupies
+      const baseLabels = BB.bases.map((b,i)=>b&&b.num===p.num?(['1B','2B','3B'][i]):'').filter(Boolean);
+      const basePips = baseLabels.map(lbl=>`<span style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:#fff;background:var(--gold);border-radius:3px;padding:1px 4px;margin-left:3px;flex-shrink:0;">${lbl}</span>`).join('');
       div.innerHTML=`
         <div class="bb-pl-top">
           <div class="pl-ident" style="min-width:0;overflow:hidden;">
@@ -1310,7 +1309,7 @@ function bbUpdPanels(){
             <span class="pl-num" style="flex-shrink:0">#${p.num||'—'}</span>
             <span class="pl-name">${p.name}</span>
             <span class="pl-num" style="color:var(--ink3);margin-left:2px;flex-shrink:0">${p.pos||''}</span>
-            ${basePip}
+            ${basePips}
           </div>
           <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0;letter-spacing:-.02em;margin-left:4px">${hab}</div>
         </div>

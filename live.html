@@ -93,7 +93,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .qc.aq{background:var(--rule2);border-radius:3px;color:var(--ink)!important;font-weight:700!important;}
 
 /* MAIN 3-COL */
-#main{display:grid;grid-template-columns:210px 1fr 210px;gap:0;flex:1;min-height:0;max-width:1100px;margin:0 auto;width:100%;padding:12px;box-sizing:border-box;align-items:start;}
+#main{display:grid;grid-template-columns:210px 1fr 210px;grid-template-areas:"home centre away";gap:0;flex:1;min-height:0;max-width:1100px;margin:0 auto;width:100%;padding:12px;box-sizing:border-box;align-items:start;}
 
 /* STAT PANELS */
 .stat-panel{display:flex;flex-direction:column;border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;}
@@ -169,9 +169,9 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   .sb-pts{font-size:40px;}
   .sb-meta{font-size:9px;}
   .sb-middle{gap:4px;}
-  #main{grid-template-columns:1fr;padding:8px;gap:8px;}
-  #court-col, #bb-col{grid-column:1;}
-  #home-panel, #away-panel{grid-column:1;}
+  #main{grid-template-columns:1fr;grid-template-areas:"centre" "home" "away";padding:8px;gap:8px;}
+  #court-col, #bb-col{grid-area:centre;}
+  #home-panel, #away-panel{grid-area:home;}
   /* Basketball mobile */
   body.sport-basketball #court-col{display:none !important;}
   body.sport-basketball #mobile-panel{display:block !important;}
@@ -248,9 +248,9 @@ body.sport-baseball .bball-only{display:none !important;}
 /* Mobile lineup panel — hidden by default, shown on mobile via @media */
 #bb-mob-lineup{display:none !important;}
 /* Explicit grid placement so bb-col always lands in centre */
-#home-panel{grid-column:1;}
-#away-panel{grid-column:3;}
-#court-col, #bb-col{grid-column:2;}
+#home-panel{grid-area:home;}
+#away-panel{grid-area:away;}
+#court-col, #bb-col{grid-area:centre;}
 </style>
 </head>
 <body class="sport-baseball" style="display:flex;flex-direction:column;min-height:100dvh;">
@@ -1222,7 +1222,7 @@ function bbUpdScoreboard(){
     const runner=BB.bases[base-1];
     const txt=document.getElementById(txtId);
     if(txt){
-      txt.textContent = runner && runner.num ? `#${runner.num} ${runner.name}` : '—';
+      txt.textContent = runner && runner.num ? `#${runner.num} ${runner.name}` : runner ? '●' : '—';
       txt.style.color = runner ? 'var(--gold)' : 'var(--ink3)';
       txt.style.fontWeight = runner ? '700' : '400';
     }
@@ -1301,8 +1301,11 @@ function bbUpdPanels(){
       const div = document.createElement('div');
       div.className = 'bb-pl-row';
       const hab = `${p.h||0}-${p.ab||0}`;
-      // Check all bases this player occupies
-      const baseLabels = BB.bases.map((b,i)=>b&&b.num===p.num?(['1B','2B','3B'][i]):'').filter(Boolean);
+      // Check all bases this player occupies — only for batting side
+      const battingSide = BB.half==='top' ? 'away' : 'home';
+      const baseLabels = side===battingSide
+        ? BB.bases.map((b,i)=>b&&b.num===p.num?(['1B','2B','3B'][i]):'').filter(Boolean)
+        : [];
       const basePips = baseLabels.map(lbl=>`<span style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:#fff;background:var(--gold);border-radius:3px;padding:1px 4px;margin-left:3px;flex-shrink:0;">${lbl}</span>`).join('');
       div.innerHTML=`
         <div class="bb-pl-top">
@@ -1445,16 +1448,28 @@ function bbOnEvent(e){
   BB.balls   = e.balls   !== undefined ? e.balls   : BB.balls;
   BB.strikes = e.strikes !== undefined ? e.strikes : BB.strikes;
   BB.outs    = e.outs    !== undefined ? e.outs    : BB.outs;
-  // Bases — carry forward known runners, clear vacated bases
+  // Bases — smart enrichment: detect runner advances
   if(e.bases !== undefined){
-    BB.bases = e.bases.map((occ, idx)=>{
-      if(!occ) return false;
-      // Keep prior runner if still on this base
-      const prior = BB.bases[idx];
-      if(prior && prior.num) return prior;
-      // Unknown runner — store as true (no num to avoid false indicators)
-      return true;
-    });
+    const oldBases = BB.bases.slice();
+    const newOcc = e.bases;
+    const newBases = [false, false, false];
+    // First pass: keep runners whose base is still occupied
+    for(let i=0;i<3;i++){
+      if(newOcc[i] && oldBases[i] && oldBases[i].num) newBases[i] = oldBases[i];
+    }
+    // Second pass: advance runners from lower to higher bases
+    for(let i=0;i<3;i++){
+      if(!newOcc[i] || newBases[i]) continue; // empty or already filled
+      // Look for a known runner who was on a lower base
+      for(let j=i-1;j>=0;j--){
+        if(oldBases[j] && oldBases[j].num && !newOcc[j]){
+          newBases[i] = oldBases[j]; break;
+        }
+      }
+      // Still unknown — mark occupied without num
+      if(!newBases[i]) newBases[i] = true;
+    }
+    BB.bases = newBases;
   }
 
   const inn = e.inning - 1;

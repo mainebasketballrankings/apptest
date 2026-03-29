@@ -539,7 +539,7 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <path d="M9,124 A172.9,172.9 0 0,1 331,124 L322,130 A163,163 0 0,0 18,130 Z" fill="#8a7a5a" opacity="0.55"/>
           <polygon points="170,285 238,217 170,149 102,217" fill="#c8956a"/>
           <ellipse cx="170" cy="220" rx="14" ry="11" fill="#b8856a" stroke="#a07050" stroke-width="1"/>
-          <circle cx="170" cy="276" r="16" fill="#b8856a"/>
+          <circle cx="170" cy="280" r="16" fill="#b8856a"/>
           <circle cx="238" cy="217" r="11" fill="#b8856a"/>
           <circle cx="170" cy="149" r="11" fill="#b8856a"/>
           <circle cx="102" cy="217" r="11" fill="#b8856a"/>
@@ -549,12 +549,12 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
           <line x1="238" y1="217" x2="170" y2="149" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <line x1="170" y1="149" x2="102" y2="217" stroke="white" stroke-width="1.5" opacity="0.8"/>
           <line x1="102" y1="217" x2="170" y2="285" stroke="white" stroke-width="1.5" opacity="0.8"/>
-          <polygon points="170,285 163,279 163,272 177,272 177,279" fill="white" stroke="#ccc" stroke-width="0.5"/>
+          <polygon points="170,293 163,287 163,281 177,281 177,287" fill="white" stroke="#ccc" stroke-width="0.5"/>
           <rect id="bb-sq1b" x="231" y="210" width="14" height="14" rx="2" transform="rotate(45 238 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect id="bb-sq2b" x="163" y="142" width="14" height="14" rx="2" transform="rotate(45 170 149)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <rect id="bb-sq3b" x="95"  y="210" width="14" height="14" rx="2" transform="rotate(45 102 217)" fill="white" stroke="#ccc" stroke-width="1.5"/>
           <text id="bb-fn-p"  x="170" y="208" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
-          <text id="bb-fn-c"  x="170" y="296" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
+          <text id="bb-fn-c"  x="170" y="300" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-1b" x="256" y="232" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#1a4a28" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-2b" x="220" y="188" text-anchor="start"  font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
           <text id="bb-fn-ss" x="120" y="188" text-anchor="end"    font-family="DM Sans,sans-serif" font-size="9" font-weight="600" fill="white" stroke="#7a5a3a" stroke-width="2" paint-order="stroke"></text>
@@ -581,7 +581,7 @@ body.sport-baseball #bb-col{display:flex !important;flex-direction:column;gap:10
     </div>
 
     <!-- Mobile lineup tabs — only shown on small screens -->
-    <div id="bb-mob-lineup" style="display:none;background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;">
+    <div id="bb-mob-lineup" style="background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;">
       <div class="mob-tabs">
         <button class="mob-tab active" onclick="setBBMobTab('home',this)" id="bb-mob-tab-home">Home</button>
         <button class="mob-tab" onclick="setBBMobTab('away',this)" id="bb-mob-tab-away">Away</button>
@@ -1152,8 +1152,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(runSim, 1000);
   } else {
     // Seed lineups so all players show from the start
-    BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0}));
-    BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0}));
+    BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0,sb:0}));
+    BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,rbi:0,bb:0,k:0,sb:0}));
     BB_LINEUPS.pitchers.away.forEach(p=>BB.pitchers.away.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
     BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
     BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
@@ -1305,6 +1305,7 @@ function bbUpdPanels(){
     BB.batters[side].forEach((p, idx)=>{
       const div = document.createElement('div');
       div.className = 'bb-pl-row';
+      const hab = `${p.h||0}-${p.ab||0}`;
       div.innerHTML=`
         <div class="bb-pl-top">
           <div class="pl-ident">
@@ -1313,14 +1314,14 @@ function bbUpdPanels(){
             <span class="pl-name">${p.name}</span>
             <span class="pl-num" style="color:var(--ink3);margin-left:2px">${p.pos||''}</span>
           </div>
-          <div style="font-family:'DM Mono',monospace;font-weight:600;font-size:12px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0">${p.h||0}H</div>
+          <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0;letter-spacing:-.02em">${hab}</div>
         </div>
         <div class="bb-pl-line">
-          <span>${p.ab||0}-<span>AB</span></span>
           <span>${p.r||0} <span>R</span></span>
           <span>${p.rbi||0} <span>RBI</span></span>
           <span>${p.bb||0} <span>BB</span></span>
           <span>${p.k||0} <span>K</span></span>
+          <span>${p.sb||0} <span>SB</span></span>
         </div>`;
       cont.appendChild(div);
     });
@@ -1338,11 +1339,11 @@ function bbUpdPanels(){
         div.innerHTML=`
           <div class="bb-pl-top">
             <div class="pl-ident"><span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
-            <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:14px;line-height:1;flex-shrink:0;color:var(--ink)">${ip_str}</div>
+            <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;color:var(--ink);letter-spacing:-.02em">${ip_str} IP</div>
           </div>
           <div class="bb-pl-line">
             <span>${p.h||0} <span>H</span></span>
-            <span>${(p.r||0)} <span>R</span></span>
+            <span>${p.r||0} <span>R</span></span>
             <span>${p.bb||0} <span>BB</span></span>
             <span>${p.k||0} <span>K</span></span>
             <span>${p.pitches||0} <span>P</span></span>

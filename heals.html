@@ -757,7 +757,7 @@
           .in(field, chunk)
           .eq('sport_id', sportId)
           .eq('season_year', season)
-          .eq('status', 'final')
+          .neq('status', 'cancelled')
           .eq('is_tournament', false)
           .order('game_date', { ascending: true });
         if (effectiveCutoff) q.lte('game_date', effectiveCutoff);
@@ -1023,7 +1023,7 @@
       const prefix  = d.atHome ? '@ ' : '';
       const rankStr = d.oppRank ? `#${d.oppRank} ` : '';
       const piStr   = d.oppPI ? d.oppPI.toFixed(2) : '—';
-      const unplayed = d.myScore === null || d.oppScore === null;
+      const unplayed = d.g.status === 'scheduled' || d.myScore === null || d.oppScore === null;
       const scoreStr = unplayed ? dateStr : `${d.myScore}-${d.oppScore}`;
       const res = unplayed ? 'U' : (d.won ? 'W' : d.tied ? 'T' : 'L');
 
@@ -1046,7 +1046,7 @@
            </div>`;
 
       const scoreEl = unplayed
-        ? `<span class="gl-score" style="color:#bbb;font-size:11px;text-align:right">${dateStr}</span>`
+        ? `<span class="gl-score" style="color:#bbb;font-size:11px;text-align:right">– Sched.</span>`
         : `<span class="gl-score ${res}">${scoreStr}</span>`;
 
       lines += `<div class="game-line">

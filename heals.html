@@ -895,12 +895,12 @@
         const winPts    = tied ? fullPts / 2 : fullPts;  // half for tie
         const atHome    = !isHome && !g.is_neutral_site;
 
-        return { g, opp, myScore, oppScore, won, tied, oppClass, oppPI, oppRank, winPts, atHome, isNeutral: g.is_neutral_site };
+        return { g, opp, myScore, oppScore, won, tied, oppClass, oppPI, oppRank, winPts, atHome, isNeutral: g.is_neutral_site, unplayed: myScore === null || oppScore === null };
       });
 
-      const wins   = gameDetails.filter(d => d.won).length;
-      const ties   = gameDetails.filter(d => d.tied).length;
-      const losses = gameDetails.filter(d => !d.won && !d.tied).length;
+      const wins   = gameDetails.filter(d => !d.unplayed && d.won).length;
+      const ties   = gameDetails.filter(d => !d.unplayed && d.tied).length;
+      const losses = gameDetails.filter(d => !d.unplayed && !d.won && !d.tied).length;
       const played = wins + losses + ties;
       const snapInfo = snapMap[team.id];
       const denom  = Math.max(getScheduled(team.id), 12);
@@ -910,6 +910,7 @@
 
       // Heal = sum of (won oppPI + 0.5 * tied oppPI) / denom * 10
       const sumOppPI = gameDetails.reduce((s, d) => {
+        if (d.unplayed) return s;
         if (d.won)  return s + d.oppPI;
         if (d.tied) return s + d.oppPI / 2;
         return s;

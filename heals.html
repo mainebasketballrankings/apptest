@@ -910,7 +910,6 @@
 
       // Heal = sum of (won oppPI + 0.5 * tied oppPI) / denom * 10
       const sumOppPI = gameDetails.reduce((s, d) => {
-        if (d.unplayed) return s;
         if (d.won)  return s + d.oppPI;
         if (d.tied) return s + d.oppPI / 2;
         return s;

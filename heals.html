@@ -430,19 +430,28 @@
 
   <div class="sport-tabs" id="sportTabs">
     <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
-    <button class="sport-tab" data-sport="baseball" data-season="2025">Baseball</button>
-    <button class="sport-tab" data-sport="softball" data-season="2025">Softball</button>
-    <button class="sport-tab" data-sport="lacrosse" data-season="2025">Lacrosse</button>
-    <button class="sport-tab" data-sport="soccer" data-season="2025">Soccer</button>
-    <button class="sport-tab" data-sport="field-hockey" data-season="2025">Field Hockey</button>
-    <button class="sport-tab" data-sport="football" data-season="2025">Football</button>
+    <button class="sport-tab" data-sport="baseball" data-season="2026">Baseball</button>
+    <button class="sport-tab" data-sport="softball" data-season="2026">Softball</button>
+    <button class="sport-tab" data-sport="lacrosse" data-season="2026">Lacrosse</button>
+    <button class="sport-tab" data-sport="soccer" data-season="2026">Soccer</button>
+    <button class="sport-tab" data-sport="field-hockey" data-season="2026">Field Hockey</button>
+    <button class="sport-tab" data-sport="football" data-season="2026">Football</button>
   </div>
 
-  <div class="region-wrap">
-    <span class="region-label" id="regionLabel">Region</span>
-    <select class="region-select" id="regionSelect">
-      <option value="">Loading…</option>
-    </select>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+    <div class="region-wrap" id="regionWrap" style="flex:1;">
+      <span class="region-label" id="regionLabel">Region</span>
+      <select class="region-select" id="regionSelect">
+        <option value="">Loading…</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <label style="font-size:12px;color:var(--ink3);font-weight:500;">Season</label>
+      <select id="seasonSelect" style="font-size:12px;border:1px solid var(--rule);border-radius:6px;padding:4px 8px;background:var(--paper2);color:var(--ink);cursor:pointer;">
+        <option value="2026">25-26</option>
+        <option value="2025">24-25</option>
+      </select>
+    </div>
   </div>
 
   <div class="gender-tabs">
@@ -501,8 +510,8 @@
     'football':     'fa905ca5-f416-409b-81ac-777179ee5576',
   };
   const SPORT_SEASON = {
-    'basketball': 2026, 'baseball': 2025, 'softball': 2025,
-    'lacrosse': 2025, 'soccer': 2025, 'field-hockey': 2025, 'football': 2025,
+    'basketball': 2026, 'baseball': 2026, 'softball': 2026,
+    'lacrosse': 2026, 'soccer': 2026, 'field-hockey': 2026, 'football': 2026,
   };
   const SPORT_GENDER = {
     'baseball': 'Boys', 'softball': 'Girls',
@@ -510,11 +519,17 @@
   };
 
   let activeGender = 'Boys';
-  let activeRegion = null;  // for basketball: region UUID; for others: class letter e.g. 'A'
+  let activeRegion = null;
   let activeSport  = 'basketball';
   let activeSeason = 2026;
   let allTeams     = [];
   let expandedTeam = null;
+
+  // Season dropdown
+  document.getElementById('seasonSelect').addEventListener('change', function() {
+    activeSeason = parseInt(this.value);
+    loadRegions();
+  });
 
   // ── Load selector (region for basketball, class for others) ──
   async function loadRegions() {
@@ -689,19 +704,20 @@
     teams = teams.filter(t => (t.team_class || t.class) && (t.team_class || t.class) !== '0');
 
     const teamIds = teams.map(t => t.id);
-    const season  = SPORT_SEASON[activeSport];
+    const season  = activeSeason;
     const sportId = SPORT_IDS[activeSport];
 
-    // Season end date cutoffs to exclude playoffs
+    // Season end date cutoffs — keyed by sport + season year
     const SEASON_CUTOFFS = {
-      'basketball':  '2026-02-06',
-      'baseball':    '2025-06-04',
-      'softball':    '2025-06-04',
-      'lacrosse':    '2025-06-06',
-      'soccer':      '2025-10-22',
-      'field-hockey':'2025-10-22',
+      'basketball-2026': '2026-02-06', 'basketball-2025': '2025-02-07',
+      'baseball-2026':   '2026-06-04', 'baseball-2025':   '2025-06-04',
+      'softball-2026':   '2026-06-04', 'softball-2025':   '2025-06-04',
+      'lacrosse-2026':   '2026-06-06', 'lacrosse-2025':   '2025-06-06',
+      'soccer-2026':     '2026-10-22', 'soccer-2025':     '2025-10-22',
+      'field-hockey-2026':'2026-10-22','field-hockey-2025':'2025-10-22',
+      'football-2026':   '2026-11-01', 'football-2025':   '2025-11-01',
     };
-    const cutoff = SEASON_CUTOFFS[activeSport] || null;
+    const cutoff = SEASON_CUTOFFS[`${activeSport}-${season}`] || null;
 
     // Football cutoff varies by class (A ends Oct 31, others Oct 25)
     const getFootballCutoff = (cls) => cls === 'A' ? '2025-11-01' : '2025-10-26';

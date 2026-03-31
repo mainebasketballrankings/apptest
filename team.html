@@ -335,14 +335,13 @@ async function load() {
     const sport   = Object.keys(SPORT_IDS).find(k => SPORT_IDS[k] === team.sport_id) || 'basketball';
     const regEnd  = SPORT_REG_END[sport];
     const [pfLbl, paLbl] = SPORT_SCORE_LABELS[sport] || ['Avg PF', 'Avg PA'];
+    const seasonYear = 2026;
 
     const [games, classData, allSnaps] = await Promise.all([
-      sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&order=game_date.asc&select=*`),
+      sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=game_date.asc&select=*`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
-      sb(`rankings_snapshots?season_year=eq.2026&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,rank_class&limit=2000`)
+      sb(`rankings_snapshots?season_year=eq.${seasonYear}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,rank_class&limit=2000`)
     ]);
-
-    const seasonYear = 2026;
 
     // Paginated fetch helper
     // Fetch roster players for this team

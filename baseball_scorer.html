@@ -272,7 +272,7 @@ input,select,button{font-family:inherit;}
     <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
     <div class="srow">
       <span class="slabel">Sport</span>
-      <select class="sselect" id="pickerSportSel" onchange="loadTodaysGames()">
+      <select class="sselect" id="pickerSportSel" onchange="document.getElementById('sportSel').value=this.value;loadTodaysGames()">
         <option value="baseball">Baseball</option>
         <option value="softball">Softball</option>
       </select>
@@ -2251,11 +2251,11 @@ function showAlert(msg){ setTimeout(()=>alert(msg),50); }
 // ═══════════════════════════════════════════════
 // START
 // ═══════════════════════════════════════════════
-init();
-// Set today's date default
-document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
-// Load today's games from schedule
-loadTodaysGames();
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
+  loadTodaysGames();
+});
 </script>
 </body>
 </html>

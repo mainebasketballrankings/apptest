@@ -1399,13 +1399,16 @@
     }
 
     // Top status bar
-    const submitBtnTop = !isFinal && !isPPD
+    const submitBtnTop = !isFinal && !isPPD && !isLive
       ? `<button class="submit-btn-inline" data-id="${g.id}">Submit</button>`
+      : `<span></span>`;
+    const liveBtnTop = isLive && (sport==='baseball'||sport==='softball')
+      ? `<a class="submit-btn-inline" href="live.html?game_id=${g.id}" target="_blank" style="text-decoration:none;color:var(--green);border-color:var(--green)">Live ↗</a>`
       : `<span></span>`;
     const topBar = isFinal
       ? `<div class="card-top"><span>Final</span><span class="card-top-center">${clsLabel} · ${home.gender}</span><span></span></div>`
       : isLive
-        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock || 'Live'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>Live</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${liveBtnTop}</div>`
         : isPPD
           ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span class="card-top-center" style="display:flex;align-items:center;gap:6px">${clsLabel} · ${home.gender} <span class="ppd-badge">${ppdLabel}</span></span><span></span></div>`
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`;
@@ -1463,8 +1466,7 @@
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
           ${streamIconEl(streamUrl)}
-          ${isLive && (sport==='baseball'||sport==='softball') ? `<a class="ppd-btn" href="live.html?game_id=${g.id}" target="_blank" style="text-decoration:none;color:var(--green);border-color:var(--green);font-weight:700">Live ↗</a>` : ''}
-          ${!isFinal && !isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
+          ${!isFinal && !isPPD && !isLive ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
           ${isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}" style="border-color:#c0392b;color:#c0392b">Edit PPD</button>` : ''}
         </div>
       </div>

@@ -256,6 +256,9 @@ input,select,button{font-family:inherit;}
 
 /* Pitch count colors */
 
+.game-pick-row{padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;}
+.game-pick-row:active{opacity:.7;}
+.game-pick-row.selected{border-color:var(--green);background:var(--green-bg);}
 </style>
 </head>
 <body>
@@ -264,6 +267,19 @@ input,select,button{font-family:inherit;}
 <div id="setupScreen">
   <div class="setup-logo">Maine Basketball Rankings</div>
   <div class="setup-title">Baseball Scorer</div>
+
+  <div class="setup-card">
+    <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
+    <div class="srow">
+      <span class="slabel">Sport</span>
+      <select class="sselect" id="pickerSportSel" onchange="loadTodaysGames()">
+        <option value="baseball">Baseball</option>
+        <option value="softball">Softball</option>
+      </select>
+    </div>
+    <div id="gamePickerList" style="margin-top:8px"><div style="font-size:13px;color:var(--dim)">Select sport above to load today's games.</div></div>
+    <div id="gamePickerStatus" style="font-size:12px;margin-top:6px"></div>
+  </div>
 
   <div class="setup-card">
     <div class="setup-card-title">Game Info</div>
@@ -658,6 +674,108 @@ input,select,button{font-family:inherit;}
 
 <script>
 // ═══════════════════════════════════════════════
+// SUPABASE + LIVE PUSH
+// ═══════════════════════════════════════════════
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQxMjYzMTcsImV4cCI6MjAwOTcwMjMxN30.HbLMBHk2tGBMNFMdjWHWBVa5XVlVMJJxTuLCjZFHpvs';
+
+let G_game_id = null; // set from schedule picker or URL param
+let G_home_team_id = null;
+let G_away_team_id = null;
+
+async function sbFetch(path){
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
+  });
+  return r.json();
+}
+async function sbInsert(table, row){
+  try {
+    await fetch(`${SB_URL}/rest/v1/${table}`, {
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify(row)
+    });
+  } catch(e){ console.warn('pushEvt failed', e); }
+}
+
+function basesArr(){
+  return [!!G.bases[1], !!G.bases[2], !!G.bases[3]];
+}
+
+function curPitcherTeamId(){
+  const p = curPitcher();
+  if(!p) return null;
+  return p.side === 'home' ? G_home_team_id : G_away_team_id;
+}
+
+async function pushEvt(key, extras={}){
+  if(!G_game_id) return; // no game selected, silent no-op
+  const b = curBatter();
+  const p = curPitcher();
+  const side = battingSide();
+  const row = {
+    game_id:      G_game_id,
+    team_id:      side === 'home' ? G_home_team_id : G_away_team_id,
+    event_type:   key,
+    inning:       G.inning,
+    half:         G.half,
+    outs:         G.outs,
+    balls:        G.balls,
+    strikes:      G.strikes,
+    bases:        JSON.stringify(basesArr()),
+    runs:         extras.runs || 0,
+    rbi:          extras.rbi  || 0,
+    player_name:  b?.player?.name || null,
+    player_num:   b?.player?.number ? parseInt(b.player.number) : null,
+    pitcher_name: p ? G.teams[p.side].lineup[p.idx]?.name : null,
+    pitches:      extras.pitches || G.curPitches.length,
+    x:            extras.x ?? null,
+    y:            extras.y ?? null,
+  };
+  await sbInsert('game_events', row);
+}
+
+// ── Game loader ──────────────────────────────
+async function loadTodaysGames(){
+  const sportId = document.getElementById('sportSel').value === 'baseball'
+    ? 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0'
+    : '095c9841-7261-4cb1-824e-6304792b53d0';
+  const today = new Date().toISOString().slice(0,10);
+  const games = await sbFetch(
+    `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&status=eq.scheduled` +
+    `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
+    `&order=game_date.asc`
+  );
+  const list = document.getElementById('gamePickerList');
+  if(!games.length){
+    list.innerHTML = '<div style="font-size:13px;color:var(--dim);padding:8px 0">No scheduled games found for today.</div>';
+    return;
+  }
+  list.innerHTML = games.map(g => `
+    <div class="game-pick-row" onclick="selectGame('${g.id}','${g.home_team_id}','${g.away_team_id}','${g.home_team?.school_name||'Home'}','${g.away_team?.school_name||'Away'}','${g.location||''}')">
+      <div style="font-weight:600;font-size:14px">${g.away_team?.school_name||'Away'} @ ${g.home_team?.school_name||'Home'}</div>
+      ${g.location?`<div style="font-size:11px;color:var(--dim)">${g.location}</div>`:''}
+    </div>
+  `).join('');
+}
+
+function selectGame(id, homeId, awayId, homeName, awayName, loc){
+  G_game_id     = id;
+  G_home_team_id = homeId;
+  G_away_team_id = awayId;
+  // Pre-fill team names and location
+  document.getElementById('awayNameInp').value = awayName;
+  document.getElementById('homeNameInp').value = homeName;
+  if(loc) document.getElementById('gameLocInp').value = loc;
+  // Visual feedback
+  document.querySelectorAll('.game-pick-row').forEach(r=>r.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  document.getElementById('gamePickerStatus').textContent = `✓ ${awayName} @ ${homeName}`;
+  document.getElementById('gamePickerStatus').style.color = 'var(--green)';
+}
+
+// ═══════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════
 const POSITIONS = ['P','C','1B','2B','3B','SS','LF','CF','RF','DH','PH','PR'];
@@ -894,6 +1012,7 @@ function doStrikeout(type){
   // No chargePitch here — the final strike was already charged by logPitch()
   const sym=type==='K'?'ꓘ':'K';
   addPBP(`<strong>${b.player.name}</strong> ${sym}`);
+  pushEvt('strikeout');
   addOut(`K`);
 }
 
@@ -905,6 +1024,7 @@ function doIBB(){
   const runner={name:b.player.name,num:b.player.number};
   forceAdvance(runner);
   addPBP(`<strong>${b.player.name}</strong> IBB — intentional walk`);
+  pushEvt('walk', {});
   nextBatter(); resetCount(); render();
 }
 
@@ -917,6 +1037,7 @@ function doWalk(type){
   const runner={name:b.player.name,num:b.player.number};
   forceAdvance(runner);
   addPBP(`<strong>${b.player.name}</strong> ${type} — reaches 1B`);
+  pushEvt(type==='BB'?'walk':'hbp');
   nextBatter(); resetCount(); render();
 }
 
@@ -1017,6 +1138,10 @@ function confirmOut(type){
   closeOv('ovInPlay');
   G.curPitches.push('X');
   chargePitch();
+  const evtKey = isSacBunt?'sac_bunt':isSacFly?'sac_fly':
+                 type==='GO'?'groundout':type==='FO'?'flyout':
+                 type==='LO'?'lineout':type==='PO'?'popup':'groundout';
+  pushEvt(evtKey);
   // For sac fly: track batter so RBI is credited when runner scores in overlay
   if(isSacFly) G.pendingRBIbatter = b.player;
   addOut(notation);
@@ -1036,6 +1161,7 @@ function confirmDP(type){ saveSnapshot();
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation} (DP)`);
+  pushEvt('groundout');
   // Record batter out
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
@@ -1052,6 +1178,7 @@ function confirmTP(type){ saveSnapshot();
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation} (TP)`);
+  pushEvt('groundout');
   // All 3 outs — just end the half inning
   const p=curPitcher();
   if(p){ getPS(p.side,p.idx).ip_outs+=3; }
@@ -1117,6 +1244,7 @@ function doHR(){
   G.curPitches.push('X');
   chargePitch();
   addPBP(`<strong>${b.player.name}</strong> HOME RUN 🎉 (${runs} run${runs>1?'s':''})`);
+  pushEvt('hr', {runs, rbi:runs});
   nextBatter(); resetCount();
   // If error this half, queue all runs for earned/unearned prompt
   if(G.errorThisHalf){
@@ -1211,6 +1339,11 @@ function confirmRBI(){
     ? G.pendingErrorNotation + (G.pendingErrorFielder ? ` (${G.pendingErrorFielder})` : '')
     : result;
   addPBP(`<strong>${b.player.name}</strong> ${notation}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
+  // Push event — map result to event_type
+  const evtKey = result==='1B'?'single':result==='2B'?'double':result==='3B'?'triple':
+                 result==='E'?'error':result==='FC'?'fielders_choice':'single';
+  const runsScored = autoRBI + manualRBI; // approximation — actual runs tracked in scoreRunner
+  pushEvt(evtKey, {runs: runsScored, rbi: totalRBI});
   G.pendingErrorNotation=null; G.pendingErrorFielder=null;
   G.runDecisions={};
   closeOv('ovRBI');
@@ -1577,11 +1710,13 @@ function confirmSub(side,idx,fromBench){
         }
       }
       addPBP(`Pitching change: <strong>${player.name}</strong>`);
+      pushEvt('sub_pitcher', {pitcher_name: player.name});
     } else {
       G.pitchers[side]=idx;
       const ps=getPS(side,idx);
       ps.name=player.name; ps.num=player.number;
       addPBP(`Pitching change: <strong>${player.name||'P'+(idx+1)}</strong>`);
+      pushEvt('sub_pitcher', {pitcher_name: player.name});
     }
   } else if(subMode==='defense'){
     G.pendingDefSub={side,idx,fromBench,player};
@@ -2117,6 +2252,10 @@ function showAlert(msg){ setTimeout(()=>alert(msg),50); }
 // START
 // ═══════════════════════════════════════════════
 init();
+// Set today's date default
+document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
+// Load today's games from schedule
+loadTodaysGames();
 </script>
 </body>
 </html>

@@ -1165,19 +1165,104 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     setTimeout(runSim, 1000);
   } else {
-    // Seed lineups so all players show from the start
+    // Seed batters + pitchers
     BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
     BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
     BB_LINEUPS.pitchers.away.forEach(p=>BB.pitchers.away.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
     BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
     BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
-    initView(
-      {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
-      {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/oceanside.png'}
-    );
-    setTimeout(bbRunSim, 1000);
+
+    const gameId = new URLSearchParams(window.location.search).get('game_id');
+    if(gameId){
+      connectGame(gameId);
+    } else {
+      // No game_id — fall back to sim
+      initView(
+        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
+        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/oceanside.png'}
+      );
+      setTimeout(bbRunSim, 1000);
+    }
   }
 });
+
+// ── Supabase realtime connection ──────────────────────────────
+const LIVE_SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const LIVE_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+let LIVE_home_team_id = null;
+let LIVE_away_team_id = null;
+
+async function connectGame(gameId){
+  // 1. Fetch game info (team names, logos)
+  const gRes = await fetch(
+    `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
+    { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
+  );
+  const games = await gRes.json();
+  const game = games[0];
+  if(!game){ console.error('Game not found'); return; }
+
+  LIVE_home_team_id = game.home_team_id;
+  LIVE_away_team_id = game.away_team_id;
+
+  const home = game.home_team;
+  const away = game.away_team;
+  initView(
+    { name: away.school_name, short: away.school_name.slice(0,3).toUpperCase(), short2: away.school_name.slice(0,3).toUpperCase(), logoUrl: away.logo_url||'' },
+    { name: home.school_name, short: home.school_name.slice(0,3).toUpperCase(), short2: home.school_name.slice(0,3).toUpperCase(), logoUrl: home.logo_url||'' }
+  );
+
+  // 2. Fetch existing events (catch up on plays already recorded)
+  const eRes = await fetch(
+    `${LIVE_SB_URL}/rest/v1/game_events?game_id=eq.${gameId}&order=created_at.asc&select=*`,
+    { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
+  );
+  const existing = await eRes.json();
+  existing.forEach(row => bbOnEvent(sbRowToEvt(row)));
+
+  // 3. Subscribe to realtime for new events
+  const ws = new WebSocket(
+    `wss://vtwupenqieesoktonbzg.supabase.co/realtime/v1/websocket?apikey=${LIVE_SB_KEY}&vsn=1.0.0`
+  );
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ topic:'realtime:public:game_events', event:'phx_join',
+      payload:{ config:{ broadcast:{ack:false}, presence:{key:''}, postgres_changes:[
+        { event:'INSERT', schema:'public', table:'game_events', filter:`game_id=eq.${gameId}` }
+      ]}}, ref:'1' }));
+  };
+  ws.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
+    if(data.event==='postgres_changes' && data.payload?.data?.record){
+      bbOnEvent(sbRowToEvt(data.payload.data.record));
+    }
+  };
+  ws.onerror = (e) => console.error('Realtime error', e);
+}
+
+function sbRowToEvt(row){
+  const bases = row.bases ? (Array.isArray(row.bases) ? row.bases : JSON.parse(row.bases)) : [false,false,false];
+  const side = row.team_id === LIVE_home_team_id ? 'home' : 'away';
+  return {
+    side,
+    key:         row.event_type,
+    inning:      row.inning || row.period || 1,
+    half:        row.half || 'top',
+    outs:        row.outs || 0,
+    balls:       row.balls || 0,
+    strikes:     row.strikes || 0,
+    bases:       bases,
+    runs:        row.runs || 0,
+    rbi:         row.rbi || 0,
+    plast:       row.player_name || '',
+    pnum:        row.player_num || '',
+    pitcher:     row.pitcher_name || '',
+    pitches:     row.pitches || 1,
+    x:           row.x ?? null,
+    y:           row.y ?? null,
+    newHalf:     false,
+  };
+}
 
 // ══════════════════════════════════════════════════════
 //  BASEBALL ENGINE

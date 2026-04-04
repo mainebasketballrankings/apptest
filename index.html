@@ -1047,6 +1047,31 @@
     buildSportTabs(sportsWithGames.map(r => r.sport));
     buildFilterButtons();
     renderAllGames();
+    // Fetch last play for any active games and show in footer
+    const activeGames = sportsWithGames.flatMap(r => r.games).filter(g => g.status === 'active');
+    if(activeGames.length){
+      const ids = activeGames.map(g => `"${g.id}"`).join(',');
+      const { data: evts } = await sb.from('game_events')
+        .select('game_id, event_type, player_name, inning, half, runs, rbi, created_at')
+        .in('game_id', activeGames.map(g => g.id))
+        .order('created_at', { ascending: false })
+        .limit(activeGames.length * 3);
+      if(evts){
+        const lastEvt = {};
+        evts.forEach(e => { if(!lastEvt[e.game_id]) lastEvt[e.game_id] = e; });
+        activeGames.forEach(g => {
+          const e = lastEvt[g.id];
+          if(!e) return;
+          const card = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
+          if(!card) return;
+          const half = e.half === 'top' ? '▲' : '▼';
+          const inn = e.inning || '';
+          const evtLabel = e.event_type.replace(/_/g,' ');
+          const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
+          card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> <strong>${e.player_name||''}</strong> ${evtLabel}${scored}`;
+        });
+      }
+    }
   }
 
   function buildSportTabs(sportsWithGames) {
@@ -1626,6 +1651,12 @@
   // Load all sports for today
   activeSport = 'all';
   loadGames(currentDate);
+
+  // Auto-refresh every 30s when viewing today (picks up active game status changes)
+  setInterval(() => {
+    const todayStr = toISO(new Date());
+    if(toISO(currentDate) === todayStr) loadGames(currentDate);
+  }, 30000);
 
   // ── PPD ─────────────────────────────────────────────────────────────────
   document.getElementById('gamesContainer').addEventListener('click', e => {

@@ -1052,7 +1052,7 @@
     if(activeGames.length){
       const ids = activeGames.map(g => `"${g.id}"`).join(',');
       const { data: evts } = await sb.from('game_events')
-        .select('game_id, event_type, player_name, inning, half, runs, rbi, bases, created_at')
+        .select('game_id, event_type, player_name, inning, half, outs, runs, rbi, bases, created_at')
         .in('game_id', activeGames.map(g => g.id))
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 3);
@@ -1085,12 +1085,15 @@
             const half = e.half === 'top' ? '▲' : '▼';
             const inn = e.inning || '1';
             const bases = Array.isArray(e.bases) ? e.bases : (e.bases ? JSON.parse(e.bases) : [false,false,false]);
+            const outs = e.outs || 0;
             const dot = (on) => `<span style="display:inline-block;width:7px;height:7px;border-radius:1px;transform:rotate(45deg);background:${on?'var(--green)':'none'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.4)'};margin:0 1px;vertical-align:middle"></span>`;
+            const outDot = (on) => `<span style="display:block;width:6px;height:6px;border-radius:50%;background:${on?'var(--green)':'none'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.4)'}"></span>`;
             const baseDots = `<span style="display:inline-grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;width:18px;height:12px;margin-left:5px;vertical-align:middle;gap:1px">
               <span></span>${dot(bases[1])}<span></span>
               ${dot(bases[2])}<span></span>${dot(bases[0])}
             </span>`;
-            topLeft.innerHTML = `<span style="font-weight:700">${half}${inn}</span>${baseDots}`;
+            const outDots = `<span style="display:inline-flex;flex-direction:column;gap:2px;margin-left:4px;vertical-align:middle">${outDot(outs>0)}${outDot(outs>1)}</span>`;
+            topLeft.innerHTML = `<span style="font-weight:700">${half}${inn}</span>${baseDots}${outDots}`;
           }
         });
       }

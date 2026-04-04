@@ -964,6 +964,15 @@ function startGame(){
   document.getElementById('gameScreen').style.display='flex';
   document.getElementById('gameScreen').style.flexDirection='column';
   addPBP(`Game started — ${G.teams.away.name} @ ${G.teams.home.name}`);
+  // Mark game as active in Supabase so Live button appears on scoreboard
+  if(G_game_id){
+    fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ status:'active' })
+    }).then(r=>{ if(!r.ok) r.text().then(t=>console.error('Status update failed:',t)); })
+      .catch(e=>console.error('Status update error:',e));
+  }
   render();
 }
 

@@ -710,7 +710,7 @@ function curPitcherTeamId(){
 }
 
 async function pushEvt(key, extras={}){
-  if(!G_game_id) return; // no game selected, silent no-op
+  if(!G_game_id) return;
   const b = curBatter();
   const p = curPitcher();
   const side = battingSide();
@@ -731,11 +731,19 @@ async function pushEvt(key, extras={}){
     player_name:  b?.player?.name || null,
     player_num:   b?.player?.number ? parseInt(b.player.number) : null,
     pitcher_name: p ? G.teams[p.side].lineup[p.idx]?.name : null,
-    pitches:      extras.pitches || G.curPitches.length,
+    pitches:      extras.pitches !== undefined ? extras.pitches : G.curPitches.length,
     x:            extras.x ?? null,
     y:            extras.y ?? null,
   };
   await sbInsert('game_events', row);
+  // Update live score on game record
+  if(G.runs){
+    fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ home_score_live: G.runs.home, away_score_live: G.runs.away })
+    }).catch(e=>console.warn('score update failed',e));
+  }
 }
 
 // ── Game loader ──────────────────────────────
@@ -1032,8 +1040,7 @@ function doStrikeout(type){
     if(type==='K')  ps.calledK=(ps.calledK||0)+1;
     else            ps.swingK=(ps.swingK||0)+1;
   }
-  G.curPitches.push(type);
-  // No chargePitch here — the final strike was already charged by logPitch()
+  // Note: final strike already pushed to curPitches by logPitch()
   const sym=type==='K'?'ꓘ':'K';
   addPBP(`<strong>${b.player.name}</strong> ${sym}`);
   pushEvt('strikeout');

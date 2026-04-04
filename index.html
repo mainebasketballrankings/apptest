@@ -1052,7 +1052,7 @@
     if(activeGames.length){
       const ids = activeGames.map(g => `"${g.id}"`).join(',');
       const { data: evts } = await sb.from('game_events')
-        .select('game_id, event_type, player_name, inning, half, runs, rbi, created_at')
+        .select('game_id, event_type, player_name, inning, half, runs, rbi, bases, created_at')
         .in('game_id', activeGames.map(g => g.id))
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 3);
@@ -1062,21 +1062,36 @@
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
           if(!e) return;
+          // Update footer with last play
           const card = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
-          if(!card) return;
-          const EVT_LABEL = {
-            single:'singles', double:'doubles', triple:'triples', hr:'homers',
-            groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops out',
-            strikeout:'strikes out', walk:'walks', hbp:'hit by pitch',
-            error:'reaches on error', fielders_choice:'fielder\'s choice',
-            sac_bunt:'sac bunt', sac_fly:'sac fly', sub_pitcher:'pitching change',
-          };
-          const half = e.half === 'top' ? '▲' : '▼';
-          const inn = e.inning || '';
-          const evtLabel = EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' ');
-          const name = e.player_name || '';
-          const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
-          card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> <strong>${name}</strong> ${evtLabel}${scored}`;
+          if(card){
+            const EVT_LABEL = {
+              single:'singles', double:'doubles', triple:'triples', hr:'homers',
+              groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops out',
+              strikeout:'strikes out', walk:'walks', hbp:'hit by pitch',
+              error:'reaches on error', fielders_choice:'fielder\'s choice',
+              sac_bunt:'sac bunt', sac_fly:'sac fly', sub_pitcher:'pitching change',
+            };
+            const half = e.half === 'top' ? '▲' : '▼';
+            const inn = e.inning || '';
+            const evtLabel = EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' ');
+            const name = e.player_name || '';
+            const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
+            card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> <strong>${name}</strong> ${evtLabel}${scored}`;
+          }
+          // Update top bar left span with scorebug
+          const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
+          if(topLeft){
+            const half = e.half === 'top' ? '▲' : '▼';
+            const inn = e.inning || '1';
+            const bases = Array.isArray(e.bases) ? e.bases : (e.bases ? JSON.parse(e.bases) : [false,false,false]);
+            const dot = (on) => `<span style="display:inline-block;width:7px;height:7px;border-radius:1px;transform:rotate(45deg);background:${on?'var(--green)':'none'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.4)'};margin:0 1px;vertical-align:middle"></span>`;
+            const baseDots = `<span style="display:inline-grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;width:18px;height:12px;margin-left:5px;vertical-align:middle;gap:1px">
+              <span></span>${dot(bases[1])}<span></span>
+              ${dot(bases[2])}<span></span>${dot(bases[0])}
+            </span>`;
+            topLeft.innerHTML = `<span style="font-weight:700">${half}${inn}</span>${baseDots}`;
+          }
         });
       }
     }

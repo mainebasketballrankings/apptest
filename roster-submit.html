@@ -589,15 +589,14 @@
         }
       });
 
-      // Only use header mapping if we found a name column — otherwise fall through to positional
-      if (usedFields.has('name')) {
-        colMap = mapped;
-        dataLines = lines.slice(1);
-      } else {
-        // Header row exists but has no recognizable name column (e.g. "VARSITY ...") — skip it, go positional
-        colMap = Object.fromEntries(positional.map((f, i) => [i, f]));
-        dataLines = lines.slice(1);
+      // Only use header mapping if we found a name column
+      // If not, the header still tells us where other columns are — assume col 1 = name
+      if (!usedFields.has('name')) {
+        mapped[1] = 'name';
+        usedFields.add('name');
       }
+      colMap = mapped;
+      dataLines = lines.slice(1);
     } else {
       colMap = Object.fromEntries(positional.map((f, i) => [i, f]));
       dataLines = lines;

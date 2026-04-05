@@ -92,7 +92,6 @@
     }
     .sport-pill:hover { border-color: var(--orange); color: var(--orange); }
     .sport-pill.selected { background: var(--orange); border-color: var(--orange); color: #fff; }
-    .sport-pill.unavailable { opacity: 0.28; pointer-events: none; }
 
     /* ── GENDER ── */
     .gender-row { display: flex; gap: 8px; margin-top: 14px; }
@@ -432,15 +431,13 @@
 
   // ── STEP 2: SPORT & GENDER ─────────────────────────────────────────────
   function buildSportPills() {
-    const wrap        = document.getElementById('sportPills');
-    const schoolTeams = allTeams.filter(t => t.school_name === selectedSchool);
-    const available   = new Set(schoolTeams.map(t => t.sport_slug));
+    const wrap = document.getElementById('sportPills');
 
     wrap.innerHTML = SPORT_DISPLAY.map(({ slug, label }) =>
-      `<div class="sport-pill${available.has(slug) ? '' : ' unavailable'}" data-sport="${slug}">${label}</div>`
+      `<div class="sport-pill" data-sport="${slug}">${label}</div>`
     ).join('');
 
-    wrap.querySelectorAll('.sport-pill:not(.unavailable)').forEach(el => {
+    wrap.querySelectorAll('.sport-pill').forEach(el => {
       el.addEventListener('click', () => selectSport(el.dataset.sport));
     });
 

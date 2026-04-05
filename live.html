@@ -1165,18 +1165,17 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     setTimeout(runSim, 1000);
   } else {
+    // Seed sim lineups as fallback — connectGame will override with real roster if available
+    BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
+    BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
+    BB_LINEUPS.pitchers.away.forEach(p=>BB.pitchers.away.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
+    BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
+    BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
+
     const gameId = new URLSearchParams(window.location.search).get('game_id');
     if(gameId){
-      // Real game — start with empty rosters, built from events
-      BB.pitcher = { name:'—', side:'away', pitches:0, ip:'0.0' };
       connectGame(gameId);
     } else {
-      // No game_id — seed sim lineups and run sim
-      BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
-      BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
-      BB_LINEUPS.pitchers.away.forEach(p=>BB.pitchers.away.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
-      BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
-      BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
       initView(
         {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
         {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/oceanside.png'}
@@ -1216,7 +1215,7 @@ async function connectGame(gameId){
   // Fetch rosters to pre-populate lineup panels
   const rosterFetch = async (teamId, side) => {
     const r = await fetch(
-      `${LIVE_SB_URL}/rest/v1/players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&select=name,number,position&limit=25`,
+      `${LIVE_SB_URL}/rest/v1/players?team_id=eq.${teamId}&order=number.asc&select=name,number,position&limit=25`,
       { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
     );
     const players = await r.json();

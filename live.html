@@ -1209,9 +1209,24 @@ async function connectGame(gameId){
   const home = game.home_team;
   const away = game.away_team;
   initView(
-    { name: away.school_name, short: away.school_name.slice(0,3).toUpperCase(), short2: away.school_name.slice(0,3).toUpperCase(), logoUrl: away.logo_url||'' },
-    { name: home.school_name, short: home.school_name.slice(0,3).toUpperCase(), short2: home.school_name.slice(0,3).toUpperCase(), logoUrl: home.logo_url||'' }
+    { name: home.school_name, short: home.school_name.slice(0,3).toUpperCase(), short2: home.school_name.slice(0,3).toUpperCase(), logoUrl: home.logo_url||'' },
+    { name: away.school_name, short: away.school_name.slice(0,3).toUpperCase(), short2: away.school_name.slice(0,3).toUpperCase(), logoUrl: away.logo_url||'' }
   );
+
+  // Fetch rosters to pre-populate lineup panels
+  const rosterFetch = async (teamId, side) => {
+    const r = await fetch(
+      `${LIVE_SB_URL}/rest/v1/players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&select=name,number,position&limit=25`,
+      { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
+    );
+    const players = await r.json();
+    if(Array.isArray(players)) players.forEach(p => {
+      if(!BB.batters[side].find(b=>b.name===p.name)){
+        BB.batters[side].push({name:p.name, num:p.number||'', pos:p.position||'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0});
+      }
+    });
+  };
+  await Promise.all([rosterFetch(game.home_team_id,'home'), rosterFetch(game.away_team_id,'away')]);
 
   // 2. Fetch existing events (catch up on plays already recorded)
   const eRes = await fetch(
@@ -1482,7 +1497,7 @@ function bbUpdFeed(){
     const body=document.createElement('div'); body.className='fr-body';
     const who=`<b>#${e.pnum} ${e.plast}</b>`;
     const action = e.notes || BB_KLBL[e.key] || e.key;
-    if(e.key==='inning_end') return; // don't show in feed
+    if(e.key==='inning_end') return;
     const halfLbl=e.half==='top'?'▲':'▼';
     // Build description
     let desc = `${who} — ${action}`;

@@ -256,20 +256,12 @@
 
       <div id="teamConfirmed" style="display:none"></div>
 
-      <div style="font-size:12px;font-weight:600;color:var(--lgray);margin-bottom:8px;">
-        Copy your roster from Excel or Google Sheets. Columns in this order:
+      <div style="font-size:12px;font-weight:600;color:var(--lgray);margin-bottom:6px;">
+        Copy your roster from Excel or Google Sheets and paste below.
       </div>
-      <div class="col-guide">
-        <div class="col-chip"><span class="col-letter">Col A</span>#</div>
-        <div class="col-chip col-req"><span class="col-letter">Col B</span>Name</div>
-        <div class="col-chip"><span class="col-letter">Col C</span>Grade</div>
-        <div class="col-chip"><span class="col-letter">Col D</span>Position</div>
-        <div class="col-chip" id="chipHeight"><span class="col-letter">Col E</span>Height</div>
-        <div class="col-chip" id="chipPronun"><span class="col-letter" id="pronunLetter">Col F</span>Pronunciation</div>
-      </div>
-      <div style="font-size:11px;color:var(--lgray);margin-bottom:12px;">
-        Header row optional — detected automatically. Extra columns ignored.
-        <strong style="color:var(--black)">Name is the only required field.</strong>
+      <div style="font-size:11px;color:var(--lgray);margin-bottom:12px;line-height:1.7;">
+        Column order doesn't matter — we'll figure it out. Header row optional.
+        Works best if your columns include: <strong style="color:var(--black)">#</strong>, <strong style="color:var(--black)">Name</strong>, <strong style="color:var(--black)">Grade</strong>, <strong style="color:var(--black)">Position</strong>, <strong style="color:var(--black)">Pronunciation</strong>.
       </div>
 
       <textarea class="paste-area" id="pasteArea"
@@ -508,10 +500,6 @@
     badge.style.display = 'block';
     badge.innerHTML = `<div class="confirmed-badge">✓ ${selectedSchool} · ${selectedGender} ${sportLabel} · 25-26</div>`;
 
-    const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
-    document.getElementById('chipHeight').style.display = showHeight ? '' : 'none';
-    document.getElementById('pronunLetter').textContent  = showHeight ? 'Col F' : 'Col E';
-
     const pa = document.getElementById('pasteArea');
     pa.value = '';
     pa.classList.remove('has-data');
@@ -561,51 +549,91 @@
     if (!lines.length) return [];
 
     const delim = lines[0].includes('\t') ? '\t' : ',';
-    const firstCells = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/^"|"$/g,''));
 
-    // Detect header: any cell matches a known column name
+    const parseLines = lines.map(l =>
+      l.split(delim).map(c => c.trim().replace(/^"|"$/g, ''))
+    );
+
+    // ── Detect if first row is a header ──────────────────────────────────
+    const firstCells = parseLines[0].map(c => c.toLowerCase());
     const isHeader = firstCells.some(c => HEADER_MAP[c] !== undefined);
+    const dataLines = isHeader ? parseLines.slice(1) : parseLines;
 
-    // Build positional fallback (always available)
-    const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
-    const positional = showHeight
-      ? ['number','name','grade','position','height','pronunciation']
-      : ['number','name','grade','position','pronunciation'];
-
-    let colMap;
-    let dataLines;
-
+    // ── If header exists, map by name ─────────────────────────────────────
     if (isHeader) {
-      const usedFields = new Set();
-      const mapped = {};
+      const colMap = {};
+      const used = new Set();
       firstCells.forEach((h, i) => {
         const field = HEADER_MAP[h];
-        if (field && !usedFields.has(field)) {
-          mapped[i] = field;
-          usedFields.add(field);
-        }
+        if (field && !used.has(field)) { colMap[i] = field; used.add(field); }
       });
+      // Always assume col 1 is name if not mapped
+      if (!used.has('name')) { colMap[1] = 'name'; }
 
-      // Only use header mapping if we found a name column
-      // If not, the header still tells us where other columns are — assume col 1 = name
-      if (!usedFields.has('name')) {
-        mapped[1] = 'name';
-        usedFields.add('name');
+      return dataLines
+        .map(cells => {
+          const row = { number:'', name:'', grade:'', position:'', height:'', pronunciation:'' };
+          Object.entries(colMap).forEach(([i, f]) => { row[f] = cells[parseInt(i)] || ''; });
+          return row;
+        })
+        .filter(r => r.name);
+    }
+
+    // ── No header — infer columns from data ───────────────────────────────
+    // Strategy: score each column for what it looks like
+    const ncols = Math.max(...dataLines.map(r => r.length));
+    const scores = Array.from({ length: ncols }, () =>
+      ({ number: 0, grade: 0, name: 0, position: 0, pronunciation: 0 })
+    );
+
+    const GRADE_RE    = /^(?:9|10|11|12|[Ff]r(?:esh)?|[Ss]o(?:ph)?|[Jj]r|[Ss]r|freshman|sophomore|junior|senior)$/i;
+    const NUMBER_RE   = /^\d{1,2}$/;
+    const NAME_RE     = /^[A-Z][a-z]+ [A-Z][a-z]+/; // "First Last"
+    const POS_RE      = /^(?:[PCOF]|[1-3]B|SS|DH|UT|IF|LF|CF|RF|[GL]K|DEF|MID|FWD|[SGC]|OH|MB|RS|LS|QB|RB|WR|TE|OL|DL|LB|DB|[KP])(?: *[/|,] *(?:[PCOF]|[1-3]B|SS|DH|UT|IF|LF|CF|RF))*$/i;
+    const PRONUN_RE   = /[A-Z]{2,}-|[a-z]+-[a-z]+/; // hyphenated phonetic like "BOW-ker" or "TEE-bow"
+
+    dataLines.forEach(cells => {
+      cells.forEach((val, i) => {
+        if (!val) return;
+        if (NUMBER_RE.test(val))  scores[i].number += 3;
+        if (GRADE_RE.test(val))   scores[i].grade  += 3;
+        if (NAME_RE.test(val))    scores[i].name   += 3;
+        if (POS_RE.test(val))     scores[i].position += 2;
+        if (PRONUN_RE.test(val))  scores[i].pronunciation += 3;
+        // Long text with spaces = likely name
+        if (val.includes(' ') && val.length > 6 && !POS_RE.test(val)) scores[i].name += 1;
+        // Short pure alpha = likely position
+        if (/^[A-Za-z\/]+$/.test(val) && val.length <= 8 && !GRADE_RE.test(val)) scores[i].position += 1;
+      });
+    });
+
+    // Assign columns greedily by highest score, each field wins once
+    const fields = ['number','name','grade','position','pronunciation'];
+    const colMap = {};
+    const usedCols = new Set();
+    const usedFields = new Set();
+
+    // Name gets priority — find best name column first
+    const nameScores = scores.map((s, i) => ({ i, s: s.name })).filter(x => !usedCols.has(x.i));
+    nameScores.sort((a, b) => b.s - a.s);
+    if (nameScores.length) { colMap[nameScores[0].i] = 'name'; usedCols.add(nameScores[0].i); usedFields.add('name'); }
+
+    // Then the rest
+    for (const field of ['number','grade','position','pronunciation']) {
+      const candidates = scores
+        .map((s, i) => ({ i, s: s[field] }))
+        .filter(x => !usedCols.has(x.i) && x.s > 0)
+        .sort((a, b) => b.s - a.s);
+      if (candidates.length) {
+        colMap[candidates[0].i] = field;
+        usedCols.add(candidates[0].i);
       }
-      colMap = mapped;
-      dataLines = lines.slice(1);
-    } else {
-      colMap = Object.fromEntries(positional.map((f, i) => [i, f]));
-      dataLines = lines;
     }
 
     return dataLines
-      .map(line => {
-        const cells = line.split(delim).map(c => c.trim().replace(/^"|"$/g,''));
+      .map(cells => {
         const row = { number:'', name:'', grade:'', position:'', height:'', pronunciation:'' };
-        Object.entries(colMap).forEach(([idx, field]) => {
-          row[field] = cells[parseInt(idx)] || '';
-        });
+        Object.entries(colMap).forEach(([i, f]) => { row[f] = cells[parseInt(i)] || ''; });
         return row;
       })
       .filter(r => r.name);

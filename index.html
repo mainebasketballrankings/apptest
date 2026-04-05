@@ -1058,7 +1058,6 @@
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 5);
       if(evts){
-        console.log('game_events fetched:', evts.map(e=>({type:e.event_type,outs:e.outs,bases:e.bases,notes:e.notes,created:e.created_at})));
         const lastEvt = {};  // for play description (skips runner-out)
         const stateEvt = {}; // for outs/bases scorebug (uses latest event)
         evts.forEach(e => {

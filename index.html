@@ -1058,13 +1058,16 @@
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 5);
       if(evts){
-        const lastEvt = {};
-        evts.forEach(e => { 
-          if(!lastEvt[e.game_id] && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e; 
+        const lastEvt = {};  // for play description (skips runner-out)
+        const stateEvt = {}; // for outs/bases scorebug (uses latest event)
+        evts.forEach(e => {
+          if(!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
+          if(!lastEvt[e.game_id] && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
-          if(!e) return;
+          const se = stateEvt[g.id] || e;
+          if(!e && !se) return;
           // Update footer with last play
           const card = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
           if(card){
@@ -1084,11 +1087,11 @@
           }
           // Update top bar left span with scorebug
           const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
-          if(topLeft){
-            const half = e.half === 'top' ? '▲' : '▼';
-            const inn = e.inning || '1';
-            const bases = Array.isArray(e.bases) ? e.bases : (e.bases ? JSON.parse(e.bases) : [false,false,false]);
-            const outs = e.outs || 0;
+          if(topLeft && se){
+            const half = se.half === 'top' ? '▲' : '▼';
+            const inn = se.inning || '1';
+            const bases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
+            const outs = se.outs || 0;
             const bd = (on) => `<span style="width:6px;height:6px;border-radius:1px;transform:rotate(45deg);background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
             const od = (on) => `<span style="width:5px;height:5px;border-radius:50%;background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
             const baseGrid = `<span style="display:grid;grid-template-columns:8px 8px 8px;grid-template-rows:8px 8px;gap:1px;flex-shrink:0">

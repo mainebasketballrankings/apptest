@@ -24,7 +24,7 @@
 
     .page { max-width: 740px; margin: 0 auto; padding: 32px 20px 100px; }
     .page-title {
-      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 600;
       font-size: 30px; margin-bottom: 4px;
     }
     .page-sub { font-size: 13px; color: var(--lgray); margin-bottom: 28px; line-height: 1.5; }
@@ -334,24 +334,30 @@
 
   // ── INIT ───────────────────────────────────────────────────────────────
   async function init() {
-    const [{ data: sports, error: sErr }, { data: teams, error: tErr }] = await Promise.all([
-      sb.from('sports').select('id, slug'),
-      sb.from('teams').select('id, school_name, gender, sport_id'),
-      // NOTE: teams table has no season_year column — don't filter by it
-    ]);
-
+  async function init() {
+    // Load sports
+    const { data: sports, error: sErr } = await sb.from('sports').select('id, slug');
     if (sErr) console.error('sports error:', sErr.message);
-    if (tErr) console.error('teams error:', tErr.message);
-
+    else console.log('sports loaded:', sports?.length);
     if (sports) sports.forEach(s => { sportIdMap[s.slug] = s.id; });
+
+    // Load teams — RLS disabled, school_name + gender + sport_id confirmed columns
+    const { data: teams, error: tErr } = await sb.from('teams')
+      .select('id, school_name, gender, sport_id');
+    if (tErr) console.error('teams error:', tErr.message);
+    else console.log('teams loaded:', teams?.length);
 
     if (teams && teams.length) {
       const idToSlug = Object.fromEntries(
         Object.entries(sportIdMap).map(([slug, id]) => [id, slug])
       );
       allTeams = teams.map(t => ({ ...t, sport_slug: idToSlug[t.sport_id] || null }));
+      console.log('allTeams sample:', allTeams.slice(0,3));
     } else {
-      console.warn('allTeams is empty — check Supabase RLS or anon key');
+      const errMsg = tErr ? tErr.message : 'teams query returned empty — unexpected';
+      console.warn(errMsg);
+      document.getElementById('schoolDropdown').innerHTML =
+        `<div class="dropdown-empty" style="color:var(--red)">${errMsg}</div>`;
     }
 
     dataReady = true;

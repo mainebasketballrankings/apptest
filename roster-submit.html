@@ -566,29 +566,40 @@
     const delim = lines[0].includes('\t') ? '\t' : ',';
     const firstCells = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/^"|"$/g,''));
 
-    // Detect header: if any cell matches a known header synonym
+    // Detect header: any cell matches a known column name
     const isHeader = firstCells.some(c => HEADER_MAP[c] !== undefined);
 
-    let colMap; // index → field name
+    // Build positional fallback (always available)
+    const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
+    const positional = showHeight
+      ? ['number','name','grade','position','height','pronunciation']
+      : ['number','name','grade','position','pronunciation'];
+
+    let colMap;
     let dataLines;
 
     if (isHeader) {
-      colMap = {};
       const usedFields = new Set();
+      const mapped = {};
       firstCells.forEach((h, i) => {
         const field = HEADER_MAP[h];
         if (field && !usedFields.has(field)) {
-          colMap[i] = field;
+          mapped[i] = field;
           usedFields.add(field);
         }
       });
-      dataLines = lines.slice(1);
+
+      // Only use header mapping if we found a name column — otherwise fall through to positional
+      if (usedFields.has('name')) {
+        colMap = mapped;
+        dataLines = lines.slice(1);
+      } else {
+        // Header row exists but has no recognizable name column (e.g. "VARSITY ...") — skip it, go positional
+        colMap = Object.fromEntries(positional.map((f, i) => [i, f]));
+        dataLines = lines.slice(1);
+      }
     } else {
-      const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
-      const order = showHeight
-        ? ['number','name','grade','position','height','pronunciation']
-        : ['number','name','grade','position','pronunciation'];
-      colMap = Object.fromEntries(order.map((f, i) => [i, f]));
+      colMap = Object.fromEntries(positional.map((f, i) => [i, f]));
       dataLines = lines;
     }
 

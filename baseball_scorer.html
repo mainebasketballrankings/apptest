@@ -722,14 +722,14 @@ async function pushEvt(key, extras={}){
     clock_seconds: 0,
     inning:       G.inning,
     half:         G.half,
-    outs:         G.outs,
+    outs:         extras.outs_override !== undefined ? extras.outs_override : G.outs,
     balls:        G.balls,
     strikes:      G.strikes,
-    bases:        basesArr(),
+    bases:        extras.bases_override !== undefined ? extras.bases_override : basesArr(),
     runs:         extras.runs || 0,
     rbi:          extras.rbi  || 0,
-    player_name:  b?.player?.name || null,
-    player_num:   b?.player?.number ? parseInt(b.player.number) : null,
+    player_name:  extras.player_override ? extras.player_override.name : (b?.player?.name || null),
+    player_num:   extras.player_override ? (extras.player_override.number ? parseInt(extras.player_override.number) : null) : (b?.player?.number ? parseInt(b.player.number) : null),
     pitcher_name: p ? G.teams[p.side].lineup[p.idx]?.name : null,
     pitches:      extras.pitches !== undefined ? extras.pitches : G.curPitches.length,
     x:            extras.x ?? null,
@@ -1244,7 +1244,9 @@ function recordDPRunnerOut(base){
   closeOv('ovDP');
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
-  pushEvt('groundout', {player_override: r, notes: 'out (DP)'}); // runner out on DP
+  const dpBases = basesArr();
+  const dpOuts = G.outs;
+  setTimeout(()=>pushEvt('groundout', {player_override: r, notes: 'out (DP)', bases_override: dpBases, outs_override: dpOuts}), 200);
   if(G.outs>=3){ endHalf(); return; }
   render();
   if(hasRunners()) setTimeout(()=>openRunners(),150);

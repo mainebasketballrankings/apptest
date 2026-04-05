@@ -186,13 +186,13 @@
     table.rt td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     table.rt tr:last-child td { border-bottom: none; }
     table.rt tr:hover td { background: #fafafa; }
-    .rt-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 15px; color: var(--lgray); width: 40px; }
+    .rt-num  { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 15px; color: var(--lgray); width: 40px; }
     .rt-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 16px; white-space: nowrap; position: sticky; left: 0; background: var(--white); z-index: 2; }
     tbody tr:nth-child(even) .rt-name { background: var(--white); }
     tbody tr:hover .rt-name { background: #f8f8f8; }
-    .rt-pos   { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px; color: var(--gray); text-align: center !important; width: 36px; }
+    .rt-pos   { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 13px; color: var(--gray); text-align: center !important; white-space: nowrap; min-width: 60px; }
     .rt-grade { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px; color: var(--black); text-align: center !important; width: 36px; }
-    .rt-pron  { font-size: 11px; color: var(--lgray); font-style: italic; }
+    .rt-pron  { font-size: 13px; color: var(--lgray); font-style: italic; text-align: center !important; width: 80px; white-space: nowrap; }
     .rt-stat  { font-family: 'Barlow Condensed', sans-serif; font-weight: 500; font-size: 14px; text-align: center; color: var(--black); }
     .rt-stat-gap { width: 20px; border-right: 2px solid var(--border); padding: 0; }
     .rt-stat-gap-th { width: 20px; border-right: 2px solid var(--border); padding: 0; }
@@ -200,7 +200,17 @@
     table.rt th:nth-child(1), table.rt th:nth-child(2), table.rt th:nth-child(3) { text-align: left; }
     table.rt th:not(:first-child):not(:nth-child(2)) { text-align: right; }
     table.rt th:nth-child(2), table.rt th:nth-child(3) { text-align: left; }
-  </style>
+    /* Stat tabs */
+    .stat-tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 2px solid var(--border); }
+    .stat-tab {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px;
+      letter-spacing: 0.8px; text-transform: uppercase; padding: 8px 16px;
+      cursor: pointer; color: var(--lgray); border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: color 0.15s, border-color 0.15s;
+      background: none; border-top: none; border-left: none; border-right: none;
+    }
+    .stat-tab:hover { color: var(--black); }
+    .stat-tab.active { color: var(--orange); border-bottom-color: var(--orange); }
 </head>
 <body>
 
@@ -271,6 +281,13 @@ const qp  = n => new URLSearchParams(location.search).get(n);
 const f2  = n => n != null ? (+n).toFixed(2) : '—';
 const fpc = n => n != null ? (+n * 100).toFixed(1) + '%' : '—';
 const fdt = d => { if (!d) return ''; const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
+
+function switchTab(tab) {
+  document.getElementById('tbl-hit').style.display = tab === 'hit' ? '' : 'none';
+  document.getElementById('tbl-pit').style.display = tab === 'pit' ? '' : 'none';
+  document.getElementById('tab-hit').classList.toggle('active', tab === 'hit');
+  document.getElementById('tab-pit').classList.toggle('active', tab === 'pit');
+}
 
 function pyth(a, b) {
   if (a == null || b == null) return null;
@@ -345,7 +362,7 @@ async function load() {
 
     // Paginated fetch helper
     // Fetch roster players for this team
-    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops&order=number.asc&limit=100`);
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops,w,l,ip,era,whip,k&order=number.asc&limit=100`);
 
     async function fetchAll(query) {
       const pageSize = 1000;
@@ -727,18 +744,32 @@ async function load() {
       if (players && players.length) {
         const isBball = sport === 'basketball';
         const isBase  = sport === 'baseball' || sport === 'softball';
-        const rows = players.map(p => {
-          const n = (v, decimals) => v != null ? (decimals != null ? (+v).toFixed(decimals) : v) : '';
+        const headCells = [
+          '<th>#</th>','<th style="position:sticky;left:0;background:var(--bg);z-index:3">Name</th>',
+          '<th style="text-align:center">Pronunciation</th>',
+          '<th>Ht</th>','<th>Pos</th>','<th>Grade</th>',
+          '<th class="rt-stat-gap-th"></th>',
+        ];
+        if (isBball) headCells.push('<th>PPG</th>','<th>RPG</th>','<th>APG</th>','<th>STL</th>','<th>BLK</th>','<th>FG%</th>','<th>3P%</th>','<th>FT%</th>','<th>EFF</th>','<th>+/-</th>');
+
+        // Bio rows (always the same)
+        const bioRows = players.map(p => {
           const cells = [
             `<td class="rt-num">${p.number != null ? parseInt(p.number) : '—'}</td>`,
             `<td class="rt-name">${p.name || ''}</td>`,
             `<td class="rt-pron">${p.pronunciation || ''}</td>`,
             `<td class="rt-grade" style="text-align:center">${p.height || ''}</td>`,
-            `<td class="rt-pos" style="text-align:center">${p.position || ''}</td>`,
+            `<td class="rt-pos">${p.position || ''}</td>`,
             `<td class="rt-grade" style="text-align:center">${p.grade || ''}</td>`,
             `<td class="rt-stat-gap"></td>`,
           ];
-          if (isBball) {
+          return cells;
+        });
+
+        if (isBball) {
+          const rows = players.map((p, i) => {
+            const n = (v, d) => v != null ? (d != null ? (+v).toFixed(d) : v) : '';
+            const cells = [...bioRows[i]];
             cells.push(`<td class="rt-stat">${n(p.ppg,1)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.rpg,1)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.apg,1)}</td>`);
@@ -747,35 +778,84 @@ async function load() {
             cells.push(`<td class="rt-stat">${n(p.fgp,1)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.tpp,1)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.ftp,1)}</td>`);
-            cells.push(`<td class="rt-stat">${p.eff != null && p.games ? (p.eff / p.games).toFixed(1) : ''}</td>`);
+            cells.push(`<td class="rt-stat">${p.eff != null && p.games ? (p.eff/p.games).toFixed(1) : ''}</td>`);
             cells.push(`<td class="rt-stat">${p.plusminus != null ? (p.plusminus > 0 ? '+' : '') + p.plusminus : ''}</td>`);
-          } else if (isBase) {
+            return `<tr>${cells.join('')}</tr>`;
+          }).join('');
+          const headerRow = headCells.join('');
+          rosterHtml = `
+            <div class="roster-section">
+              <div class="section-header">Roster</div>
+              <div class="roster-wrap">
+                <table class="rt">
+                  <thead><tr>${headerRow}</tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </div>`;
+
+        } else if (isBase) {
+          // Build hitting and pitching row sets separately
+          const hitHead = [...headCells, '<th>BA</th>','<th>HR</th>','<th>RBI</th>','<th>SB</th>','<th>OPS</th>'].join('');
+          const pitHead = [...headCells, '<th>W-L</th>','<th>IP</th>','<th>ERA</th>','<th>WHIP</th>','<th>K</th>'].join('');
+
+          const hitRows = players.map((p, i) => {
+            const n = (v, d) => v != null ? (d != null ? (+v).toFixed(d) : v) : '';
+            const cells = [...bioRows[i]];
             cells.push(`<td class="rt-stat">${n(p.ba,3)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.hr)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.rbi)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.sb)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.ops,3)}</td>`);
-          }
-          return `<tr>${cells.join('')}</tr>`;
-        }).join('');
-        const headCells = [
-          '<th>#</th>','<th style="position:sticky;left:0;background:var(--white);z-index:3">Name</th>','<th>Pronunciation</th>',
-          '<th>Ht</th>','<th>Pos</th>','<th>Grade</th>',
-          '<th class="rt-stat-gap-th"></th>',
-        ];
-        if (isBball) headCells.push('<th>PPG</th>','<th>RPG</th>','<th>APG</th>','<th>STL</th>','<th>BLK</th>','<th>FG%</th>','<th>3P%</th>','<th>FT%</th>','<th>EFF</th>','<th>+/-</th>');
-        else if (isBase) headCells.push('<th>BA</th>','<th>HR</th>','<th>RBI</th>','<th>SB</th>','<th>OPS</th>');
-        const headerRow = headCells.join('');
-        rosterHtml = `
-          <div class="roster-section">
-            <div class="section-header">Roster</div>
-            <div class="roster-wrap">
-              <table class="rt">
-                <thead><tr>${headerRow}</tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
-            </div>
-          </div>`;
+            return `<tr>${cells.join('')}</tr>`;
+          }).join('');
+
+          const pitRows = players.map((p, i) => {
+            const n = (v, d) => v != null ? (d != null ? (+v).toFixed(d) : v) : '';
+            const wl = (p.w != null || p.l != null) ? `${p.w ?? 0}-${p.l ?? 0}` : '';
+            const cells = [...bioRows[i]];
+            cells.push(`<td class="rt-stat">${wl}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.ip,1)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.era,2)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.whip,2)}</td>`);
+            cells.push(`<td class="rt-stat">${n(p.k)}</td>`);
+            return `<tr>${cells.join('')}</tr>`;
+          }).join('');
+
+          rosterHtml = `
+            <div class="roster-section">
+              <div class="section-header">Roster</div>
+              <div style="background:var(--white);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <div style="padding:0 12px;background:var(--white);border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+                  <div class="stat-tabs">
+                    <button class="stat-tab active" id="tab-hit" onclick="switchTab('hit')">Hitting</button>
+                    <button class="stat-tab" id="tab-pit" onclick="switchTab('pit')">Pitching</button>
+                  </div>
+                </div>
+                <div class="roster-wrap" style="border:none;border-radius:0" id="tbl-hit">
+                  <table class="rt"><thead><tr>${hitHead}</tr></thead><tbody>${hitRows}</tbody></table>
+                </div>
+                <div class="roster-wrap" style="border:none;border-radius:0;display:none" id="tbl-pit">
+                  <table class="rt"><thead><tr>${pitHead}</tr></thead><tbody>${pitRows}</tbody></table>
+                </div>
+              </div>
+            </div>`;
+
+        } else {
+          // Other sports — bio only
+          const rows = players.map((p, i) => `<tr>${bioRows[i].join('')}</tr>`).join('');
+          const headerRow = headCells.join('');
+          rosterHtml = `
+            <div class="roster-section">
+              <div class="section-header">Roster</div>
+              <div class="roster-wrap">
+                <table class="rt">
+                  <thead><tr>${headerRow}</tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </div>`;
+        }
       }
     } catch(e) { /* no roster yet, silently skip */ }
 

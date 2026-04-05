@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit Your Roster — Maine Basketball Rankings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --orange: #ee6730;
+      --green:  #1a7a4a;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+    body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--black); min-height: 100vh; }
+
+    /* ── HEADER ── */
+    .site-header {
+      background: var(--black); color: #fff;
+      padding: 14px 24px; display: flex; align-items: center; gap: 12px;
+    }
+    .site-header .logo {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-size: 20px; letter-spacing: 0.5px; color: #fff; text-decoration: none;
+    }
+    .site-header .logo span { color: var(--orange); }
+
+    /* ── PAGE ── */
+    .page { max-width: 780px; margin: 0 auto; padding: 36px 20px 100px; }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-size: 32px; margin-bottom: 6px;
+    }
+    .page-sub { font-size: 14px; color: var(--lgray); margin-bottom: 32px; line-height: 1.5; }
+
+    /* ── STEPS ── */
+    .step {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 16px; overflow: hidden;
+      transition: opacity 0.2s;
+    }
+    .step.locked { opacity: 0.45; pointer-events: none; }
+    .step-head {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+      font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--lgray); background: #fafafa;
+      border-bottom: 1px solid var(--border);
+      padding: 13px 20px; display: flex; align-items: center; gap: 10px;
+    }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--border); color: var(--gray);
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 12px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: background 0.2s, color 0.2s;
+    }
+    .step.active .step-num  { background: var(--orange); color: #fff; }
+    .step.done   .step-num  { background: var(--green);  color: #fff; }
+    .step.active .step-head { color: var(--black); background: #fff; }
+    .step-body { padding: 20px; }
+
+    /* ── SEARCH INPUT ── */
+    .search-wrap { position: relative; }
+    .search-input {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 12px 14px; font-size: 15px; font-family: 'Barlow', sans-serif;
+      outline: none; transition: border-color 0.15s;
+      background: var(--white);
+    }
+    .search-input:focus { border-color: var(--orange); }
+    .search-input.selected { border-color: var(--green); background: #f6fdf9; font-weight: 600; }
+    .dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 8px; max-height: 260px; overflow-y: auto;
+      z-index: 50; box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    }
+    .dropdown-item {
+      padding: 10px 14px; font-size: 14px; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:hover, .dropdown-item.active { background: #fff7f3; }
+    .dropdown-item strong { color: var(--orange); }
+    .dropdown-empty { padding: 12px 14px; font-size: 13px; color: var(--lgray); }
+
+    /* ── SPORT PILLS ── */
+    .sport-grid {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .sport-pill {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      padding: 6px 16px; cursor: pointer; background: var(--white);
+      color: var(--gray); transition: all 0.15s; user-select: none;
+    }
+    .sport-pill:hover { border-color: var(--orange); color: var(--orange); }
+    .sport-pill.selected { background: var(--orange); border-color: var(--orange); color: #fff; }
+    .sport-pill.unavailable { opacity: 0.3; pointer-events: none; }
+
+    /* ── GENDER TOGGLE ── */
+    .gender-row { display: flex; gap: 8px; margin-top: 14px; }
+    .gender-btn {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px;
+      border: 1.5px solid var(--border); border-radius: 6px;
+      padding: 7px 20px; cursor: pointer; background: var(--white);
+      color: var(--gray); transition: all 0.15s;
+    }
+    .gender-btn:hover { border-color: var(--orange); color: var(--orange); }
+    .gender-btn.selected { background: var(--black); border-color: var(--black); color: #fff; }
+    .gender-row-label { font-size: 12px; font-weight: 600; color: var(--lgray); margin-bottom: 6px; }
+
+    /* ── CONFIRMED BADGE ── */
+    .confirmed-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #f0faf5; border: 1px solid #b6dfcc;
+      border-radius: 6px; padding: 8px 14px;
+      font-size: 14px; font-weight: 600; color: var(--green);
+    }
+
+    /* ── COLUMN GUIDE ── */
+    .col-guide {
+      display: flex; gap: 0; margin-bottom: 14px;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .col-chip {
+      flex: 1; text-align: center; padding: 9px 6px;
+      border-right: 1px solid var(--border);
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase;
+      color: var(--gray); background: #fafafa; position: relative;
+    }
+    .col-chip:last-child { border-right: none; }
+    .col-chip .col-num {
+      display: block; font-size: 10px; font-weight: 400;
+      color: var(--lgray); margin-bottom: 2px; letter-spacing: 0;
+      text-transform: none;
+    }
+    .col-chip.col-req { background: #fff7f3; color: var(--orange); }
+
+    /* ── PASTE AREA ── */
+    .paste-area {
+      width: 100%; height: 180px;
+      font-family: 'Courier New', monospace; font-size: 13px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 12px 14px; resize: vertical; background: #fafafa;
+      color: var(--black); line-height: 1.6; outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .paste-area:focus { border-color: var(--orange); background: var(--white); }
+    .paste-area.has-data { border-color: var(--green); background: var(--white); }
+
+    /* ── PREVIEW TABLE ── */
+    .preview-wrap {
+      overflow-x: auto; border: 1px solid var(--border);
+      border-radius: 8px; margin-top: 16px;
+    }
+    table.preview-tbl { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 420px; }
+    table.preview-tbl thead tr { background: var(--bg); }
+    table.preview-tbl th {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--lgray); padding: 8px 12px; text-align: left;
+      border-bottom: 2px solid var(--border); white-space: nowrap;
+    }
+    table.preview-tbl td { padding: 7px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.preview-tbl tr:last-child td { border-bottom: none; }
+    table.preview-tbl tr:hover td { background: #fafafa; }
+    table.preview-tbl td.missing { color: var(--red); font-style: italic; font-size: 11px; }
+    table.preview-tbl td.muted   { color: var(--lgray); }
+    .preview-count {
+      font-size: 12px; color: var(--lgray); margin-top: 8px;
+    }
+    .preview-count .ok  { color: var(--green); font-weight: 600; }
+    .preview-count .err { color: var(--red);   font-weight: 600; }
+
+    /* ── SUBMIT ── */
+    .submit-btn {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+      font-size: 15px; letter-spacing: 0.5px; text-transform: uppercase;
+      background: var(--orange); color: #fff; border: none; border-radius: 8px;
+      padding: 13px 32px; cursor: pointer; transition: opacity 0.15s;
+    }
+    .submit-btn:hover { opacity: 0.88; }
+    .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .submit-note { font-size: 12px; color: var(--lgray); margin-top: 8px; line-height: 1.5; }
+
+    /* ── SUCCESS ── */
+    #successMsg {
+      display: none; background: #f0faf5; border: 1.5px solid #b6dfcc;
+      border-radius: 12px; padding: 32px; text-align: center; margin-top: 24px;
+    }
+    #successMsg .s-icon { font-size: 40px; margin-bottom: 12px; }
+    #successMsg h2 {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-size: 26px; color: var(--green); margin-bottom: 8px;
+    }
+    #successMsg p { font-size: 14px; color: var(--gray); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #222; color: #fff; padding: 11px 18px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      opacity: 0; transform: translateY(6px);
+      transition: all 0.22s; z-index: 999; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.err  { background: var(--red); }
+
+    @media (max-width: 600px) {
+      .page { padding: 20px 12px 80px; }
+      .page-title { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="logo" href="/">Maine <span>Basketball</span> Rankings</a>
+</header>
+
+<div class="page">
+  <div class="page-title">Submit Your Roster</div>
+  <div class="page-sub">Fill out the steps below — no CSV, no spreadsheet. We'll handle the rest.</div>
+
+  <!-- STEP 1: SCHOOL -->
+  <div class="step active" id="step1">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      Your School
+    </div>
+    <div class="step-body">
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="schoolSearch"
+          placeholder="Start typing your school name…" autocomplete="off" />
+        <div class="dropdown" id="schoolDropdown" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: SPORT -->
+  <div class="step locked" id="step2">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      Sport &amp; Gender
+    </div>
+    <div class="step-body">
+      <div class="sport-grid" id="sportPills"></div>
+      <div id="genderWrap" style="display:none">
+        <div class="gender-row-label" style="margin-top:16px">Team</div>
+        <div class="gender-row" id="genderBtns"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: ROSTER -->
+  <div class="step locked" id="step3">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <span id="step3Label">Players</span>
+    </div>
+    <div class="step-body">
+      <div id="teamConfirmed" style="margin-bottom:18px;display:none"></div>
+
+      <!-- Column order guide -->
+      <div style="font-size:12px;font-weight:600;color:var(--lgray);margin-bottom:8px;">
+        Copy your roster from Excel or Google Sheets. Column order:
+      </div>
+      <div class="col-guide" id="colGuide">
+        <div class="col-chip"><span class="col-num">Col A</span>#</div>
+        <div class="col-chip col-req"><span class="col-num">Col B</span>Name</div>
+        <div class="col-chip"><span class="col-num">Col C</span>Grade</div>
+        <div class="col-chip"><span class="col-num">Col D</span>Position</div>
+        <div class="col-chip" id="chipHeight"><span class="col-num">Col E</span>Height</div>
+        <div class="col-chip" id="chipPronun"><span class="col-num" id="colPronunLetter">Col F</span>Pronunciation</div>
+      </div>
+      <div style="font-size:11px;color:var(--lgray);margin-bottom:12px;">
+        Header row optional — we'll detect it. Extra columns on the right are ignored.
+        <strong style="color:var(--black)">Name is required</strong>; all others can be blank.
+      </div>
+
+      <textarea class="paste-area" id="pasteArea"
+        placeholder="Paste your rows here (Ctrl+V / Cmd+V)…"></textarea>
+
+      <div id="previewWrap" style="display:none">
+        <div class="preview-wrap">
+          <table class="preview-tbl">
+            <thead id="previewHead"></thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <div class="preview-count" id="previewCount"></div>
+      </div>
+
+      <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:20px;">
+        <button class="submit-btn" id="submitBtn" disabled>Submit Roster</button>
+        <div class="submit-note" id="submitNote">Paste your roster above to continue.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="successMsg">
+    <div class="s-icon">✅</div>
+    <h2>Roster Submitted!</h2>
+    <p id="successDetail"></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const SEASON_YEAR = 2026;
+
+  // Sport display names + slugs (ordered for pills)
+  const SPORT_DISPLAY = [
+    { slug: 'basketball', label: 'Basketball' },
+    { slug: 'baseball',   label: 'Baseball'   },
+    { slug: 'softball',   label: 'Softball'   },
+    { slug: 'soccer',     label: 'Soccer'     },
+    { slug: 'lacrosse',   label: 'Lacrosse'   },
+    { slug: 'field-hockey', label: 'Field Hockey' },
+    { slug: 'volleyball', label: 'Volleyball' },
+    { slug: 'football',   label: 'Football'   },
+  ];
+
+  // Sports that use height
+  const SPORTS_WITH_HEIGHT = new Set(['basketball','volleyball']);
+  // Sports that are boys-only or girls-only (no gender toggle)
+  const BOYS_ONLY  = new Set(['baseball','football']);
+  const GIRLS_ONLY = new Set(['softball','field-hockey']);
+
+  // ── STATE ──────────────────────────────────────────────────────────────
+  let allTeams      = [];   // raw from Supabase: {id, school_name, gender, sport_id, sport_slug}
+  let sportIdMap    = {};   // slug → id
+  let selectedSchool = null; // school_name string
+  let selectedSport  = null; // slug
+  let selectedGender = null; // 'Boys' | 'Girls'
+  let selectedTeamId = null;
+
+  // ── INIT ───────────────────────────────────────────────────────────────
+  async function init() {
+    // Load sports
+    const { data: sports } = await sb.from('sports').select('id, slug');
+    if (sports) sports.forEach(s => { sportIdMap[s.slug] = s.id; });
+
+    // Load all teams (we need school_name list + sport availability per school)
+    const { data: teams } = await sb.from('teams')
+      .select('id, school_name, gender, sport_id')
+      .eq('season_year', SEASON_YEAR);
+
+    if (teams) {
+      // Attach slug to each team
+      const idToSlug = Object.fromEntries(Object.entries(sportIdMap).map(([s,id]) => [id, s]));
+      allTeams = teams.map(t => ({ ...t, sport_slug: idToSlug[t.sport_id] || null }));
+    }
+
+    buildSchoolSearch();
+  }
+
+  // ── STEP 1: SCHOOL SEARCH ──────────────────────────────────────────────
+  function buildSchoolSearch() {
+    const input = document.getElementById('schoolSearch');
+    const dd    = document.getElementById('schoolDropdown');
+
+    // Unique sorted school names
+    const schools = [...new Set(allTeams.map(t => t.school_name))].sort();
+
+    function render(q) {
+      const matches = q.length < 1
+        ? schools.slice(0, 8)
+        : schools.filter(s => s.toLowerCase().includes(q.toLowerCase()));
+
+      if (!matches.length) {
+        dd.innerHTML = `<div class="dropdown-empty">No schools found</div>`;
+      } else {
+        dd.innerHTML = matches.map(s => {
+          const hl = q ? s.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<strong>$1</strong>') : s;
+          return `<div class="dropdown-item" data-school="${s}">${hl}</div>`;
+        }).join('');
+        dd.querySelectorAll('.dropdown-item').forEach(el => {
+          el.addEventListener('mousedown', e => {
+            e.preventDefault();
+            selectSchool(el.dataset.school);
+          });
+        });
+      }
+      dd.style.display = 'block';
+    }
+
+    input.addEventListener('focus', () => {
+      if (!selectedSchool) render(input.value);
+    });
+    input.addEventListener('input', () => {
+      selectedSchool = null;
+      input.classList.remove('selected');
+      render(input.value);
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => { dd.style.display = 'none'; }, 150);
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { dd.style.display = 'none'; input.blur(); }
+    });
+  }
+
+  function selectSchool(name) {
+    selectedSchool = name;
+    selectedSport  = null;
+    selectedGender = null;
+    selectedTeamId = null;
+
+    const input = document.getElementById('schoolSearch');
+    input.value = name;
+    input.classList.add('selected');
+    document.getElementById('schoolDropdown').style.display = 'none';
+
+    markStep(1, 'done');
+    buildSportPills();
+    unlockStep(2);
+  }
+
+  // ── STEP 2: SPORT & GENDER ─────────────────────────────────────────────
+  function buildSportPills() {
+    const wrap = document.getElementById('sportPills');
+    // Which sports does this school actually have (for this season)?
+    const schoolTeams = allTeams.filter(t => t.school_name === selectedSchool);
+    const available   = new Set(schoolTeams.map(t => t.sport_slug));
+
+    wrap.innerHTML = SPORT_DISPLAY.map(({ slug, label }) => {
+      const avail = available.has(slug);
+      return `<div class="sport-pill${avail ? '' : ' unavailable'}" data-sport="${slug}">${label}</div>`;
+    }).join('');
+
+    wrap.querySelectorAll('.sport-pill:not(.unavailable)').forEach(el => {
+      el.addEventListener('click', () => selectSport(el.dataset.sport));
+    });
+
+    document.getElementById('genderWrap').style.display = 'none';
+    markStep(2, 'active');
+  }
+
+  function selectSport(slug) {
+    selectedSport  = slug;
+    selectedGender = null;
+    selectedTeamId = null;
+
+    document.querySelectorAll('.sport-pill').forEach(p => p.classList.remove('selected'));
+    document.querySelector(`.sport-pill[data-sport="${slug}"]`).classList.add('selected');
+
+    // Determine gender options for this school + sport
+    const matches = allTeams.filter(t => t.school_name === selectedSchool && t.sport_slug === slug);
+
+    if (BOYS_ONLY.has(slug) || matches.every(t => t.gender === 'Boys')) {
+      // Auto-select Boys
+      selectGender('Boys', matches);
+    } else if (GIRLS_ONLY.has(slug) || matches.every(t => t.gender === 'Girls')) {
+      selectGender('Girls', matches);
+    } else {
+      // Show gender toggle
+      const wrap = document.getElementById('genderWrap');
+      const btns = document.getElementById('genderBtns');
+      const available = matches.map(t => t.gender);
+      btns.innerHTML = ['Boys','Girls'].map(g =>
+        available.includes(g)
+          ? `<button class="gender-btn" data-gender="${g}">${g}</button>`
+          : ''
+      ).join('');
+      btns.querySelectorAll('.gender-btn').forEach(b => {
+        b.addEventListener('click', () => selectGender(b.dataset.gender, matches));
+      });
+      wrap.style.display = 'block';
+    }
+  }
+
+  function selectGender(gender, matches) {
+    selectedGender = gender;
+    document.querySelectorAll('.gender-btn').forEach(b => {
+      b.classList.toggle('selected', b.dataset.gender === gender);
+    });
+
+    // Find the team_id
+    const team = (matches || allTeams.filter(t =>
+      t.school_name === selectedSchool && t.sport_slug === selectedSport
+    )).find(t => t.gender === gender);
+
+    selectedTeamId = team?.id || null;
+
+    markStep(2, 'done');
+    buildRosterStep();
+    unlockStep(3);
+  }
+
+  // ── STEP 3: PASTE & PREVIEW ────────────────────────────────────────────
+  let parsedRows = [];
+
+  function buildRosterStep() {
+    const sportLabel = SPORT_DISPLAY.find(s => s.slug === selectedSport)?.label || selectedSport;
+    document.getElementById('step3Label').textContent = `Players — ${selectedGender} ${sportLabel}`;
+
+    // Confirmed badge
+    const badge = document.getElementById('teamConfirmed');
+    badge.style.display = 'block';
+    badge.innerHTML = `<div class="confirmed-badge">✓ ${selectedSchool} · ${selectedGender} ${sportLabel} · 25-26</div>`;
+
+    // Show/hide height chip and adjust pronunciation column letter
+    const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
+    const heightChip = document.getElementById('chipHeight');
+    const pronunChip = document.getElementById('chipPronun');
+    const pronunLetter = document.getElementById('colPronunLetter');
+    heightChip.style.display = showHeight ? '' : 'none';
+    pronunLetter.textContent  = showHeight ? 'Col F' : 'Col E';
+
+    // Reset paste area and preview
+    const pa = document.getElementById('pasteArea');
+    pa.value = '';
+    pa.classList.remove('has-data');
+    parsedRows = [];
+    document.getElementById('previewWrap').style.display = 'none';
+    document.getElementById('previewBody').innerHTML = '';
+    checkSubmitReady();
+
+    markStep(3, 'active');
+    setTimeout(() => pa.focus(), 300);
+  }
+
+  // Live parse on any input/paste
+  document.getElementById('pasteArea').addEventListener('input', e => {
+    processInput(e.target.value);
+  });
+  document.getElementById('pasteArea').addEventListener('paste', e => {
+    setTimeout(() => processInput(e.target.value), 30);
+  });
+
+  function processInput(raw) {
+    const pa = document.getElementById('pasteArea');
+    raw = raw.trim();
+    if (!raw) {
+      pa.classList.remove('has-data');
+      parsedRows = [];
+      document.getElementById('previewWrap').style.display = 'none';
+      checkSubmitReady();
+      return;
+    }
+
+    parsedRows = parseRoster(raw);
+    pa.classList.toggle('has-data', parsedRows.length > 0);
+    renderPreview(parsedRows);
+    checkSubmitReady();
+  }
+
+  function parseRoster(raw) {
+    const lines = raw.split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) return [];
+
+    const delim = lines[0].includes('\t') ? '\t' : ',';
+    const first  = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/^"|"$/g,''));
+
+    // Detect header by looking for known column names
+    const headerKeywords = ['name','number','#','grade','pos','position','height','pronun'];
+    const isHeader = first.some(c => headerKeywords.includes(c));
+    const dataLines = isHeader ? lines.slice(1) : lines;
+
+    // Column order: #, Name, Grade, Position, [Height], Pronunciation
+    const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
+    const cols = showHeight
+      ? ['number','name','grade','position','height','pronunciation']
+      : ['number','name','grade','position','pronunciation'];
+
+    return dataLines
+      .map(line => {
+        const cells = line.split(delim).map(c => c.trim().replace(/^"|"$/g,''));
+        const row = {};
+        cols.forEach((col, i) => { row[col] = cells[i] || ''; });
+        return row;
+      })
+      .filter(r => r.name); // skip blank-name rows
+  }
+
+  function renderPreview(rows) {
+    const wrap  = document.getElementById('previewWrap');
+    const head  = document.getElementById('previewHead');
+    const body  = document.getElementById('previewBody');
+    const count = document.getElementById('previewCount');
+
+    if (!rows.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+
+    const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
+    const cols = showHeight
+      ? ['#','Name','Grade','Position','Height','Pronunciation']
+      : ['#','Name','Grade','Position','Pronunciation'];
+
+    head.innerHTML = `<tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>`;
+
+    const keys = showHeight
+      ? ['number','name','grade','position','height','pronunciation']
+      : ['number','name','grade','position','pronunciation'];
+
+    body.innerHTML = rows.map(r => `<tr>${keys.map((k,i) => {
+      const val = r[k];
+      if (k === 'name') return `<td><strong>${val || ''}</strong></td>`;
+      if (!val)         return `<td class="muted">—</td>`;
+      return `<td>${val}</td>`;
+    }).join('')}</tr>`).join('');
+
+    const missing = rows.filter(r => !r.name).length; // already filtered, so 0
+    const ok = rows.length;
+    count.innerHTML = `<span class="ok">✓ ${ok} player${ok !== 1 ? 's' : ''} detected</span>` +
+      (missing ? ` · <span class="err">${missing} row${missing !== 1 ? 's' : ''} missing name (will be skipped)</span>` : '');
+  }
+
+  function checkSubmitReady() {
+    const btn  = document.getElementById('submitBtn');
+    const note = document.getElementById('submitNote');
+    const n    = parsedRows.length;
+    if (!n) {
+      btn.disabled = true;
+      note.textContent = 'Paste your roster above to continue.';
+    } else {
+      btn.disabled = false;
+      note.textContent = `${n} player${n !== 1 ? 's' : ''} ready to submit.`;
+    }
+  }
+
+  function getRows() {
+    return parsedRows.map(r => ({
+      team_id:       selectedTeamId,
+      sport_id:      sportIdMap[selectedSport],
+      season_year:   SEASON_YEAR,
+      number:        r.number        || null,
+      name:          r.name,
+      grade:         r.grade         || null,
+      position:      r.position      || null,
+      height:        r.height        || null,
+      pronunciation: r.pronunciation || null,
+    }));
+  }
+
+  // ── SUBMIT ─────────────────────────────────────────────────────────────
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    const btn  = document.getElementById('submitBtn');
+    const rows = getRows();
+
+    if (!rows.length) return;
+    if (!selectedTeamId) {
+      showToast('No team selected — please restart', true);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    let inserted = 0, errors = 0;
+
+    for (const row of rows) {
+      // Check if player already exists — update bio if so, insert if not
+      const { data: existing } = await sb.from('players')
+        .select('id')
+        .eq('team_id', row.team_id)
+        .eq('name', row.name)
+        .eq('season_year', row.season_year)
+        .maybeSingle();
+
+      let error;
+      if (existing) {
+        const { error: updErr } = await sb.from('players')
+          .update({ number: row.number, grade: row.grade, position: row.position,
+                    height: row.height, pronunciation: row.pronunciation })
+          .eq('id', existing.id);
+        error = updErr;
+      } else {
+        const { error: insErr } = await sb.from('players').insert(row);
+        error = insErr;
+      }
+
+      if (error) {
+        console.error(row.name, error.message);
+        errors++;
+      } else {
+        inserted++;
+      }
+    }
+
+    btn.textContent = 'Submit Roster';
+
+    if (errors && !inserted) {
+      btn.disabled = false;
+      showToast('Submission failed — check your connection', true);
+      return;
+    }
+
+    // Show success
+    document.querySelectorAll('.step').forEach(s => s.style.display = 'none');
+    const success = document.getElementById('successMsg');
+    const sportLabel = SPORT_DISPLAY.find(s => s.slug === selectedSport)?.label || selectedSport;
+    success.style.display = 'block';
+    document.getElementById('successDetail').textContent =
+      `${inserted} player${inserted !== 1 ? 's' : ''} submitted for ${selectedSchool} ${selectedGender} ${sportLabel}. Thanks!` +
+      (errors ? ` (${errors} row${errors !== 1 ? 's' : ''} had errors — contact us if anything looks wrong.)` : '');
+  });
+
+  // ── STEP HELPERS ────────────────────────────────────────────────────────
+  function markStep(n, state) {
+    const el = document.getElementById(`step${n}`);
+    el.classList.remove('active','done','locked');
+    el.classList.add(state);
+  }
+  function unlockStep(n) {
+    const el = document.getElementById(`step${n}`);
+    el.classList.remove('locked');
+    el.classList.add('active');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── TOAST ───────────────────────────────────────────────────────────────
+  function showToast(msg, isErr = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  init();
+</script>
+</body>
+</html>

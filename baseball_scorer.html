@@ -769,7 +769,7 @@ async function loadTodaysGames(){
     : '095c9841-7261-4cb1-824e-6304792b53d0';
   const today = new Date().toISOString().slice(0,10);
   const games = await sbFetch(
-    `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&status=in.(scheduled,active)` +
+    `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&or=(status.eq.scheduled,status.eq.active)` +
     `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
     `&order=game_date.asc`
   );

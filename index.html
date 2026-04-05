@@ -1060,7 +1060,7 @@
       if(evts){
         const lastEvt = {};
         evts.forEach(e => { 
-          if(!lastEvt[e.game_id] && e.notes !== 'out (DP)') lastEvt[e.game_id] = e; 
+          if(!lastEvt[e.game_id] && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e; 
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
@@ -1077,7 +1077,7 @@
             };
             const half = e.half === 'top' ? '▲' : '▼';
             const inn = e.inning || '';
-            const evtLabel = EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' ');
+            const evtLabel = e.notes || EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' ');
             const name = e.player_name || '';
             const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
             card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> <strong>${name}</strong> ${evtLabel}${scored}`;

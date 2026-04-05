@@ -361,11 +361,9 @@
 
     dataReady = true;
 
-    // If user already typed something while data was loading, render now
+    // Re-render dropdown if user already typed while data was loading
     const q = schoolInput.value.trim();
-    if (document.activeElement === schoolInput || q.length > 0) {
-      renderDropdown(q);
-    }
+    if (q.length > 0) renderDropdown(q);
   }
 
   // ── STEP 1: SCHOOL SEARCH ──────────────────────────────────────────────
@@ -373,7 +371,7 @@
   const schoolDD    = document.getElementById('schoolDropdown');
 
   function renderDropdown(q) {
-    if (!dataReady) {
+    if (!allTeams.length) {
       schoolDD.innerHTML = '<div class="dropdown-loading">Loading schools…</div>';
       schoolDD.style.display = 'block';
       return;

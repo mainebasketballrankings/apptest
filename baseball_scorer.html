@@ -734,6 +734,7 @@ async function pushEvt(key, extras={}){
     pitches:      extras.pitches !== undefined ? extras.pitches : G.curPitches.length,
     x:            extras.x ?? null,
     y:            extras.y ?? null,
+    notes:        extras.notes || null,
   };
   await sbInsert('game_events', row);
   // Update live score on game record
@@ -1192,7 +1193,7 @@ function confirmDP(type){ saveSnapshot();
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation} (DP)`);
-  pushEvt('groundout');
+  pushEvt('groundout', {notes: `${notation} (DP)`});
   // Record batter out
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;

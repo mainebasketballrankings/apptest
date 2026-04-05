@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Submit Your Roster — Maine Basketball Rankings</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21,39 +22,26 @@
     }
     body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--black); min-height: 100vh; }
 
-    /* ── HEADER ── */
-    .site-header {
-      background: var(--black); color: #fff;
-      padding: 14px 24px; display: flex; align-items: center; gap: 12px;
-    }
-    .site-header .logo {
-      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
-      font-size: 20px; letter-spacing: 0.5px; color: #fff; text-decoration: none;
-    }
-    .site-header .logo span { color: var(--orange); }
-
-    /* ── PAGE ── */
-    .page { max-width: 780px; margin: 0 auto; padding: 36px 20px 100px; }
-
+    .page { max-width: 740px; margin: 0 auto; padding: 32px 20px 100px; }
     .page-title {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
-      font-size: 32px; margin-bottom: 6px;
+      font-size: 30px; margin-bottom: 4px;
     }
-    .page-sub { font-size: 14px; color: var(--lgray); margin-bottom: 32px; line-height: 1.5; }
+    .page-sub { font-size: 13px; color: var(--lgray); margin-bottom: 28px; line-height: 1.5; }
 
     /* ── STEPS ── */
     .step {
       background: var(--white); border: 1px solid var(--border);
-      border-radius: 12px; margin-bottom: 16px; overflow: hidden;
+      border-radius: 10px; margin-bottom: 14px; overflow: hidden;
       transition: opacity 0.2s;
     }
-    .step.locked { opacity: 0.45; pointer-events: none; }
+    .step.locked { opacity: 0.4; pointer-events: none; }
     .step-head {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
-      font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
+      font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
       color: var(--lgray); background: #fafafa;
       border-bottom: 1px solid var(--border);
-      padding: 13px 20px; display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px; display: flex; align-items: center; gap: 10px;
     }
     .step-num {
       width: 22px; height: 22px; border-radius: 50%;
@@ -65,59 +53,56 @@
     .step.active .step-num  { background: var(--orange); color: #fff; }
     .step.done   .step-num  { background: var(--green);  color: #fff; }
     .step.active .step-head { color: var(--black); background: #fff; }
-    .step-body { padding: 20px; }
+    .step-body { padding: 18px; }
 
-    /* ── SEARCH INPUT ── */
+    /* ── SCHOOL SEARCH ── */
     .search-wrap { position: relative; }
     .search-input {
-      width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
-      padding: 12px 14px; font-size: 15px; font-family: 'Barlow', sans-serif;
-      outline: none; transition: border-color 0.15s;
-      background: var(--white);
+      width: 100%; border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-size: 15px; font-family: 'Barlow', sans-serif;
+      outline: none; transition: border-color 0.15s; background: var(--white);
     }
     .search-input:focus { border-color: var(--orange); }
     .search-input.selected { border-color: var(--green); background: #f6fdf9; font-weight: 600; }
     .dropdown {
       position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-      background: var(--white); border: 1.5px solid var(--border);
-      border-radius: 8px; max-height: 260px; overflow-y: auto;
-      z-index: 50; box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 8px; max-height: 280px; overflow-y: auto;
+      z-index: 200; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
     }
     .dropdown-item {
       padding: 10px 14px; font-size: 14px; cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      transition: background 0.1s;
+      border-bottom: 1px solid var(--border); transition: background 0.1s;
     }
     .dropdown-item:last-child { border-bottom: none; }
-    .dropdown-item:hover, .dropdown-item.active { background: #fff7f3; }
-    .dropdown-item strong { color: var(--orange); }
-    .dropdown-empty { padding: 12px 14px; font-size: 13px; color: var(--lgray); }
+    .dropdown-item:hover { background: #fff7f3; }
+    .dropdown-item strong { color: var(--orange); font-weight: 700; }
+    .dropdown-empty { padding: 12px 14px; font-size: 13px; color: var(--lgray); font-style: italic; }
+    .dropdown-loading { padding: 12px 14px; font-size: 13px; color: var(--lgray); }
 
     /* ── SPORT PILLS ── */
-    .sport-grid {
-      display: flex; flex-wrap: wrap; gap: 8px;
-    }
+    .sport-grid { display: flex; flex-wrap: wrap; gap: 8px; }
     .sport-pill {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px;
-      border: 1.5px solid var(--border); border-radius: 20px;
+      border: 1px solid var(--border); border-radius: 20px;
       padding: 6px 16px; cursor: pointer; background: var(--white);
       color: var(--gray); transition: all 0.15s; user-select: none;
     }
     .sport-pill:hover { border-color: var(--orange); color: var(--orange); }
     .sport-pill.selected { background: var(--orange); border-color: var(--orange); color: #fff; }
-    .sport-pill.unavailable { opacity: 0.3; pointer-events: none; }
+    .sport-pill.unavailable { opacity: 0.28; pointer-events: none; }
 
-    /* ── GENDER TOGGLE ── */
+    /* ── GENDER ── */
     .gender-row { display: flex; gap: 8px; margin-top: 14px; }
+    .gender-label { font-size: 12px; font-weight: 600; color: var(--lgray); margin-bottom: 6px; }
     .gender-btn {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px;
-      border: 1.5px solid var(--border); border-radius: 6px;
+      border: 1px solid var(--border); border-radius: 6px;
       padding: 7px 20px; cursor: pointer; background: var(--white);
       color: var(--gray); transition: all 0.15s;
     }
     .gender-btn:hover { border-color: var(--orange); color: var(--orange); }
     .gender-btn.selected { background: var(--black); border-color: var(--black); color: #fff; }
-    .gender-row-label { font-size: 12px; font-weight: 600; color: var(--lgray); margin-bottom: 6px; }
 
     /* ── CONFIRMED BADGE ── */
     .confirmed-badge {
@@ -125,80 +110,75 @@
       background: #f0faf5; border: 1px solid #b6dfcc;
       border-radius: 6px; padding: 8px 14px;
       font-size: 14px; font-weight: 600; color: var(--green);
+      margin-bottom: 18px;
     }
 
     /* ── COLUMN GUIDE ── */
     .col-guide {
-      display: flex; gap: 0; margin-bottom: 14px;
-      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+      display: flex; margin-bottom: 12px;
+      border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
     }
     .col-chip {
-      flex: 1; text-align: center; padding: 9px 6px;
+      flex: 1; text-align: center; padding: 8px 4px;
       border-right: 1px solid var(--border);
       font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
       font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase;
-      color: var(--gray); background: #fafafa; position: relative;
+      color: var(--gray); background: #fafafa;
     }
     .col-chip:last-child { border-right: none; }
-    .col-chip .col-num {
-      display: block; font-size: 10px; font-weight: 400;
-      color: var(--lgray); margin-bottom: 2px; letter-spacing: 0;
-      text-transform: none;
+    .col-chip .col-letter {
+      display: block; font-size: 10px; font-weight: 400; font-family: 'Barlow', sans-serif;
+      color: var(--lgray); margin-bottom: 3px; text-transform: none; letter-spacing: 0;
     }
     .col-chip.col-req { background: #fff7f3; color: var(--orange); }
 
     /* ── PASTE AREA ── */
     .paste-area {
-      width: 100%; height: 180px;
+      width: 100%; height: 170px;
       font-family: 'Courier New', monospace; font-size: 13px;
-      border: 1.5px solid var(--border); border-radius: 8px;
-      padding: 12px 14px; resize: vertical; background: #fafafa;
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; resize: vertical; background: #fafafa;
       color: var(--black); line-height: 1.6; outline: none;
       transition: border-color 0.15s, background 0.15s;
     }
-    .paste-area:focus { border-color: var(--orange); background: var(--white); }
-    .paste-area.has-data { border-color: var(--green); background: var(--white); }
+    .paste-area:focus    { border-color: var(--orange); background: var(--white); }
+    .paste-area.has-data { border-color: var(--green);  background: var(--white); }
 
     /* ── PREVIEW TABLE ── */
     .preview-wrap {
       overflow-x: auto; border: 1px solid var(--border);
-      border-radius: 8px; margin-top: 16px;
+      border-radius: 6px; margin-top: 14px;
     }
-    table.preview-tbl { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 420px; }
-    table.preview-tbl thead tr { background: var(--bg); }
+    table.preview-tbl { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 380px; }
+    table.preview-tbl thead tr { background: var(--bg); border-bottom: 2px solid var(--border); }
     table.preview-tbl th {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
       font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--lgray); padding: 8px 12px; text-align: left;
-      border-bottom: 2px solid var(--border); white-space: nowrap;
+      color: var(--lgray); padding: 7px 10px; text-align: left; white-space: nowrap;
     }
-    table.preview-tbl td { padding: 7px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.preview-tbl td { padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
     table.preview-tbl tr:last-child td { border-bottom: none; }
     table.preview-tbl tr:hover td { background: #fafafa; }
-    table.preview-tbl td.missing { color: var(--red); font-style: italic; font-size: 11px; }
-    table.preview-tbl td.muted   { color: var(--lgray); }
-    .preview-count {
-      font-size: 12px; color: var(--lgray); margin-top: 8px;
-    }
-    .preview-count .ok  { color: var(--green); font-weight: 600; }
-    .preview-count .err { color: var(--red);   font-weight: 600; }
+    table.preview-tbl td.muted { color: var(--lgray); }
+    .preview-count { font-size: 12px; color: var(--lgray); margin-top: 8px; }
+    .preview-count .ok { color: var(--green); font-weight: 600; }
 
     /* ── SUBMIT ── */
+    .submit-section { margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
     .submit-btn {
-      font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
-      font-size: 15px; letter-spacing: 0.5px; text-transform: uppercase;
-      background: var(--orange); color: #fff; border: none; border-radius: 8px;
-      padding: 13px 32px; cursor: pointer; transition: opacity 0.15s;
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase;
+      background: var(--orange); color: #fff; border: none; border-radius: 6px;
+      padding: 11px 28px; cursor: pointer; transition: opacity 0.15s;
     }
-    .submit-btn:hover { opacity: 0.88; }
-    .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-    .submit-note { font-size: 12px; color: var(--lgray); margin-top: 8px; line-height: 1.5; }
+    .submit-btn:hover { opacity: 0.85; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .submit-note { font-size: 12px; color: var(--lgray); margin-top: 8px; }
 
     /* ── SUCCESS ── */
     #successMsg {
-      display: none; background: #f0faf5; border: 1.5px solid #b6dfcc;
-      border-radius: 12px; padding: 32px; text-align: center; margin-top: 24px;
+      display: none; background: #f0faf5; border: 1px solid #b6dfcc;
+      border-radius: 10px; padding: 36px; text-align: center; margin-top: 24px;
     }
     #successMsg .s-icon { font-size: 40px; margin-bottom: 12px; }
     #successMsg h2 {
@@ -221,18 +201,17 @@
     @media (max-width: 600px) {
       .page { padding: 20px 12px 80px; }
       .page-title { font-size: 26px; }
+      .col-chip { font-size: 10px; padding: 7px 2px; }
     }
   </style>
 </head>
 <body>
 
-<header class="site-header">
-  <a class="logo" href="/">Maine <span>Basketball</span> Rankings</a>
-</header>
+<div id="mbr-header"></div>
 
 <div class="page">
   <div class="page-title">Submit Your Roster</div>
-  <div class="page-sub">Fill out the steps below — no CSV, no spreadsheet. We'll handle the rest.</div>
+  <div class="page-sub">Select your school and sport, then paste your player list. No spreadsheet format required.</div>
 
   <!-- STEP 1: SCHOOL -->
   <div class="step active" id="step1">
@@ -244,12 +223,14 @@
       <div class="search-wrap">
         <input type="text" class="search-input" id="schoolSearch"
           placeholder="Start typing your school name…" autocomplete="off" />
-        <div class="dropdown" id="schoolDropdown" style="display:none"></div>
+        <div class="dropdown" id="schoolDropdown" style="display:none">
+          <div class="dropdown-loading">Loading…</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- STEP 2: SPORT -->
+  <!-- STEP 2: SPORT & GENDER -->
   <div class="step locked" id="step2">
     <div class="step-head">
       <div class="step-num">2</div>
@@ -258,36 +239,36 @@
     <div class="step-body">
       <div class="sport-grid" id="sportPills"></div>
       <div id="genderWrap" style="display:none">
-        <div class="gender-row-label" style="margin-top:16px">Team</div>
+        <div class="gender-label" style="margin-top:16px">Team</div>
         <div class="gender-row" id="genderBtns"></div>
       </div>
     </div>
   </div>
 
-  <!-- STEP 3: ROSTER -->
+  <!-- STEP 3: PLAYERS -->
   <div class="step locked" id="step3">
     <div class="step-head">
       <div class="step-num">3</div>
       <span id="step3Label">Players</span>
     </div>
     <div class="step-body">
-      <div id="teamConfirmed" style="margin-bottom:18px;display:none"></div>
 
-      <!-- Column order guide -->
+      <div id="teamConfirmed" style="display:none"></div>
+
       <div style="font-size:12px;font-weight:600;color:var(--lgray);margin-bottom:8px;">
-        Copy your roster from Excel or Google Sheets. Column order:
+        Copy your roster from Excel or Google Sheets. Columns in this order:
       </div>
-      <div class="col-guide" id="colGuide">
-        <div class="col-chip"><span class="col-num">Col A</span>#</div>
-        <div class="col-chip col-req"><span class="col-num">Col B</span>Name</div>
-        <div class="col-chip"><span class="col-num">Col C</span>Grade</div>
-        <div class="col-chip"><span class="col-num">Col D</span>Position</div>
-        <div class="col-chip" id="chipHeight"><span class="col-num">Col E</span>Height</div>
-        <div class="col-chip" id="chipPronun"><span class="col-num" id="colPronunLetter">Col F</span>Pronunciation</div>
+      <div class="col-guide">
+        <div class="col-chip"><span class="col-letter">Col A</span>#</div>
+        <div class="col-chip col-req"><span class="col-letter">Col B</span>Name</div>
+        <div class="col-chip"><span class="col-letter">Col C</span>Grade</div>
+        <div class="col-chip"><span class="col-letter">Col D</span>Position</div>
+        <div class="col-chip" id="chipHeight"><span class="col-letter">Col E</span>Height</div>
+        <div class="col-chip" id="chipPronun"><span class="col-letter" id="pronunLetter">Col F</span>Pronunciation</div>
       </div>
       <div style="font-size:11px;color:var(--lgray);margin-bottom:12px;">
-        Header row optional — we'll detect it. Extra columns on the right are ignored.
-        <strong style="color:var(--black)">Name is required</strong>; all others can be blank.
+        Header row optional — detected automatically. Extra columns ignored.
+        <strong style="color:var(--black)">Name is the only required field.</strong>
       </div>
 
       <textarea class="paste-area" id="pasteArea"
@@ -303,7 +284,7 @@
         <div class="preview-count" id="previewCount"></div>
       </div>
 
-      <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:20px;">
+      <div class="submit-section">
         <button class="submit-btn" id="submitBtn" disabled>Submit Roster</button>
         <div class="submit-note" id="submitNote">Paste your roster above to continue.</div>
       </div>
@@ -326,109 +307,121 @@
 
   const SEASON_YEAR = 2026;
 
-  // Sport display names + slugs (ordered for pills)
   const SPORT_DISPLAY = [
-    { slug: 'basketball', label: 'Basketball' },
-    { slug: 'baseball',   label: 'Baseball'   },
-    { slug: 'softball',   label: 'Softball'   },
-    { slug: 'soccer',     label: 'Soccer'     },
-    { slug: 'lacrosse',   label: 'Lacrosse'   },
+    { slug: 'basketball',   label: 'Basketball'   },
+    { slug: 'baseball',     label: 'Baseball'     },
+    { slug: 'softball',     label: 'Softball'     },
+    { slug: 'soccer',       label: 'Soccer'       },
+    { slug: 'lacrosse',     label: 'Lacrosse'     },
     { slug: 'field-hockey', label: 'Field Hockey' },
-    { slug: 'volleyball', label: 'Volleyball' },
-    { slug: 'football',   label: 'Football'   },
+    { slug: 'volleyball',   label: 'Volleyball'   },
+    { slug: 'football',     label: 'Football'     },
   ];
 
-  // Sports that use height
-  const SPORTS_WITH_HEIGHT = new Set(['basketball','volleyball']);
-  // Sports that are boys-only or girls-only (no gender toggle)
-  const BOYS_ONLY  = new Set(['baseball','football']);
-  const GIRLS_ONLY = new Set(['softball','field-hockey']);
+  const SPORTS_WITH_HEIGHT = new Set(['basketball', 'volleyball']);
+  const BOYS_ONLY          = new Set(['baseball', 'football']);
+  const GIRLS_ONLY         = new Set(['softball', 'field-hockey']);
 
   // ── STATE ──────────────────────────────────────────────────────────────
-  let allTeams      = [];   // raw from Supabase: {id, school_name, gender, sport_id, sport_slug}
-  let sportIdMap    = {};   // slug → id
-  let selectedSchool = null; // school_name string
-  let selectedSport  = null; // slug
-  let selectedGender = null; // 'Boys' | 'Girls'
+  let allTeams       = [];
+  let sportIdMap     = {};
+  let selectedSchool = null;
+  let selectedSport  = null;
+  let selectedGender = null;
   let selectedTeamId = null;
+  let parsedRows     = [];
+  let dataReady      = false; // true once Supabase load completes
 
   // ── INIT ───────────────────────────────────────────────────────────────
   async function init() {
-    // Load sports
-    const { data: sports } = await sb.from('sports').select('id, slug');
+    const [{ data: sports, error: sErr }, { data: teams, error: tErr }] = await Promise.all([
+      sb.from('sports').select('id, slug'),
+      sb.from('teams').select('id, school_name, gender, sport_id'),
+      // NOTE: teams table has no season_year column — don't filter by it
+    ]);
+
+    if (sErr) console.error('sports error:', sErr.message);
+    if (tErr) console.error('teams error:', tErr.message);
+
     if (sports) sports.forEach(s => { sportIdMap[s.slug] = s.id; });
 
-    // Load all teams (we need school_name list + sport availability per school)
-    const { data: teams } = await sb.from('teams')
-      .select('id, school_name, gender, sport_id')
-      .eq('season_year', SEASON_YEAR);
-
-    if (teams) {
-      // Attach slug to each team
-      const idToSlug = Object.fromEntries(Object.entries(sportIdMap).map(([s,id]) => [id, s]));
+    if (teams && teams.length) {
+      const idToSlug = Object.fromEntries(
+        Object.entries(sportIdMap).map(([slug, id]) => [id, slug])
+      );
       allTeams = teams.map(t => ({ ...t, sport_slug: idToSlug[t.sport_id] || null }));
+    } else {
+      console.warn('allTeams is empty — check Supabase RLS or anon key');
     }
 
-    buildSchoolSearch();
+    dataReady = true;
+
+    // If user already typed something while data was loading, render now
+    const q = schoolInput.value.trim();
+    if (document.activeElement === schoolInput || q.length > 0) {
+      renderDropdown(q);
+    }
   }
 
   // ── STEP 1: SCHOOL SEARCH ──────────────────────────────────────────────
-  function buildSchoolSearch() {
-    const input = document.getElementById('schoolSearch');
-    const dd    = document.getElementById('schoolDropdown');
+  const schoolInput = document.getElementById('schoolSearch');
+  const schoolDD    = document.getElementById('schoolDropdown');
 
-    // Unique sorted school names
-    const schools = [...new Set(allTeams.map(t => t.school_name))].sort();
-
-    function render(q) {
-      const matches = q.length < 1
-        ? schools.slice(0, 8)
-        : schools.filter(s => s.toLowerCase().includes(q.toLowerCase()));
-
-      if (!matches.length) {
-        dd.innerHTML = `<div class="dropdown-empty">No schools found</div>`;
-      } else {
-        dd.innerHTML = matches.map(s => {
-          const hl = q ? s.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<strong>$1</strong>') : s;
-          return `<div class="dropdown-item" data-school="${s}">${hl}</div>`;
-        }).join('');
-        dd.querySelectorAll('.dropdown-item').forEach(el => {
-          el.addEventListener('mousedown', e => {
-            e.preventDefault();
-            selectSchool(el.dataset.school);
-          });
-        });
-      }
-      dd.style.display = 'block';
+  function renderDropdown(q) {
+    if (!dataReady) {
+      schoolDD.innerHTML = '<div class="dropdown-loading">Loading schools…</div>';
+      schoolDD.style.display = 'block';
+      return;
     }
 
-    input.addEventListener('focus', () => {
-      if (!selectedSchool) render(input.value);
-    });
-    input.addEventListener('input', () => {
-      selectedSchool = null;
-      input.classList.remove('selected');
-      render(input.value);
-    });
-    input.addEventListener('blur', () => {
-      setTimeout(() => { dd.style.display = 'none'; }, 150);
-    });
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { dd.style.display = 'none'; input.blur(); }
-    });
+    const schools = [...new Set(allTeams.map(t => t.school_name))].sort();
+    const matches = q.length === 0
+      ? schools.slice(0, 12)
+      : schools.filter(s => s.toLowerCase().includes(q.toLowerCase()));
+
+    if (!matches.length) {
+      schoolDD.innerHTML = `<div class="dropdown-empty">No schools found for "${q}"</div>`;
+    } else {
+      const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      schoolDD.innerHTML = matches.map(s => {
+        const hl = q
+          ? s.replace(new RegExp(`(${esc})`, 'gi'), '<strong>$1</strong>')
+          : s;
+        return `<div class="dropdown-item" data-school="${s}">${hl}</div>`;
+      }).join('');
+      schoolDD.querySelectorAll('.dropdown-item').forEach(el => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault();
+          selectSchool(el.dataset.school);
+        });
+      });
+    }
+    schoolDD.style.display = 'block';
   }
+
+  schoolInput.addEventListener('focus', () => {
+    if (!selectedSchool) renderDropdown(schoolInput.value.trim());
+  });
+  schoolInput.addEventListener('input', () => {
+    selectedSchool = null;
+    schoolInput.classList.remove('selected');
+    renderDropdown(schoolInput.value.trim());
+  });
+  schoolInput.addEventListener('blur', () => {
+    setTimeout(() => { schoolDD.style.display = 'none'; }, 180);
+  });
+  schoolInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { schoolDD.style.display = 'none'; schoolInput.blur(); }
+  });
 
   function selectSchool(name) {
     selectedSchool = name;
     selectedSport  = null;
     selectedGender = null;
     selectedTeamId = null;
-
-    const input = document.getElementById('schoolSearch');
-    input.value = name;
-    input.classList.add('selected');
-    document.getElementById('schoolDropdown').style.display = 'none';
-
+    schoolInput.value = name;
+    schoolInput.classList.add('selected');
+    schoolDD.style.display = 'none';
     markStep(1, 'done');
     buildSportPills();
     unlockStep(2);
@@ -436,15 +429,13 @@
 
   // ── STEP 2: SPORT & GENDER ─────────────────────────────────────────────
   function buildSportPills() {
-    const wrap = document.getElementById('sportPills');
-    // Which sports does this school actually have (for this season)?
+    const wrap        = document.getElementById('sportPills');
     const schoolTeams = allTeams.filter(t => t.school_name === selectedSchool);
     const available   = new Set(schoolTeams.map(t => t.sport_slug));
 
-    wrap.innerHTML = SPORT_DISPLAY.map(({ slug, label }) => {
-      const avail = available.has(slug);
-      return `<div class="sport-pill${avail ? '' : ' unavailable'}" data-sport="${slug}">${label}</div>`;
-    }).join('');
+    wrap.innerHTML = SPORT_DISPLAY.map(({ slug, label }) =>
+      `<div class="sport-pill${available.has(slug) ? '' : ' unavailable'}" data-sport="${slug}">${label}</div>`
+    ).join('');
 
     wrap.querySelectorAll('.sport-pill:not(.unavailable)').forEach(el => {
       el.addEventListener('click', () => selectSport(el.dataset.sport));
@@ -458,90 +449,69 @@
     selectedSport  = slug;
     selectedGender = null;
     selectedTeamId = null;
-
     document.querySelectorAll('.sport-pill').forEach(p => p.classList.remove('selected'));
     document.querySelector(`.sport-pill[data-sport="${slug}"]`).classList.add('selected');
 
-    // Determine gender options for this school + sport
-    const matches = allTeams.filter(t => t.school_name === selectedSchool && t.sport_slug === slug);
+    const matches = allTeams.filter(t =>
+      t.school_name === selectedSchool && t.sport_slug === slug
+    );
 
     if (BOYS_ONLY.has(slug) || matches.every(t => t.gender === 'Boys')) {
-      // Auto-select Boys
       selectGender('Boys', matches);
     } else if (GIRLS_ONLY.has(slug) || matches.every(t => t.gender === 'Girls')) {
       selectGender('Girls', matches);
     } else {
-      // Show gender toggle
-      const wrap = document.getElementById('genderWrap');
-      const btns = document.getElementById('genderBtns');
-      const available = matches.map(t => t.gender);
-      btns.innerHTML = ['Boys','Girls'].map(g =>
-        available.includes(g)
-          ? `<button class="gender-btn" data-gender="${g}">${g}</button>`
-          : ''
-      ).join('');
+      const avail = new Set(matches.map(t => t.gender));
+      const btns  = document.getElementById('genderBtns');
+      btns.innerHTML = ['Boys','Girls']
+        .filter(g => avail.has(g))
+        .map(g => `<button class="gender-btn" data-gender="${g}">${g}</button>`)
+        .join('');
       btns.querySelectorAll('.gender-btn').forEach(b => {
         b.addEventListener('click', () => selectGender(b.dataset.gender, matches));
       });
-      wrap.style.display = 'block';
+      document.getElementById('genderWrap').style.display = 'block';
     }
   }
 
   function selectGender(gender, matches) {
     selectedGender = gender;
-    document.querySelectorAll('.gender-btn').forEach(b => {
-      b.classList.toggle('selected', b.dataset.gender === gender);
-    });
-
-    // Find the team_id
-    const team = (matches || allTeams.filter(t =>
+    document.querySelectorAll('.gender-btn').forEach(b =>
+      b.classList.toggle('selected', b.dataset.gender === gender)
+    );
+    selectedTeamId = (matches || allTeams.filter(t =>
       t.school_name === selectedSchool && t.sport_slug === selectedSport
-    )).find(t => t.gender === gender);
-
-    selectedTeamId = team?.id || null;
+    )).find(t => t.gender === gender)?.id || null;
 
     markStep(2, 'done');
-    buildRosterStep();
+    buildStep3();
     unlockStep(3);
   }
 
   // ── STEP 3: PASTE & PREVIEW ────────────────────────────────────────────
-  let parsedRows = [];
-
-  function buildRosterStep() {
+  function buildStep3() {
     const sportLabel = SPORT_DISPLAY.find(s => s.slug === selectedSport)?.label || selectedSport;
     document.getElementById('step3Label').textContent = `Players — ${selectedGender} ${sportLabel}`;
 
-    // Confirmed badge
     const badge = document.getElementById('teamConfirmed');
     badge.style.display = 'block';
     badge.innerHTML = `<div class="confirmed-badge">✓ ${selectedSchool} · ${selectedGender} ${sportLabel} · 25-26</div>`;
 
-    // Show/hide height chip and adjust pronunciation column letter
     const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
-    const heightChip = document.getElementById('chipHeight');
-    const pronunChip = document.getElementById('chipPronun');
-    const pronunLetter = document.getElementById('colPronunLetter');
-    heightChip.style.display = showHeight ? '' : 'none';
-    pronunLetter.textContent  = showHeight ? 'Col F' : 'Col E';
+    document.getElementById('chipHeight').style.display = showHeight ? '' : 'none';
+    document.getElementById('pronunLetter').textContent  = showHeight ? 'Col F' : 'Col E';
 
-    // Reset paste area and preview
     const pa = document.getElementById('pasteArea');
     pa.value = '';
     pa.classList.remove('has-data');
     parsedRows = [];
     document.getElementById('previewWrap').style.display = 'none';
-    document.getElementById('previewBody').innerHTML = '';
     checkSubmitReady();
-
     markStep(3, 'active');
-    setTimeout(() => pa.focus(), 300);
+    setTimeout(() => pa.focus(), 280);
   }
 
-  // Live parse on any input/paste
-  document.getElementById('pasteArea').addEventListener('input', e => {
-    processInput(e.target.value);
-  });
+  document.getElementById('pasteArea').addEventListener('input', e => processInput(e.target.value));
   document.getElementById('pasteArea').addEventListener('paste', e => {
     setTimeout(() => processInput(e.target.value), 30);
   });
@@ -556,7 +526,6 @@
       checkSubmitReady();
       return;
     }
-
     parsedRows = parseRoster(raw);
     pa.classList.toggle('has-data', parsedRows.length > 0);
     renderPreview(parsedRows);
@@ -568,14 +537,11 @@
     if (!lines.length) return [];
 
     const delim = lines[0].includes('\t') ? '\t' : ',';
-    const first  = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/^"|"$/g,''));
-
-    // Detect header by looking for known column names
-    const headerKeywords = ['name','number','#','grade','pos','position','height','pronun'];
-    const isHeader = first.some(c => headerKeywords.includes(c));
+    const first = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/^"|"$/g,''));
+    const isHeader = ['name','number','#','grade','pos','position','height','pronun','pronunciation']
+      .some(k => first.includes(k));
     const dataLines = isHeader ? lines.slice(1) : lines;
 
-    // Column order: #, Name, Grade, Position, [Height], Pronunciation
     const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
     const cols = showHeight
       ? ['number','name','grade','position','height','pronunciation']
@@ -588,7 +554,7 @@
         cols.forEach((col, i) => { row[col] = cells[i] || ''; });
         return row;
       })
-      .filter(r => r.name); // skip blank-name rows
+      .filter(r => r.name);
   }
 
   function renderPreview(rows) {
@@ -601,74 +567,54 @@
     wrap.style.display = 'block';
 
     const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
-    const cols = showHeight
+    const headers = showHeight
       ? ['#','Name','Grade','Position','Height','Pronunciation']
       : ['#','Name','Grade','Position','Pronunciation'];
-
-    head.innerHTML = `<tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>`;
-
     const keys = showHeight
       ? ['number','name','grade','position','height','pronunciation']
       : ['number','name','grade','position','pronunciation'];
 
-    body.innerHTML = rows.map(r => `<tr>${keys.map((k,i) => {
-      const val = r[k];
-      if (k === 'name') return `<td><strong>${val || ''}</strong></td>`;
-      if (!val)         return `<td class="muted">—</td>`;
-      return `<td>${val}</td>`;
+    head.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+    body.innerHTML = rows.map(r => `<tr>${keys.map(k => {
+      const v = r[k] || '';
+      if (k === 'name') return `<td><strong>${v}</strong></td>`;
+      return v ? `<td>${v}</td>` : `<td class="muted">—</td>`;
     }).join('')}</tr>`).join('');
 
-    const missing = rows.filter(r => !r.name).length; // already filtered, so 0
-    const ok = rows.length;
-    count.innerHTML = `<span class="ok">✓ ${ok} player${ok !== 1 ? 's' : ''} detected</span>` +
-      (missing ? ` · <span class="err">${missing} row${missing !== 1 ? 's' : ''} missing name (will be skipped)</span>` : '');
+    count.innerHTML = `<span class="ok">✓ ${rows.length} player${rows.length !== 1 ? 's' : ''} detected</span>`;
   }
 
   function checkSubmitReady() {
-    const btn  = document.getElementById('submitBtn');
-    const note = document.getElementById('submitNote');
-    const n    = parsedRows.length;
-    if (!n) {
-      btn.disabled = true;
-      note.textContent = 'Paste your roster above to continue.';
-    } else {
-      btn.disabled = false;
-      note.textContent = `${n} player${n !== 1 ? 's' : ''} ready to submit.`;
-    }
-  }
-
-  function getRows() {
-    return parsedRows.map(r => ({
-      team_id:       selectedTeamId,
-      sport_id:      sportIdMap[selectedSport],
-      season_year:   SEASON_YEAR,
-      number:        r.number        || null,
-      name:          r.name,
-      grade:         r.grade         || null,
-      position:      r.position      || null,
-      height:        r.height        || null,
-      pronunciation: r.pronunciation || null,
-    }));
+    const n = parsedRows.length;
+    document.getElementById('submitBtn').disabled = n === 0;
+    document.getElementById('submitNote').textContent = n
+      ? `${n} player${n !== 1 ? 's' : ''} ready to submit.`
+      : 'Paste your roster above to continue.';
   }
 
   // ── SUBMIT ─────────────────────────────────────────────────────────────
   document.getElementById('submitBtn').addEventListener('click', async () => {
-    const btn  = document.getElementById('submitBtn');
-    const rows = getRows();
-
-    if (!rows.length) return;
-    if (!selectedTeamId) {
-      showToast('No team selected — please restart', true);
-      return;
-    }
+    const btn = document.getElementById('submitBtn');
+    if (!parsedRows.length || !selectedTeamId) return;
 
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
     let inserted = 0, errors = 0;
 
-    for (const row of rows) {
-      // Check if player already exists — update bio if so, insert if not
+    for (const r of parsedRows) {
+      const row = {
+        team_id:       selectedTeamId,
+        sport_id:      sportIdMap[selectedSport],
+        season_year:   SEASON_YEAR,
+        number:        r.number        || null,
+        name:          r.name,
+        grade:         r.grade         || null,
+        position:      r.position      || null,
+        height:        r.height        || null,
+        pronunciation: r.pronunciation || null,
+      };
+
       const { data: existing } = await sb.from('players')
         .select('id')
         .eq('team_id', row.team_id)
@@ -678,22 +624,14 @@
 
       let error;
       if (existing) {
-        const { error: updErr } = await sb.from('players')
+        ({ error } = await sb.from('players')
           .update({ number: row.number, grade: row.grade, position: row.position,
                     height: row.height, pronunciation: row.pronunciation })
-          .eq('id', existing.id);
-        error = updErr;
+          .eq('id', existing.id));
       } else {
-        const { error: insErr } = await sb.from('players').insert(row);
-        error = insErr;
+        ({ error } = await sb.from('players').insert(row));
       }
-
-      if (error) {
-        console.error(row.name, error.message);
-        errors++;
-      } else {
-        inserted++;
-      }
+      error ? errors++ : inserted++;
     }
 
     btn.textContent = 'Submit Roster';
@@ -704,17 +642,15 @@
       return;
     }
 
-    // Show success
     document.querySelectorAll('.step').forEach(s => s.style.display = 'none');
-    const success = document.getElementById('successMsg');
     const sportLabel = SPORT_DISPLAY.find(s => s.slug === selectedSport)?.label || selectedSport;
-    success.style.display = 'block';
+    document.getElementById('successMsg').style.display = 'block';
     document.getElementById('successDetail').textContent =
       `${inserted} player${inserted !== 1 ? 's' : ''} submitted for ${selectedSchool} ${selectedGender} ${sportLabel}. Thanks!` +
-      (errors ? ` (${errors} row${errors !== 1 ? 's' : ''} had errors — contact us if anything looks wrong.)` : '');
+      (errors ? ` (${errors} row${errors !== 1 ? 's' : ''} had errors — contact us if anything looks off.)` : '');
   });
 
-  // ── STEP HELPERS ────────────────────────────────────────────────────────
+  // ── HELPERS ─────────────────────────────────────────────────────────────
   function markStep(n, state) {
     const el = document.getElementById(`step${n}`);
     el.classList.remove('active','done','locked');
@@ -726,8 +662,6 @@
     el.classList.add('active');
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-
-  // ── TOAST ───────────────────────────────────────────────────────────────
   function showToast(msg, isErr = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -737,5 +671,8 @@
 
   init();
 </script>
+
+<script src="nav.js"></script>
+<script>MBRNav.init({ active: '' });</script>
 </body>
 </html>

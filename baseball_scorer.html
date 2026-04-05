@@ -711,7 +711,7 @@ function curPitcherTeamId(){
 
 async function pushEvt(key, extras={}){
   if(!G_game_id) return;
-  const b = curBatter();
+  const b = extras.player_override ? {player: extras.player_override} : curBatter();
   const p = curPitcher();
   const side = battingSide();
   const row = {
@@ -1244,10 +1244,11 @@ function recordDPRunnerOut(base){
   closeOv('ovDP');
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
-  pushEvt('groundout'); // second out of the DP
+  pushEvt('groundout', {player_override: r}); // use runner, not current batter
   if(G.outs>=3){ endHalf(); return; }
   render();
   if(hasRunners()) setTimeout(()=>openRunners(),150);
+}
 }
 
 function hasRunners(){ return !!(G.bases[1]||G.bases[2]||G.bases[3]); }

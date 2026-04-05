@@ -334,7 +334,6 @@
 
   // ── INIT ───────────────────────────────────────────────────────────────
   async function init() {
-  async function init() {
     // Load sports
     const { data: sports, error: sErr } = await sb.from('sports').select('id, slug');
     if (sErr) console.error('sports error:', sErr.message);

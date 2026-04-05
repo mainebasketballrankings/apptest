@@ -1635,13 +1635,26 @@ function bbOnEvent(e){
     if(batter) BB.bases[0] = {num:batter.num, name:batter.name};
   } else if(e.key==='error'){
     BB[opp].errors++;
+  } else if(e.key==='inning_end'){
+    // Half inning over — advance to next half after a brief pause
+    BB.outs = 3; // show 3 outs briefly
+    bbUpdScoreboard(); bbUpdPanels();
+    setTimeout(()=>{
+      if(BB.half==='top'){ BB.half='bot'; }
+      else { BB.half='top'; BB.inning++; }
+      BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
+      bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
+    }, 1500);
+    bbEvts.unshift(e);
+    bbUpdFeed();
+    return;
+  }
+
   } else if(e.key==='sub_pitcher'){
     pitcher = {name:e.pitcher||'—',num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     BB.pitchers[opp].push(pitcher);
     toast(`Pitching change — ${e.pitcher}`);
   }
-
-  // Pitcher pitch count
   if(pitcher && e.pitches) pitcher.pitches += e.pitches;
   BB.pitcher.pitches = pitcher ? pitcher.pitches : BB.pitcher.pitches;
   BB.pitcher.ip = pitcher ? `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}` : '0.0';

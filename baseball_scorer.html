@@ -1120,12 +1120,12 @@ function nextBatter(){ const s=battingSide(); G.batIdx[s]=(G.batIdx[s]+1)%G.team
 function resetCount(){ G.balls=0; G.strikes=0; }
 
 function endHalf(){
-  // Lock in linescore for this half — set to 0 if no runs scored (null = not yet played)
   const scoringSide = battingSide();
   const inn = G.inning - 1;
   if(G.linescore[inn] && G.linescore[inn][scoringSide] === null){
     G.linescore[inn][scoringSide] = 0;
   }
+  pushEvt('inning_end'); // push with 3 outs before state resets
   G.bases={1:null,2:null,3:null}; G.outs=0; resetCount(); G.curPitches=[]; G.errorThisHalf=false; G.phantomOuts=0;
   const h=G.half==='top'?'Top':'Bottom';
   document.getElementById('ovHalfTitle').textContent=`End of ${h} ${G.inning}`;
@@ -1243,9 +1243,9 @@ function recordDPRunnerOut(base){
   closeOv('ovDP');
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
+  pushEvt('groundout'); // second out of the DP
   if(G.outs>=3){ endHalf(); return; }
   render();
-  // Open runners so scorer can advance any remaining runners
   if(hasRunners()) setTimeout(()=>openRunners(),150);
 }
 

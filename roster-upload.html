@@ -202,7 +202,7 @@
         <strong>school_name</strong> — must match exactly (e.g. "Camden Hills Regional") ·
         <strong>gender</strong> — Boys or Girls ·
         <strong>sport</strong> — basketball, baseball, softball, lacrosse, soccer, field-hockey, football, volleyball ·
-        <strong>season_year</strong> — 2025 or 2026 ·
+        <strong>season_year</strong> — use <strong>2026</strong> for the 25-26 season (2025 will warn) ·
         <strong>height</strong> — basketball only (e.g. 6'2") ·
         <strong>pronunciation</strong> — phonetic spelling if needed, otherwise blank ·
         Stats columns: leave blank if not applicable for sport.
@@ -308,8 +308,8 @@
   async function showMain() {
     document.getElementById('authGate').style.display  = 'none';
     document.getElementById('mainPage').style.display  = 'block';
-    await loadSportIds();
-    loadTeamCache();
+    // loadSportIds already called in init() before showMain — just load teams
+    await loadTeamCache();
   }
 
   // ── TEAM CACHE ──────────────────────────────────────────────────────────
@@ -377,12 +377,14 @@
     const sportId = SPORT_IDS[row.sport?.toLowerCase()] || null;
     const num = f => (row[f] !== '' && row[f] != null) ? parseFloat(row[f]) : null;
     const int = f => (row[f] !== '' && row[f] != null) ? parseInt(row[f])   : null;
+    const sy = parseSeasonYear(row.season_year);
     return {
       _teamId:    teamId,
       _matchKey:  `${row.school_name} / ${row.gender} / ${row.sport}`,
+      _badYear:   sy === 2025,
       team_id:    teamId,
       sport_id:   sportId,
-      season_year: parseSeasonYear(row.season_year),
+      season_year: sy,
       number:      row.number      || null,
       name:        row.name        || null,
       pronunciation: row.pronunciation || null,
@@ -413,7 +415,7 @@
     count.textContent = `${rows.length} rows — ${matched} matched, ${rows.length - matched} unmatched`;
 
     const thead = `<thead><tr>
-      <th>Team Match</th><th>#</th><th>Name</th><th>Pronunciation</th>
+      <th>Team Match</th><th>Season Yr</th><th>#</th><th>Name</th><th>Pronunciation</th>
       <th>Grade</th><th>Pos</th><th>Height</th>
       <th>Pts</th><th>Reb</th><th>Ast</th><th>Stl</th>
       <th>BA</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>
@@ -422,9 +424,12 @@
     const tbody = '<tbody>' + rows.map(r => {
       const matchCls  = r._teamId ? 'match-ok' : 'match-err';
       const matchTxt  = r._teamId ? '✓ ' + r._matchKey : '✗ ' + r._matchKey;
+      const yearCls   = r._badYear ? 'match-warn' : '';
+      const yearTxt   = r._badYear ? `⚠ ${r.season_year} (should be 2026)` : (r.season_year || '');
       const n = f => r[f] != null ? r[f] : '';
       return `<tr>
         <td class="${matchCls}">${matchTxt}</td>
+        <td class="${yearCls}">${yearTxt}</td>
         <td>${r.number||''}</td>
         <td><strong>${r.name||''}</strong></td>
         <td style="color:var(--lgray);font-style:italic">${r.pronunciation||''}</td>
@@ -464,7 +469,39 @@
     const btn    = document.getElementById('importBtn');
     const status = document.getElementById('importStatus');
 
-    const valid = parsedRows.filter(r => r.team_id && r.name);
+    const mode = document.getElementById('importMode').value;
+
+    // Guard: Replace mode requires explicit confirmation
+    if (mode === 'replace') {
+      const confirmed = confirm(
+        '⚠️ Replace Roster Mode\n\n' +
+        'This will DELETE all existing players for every team in your CSV, then reinsert from scratch.\n\n' +
+        'Existing tournament stats for those players will be lost.\n\n' +
+        'Are you sure?'
+      );
+      if (!confirmed) return;
+    }
+
+    // Clear any stale error details from a previous import run
+    const prevErrors = document.getElementById('importErrorDetails');
+    if (prevErrors) prevErrors.remove();
+
+    let valid = parsedRows.filter(r => r.team_id && r.name);
+
+    // Append mode: skip rows where this player already exists in Supabase
+    if (mode === 'append') {
+      const existingChecks = await Promise.all(valid.map(r =>
+        sb.from('players')
+          .select('id')
+          .eq('team_id', r.team_id)
+          .eq('name', r.name)
+          .eq('season_year', r.season_year)
+          .maybeSingle()
+          .then(({ data }) => data ? null : r)
+      ));
+      valid = existingChecks.filter(Boolean);
+    }
+
     const skipped = parsedRows.length - valid.length;
 
     if (!valid.length) {
@@ -478,7 +515,6 @@
     status.textContent = `Importing ${valid.length} rows…`;
     status.className = 'import-status';
 
-    const mode = document.getElementById('importMode').value;
     let deleted = 0;
 
     // Always delete first for affected team+sport+season combos
@@ -565,7 +601,7 @@
       status.className = 'import-status err';
       if (errorDetails.length) {
         const errHtml = errorDetails.slice(0,5).map(e => `<div style="font-size:11px;color:var(--red);margin-top:4px">${e}</div>`).join('');
-        document.getElementById('resultGrid').insertAdjacentHTML('afterend', `<div style="margin-top:10px">${errHtml}${errorDetails.length > 5 ? `<div style="font-size:11px;color:var(--lgray)">+${errorDetails.length-5} more in console</div>` : ''}</div>`);
+        document.getElementById('resultGrid').insertAdjacentHTML('afterend', `<div id="importErrorDetails" style="margin-top:10px">${errHtml}${errorDetails.length > 5 ? `<div style="font-size:11px;color:var(--lgray)">+${errorDetails.length-5} more in console</div>` : ''}</div>`);
       }
     } else {
       status.textContent = `✓ Import complete`;
@@ -589,7 +625,9 @@
     range.selectNodeContents(this);
     sel.removeAllRanges();
     sel.addRange(range);
-    navigator.clipboard.writeText(this.textContent).then(() => showToast('Header row copied!'));
+    navigator.clipboard.writeText(this.textContent)
+      .then(() => showToast('Header row copied!'))
+      .catch(() => showToast('Select the text above and copy manually'));
   });
 
   init();

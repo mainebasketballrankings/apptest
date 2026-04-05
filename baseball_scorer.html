@@ -1244,7 +1244,7 @@ function recordDPRunnerOut(base){
   closeOv('ovDP');
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
-  pushEvt('groundout', {player_override: r}); // use runner, not current batter
+  pushEvt('groundout', {player_override: r, notes: 'out (DP)'}); // runner out on DP
   if(G.outs>=3){ endHalf(); return; }
   render();
   if(hasRunners()) setTimeout(()=>openRunners(),150);

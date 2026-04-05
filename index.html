@@ -1052,13 +1052,16 @@
     if(activeGames.length){
       const ids = activeGames.map(g => `"${g.id}"`).join(',');
       const { data: evts } = await sb.from('game_events')
-        .select('game_id, event_type, player_name, inning, half, outs, runs, rbi, bases, created_at')
+        .select('game_id, event_type, player_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
+        .neq('event_type', 'inning_end')
         .order('created_at', { ascending: false })
-        .limit(activeGames.length * 3);
+        .limit(activeGames.length * 5);
       if(evts){
         const lastEvt = {};
-        evts.forEach(e => { if(!lastEvt[e.game_id]) lastEvt[e.game_id] = e; });
+        evts.forEach(e => { 
+          if(!lastEvt[e.game_id] && e.notes !== 'out (DP)') lastEvt[e.game_id] = e; 
+        });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
           if(!e) return;

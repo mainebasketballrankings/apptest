@@ -455,6 +455,10 @@
     document.querySelectorAll('.sport-pill').forEach(p => p.classList.remove('selected'));
     document.querySelector(`.sport-pill[data-sport="${slug}"]`).classList.add('selected');
 
+    // Always reset gender UI before re-evaluating
+    document.getElementById('genderWrap').style.display = 'none';
+    document.getElementById('genderBtns').innerHTML = '';
+
     const matches = allTeams.filter(t =>
       t.school_name === selectedSchool && t.sport_slug === slug
     );
@@ -544,13 +548,15 @@
 
   // Header synonyms → canonical field name
   const HEADER_MAP = {
-    '#': 'number', 'no': 'number', 'num': 'number', 'number': 'number',
-    'name': 'name', 'player': 'name', 'player name': 'name',
-    'grade': 'grade', 'gr': 'grade', 'yr': 'grade', 'year': 'grade',
+    '#': 'number', 'no': 'number', 'no.': 'number', 'num': 'number', 'number': 'number',
+    'name': 'name', 'player': 'name', 'player name': 'name', 'athlete': 'name',
+    'grade': 'grade', 'gr': 'grade', 'yr': 'grade', 'year': 'grade', 'class': 'grade',
     'pos': 'position', 'position': 'position',
     'ht': 'height', 'height': 'height',
     'pronunciation': 'pronunciation', 'pronun': 'pronunciation',
     'pronounce': 'pronunciation', 'how to say': 'pronunciation',
+    // Common non-data first-cell values that signal a header row
+    'varsity': null, 'jv': null, 'roster': null,
   };
 
   function parseRoster(raw) {
@@ -567,15 +573,17 @@
     let dataLines;
 
     if (isHeader) {
-      // Map each column index to a field name by header
       colMap = {};
+      const usedFields = new Set();
       firstCells.forEach((h, i) => {
         const field = HEADER_MAP[h];
-        if (field && !(field in Object.values(colMap))) colMap[i] = field;
+        if (field && !usedFields.has(field)) {
+          colMap[i] = field;
+          usedFields.add(field);
+        }
       });
       dataLines = lines.slice(1);
     } else {
-      // Fall back to positional: #, Name, Grade, Position, [Height], Pronunciation
       const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
       const order = showHeight
         ? ['number','name','grade','position','height','pronunciation']
@@ -588,8 +596,8 @@
       .map(line => {
         const cells = line.split(delim).map(c => c.trim().replace(/^"|"$/g,''));
         const row = { number:'', name:'', grade:'', position:'', height:'', pronunciation:'' };
-        Object.entries(colMap).forEach(([i, field]) => {
-          row[field] = cells[i] || '';
+        Object.entries(colMap).forEach(([idx, field]) => {
+          row[field] = cells[parseInt(idx)] || '';
         });
         return row;
       })

@@ -32,8 +32,9 @@
     /* ── STEPS ── */
     .step {
       background: var(--white); border: 1px solid var(--border);
-      border-radius: 10px; margin-bottom: 14px; overflow: hidden;
+      border-radius: 10px; margin-bottom: 14px;
       transition: opacity 0.2s;
+      /* no overflow:hidden — it clips the school dropdown */
     }
     .step.locked { opacity: 0.4; pointer-events: none; }
     .step-head {
@@ -42,6 +43,7 @@
       color: var(--lgray); background: #fafafa;
       border-bottom: 1px solid var(--border);
       padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+      border-radius: 10px 10px 0 0;
     }
     .step-num {
       width: 22px; height: 22px; border-radius: 50%;
@@ -68,7 +70,7 @@
       position: absolute; top: calc(100% + 4px); left: 0; right: 0;
       background: var(--white); border: 1px solid var(--border);
       border-radius: 8px; max-height: 280px; overflow-y: auto;
-      z-index: 200; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      z-index: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
     }
     .dropdown-item {
       padding: 10px 14px; font-size: 14px; cursor: pointer;

@@ -676,17 +676,39 @@
 
   // ── SUBMIT ─────────────────────────────────────────────────────────────
   document.getElementById('submitBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('submitBtn');
-    if (!parsedRows.length || !selectedTeamId) return;
+    const btn  = document.getElementById('submitBtn');
+    const note = document.getElementById('submitNote');
+    if (!parsedRows.length) return;
 
     btn.disabled = true;
     btn.textContent = 'Submitting…';
+
+    // If we don't have a team ID (sport not in allTeams for this school), look it up now
+    let teamId = selectedTeamId;
+    if (!teamId) {
+      const sportId = sportIdMap[selectedSport];
+      const { data: found } = await sb.from('teams')
+        .select('id')
+        .eq('school_name', selectedSchool)
+        .eq('sport_id', sportId)
+        .eq('gender', selectedGender)
+        .maybeSingle();
+      teamId = found?.id || null;
+    }
+
+    if (!teamId) {
+      btn.disabled = false;
+      btn.textContent = 'Submit Roster';
+      note.textContent = `No team found for ${selectedSchool} ${selectedGender} ${selectedSport} — contact us to get it added.`;
+      note.style.color = 'var(--red)';
+      return;
+    }
 
     let inserted = 0, errors = 0;
 
     for (const r of parsedRows) {
       const row = {
-        team_id:       selectedTeamId,
+        team_id:       teamId,
         sport_id:      sportIdMap[selectedSport],
         season_year:   SEASON_YEAR,
         number:        r.number        || null,

@@ -1636,8 +1636,7 @@ function bbOnEvent(e){
   } else if(e.key==='error'){
     BB[opp].errors++;
   } else if(e.key==='inning_end'){
-    // Half inning over — advance to next half after a brief pause
-    BB.outs = 3; // show 3 outs briefly
+    BB.outs = 3;
     bbUpdScoreboard(); bbUpdPanels();
     setTimeout(()=>{
       if(BB.half==='top'){ BB.half='bot'; }
@@ -1648,8 +1647,6 @@ function bbOnEvent(e){
     bbEvts.unshift(e);
     bbUpdFeed();
     return;
-  }
-
   } else if(e.key==='sub_pitcher'){
     pitcher = {name:e.pitcher||'—',num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     BB.pitchers[opp].push(pitcher);

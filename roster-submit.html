@@ -321,8 +321,6 @@
   ];
 
   const SPORTS_WITH_HEIGHT = new Set(['basketball', 'volleyball']);
-  const BOYS_ONLY          = new Set(['baseball', 'football']);
-  const GIRLS_ONLY         = new Set(['softball', 'field-hockey']);
 
   // ── STATE ──────────────────────────────────────────────────────────────
   let allTeams       = [];
@@ -461,15 +459,22 @@
       t.school_name === selectedSchool && t.sport_slug === slug
     );
 
-    if (BOYS_ONLY.has(slug) || matches.every(t => t.gender === 'Boys')) {
+    // Only offer genders that actually exist for this school+sport
+    const avail = new Set(matches.map(t => t.gender));
+    const hasBoys  = avail.has('Boys');
+    const hasGirls = avail.has('Girls');
+
+    if (hasBoys && !hasGirls) {
       selectGender('Boys', matches);
-    } else if (GIRLS_ONLY.has(slug) || matches.every(t => t.gender === 'Girls')) {
+    } else if (hasGirls && !hasBoys) {
       selectGender('Girls', matches);
+    } else if (!hasGirls && !hasBoys) {
+      // No teams found for this school — shouldn't happen (pill would be unavailable)
+      selectGender('Boys', matches);
     } else {
-      const avail = new Set(matches.map(t => t.gender));
-      const btns  = document.getElementById('genderBtns');
+      // Both exist — show toggle
+      const btns = document.getElementById('genderBtns');
       btns.innerHTML = ['Boys','Girls']
-        .filter(g => avail.has(g))
         .map(g => `<button class="gender-btn" data-gender="${g}">${g}</button>`)
         .join('');
       btns.querySelectorAll('.gender-btn').forEach(b => {
@@ -537,26 +542,55 @@
     checkSubmitReady();
   }
 
+  // Header synonyms → canonical field name
+  const HEADER_MAP = {
+    '#': 'number', 'no': 'number', 'num': 'number', 'number': 'number',
+    'name': 'name', 'player': 'name', 'player name': 'name',
+    'grade': 'grade', 'gr': 'grade', 'yr': 'grade', 'year': 'grade',
+    'pos': 'position', 'position': 'position',
+    'ht': 'height', 'height': 'height',
+    'pronunciation': 'pronunciation', 'pronun': 'pronunciation',
+    'pronounce': 'pronunciation', 'how to say': 'pronunciation',
+  };
+
   function parseRoster(raw) {
     const lines = raw.split(/\r?\n/).filter(l => l.trim());
     if (!lines.length) return [];
 
     const delim = lines[0].includes('\t') ? '\t' : ',';
-    const first = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/^"|"$/g,''));
-    const isHeader = ['name','number','#','grade','pos','position','height','pronun','pronunciation']
-      .some(k => first.includes(k));
-    const dataLines = isHeader ? lines.slice(1) : lines;
+    const firstCells = lines[0].split(delim).map(c => c.trim().toLowerCase().replace(/^"|"$/g,''));
 
-    const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
-    const cols = showHeight
-      ? ['number','name','grade','position','height','pronunciation']
-      : ['number','name','grade','position','pronunciation'];
+    // Detect header: if any cell matches a known header synonym
+    const isHeader = firstCells.some(c => HEADER_MAP[c] !== undefined);
+
+    let colMap; // index → field name
+    let dataLines;
+
+    if (isHeader) {
+      // Map each column index to a field name by header
+      colMap = {};
+      firstCells.forEach((h, i) => {
+        const field = HEADER_MAP[h];
+        if (field && !(field in Object.values(colMap))) colMap[i] = field;
+      });
+      dataLines = lines.slice(1);
+    } else {
+      // Fall back to positional: #, Name, Grade, Position, [Height], Pronunciation
+      const showHeight = SPORTS_WITH_HEIGHT.has(selectedSport);
+      const order = showHeight
+        ? ['number','name','grade','position','height','pronunciation']
+        : ['number','name','grade','position','pronunciation'];
+      colMap = Object.fromEntries(order.map((f, i) => [i, f]));
+      dataLines = lines;
+    }
 
     return dataLines
       .map(line => {
         const cells = line.split(delim).map(c => c.trim().replace(/^"|"$/g,''));
-        const row = {};
-        cols.forEach((col, i) => { row[col] = cells[i] || ''; });
+        const row = { number:'', name:'', grade:'', position:'', height:'', pronunciation:'' };
+        Object.entries(colMap).forEach(([i, field]) => {
+          row[field] = cells[i] || '';
+        });
         return row;
       })
       .filter(r => r.name);

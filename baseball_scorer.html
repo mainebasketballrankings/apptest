@@ -1088,8 +1088,6 @@ function doBalk(){
   G.bases[1] = null;
   addPBP(`⚠️ Balk — all runners advance`);
   pushEvt('balk');
-  // No pitch charged, no nextBatter
-  if(hasRunners()) setTimeout(()=>openRunners(), 150);
   render();
 }
 
@@ -1105,20 +1103,18 @@ function doDroppedThird(){
   // Force-advance any runners occupying 1B onward only if bases loaded
   // (dropped 3rd only forces runner on 1B if 1B is occupied AND 2 outs)
   // Simplest: just place batter on 1B via forceAdvance if 1B open or 2 outs
+  const hadRunners = hasRunners(); // check BEFORE placing batter
   const twoOuts = G.outs >= 2;
   if(!G.bases[1] || twoOuts){
     forceAdvance(runner);
   } else {
-    // Can't advance to 1B — this shouldn't be called in that situation,
-    // but handle gracefully by still placing batter on 1B (scorer's call)
     forceAdvance(runner);
   }
   addPBP(`<strong>${b.player.name}</strong> K (dropped 3rd strike) — reaches 1B`);
   pushEvt('strikeout', {notes:'dropped 3rd strike'});
   closeOv('ovInPlay');
-  // No addOut — not an out
   nextBatter(); resetCount();
-  if(hasRunners()) setTimeout(()=>openRunners(), 150);
+  if(hadRunners) setTimeout(()=>openRunners(), 150);
   render();
 }
 

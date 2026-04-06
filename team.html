@@ -886,7 +886,6 @@ async function load() {
     console.error('LOAD ERROR:', err);
     document.getElementById('app').innerHTML = `<div style="padding:40px;font-family:monospace;color:red"><strong>Error:</strong> ${err.message}<br><pre>${err.stack}</pre></div>`;
   }
-  }
 }
 
 load();

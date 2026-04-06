@@ -1093,16 +1093,17 @@ function doBalk(){
 
 function doDroppedThird(){
   // Strikeout recorded for pitcher + batter, but batter reaches 1B (not an out)
-  // The third strike pitch was already logged by logPitch before this overlay opened
+  // Called via In Play overlay — that button does NOT charge a pitch, so we do it here
   saveSnapshot();
   const b=curBatter(), p=curPitcher();
   b.player.stats.ab++;
   b.player.stats.k++;
   if(p){ const ps=getPS(p.side,p.idx); ps.k++; ps.swingK=(ps.swingK||0)+1; }
+  // Charge the third-strike pitch
+  G.curPitches.push('Ks');
+  G.strikes = 3; // ensure count shows correctly before reset
+  chargePitch();
   const runner={name:b.player.name, num:b.player.number};
-  // Force-advance any runners occupying 1B onward only if bases loaded
-  // (dropped 3rd only forces runner on 1B if 1B is occupied AND 2 outs)
-  // Simplest: just place batter on 1B via forceAdvance if 1B open or 2 outs
   const hadRunners = hasRunners(); // check BEFORE placing batter
   const twoOuts = G.outs >= 2;
   if(!G.bases[1] || twoOuts){

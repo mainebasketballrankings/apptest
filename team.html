@@ -192,7 +192,7 @@
     tbody tr:hover .rt-name { background: #f8f8f8; }
     .rt-pos   { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 13px; color: var(--gray); text-align: center !important; white-space: nowrap; min-width: 60px; }
     .rt-grade { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px; color: var(--black); text-align: center !important; width: 36px; }
-    .rt-pron  { font-size: 13px; color: var(--lgray); font-style: italic; text-align: center !important; width: 80px; white-space: nowrap; }
+    .rt-pron  { font-size: 12px; color: var(--gray); font-family: 'Barlow', sans-serif; text-align: center !important; width: 100px; white-space: nowrap; letter-spacing: 0.2px; }
     .rt-stat  { font-family: 'Barlow Condensed', sans-serif; font-weight: 500; font-size: 14px; text-align: center; color: var(--black); }
     .rt-stat-gap { width: 20px; border-right: 2px solid var(--border); padding: 0; }
     .rt-stat-gap-th { width: 20px; border-right: 2px solid var(--border); padding: 0; }
@@ -748,7 +748,8 @@ async function load() {
         const headCells = [
           '<th>#</th>','<th style="position:sticky;left:0;background:var(--bg);z-index:3">Name</th>',
           '<th style="text-align:center">Pronunciation</th>',
-          '<th>Ht</th>','<th>Pos</th>','<th>Grade</th>',
+          ...(isBball ? ['<th style="text-align:center">Ht</th>'] : []),
+          '<th style="text-align:center">Pos</th>','<th style="text-align:center">Grade</th>',
           '<th class="rt-stat-gap-th"></th>',
         ];
         if (isBball) headCells.push('<th>PPG</th>','<th>RPG</th>','<th>APG</th>','<th>STL</th>','<th>BLK</th>','<th>FG%</th>','<th>3P%</th>','<th>FT%</th>','<th>EFF</th>','<th>+/-</th>');
@@ -759,7 +760,7 @@ async function load() {
             `<td class="rt-num">${p.number != null ? parseInt(p.number) : '—'}</td>`,
             `<td class="rt-name">${p.name || ''}</td>`,
             `<td class="rt-pron">${p.pronunciation || ''}</td>`,
-            `<td class="rt-grade" style="text-align:center">${p.height || ''}</td>`,
+            ...(isBball ? [`<td class="rt-grade" style="text-align:center">${p.height || ''}</td>`] : []),
             `<td class="rt-pos">${p.position || ''}</td>`,
             `<td class="rt-grade" style="text-align:center">${p.grade || ''}</td>`,
             `<td class="rt-stat-gap"></td>`,

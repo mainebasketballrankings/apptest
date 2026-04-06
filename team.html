@@ -79,7 +79,9 @@
     .stat-card .val { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 24px; color: var(--black); line-height: 1; }
     .stat-card .val.grn { color: var(--green); }
 
-    .section-header { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--gray); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+    .section-header { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--gray); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .section-header a.submit-roster-link { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--orange); text-decoration: none; border: 1px solid var(--orange); border-radius: 4px; padding: 2px 8px; }
+    .section-header a.submit-roster-link:hover { background: var(--orange); color: #fff; }
 
     /* TOURNAMENT ODDS */
     .odds-section { margin-bottom: 16px; }
@@ -789,7 +791,7 @@ async function load() {
           const headerRow = headCells.join('');
           rosterHtml = `
             <div class="roster-section">
-              <div class="section-header">Roster</div>
+              <div class="section-header"><span>Roster</span><a class="submit-roster-link" href="roster-submit.html">Submit Roster</a></div>
               <div class="roster-wrap">
                 <table class="rt">
                   <thead><tr>${headerRow}</tr></thead>
@@ -828,7 +830,7 @@ async function load() {
 
           rosterHtml = `
             <div class="roster-section">
-              <div class="section-header">Roster</div>
+              <div class="section-header"><span>Roster</span><a class="submit-roster-link" href="roster-submit.html">Submit Roster</a></div>
               <div style="background:var(--white);border:1px solid var(--border);border-radius:8px;overflow:hidden">
                 <div style="padding:0 12px;background:var(--white);border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:space-between">
                   <div class="stat-tabs">
@@ -851,7 +853,7 @@ async function load() {
           const headerRow = headCells.join('');
           rosterHtml = `
             <div class="roster-section">
-              <div class="section-header">Roster</div>
+              <div class="section-header"><span>Roster</span><a class="submit-roster-link" href="roster-submit.html">Submit Roster</a></div>
               <div class="roster-wrap">
                 <table class="rt">
                   <thead><tr>${headerRow}</tr></thead>
@@ -861,7 +863,16 @@ async function load() {
             </div>`;
         }
       }
-    } catch(e) { /* no roster yet, silently skip */ }
+    } catch(e) { console.warn('roster fetch error', e); }
+    if (!rosterHtml) {
+      rosterHtml = `
+        <div class="roster-section">
+          <div class="section-header"><span>Roster</span><a class="submit-roster-link" href="roster-submit.html">Submit Roster</a></div>
+          <div style="padding:20px 18px;font-size:13px;color:var(--lgray)">
+            No roster on file yet. Coaches can <a href="roster-submit.html" style="color:var(--orange);font-weight:600">submit their roster here</a>.
+          </div>
+        </div>`;
+    }
 
     app.innerHTML = `
       <div class="team-header">

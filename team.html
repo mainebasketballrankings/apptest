@@ -362,7 +362,7 @@ async function load() {
 
     // Paginated fetch helper
     // Fetch roster players for this team
-    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops,w,l,ip,era,whip,k&order=number.asc&limit=100`);
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops&order=number.asc&limit=100`);
 
     async function fetchAll(query) {
       const pageSize = 1000;

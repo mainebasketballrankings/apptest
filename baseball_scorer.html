@@ -467,6 +467,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="openSub('batter')">Pinch Hit</button>
     <button class="abtn"        onclick="openSub('defense')">Def. Sub</button>
     <button class="abtn blue"   onclick="openRunners()">Runners</button>
+    <button class="abtn blue"   onclick="doBalk()">Balk</button>
     <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn"        style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Error (no pitch)</button>
@@ -598,6 +599,7 @@ input,select,button{font-family:inherit;}
       <button class="hbtn hr" onclick="resolveHit('HR')">Home Run</button>
       <button class="hbtn"    onclick="openErrorOverlay()">Error</button>
       <button class="hbtn"    onclick="openFCOverlay()">Fielder's Choice</button>
+      <button class="hbtn"    onclick="doDroppedThird()" style="border-color:#9333ea;color:#9333ea;background:#f3e8ff">Dropped 3rd Strike</button>
     </div>
     <div class="sec-lbl">Out — tap fielders in sequence</div>
     <div class="fielder-seq" id="fldSeq">—</div>
@@ -620,6 +622,7 @@ input,select,button{font-family:inherit;}
       <button class="otbtn" onclick="confirmOut('PO')">Popup</button>
       <button class="otbtn" onclick="confirmOut('SAC')">Sac Bunt</button>
       <button class="otbtn" onclick="confirmOut('SF')">Sac Fly</button>
+      <button class="otbtn" onclick="confirmOut('IFF')" style="border-color:#9333ea;color:#9333ea;background:#f3e8ff">Infield Fly</button>
     </div>
     <div class="out-type-row" style="margin-top:4px">
       <button class="otbtn" style="background:var(--red-bg);color:var(--red);border-color:var(--red-border);flex:1" onclick="confirmDP('DP')">Double Play</button>
@@ -1073,6 +1076,52 @@ function doWalk(type){
   nextBatter(); resetCount(); render();
 }
 
+function doBalk(){
+  saveSnapshot();
+  const p = curPitcher();
+  if(p){ const ps=getPS(p.side,p.idx); ps.balk=(ps.balk||0)+1; }
+  // Advance all runners one base; score runner on 3rd
+  const r3=G.bases[3], r2=G.bases[2], r1=G.bases[1];
+  if(r3){ scoreRunner(r3); }
+  G.bases[3] = r2 || null;
+  G.bases[2] = r1 || null;
+  G.bases[1] = null;
+  addPBP(`⚠️ Balk — all runners advance`);
+  pushEvt('balk');
+  // No pitch charged, no nextBatter
+  if(hasRunners()) setTimeout(()=>openRunners(), 150);
+  render();
+}
+
+function doDroppedThird(){
+  // Strikeout recorded for pitcher + batter, but batter reaches 1B (not an out)
+  // The third strike pitch was already logged by logPitch before this overlay opened
+  saveSnapshot();
+  const b=curBatter(), p=curPitcher();
+  b.player.stats.ab++;
+  b.player.stats.k++;
+  if(p){ const ps=getPS(p.side,p.idx); ps.k++; ps.swingK=(ps.swingK||0)+1; }
+  const runner={name:b.player.name, num:b.player.number};
+  // Force-advance any runners occupying 1B onward only if bases loaded
+  // (dropped 3rd only forces runner on 1B if 1B is occupied AND 2 outs)
+  // Simplest: just place batter on 1B via forceAdvance if 1B open or 2 outs
+  const twoOuts = G.outs >= 2;
+  if(!G.bases[1] || twoOuts){
+    forceAdvance(runner);
+  } else {
+    // Can't advance to 1B — this shouldn't be called in that situation,
+    // but handle gracefully by still placing batter on 1B (scorer's call)
+    forceAdvance(runner);
+  }
+  addPBP(`<strong>${b.player.name}</strong> K (dropped 3rd strike) — reaches 1B`);
+  pushEvt('strikeout', {notes:'dropped 3rd strike'});
+  closeOv('ovInPlay');
+  // No addOut — not an out
+  nextBatter(); resetCount();
+  if(hasRunners()) setTimeout(()=>openRunners(), 150);
+  render();
+}
+
 function forceAdvance(runner){
   if(G.bases[1]&&G.bases[2]&&G.bases[3]){ scoreRunner(G.bases[3]); G.bases[3]=G.bases[2]; G.bases[2]=G.bases[1]; }
   else if(G.bases[1]&&G.bases[2]){ G.bases[3]=G.bases[2]; G.bases[2]=G.bases[1]; }
@@ -1172,7 +1221,8 @@ function confirmOut(type){
   chargePitch();
   const evtKey = isSacBunt?'sac_bunt':isSacFly?'sac_fly':
                  type==='GO'?'groundout':type==='FO'?'flyout':
-                 type==='LO'?'lineout':type==='PO'?'popup':'groundout';
+                 type==='LO'?'lineout':type==='PO'?'popup':
+                 type==='IFF'?'flyout':'groundout';
   pushEvt(evtKey);
   // For sac fly: track batter so RBI is credited when runner scores in overlay
   if(isSacFly) G.pendingRBIbatter = b.player;

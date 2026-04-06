@@ -883,8 +883,9 @@ async function load() {
     document.title = `${team.school_name} ${SPORT_NAME[sport] || ''} — Maine Basketball Rankings`;
 
   } catch (err) {
-    console.error(err);
-    document.getElementById('app').innerHTML = `<div class="error-state">Failed to load team data.<br><small>${err.message}</small></div>`;
+    console.error('LOAD ERROR:', err);
+    document.getElementById('app').innerHTML = `<div style="padding:40px;font-family:monospace;color:red"><strong>Error:</strong> ${err.message}<br><pre>${err.stack}</pre></div>`;
+  }
   }
 }
 

@@ -197,9 +197,9 @@
     .rt-stat-gap { width: 20px; border-right: 2px solid var(--border); padding: 0; }
     .rt-stat-gap-th { width: 20px; border-right: 2px solid var(--border); padding: 0; }
     table.rt th { text-align: center; }
-    table.rt th:nth-child(1), table.rt th:nth-child(2), table.rt th:nth-child(3) { text-align: left; }
-    table.rt th:not(:first-child):not(:nth-child(2)) { text-align: right; }
-    table.rt th:nth-child(2), table.rt th:nth-child(3) { text-align: left; }
+    table.rt th:nth-child(1), table.rt th:nth-child(2) { text-align: left; }
+    table.rt td:nth-child(1), table.rt td:nth-child(2) { text-align: left; }
+    table.rt th:not(:first-child):not(:nth-child(2)) { text-align: center; }
     /* Stat tabs */
     .stat-tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 2px solid var(--border); }
     .stat-tab {
@@ -743,6 +743,8 @@ async function load() {
       const players = await playersPromise;
       console.log('Players fetched:', players?.length, players);
       if (players && players.length) {
+        // Sort numerically — number column is stored as text so DB sort is lexicographic
+        players.sort((a, b) => (parseInt(a.number) || 99) - (parseInt(b.number) || 99));
         const isBball = sport === 'basketball';
         const isBase  = sport === 'baseball' || sport === 'softball';
         const headCells = [

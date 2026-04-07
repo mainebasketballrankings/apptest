@@ -2157,9 +2157,26 @@ async function loadImgBase64(url){
 
 async function generatePDF(){
   const { jsPDF } = window.jspdf;
+
+  // Fetch logos by school name if not already stored on G.teams
+  async function getLogoUrl(team){
+    if(team.logo_url) return team.logo_url;
+    try {
+      const sportId = G.sport==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+      const r = await fetch(`${SB_URL}/rest/v1/teams?school_name=eq.${encodeURIComponent(team.name)}&sport_id=eq.${sportId}&select=logo_url&limit=1`,
+        {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});
+      const d = await r.json();
+      return d[0]?.logo_url || null;
+    } catch(e){ return null; }
+  }
+
+  const [awayLogoUrl, homeLogoUrl] = await Promise.all([
+    getLogoUrl(G.teams.away),
+    getLogoUrl(G.teams.home),
+  ]);
   const [awayLogoB64, homeLogoB64] = await Promise.all([
-    loadImgBase64(G.teams.away.logo_url),
-    loadImgBase64(G.teams.home.logo_url),
+    loadImgBase64(awayLogoUrl),
+    loadImgBase64(homeLogoUrl),
   ]);
   const mbrLogoB64 = await loadImgBase64('https://res.cloudinary.com/dulfssb6y/image/upload/q_auto/f_auto/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png');
 
@@ -2193,22 +2210,24 @@ async function generatePDF(){
   }
 
   // ── HEADER ──
-  doc.setFillColor(238,103,48); doc.rect(ML,y,CW,30,'F');
+  const ds = G.date ? new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '';
   if(mbrLogoB64){
     try{
-      // Measure natural dimensions to preserve aspect ratio
       const mbrImg = new Image();
       await new Promise(res=>{ mbrImg.onload=res; mbrImg.onerror=res; mbrImg.src=mbrLogoB64; });
-      const mbrH = 24;
-      const mbrW = mbrImg.naturalWidth ? (mbrImg.naturalWidth/mbrImg.naturalHeight)*mbrH : 90;
-      doc.addImage(mbrLogoB64,'PNG',ML+4,y+3,mbrW,mbrH);
-    }catch(e){}
+      const mbrH = 36;
+      const mbrW = mbrImg.naturalWidth ? (mbrImg.naturalWidth/mbrImg.naturalHeight)*mbrH : 160;
+      doc.addImage(mbrLogoB64,'PNG',ML+CW/2-mbrW/2,y,mbrW,mbrH);
+      y += mbrH + 6;
+    }catch(e){ y += 10; }
+  } else {
+    ff(11,'bold'); clr(100,100,100); doc.text('Maine Basketball Rankings',ML,y+10);
+    y += 22;
   }
-  else { ff(12,'bold'); clr(255,255,255); doc.text('Maine Basketball Rankings',ML+8,y+18); }
-  ff(9,'normal'); clr(255,255,255);
-  const ds = G.date ? new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '';
-  doc.text(ds+(G.loc?' \u2022 '+G.loc:''), ML+CW-4, y+20, {align:'right'});
-  y += 36;
+  ff(9,'normal'); clr(130,130,130);
+  doc.text(ds+(G.loc?' \u2022 '+G.loc:''), ML+CW/2, y, {align:'center'});
+  y += 14;
+  ln(ML,y,ML+CW,y,0.5); y+=10;
 
   // Teams + score — fixed zones: logo(44) | name(160) | score(60) | vs(44) | score(60) | name(160) | logo(44)
   const lsz=44;
@@ -2236,7 +2255,7 @@ async function generatePDF(){
   ff(30,'bold'); clr(238,103,48);
   doc.text(String(G.runs.away), aScoreX+scoreW/2, y+28, {align:'center'});
   ff(10,'normal'); clr(150,150,150);
-  doc.text('vs', ML+CW/2, y+24, {align:'center'});
+  doc.text('@', ML+CW/2, y+24, {align:'center'});
   ff(30,'bold'); clr(238,103,48);
   doc.text(String(G.runs.home), hScoreX+scoreW/2, y+28, {align:'center'});
   ff(16,'bold'); clr(30,30,30);
@@ -2302,7 +2321,7 @@ async function generatePDF(){
     cx=ML;
     ['','Totals','',tot.ab,tot.r,tot.h,tot.rbi,tot.bb,tot.k,tot.d,tot.t,tot.hr]
       .forEach((v,i)=>{ cell(v,cx,y,cws[i],i>2?'center':'left',true); cx+=cws[i]; });
-    y+=18;
+    y+=26;  // extra gap before next section
   });
 
   // ── PITCHING ──
@@ -2331,7 +2350,7 @@ async function generatePDF(){
       y+=13;
     });
     doc.setDrawColor(180,180,180); doc.rect(ML,y-pitchers.length*13-14,CW,pitchers.length*13+28,'S');
-    y+=14;
+    y+=22;
   });
 
   // ── PLAY BY PLAY ──

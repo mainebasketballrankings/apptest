@@ -2184,39 +2184,64 @@ async function generatePDF(){
   const checkY = (need) => { if(y+need>PH-40) newPage(); };
   const sanitize = (s) => {
     let t = s.replace(/<[^>]+>/g,'');
-    // Replace problematic unicode with ASCII equivalents
     t = t.replace(/\u{A4D8}/gu,'K').replace(/\u{1F389}/gu,'').replace(/\u26A0/g,'!');
-    t = t.replace(/\u25B2/g,'Top').replace(/\u25BC/g,'Bot').replace(/\u00B7/g,'-');
+    t = t.replace(/\u25B2/g,'Top').replace(/\u25BC/g,'Bot');
+    t = t.replace(/[\u2013\u2014\u2015]/g,'-');
+    t = t.replace(/\u00B7/g,'-').replace(/\u2022/g,'*').replace(/\u2026/g,'...');
     t = t.replace(/[\u0100-\uFFFF]/g,'?');
     return t;
-  };
+  }
 
   // ── HEADER ──
   doc.setFillColor(238,103,48); doc.rect(ML,y,CW,30,'F');
-  if(mbrLogoB64){ try{ doc.addImage(mbrLogoB64,'PNG',ML+4,y+3,90,24); }catch(e){} }
+  if(mbrLogoB64){
+    try{
+      // Measure natural dimensions to preserve aspect ratio
+      const mbrImg = new Image();
+      await new Promise(res=>{ mbrImg.onload=res; mbrImg.onerror=res; mbrImg.src=mbrLogoB64; });
+      const mbrH = 24;
+      const mbrW = mbrImg.naturalWidth ? (mbrImg.naturalWidth/mbrImg.naturalHeight)*mbrH : 90;
+      doc.addImage(mbrLogoB64,'PNG',ML+4,y+3,mbrW,mbrH);
+    }catch(e){}
+  }
   else { ff(12,'bold'); clr(255,255,255); doc.text('Maine Basketball Rankings',ML+8,y+18); }
   ff(9,'normal'); clr(255,255,255);
   const ds = G.date ? new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '';
   doc.text(ds+(G.loc?' \u2022 '+G.loc:''), ML+CW-4, y+20, {align:'right'});
   y += 36;
 
-  // Teams + score
-  const lsz=40;
-  if(awayLogoB64){ try{ doc.addImage(awayLogoB64,'PNG',ML,y+4,lsz,lsz); }catch(e){} }
-  ff(18,'bold'); clr(30,30,30);
-  const awayD = G.teams.away.name.length>16?G.teams.away.name.slice(0,14)+'\u2026':G.teams.away.name;
-  const homeD = G.teams.home.name.length>16?G.teams.home.name.slice(0,14)+'\u2026':G.teams.home.name;
-  doc.text(awayD, ML+(awayLogoB64?lsz+6:0), y+22);
-  ff(28,'bold'); clr(238,103,48);
-  doc.text(String(G.runs.away), ML+170, y+26, {align:'center'});
-  ff(11,'normal'); clr(150,150,150);
-  doc.text('vs', ML+CW/2, y+22, {align:'center'});
-  ff(28,'bold'); clr(238,103,48);
-  doc.text(String(G.runs.home), ML+CW-170, y+26, {align:'center'});
-  ff(18,'bold'); clr(30,30,30);
-  doc.text(homeD, ML+CW-(homeLogoB64?lsz+6:0), y+22, {align:'right'});
-  if(homeLogoB64){ try{ doc.addImage(homeLogoB64,'PNG',ML+CW-lsz,y+4,lsz,lsz); }catch(e){} }
-  y += 50;
+  // Teams + score — fixed zones: logo(44) | name(160) | score(60) | vs(44) | score(60) | name(160) | logo(44)
+  const lsz=44;
+  const nameW=160, scoreW=60, vsW=CW-2*(lsz+nameW+scoreW);
+  const aLogoX=ML, aNameX=ML+lsz+4, aScoreX=ML+lsz+nameW+4;
+  const hScoreX=ML+CW-lsz-nameW-scoreW-4, hNameX=ML+CW-lsz-nameW, hLogoX=ML+CW-lsz;
+  if(awayLogoB64){
+    try{
+      const img=new Image(); await new Promise(r=>{img.onload=r;img.onerror=r;img.src=awayLogoB64;});
+      const w=img.naturalWidth?(img.naturalWidth/img.naturalHeight)*lsz:lsz;
+      doc.addImage(awayLogoB64,'PNG',aLogoX+(lsz-w)/2,y+4,w,lsz);
+    }catch(e){}
+  }
+  if(homeLogoB64){
+    try{
+      const img=new Image(); await new Promise(r=>{img.onload=r;img.onerror=r;img.src=homeLogoB64;});
+      const w=img.naturalWidth?(img.naturalWidth/img.naturalHeight)*lsz:lsz;
+      doc.addImage(homeLogoB64,'PNG',hLogoX+(lsz-w)/2,y+4,w,lsz);
+    }catch(e){}
+  }
+  const awayD = G.teams.away.name.length>18?G.teams.away.name.slice(0,16)+'...':G.teams.away.name;
+  const homeD = G.teams.home.name.length>18?G.teams.home.name.slice(0,16)+'...':G.teams.home.name;
+  ff(16,'bold'); clr(30,30,30);
+  doc.text(awayD, aNameX, y+24);
+  ff(30,'bold'); clr(238,103,48);
+  doc.text(String(G.runs.away), aScoreX+scoreW/2, y+28, {align:'center'});
+  ff(10,'normal'); clr(150,150,150);
+  doc.text('vs', ML+CW/2, y+24, {align:'center'});
+  ff(30,'bold'); clr(238,103,48);
+  doc.text(String(G.runs.home), hScoreX+scoreW/2, y+28, {align:'center'});
+  ff(16,'bold'); clr(30,30,30);
+  doc.text(homeD, hNameX+nameW, y+24, {align:'right'});
+  y += 52;
   ln(ML,y,ML+CW,y,1); y+=12;
 
   // ── LINESCORE ──

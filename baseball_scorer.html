@@ -4,7 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Baseball Scorer</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -473,8 +472,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn"        style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Error (no pitch)</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
-    <button class="abtn" style="grid-column:span 2" onclick="openBoxScore()">Box Score</button>
-    <button class="abtn" style="grid-column:span 2;background:#1a7a4a;color:#fff;border-color:#1a7a4a" onclick="generatePDF().catch(e=>alert('PDF error: '+e.message))">Game Report</button>
+    <button class="abtn" style="grid-column:span 4" onclick="openBoxScore()">Box Score</button>
 
   </div>
 
@@ -755,11 +753,11 @@ async function pushEvt(key, extras={}){
 // ── Game loader ──────────────────────────────
 async function loadGameById(gameId){
   const games = await sbFetch(
-    `games?id=eq.${gameId}&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`
+    `games?id=eq.${gameId}&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)`
   );
   const g = games[0];
   if(!g){ document.getElementById('gamePickerList').innerHTML='<div style="font-size:13px;color:var(--red)">Game not found.</div>'; return; }
-  selectGame(g.id, g.home_team_id, g.away_team_id, g.home_team?.school_name||'Home', g.away_team?.school_name||'Away', g.location||'', g.home_team?.logo_url||'', g.away_team?.logo_url||'');
+  selectGame(g.id, g.home_team_id, g.away_team_id, g.home_team?.school_name||'Home', g.away_team?.school_name||'Away', g.location||'');
   // Also show it in the picker list
   document.getElementById('gamePickerList').innerHTML = `
     <div class="game-pick-row selected">
@@ -775,7 +773,7 @@ async function loadTodaysGames(){
   const today = new Date().toISOString().slice(0,10);
   const games = await sbFetch(
     `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&or=(status.eq.scheduled,status.eq.active)` +
-    `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)` +
+    `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
     `&order=game_date.asc`
   );
   const list = document.getElementById('gamePickerList');
@@ -784,22 +782,20 @@ async function loadTodaysGames(){
     return;
   }
   list.innerHTML = games.map(g => `
-    <div class="game-pick-row" onclick="selectGame('${g.id}','${g.home_team_id}','${g.away_team_id}','${g.home_team?.school_name||'Home'}','${g.away_team?.school_name||'Away'}','${g.location||''}','${g.home_team?.logo_url||''}','${g.away_team?.logo_url||''}')">
+    <div class="game-pick-row" onclick="selectGame('${g.id}','${g.home_team_id}','${g.away_team_id}','${g.home_team?.school_name||'Home'}','${g.away_team?.school_name||'Away'}','${g.location||''}')">
       <div style="font-weight:600;font-size:14px">${g.away_team?.school_name||'Away'} @ ${g.home_team?.school_name||'Home'}</div>
       ${g.location?`<div style="font-size:11px;color:var(--dim)">${g.location}</div>`:''}
     </div>
   `).join('');
 }
 
-function selectGame(id, homeId, awayId, homeName, awayName, loc, homeLogo, awayLogo){
+function selectGame(id, homeId, awayId, homeName, awayName, loc){
   G_game_id      = id;
   G_home_team_id = homeId;
   G_away_team_id = awayId;
   document.getElementById('awayNameInp').value = awayName;
   document.getElementById('homeNameInp').value = homeName;
   if(loc) document.getElementById('gameLocInp').value = loc;
-  G.teams.away.logo_url = awayLogo || '';
-  G.teams.home.logo_url = homeLogo || '';
   document.querySelectorAll('.game-pick-row').forEach(r=>r.classList.remove('selected'));
   if(event && event.currentTarget) event.currentTarget.classList.add('selected');
   document.getElementById('gamePickerStatus').textContent = `✓ ${awayName} @ ${homeName}`;
@@ -886,13 +882,6 @@ let setupTab='away';
 
 function init(){
   document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
-  // Populate with generic test players
-  TEST_NAMES_A.forEach((n,i)=>{
-    G.teams.away.lineup.push(newPlayer(i+1, n, i===0?'P':['C','1B','2B','3B','SS','LF','CF','RF'][i-1]||'LF'));
-  });
-  TEST_NAMES_B.forEach((n,i)=>{
-    G.teams.home.lineup.push(newPlayer(i+1, n, i===0?'P':['C','1B','2B','3B','SS','LF','CF','RF'][i-1]||'LF'));
-  });
   renderLU('away'); renderLU('home');
   updatePitchHint(); updateMercyHint();
 }
@@ -979,7 +968,7 @@ function startGame(){
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('gameScreen').style.display='flex';
   document.getElementById('gameScreen').style.flexDirection='column';
-  localStorage.removeItem('mbr_baseball_game'); // clear any previous save
+  localStorage.removeItem('mbr_bb_game');
   addPBP(`Game started — ${G.teams.away.name} @ ${G.teams.home.name}`);
   // Mark game as active in Supabase so Live button appears on scoreboard
   if(G_game_id){
@@ -1085,38 +1074,29 @@ function doBalk(){
   saveSnapshot();
   const p = curPitcher();
   if(p){ const ps=getPS(p.side,p.idx); ps.balk=(ps.balk||0)+1; }
-  // Advance all runners one base; score runner on 3rd
   const r3=G.bases[3], r2=G.bases[2], r1=G.bases[1];
   if(r3){ scoreRunner(r3); }
   G.bases[3] = r2 || null;
   G.bases[2] = r1 || null;
   G.bases[1] = null;
-  addPBP(`⚠️ Balk — all runners advance`);
+  addPBP('Balk — all runners advance');
   pushEvt('balk');
   render();
 }
 
 function doDroppedThird(){
-  // Strikeout recorded for pitcher + batter, but batter reaches 1B (not an out)
-  // Called via In Play overlay — that button does NOT charge a pitch, so we do it here
   saveSnapshot();
   const b=curBatter(), p=curPitcher();
   b.player.stats.ab++;
   b.player.stats.k++;
   if(p){ const ps=getPS(p.side,p.idx); ps.k++; ps.swingK=(ps.swingK||0)+1; }
-  // Charge the third-strike pitch
   G.curPitches.push('Ks');
-  G.strikes = 3; // ensure count shows correctly before reset
+  G.strikes = 3;
   chargePitch();
   const runner={name:b.player.name, num:b.player.number};
-  const hadRunners = hasRunners(); // check BEFORE placing batter
-  const twoOuts = G.outs >= 2;
-  if(!G.bases[1] || twoOuts){
-    forceAdvance(runner);
-  } else {
-    forceAdvance(runner);
-  }
-  addPBP(`<strong>${b.player.name}</strong> K (dropped 3rd strike) — reaches 1B`);
+  const hadRunners = hasRunners();
+  forceAdvance(runner);
+  addPBP('<strong>'+b.player.name+'</strong> K (dropped 3rd strike) — reaches 1B');
   pushEvt('strikeout', {notes:'dropped 3rd strike'});
   closeOv('ovInPlay');
   nextBatter(); resetCount();
@@ -1949,11 +1929,8 @@ function updateField(){
 // RENDER
 // ═══════════════════════════════════════════════
 function saveState(){
-  try {
-    localStorage.setItem('mbr_baseball_game', JSON.stringify({
-      G, G_game_id, G_home_team_id, G_away_team_id
-    }));
-  } catch(e){ console.warn('autosave failed', e); }
+  try { localStorage.setItem('mbr_bb_game', JSON.stringify({G,G_game_id,G_home_team_id,G_away_team_id})); }
+  catch(e){ console.warn('autosave failed',e); }
 }
 
 function render(){
@@ -2150,280 +2127,6 @@ function buildBoxScore(){
   });
   return html;
 }
-// ═══════════════════════════════════════════════
-// PDF GAME REPORT
-// ═══════════════════════════════════════════════
-// Helper: load image URL → base64 via canvas (for jsPDF)
-async function loadImgBase64(url){
-  if(!url) return null;
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    return await new Promise(resolve=>{
-      const reader = new FileReader();
-      reader.onload = ()=>resolve(reader.result);
-      reader.onerror = ()=>resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch(e){ return null; }
-}
-
-async function generatePDF(){
-  const { jsPDF } = window.jspdf;
-  // Pre-load team logos
-  const [awayLogoB64, homeLogoB64] = await Promise.all([
-    loadImgBase64(G.teams.away.logo_url),
-    loadImgBase64(G.teams.home.logo_url),
-  ]);
-  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter' });
-  const PW = 612, PH = 792;
-  const ML = 40, MR = 40, MT = 40;
-  const CW = PW - ML - MR;
-  let y = MT;
-
-  // ── helpers ──────────────────────────────────
-  const f = (size, style='normal') => { doc.setFontSize(size); doc.setFont('helvetica', style); };
-  const clr = (r,g,b) => { doc.setTextColor(r,g,b); };
-  const line = (x1,y1,x2,y2,lw=0.5) => { doc.setLineWidth(lw); doc.line(x1,y1,x2,y2); };
-  const rect = (x,yy,w,h,fill) => {
-    if(fill){ doc.setFillColor(...fill); doc.rect(x,yy,w,h,'F'); }
-    else { doc.setDrawColor(180,180,180); doc.rect(x,yy,w,h,'S'); }
-  };
-  const cell = (text, x, yy, w, align='left', bold=false) => {
-    f(8, bold?'bold':'normal'); clr(30,30,30);
-    doc.text(String(text??''), align==='center'? x+w/2 : align==='right'? x+w-2 : x+2, yy+6,
-      { align, baseline:'middle', maxWidth: w-3 });
-  };
-
-  const newPage = () => { doc.addPage(); y = MT; };
-  const checkY = (need) => { if(y + need > PH - 40) newPage(); };
-
-  // Sanitize text for PDF — replace HTML tags and non-Latin1 chars
-  const pdfSanitize = (s) => s
-    .replace(/<[^>]+>/g, '')           // strip HTML tags
-    .replace(/ꓘ/g, 'K (called)')      // backwards K
-    .replace(/🎉/g, '')               // party emoji
-    .replace(/⚠️/g, '!')              // warning
-    .replace(/▲/g, 'Top')
-    .replace(/▼/g, 'Bot')
-    .replace(/·/g, '-')
-    .replace(/[^ -ÿ]/g, '?');   // any remaining non-Latin1
-
-  // ── HEADER ───────────────────────────────────
-  // Load MBR logo for header
-  const mbrLogoUrl = 'https://res.cloudinary.com/dulfssb6y/image/upload/q_auto/f_auto/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png';
-  const mbrLogoB64 = await loadImgBase64(mbrLogoUrl);
-
-  // Orange bar
-  doc.setFillColor(238,103,48);
-  doc.rect(ML, y, CW, 30, 'F');
-  if(mbrLogoB64){
-    try { doc.addImage(mbrLogoB64, 'PNG', ML+4, y+3, 90, 24); } catch(e){}
-  } else {
-    f(13,'bold'); clr(255,255,255);
-    doc.text('Maine Basketball Rankings', ML+8, y+18);
-  }
-  f(9,'normal'); clr(255,255,255);
-  f(9,'normal');
-  const dateStr = G.date ? new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '';
-  doc.text(dateStr + (G.loc ? `  •  ${G.loc}` : ''), PW-MR-4, y+20, {align:'right'});
-  y += 36;
-
-  // Teams + score row with logos
-  const logoSz = 40;
-  const scoreRowH = 48;
-  // Away side
-  if(awayLogoB64){
-    try { doc.addImage(awayLogoB64, 'PNG', ML, y+4, logoSz, logoSz); } catch(e){}
-  }
-  const awayNameX = ML + (awayLogoB64 ? logoSz+6 : 0);
-  f(18,'bold'); clr(30,30,30);
-  // Truncate long names
-  const awayDisplay = G.teams.away.name.length>16 ? G.teams.away.name.slice(0,14)+'…' : G.teams.away.name;
-  const homeDisplay = G.teams.home.name.length>16 ? G.teams.home.name.slice(0,14)+'…' : G.teams.home.name;
-  doc.text(awayDisplay, awayNameX, y+22);
-  f(28,'bold'); clr(238,103,48);
-  doc.text(`${G.runs.away}`, ML+170, y+26, {align:'center'});
-  f(11,'normal'); clr(150,150,150);
-  doc.text('vs', PW/2, y+22, {align:'center'});
-  // Home side
-  f(28,'bold'); clr(238,103,48);
-  doc.text(`${G.runs.home}`, PW-MR-170, y+26, {align:'center'});
-  f(18,'bold'); clr(30,30,30);
-  const homeNameX = PW - MR - (homeLogoB64 ? logoSz+6 : 0);
-  doc.text(homeDisplay, homeNameX, y+22, {align:'right'});
-  if(homeLogoB64){
-    try { doc.addImage(homeLogoB64, 'PNG', PW-MR-logoSz, y+4, logoSz, logoSz); } catch(e){}
-  }
-  y += scoreRowH;
-  line(ML, y, PW-MR, y, 1);
-  y += 12;
-
-  // ── LINESCORE ────────────────────────────────
-  checkY(60);
-  f(7,'bold'); clr(100,100,100);
-  doc.text('LINESCORE', ML, y); y += 8;
-
-  const innings = G.linescore.length;
-  const colW = Math.min(28, (CW - 80) / Math.max(innings, 7));
-  const labelW = 80;
-  const rhe = 52;
-  const totalInnW = colW * innings;
-  const lsX = ML;
-
-  // Header row
-  rect(lsX, y, CW, 16, [240,240,245]);
-  cell('', lsX, y, labelW, 'left', true);
-  for(let i=0;i<innings;i++) cell(i+1, lsX+labelW+i*colW, y, colW, 'center', true);
-  const rheX = lsX+labelW+totalInnW;
-  cell('R', rheX, y, 18, 'center', true);
-  cell('H', rheX+18, y, 18, 'center', true);
-  cell('E', rheX+36, y, 16, 'center', true);
-  y += 16;
-
-  ['away','home'].forEach((side,si) => {
-    rect(lsX, y, CW, 16, si===0 ? [255,255,255] : [250,250,252]);
-    const lsName = G.teams[side].name.length>12 ? G.teams[side].name.slice(0,11)+'…' : G.teams[side].name;
-    cell(lsName, lsX, y, labelW, 'left', true);
-    for(let i=0;i<innings;i++){
-      const v = G.linescore[i]?.[side];
-      cell(v===null?'—':v??'—', lsX+labelW+i*colW, y, colW, 'center');
-    }
-    cell(G.runs[side], lsX+labelW+totalInnW, y, 18, 'center', true);
-    cell(G.hits[side]||0, lsX+labelW+totalInnW+18, y, 18, 'center');
-    cell(G.errors[side]||0, lsX+labelW+totalInnW+36, y, 16, 'center');
-    y += 16;
-  });
-  doc.setDrawColor(180,180,180); doc.rect(lsX, y-32, CW, 32, 'S');
-  y += 14;
-
-  // ── BATTING BOX SCORE ────────────────────────
-  ['away','home'].forEach(side => {
-    const team = G.teams[side];
-    checkY(80);
-
-    f(7,'bold'); clr(100,100,100);
-    doc.text(`${team.name.toUpperCase()} — BATTING`, ML, y); y += 8;
-
-    const cols = ['#','Name','Pos','AB','R','H','RBI','BB','K','2B','3B','HR'];
-    const cw =   [20, 120,  28,  20, 18,  18,  22,  20,  18,  20,  20,  20];
-    let cx = ML;
-
-    // Header
-    rect(ML, y, CW, 14, [240,240,245]);
-    cols.forEach((c,i) => { cell(c, cx, y, cw[i], i>2?'center':'left', true); cx+=cw[i]; });
-    y += 14;
-
-    let tot = {ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
-    const slots = team.slots?.length ? team.slots : team.lineup.map(p=>[p]);
-    slots.forEach((slot, si) => {
-      slot.forEach((p, depth) => {
-        checkY(13);
-        const s = p.stats;
-        ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=(s[f]||0));
-        const posD = depth>0 ? (p.isPR?'PR':p.isDefSub?`DS`:`PH`) : p.pos;
-        const nm = (depth>0?'  ▸ ':'') + (p.name||'—');
-        rect(ML, y, CW, 13, si%2===0?[255,255,255]:[250,250,252]);
-        cx = ML;
-        [p.number||'', nm, posD, s.ab, s.r, s.h, s.rbi, s.bb, s.k, s.d||0, s.t||0, s.hr||0]
-          .forEach((v,i)=>{ cell(v, cx, y, cw[i], i>2?'center':'left', i===1&&depth===0); cx+=cw[i]; });
-        y += 13;
-      });
-    });
-
-    // Totals
-    checkY(14);
-    rect(ML, y, CW, 14, [235,235,240]);
-    cx = ML;
-    ['','Totals','', tot.ab, tot.r, tot.h, tot.rbi, tot.bb, tot.k, tot.d, tot.t, tot.hr]
-      .forEach((v,i)=>{ cell(v, cx, y, cw[i], i>2?'center':'left', true); cx+=cw[i]; });
-    doc.setDrawColor(180,180,180); doc.rect(ML, y-slots.reduce((a,s)=>a+s.length,0)*13-14, CW, slots.reduce((a,s)=>a+s.length,0)*13+28, 'S');
-    y += 18;
-  });
-
-  // ── PITCHING ─────────────────────────────────
-  ['away','home'].forEach(side => {
-    const team = G.teams[side];
-    const pitchers = Object.entries(G.pitStats).filter(([k])=>k.startsWith(side+'_') && (G.pitStats[k].pitches||G.pitStats[k].ip_outs));
-    if(!pitchers.length) return;
-    checkY(50);
-
-    f(7,'bold'); clr(100,100,100);
-    doc.text(`${team.name.toUpperCase()} — PITCHING`, ML, y); y += 8;
-
-    const cols = ['Name','IP','H','R','ER','BB','K','Pitches','Rest'];
-    const cw =   [160,   36, 28, 28,  28,  28, 28,   44,      36];
-    let cx = ML;
-    rect(ML, y, CW, 14, [240,240,245]);
-    cols.forEach((c,i) => { cell(c, cx, y, cw[i], i>0?'center':'left', true); cx+=cw[i]; });
-    y += 14;
-
-    const PL = PITCH_LIMITS[G.level];
-    pitchers.forEach(([k, ps], pi) => {
-      checkY(13);
-      const ip = Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
-      const rest = G.sport!=='softball'&&G.pitchLimits ? restDays(ps.pitches)+'d' : '—';
-      const warn = G.sport!=='softball'&&G.pitchLimits&&ps.pitches>=PL.warn;
-      rect(ML, y, CW, 13, pi%2===0?[255,255,255]:[250,250,252]);
-      cx = ML;
-      [ps.name||'—', ip, ps.h||0, (ps.er||0)+(ps.uner||0), ps.er||0, ps.bb||0, ps.k||0, ps.pitches, rest]
-        .forEach((v,i) => {
-          if(i===8&&warn){ clr(200,100,0); }
-          cell(v, cx, y, cw[i], i>0?'center':'left', i===0);
-          if(i===8&&warn) clr(30,30,30);
-          cx+=cw[i];
-        });
-      y += 13;
-    });
-    doc.setDrawColor(180,180,180); doc.rect(ML, y-pitchers.length*13-14, CW, pitchers.length*13+28, 'S');
-    y += 14;
-  });
-
-  // ── PLAY BY PLAY ─────────────────────────────
-  checkY(30);
-  f(7,'bold'); clr(100,100,100);
-  doc.text('PLAY BY PLAY', ML, y); y += 8;
-
-  let lastInn = null;
-  G.pbp.forEach(entry => {
-    const label = `${entry.half}${entry.inn}`;
-    if(label !== lastInn){
-      checkY(20);
-      const innLabel = `${entry.half==='▲'?'Top':'Bot'} ${entry.inn}`;
-      rect(ML, y, CW, 15, [235,235,242]);
-      f(8,'bold'); clr(60,60,60);
-      doc.text(innLabel, ML+5, y+8);
-      y += 15;
-      lastInn = label;
-    }
-    // Strip HTML tags for PDF
-    const txt = pdfSanitize(entry.text);
-    const lines = doc.splitTextToSize(txt, CW-12);
-    const rowH = lines.length * 10 + 5;
-    checkY(rowH);
-    rect(ML, y, CW, rowH, [255,255,255]);
-    f(7.5,'normal'); clr(40,40,40);
-    doc.text(lines, ML+5, y+7);
-    y += rowH;
-  });
-
-  // footer on each page
-  const totalPages = doc.getNumberOfPages();
-  for(let p=1;p<=totalPages;p++){
-    doc.setPage(p);
-    f(7,'normal'); clr(160,160,160);
-    doc.text(`Maine Basketball Rankings  •  Generated ${new Date().toLocaleDateString()}`, ML, PH-20);
-    doc.text(`${p} / ${totalPages}`, PW-MR, PH-20, {align:'right'});
-    line(ML, PH-28, PW-MR, PH-28, 0.5);
-  }
-
-  // Save
-  const away = G.teams.away.name.replace(/\s+/g,'-');
-  const home = G.teams.home.name.replace(/\s+/g,'-');
-  const d = G.date || new Date().toISOString().slice(0,10);
-  doc.save(`${d}_${away}_vs_${home}.pdf`);
-}
-
 function openFCOverlay(){
   closeOv('ovInPlay');
   G.curPitches.push('X');
@@ -2631,6 +2334,99 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTodaysGames();
   }
 });
+
+// ── SCHOOL AUTOCOMPLETE ──────────────────────────────────────────────────
+let ALL_SCHOOLS = [];
+(async function loadSchools(){
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/teams?select=school_name&order=school_name.asc`,
+      {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});
+    const data = await r.json();
+    ALL_SCHOOLS = [...new Set(data.map(t=>t.school_name))].sort();
+  } catch(e){ console.warn('school load failed',e); }
+})();
+
+function schoolAC(inp, side){
+  const q = inp.value.trim().toLowerCase();
+  const dd = document.getElementById(side+'AC');
+  if(!q || !ALL_SCHOOLS.length){ dd.style.display='none'; return; }
+  const matches = ALL_SCHOOLS.filter(s=>s.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){ dd.style.display='none'; return; }
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  dd.innerHTML = matches.map(s=>{
+    const hl = s.replace(new RegExp(`(${esc})`,'gi'),'<strong>$1</strong>');
+    return `<div style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border)" 
+      onmousedown="pickSchool('${s.replace(/'/g,"\\'")}','${side}')"
+      onmouseover="this.style.background='#fff7f3'" onmouseout="this.style.background=''">${hl}</div>`;
+  }).join('');
+  dd.style.display='block';
+}
+
+function pickSchool(name, side){
+  document.getElementById(side+'NameInp').value = name;
+  document.getElementById(side+'AC').style.display='none';
+}
+
+function closeAC(side){
+  setTimeout(()=>{ const dd=document.getElementById(side+'AC'); if(dd) dd.style.display='none'; },200);
+}
+
+// ── AUTO-RESTORE ──────────────────────────────────────────────────────────
+(function checkRestore(){
+  try {
+    const saved = localStorage.getItem('mbr_bb_game');
+    if(!saved) return;
+    const data = JSON.parse(saved);
+    if(!data.G?.pbp?.length || data.G.pbp.length < 2) return;
+
+    const away = data.G.teams.away.name;
+    const home = data.G.teams.home.name;
+    const inn  = data.G.inning;
+    const half = data.G.half==='top' ? '▲' : '▼';
+    const score= `${data.G.runs.away}–${data.G.runs.home}`;
+
+    const banner = document.createElement('div');
+    banner.id = 'restoreBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a7a4a;color:#fff;font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+    banner.innerHTML = `<span>Resume: ${away} @ ${home} — ${score}, ${half} Inn ${inn}</span>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button onmousedown="restoreGame()" style="background:#fff;color:#1a7a4a;border:none;border-radius:4px;padding:5px 14px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;cursor:pointer">Resume</button>
+        <button onmousedown="discardSave()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:4px;padding:5px 14px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;cursor:pointer">Discard</button>
+      </div>`;
+    document.body.appendChild(banner);
+  } catch(e){ console.warn('restore check failed',e); }
+})();
+
+function restoreGame(){
+  try {
+    const data = JSON.parse(localStorage.getItem('mbr_bb_game'));
+    Object.assign(G, data.G);
+    G_game_id      = data.G_game_id || null;
+    G_home_team_id = data.G_home_team_id || null;
+    G_away_team_id = data.G_away_team_id || null;
+    // Rebuild PBP DOM
+    const log = document.getElementById('pbpLog');
+    log.innerHTML = '';
+    G.pbp.forEach(e=>{
+      const div = document.createElement('div');
+      div.className='pbp-entry';
+      div.innerHTML=`<span class="pbp-inn">${e.half}${e.inn}</span><span class="pbp-txt">${e.text}</span>`;
+      log.appendChild(div);
+    });
+    log.scrollTop = log.scrollHeight;
+    document.getElementById('setupScreen').style.display='none';
+    document.getElementById('gameScreen').style.display='flex';
+    document.getElementById('gameScreen').style.flexDirection='column';
+    document.getElementById('restoreBanner')?.remove();
+    render();
+  } catch(e){ alert('Could not restore: '+e.message); discardSave(); }
+}
+
+function discardSave(){
+  localStorage.removeItem('mbr_bb_game');
+  document.getElementById('restoreBanner')?.remove();
+}
+
 </script>
 </body>
 </html>

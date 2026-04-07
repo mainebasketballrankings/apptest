@@ -324,7 +324,7 @@ input,select,button{font-family:inherit;}
     </div>
     <div id="awaySetup">
       <div class="srow"><span class="slabel">Team Name</span>
-        <input type="text" class="sinput" id="awayNameInp" placeholder="Visiting Team"/></div>
+        <div style="position:relative"><input type="text" class="sinput" id="awayNameInp" placeholder="Visiting Team" autocomplete="off" oninput="schoolAC(this,'away')" onblur="closeAC('away')"/><div id="awayAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:8px 0 6px">Order · Name · # · Pos</div>
       <div id="awayLU"></div>
       <button class="add-btn" onclick="addPlayer('away')">+ Add to Lineup</button>
@@ -334,7 +334,7 @@ input,select,button{font-family:inherit;}
     </div>
     <div id="homeSetup" style="display:none">
       <div class="srow"><span class="slabel">Team Name</span>
-        <input type="text" class="sinput" id="homeNameInp" placeholder="Home Team"/></div>
+        <div style="position:relative"><input type="text" class="sinput" id="homeNameInp" placeholder="Home Team" autocomplete="off" oninput="schoolAC(this,'home')" onblur="closeAC('home')"/><div id="homeAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:8px 0 6px">Order · Name · # · Pos</div>
       <div id="homeLU"></div>
       <button class="add-btn" onclick="addPlayer('home')">+ Add to Lineup</button>
@@ -880,8 +880,16 @@ function curPitcher(){
 // ═══════════════════════════════════════════════
 let setupTab='away';
 
-function init(){
+function init(skipTestPlayers){
   document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
+  if(!skipTestPlayers){
+    TEST_NAMES_A.forEach((n,i)=>{
+      G.teams.away.lineup.push(newPlayer(i+1,n,i===0?'P':['C','1B','2B','3B','SS','LF','CF','RF'][i-1]||'LF'));
+    });
+    TEST_NAMES_B.forEach((n,i)=>{
+      G.teams.home.lineup.push(newPlayer(i+1,n,i===0?'P':['C','1B','2B','3B','SS','LF','CF','RF'][i-1]||'LF'));
+    });
+  }
   renderLU('away'); renderLU('home');
   updatePitchHint(); updateMercyHint();
 }
@@ -958,6 +966,7 @@ function startGame(){
   });
   // Set first pitcher
   ['away','home'].forEach(s=>{
+    if(!G.teams[s].lineup.length) return; // skip if no lineup entered
     const pi=G.teams[s].lineup.findIndex(p=>p.pos==='P');
     G.pitchers[s]=pi>=0?pi:0;
     const ps=getPS(s,G.pitchers[s]);
@@ -2324,7 +2333,8 @@ function showAlert(msg){ setTimeout(()=>alert(msg),50); }
 // START
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  init();
+  const hasSave = !!localStorage.getItem('mbr_bb_game');
+  init(hasSave); // skip test players if we have a saved game to restore
   document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
   // Check for ?game_id= in URL — if present, load that game directly
   const urlGameId = new URLSearchParams(window.location.search).get('game_id');
@@ -2418,6 +2428,8 @@ function restoreGame(){
     document.getElementById('gameScreen').style.display='flex';
     document.getElementById('gameScreen').style.flexDirection='column';
     document.getElementById('restoreBanner')?.remove();
+    init(true); // skip test players
+    renderLU('away'); renderLU('home'); renderBench('away'); renderBench('home');
     render();
   } catch(e){ alert('Could not restore: '+e.message); discardSave(); }
 }

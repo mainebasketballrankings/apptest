@@ -2258,17 +2258,16 @@ async function generatePDF(){
   }
   const awayD = G.teams.away.name.length>18?G.teams.away.name.slice(0,16)+'...':G.teams.away.name;
   const homeD = G.teams.home.name.length>18?G.teams.home.name.slice(0,16)+'...':G.teams.home.name;
+  // Away: logo + name left side
   ff(16,'bold'); clr(30,30,30);
-  doc.text(awayD, aNameX, y+24);
-  ff(10,'normal'); clr(150,150,150);
-  doc.text('@', ML+CW/2, y+24, {align:'center'});
-  ff(16,'bold'); clr(30,30,30);
-  doc.text(homeD, hNameX+nameW, y+24, {align:'right'});
-  // Score "3-1" centered, location below
-  ff(32,'bold'); clr(238,103,48);
-  doc.text(G.runs.away+'-'+G.runs.home, ML+CW/2, y+44, {align:'center'});
-  if(G.loc){ ff(8,'normal'); clr(130,130,130); doc.text(G.loc, ML+CW/2, y+56, {align:'center'}); }
-  y += 62;
+  doc.text(awayD, aNameX, y+20);
+  // Home: name + logo right side
+  doc.text(homeD, hNameX+nameW, y+20, {align:'right'});
+  // Center: big score, small location below
+  ff(36,'bold'); clr(238,103,48);
+  doc.text(G.runs.away+'-'+G.runs.home, ML+CW/2, y+26, {align:'center'});
+  if(G.loc){ ff(8,'normal'); clr(130,130,130); doc.text(G.loc, ML+CW/2, y+42, {align:'center'}); }
+  y += 56;
   ln(ML,y,ML+CW,y,1); y+=12;
 
   // ── LINESCORE ──

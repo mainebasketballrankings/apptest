@@ -2188,16 +2188,36 @@ async function generatePDF(){
   const newPage = () => { doc.addPage(); y = MT; };
   const checkY = (need) => { if(y + need > PH - 40) newPage(); };
 
+  // Sanitize text for PDF — replace HTML tags and non-Latin1 chars
+  const pdfSanitize = (s) => s
+    .replace(/<[^>]+>/g, '')           // strip HTML tags
+    .replace(/ꓘ/g, 'K (called)')      // backwards K
+    .replace(/🎉/g, '')               // party emoji
+    .replace(/⚠️/g, '!')              // warning
+    .replace(/▲/g, 'Top')
+    .replace(/▼/g, 'Bot')
+    .replace(/·/g, '-')
+    .replace(/[^ -ÿ]/g, '?');   // any remaining non-Latin1
+
   // ── HEADER ───────────────────────────────────
+  // Load MBR logo for header
+  const mbrLogoUrl = 'https://res.cloudinary.com/dulfssb6y/image/upload/q_auto/f_auto/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png';
+  const mbrLogoB64 = await loadImgBase64(mbrLogoUrl);
+
   // Orange bar
   doc.setFillColor(238,103,48);
-  doc.rect(ML, y, CW, 26, 'F');
-  f(13,'bold'); clr(255,255,255);
-  doc.text('Maine Basketball Rankings  —  Game Report', ML+8, y+16);
+  doc.rect(ML, y, CW, 30, 'F');
+  if(mbrLogoB64){
+    try { doc.addImage(mbrLogoB64, 'PNG', ML+4, y+3, 90, 24); } catch(e){}
+  } else {
+    f(13,'bold'); clr(255,255,255);
+    doc.text('Maine Basketball Rankings', ML+8, y+18);
+  }
+  f(9,'normal'); clr(255,255,255);
   f(9,'normal');
   const dateStr = G.date ? new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '';
-  doc.text(dateStr + (G.loc ? `  •  ${G.loc}` : ''), PW-MR-4, y+16, {align:'right'});
-  y += 32;
+  doc.text(dateStr + (G.loc ? `  •  ${G.loc}` : ''), PW-MR-4, y+20, {align:'right'});
+  y += 36;
 
   // Teams + score row with logos
   const logoSz = 40;
@@ -2236,7 +2256,7 @@ async function generatePDF(){
 
   const innings = G.linescore.length;
   const colW = Math.min(28, (CW - 80) / Math.max(innings, 7));
-  const labelW = 60;
+  const labelW = 80;
   const rhe = 52;
   const totalInnW = colW * innings;
   const lsX = ML;
@@ -2360,20 +2380,20 @@ async function generatePDF(){
     if(label !== lastInn){
       checkY(20);
       const innLabel = `${entry.half==='▲'?'Top':'Bot'} ${entry.inn}`;
-      rect(ML, y, CW, 13, [240,240,245]);
-      f(7,'bold'); clr(80,80,80);
-      doc.text(innLabel, ML+3, y+7);
-      y += 13;
+      rect(ML, y, CW, 15, [235,235,242]);
+      f(8,'bold'); clr(60,60,60);
+      doc.text(innLabel, ML+5, y+8);
+      y += 15;
       lastInn = label;
     }
     // Strip HTML tags for PDF
-    const txt = entry.text.replace(/<[^>]+>/g,'');
+    const txt = pdfSanitize(entry.text);
     const lines = doc.splitTextToSize(txt, CW-12);
-    const rowH = lines.length * 9 + 3;
+    const rowH = lines.length * 10 + 5;
     checkY(rowH);
     rect(ML, y, CW, rowH, [255,255,255]);
-    f(7,'normal'); clr(40,40,40);
-    doc.text(lines, ML+3, y+6);
+    f(7.5,'normal'); clr(40,40,40);
+    doc.text(lines, ML+5, y+7);
     y += rowH;
   });
 

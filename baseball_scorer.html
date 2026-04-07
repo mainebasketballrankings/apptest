@@ -979,6 +979,7 @@ function startGame(){
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('gameScreen').style.display='flex';
   document.getElementById('gameScreen').style.flexDirection='column';
+  localStorage.removeItem('mbr_baseball_game'); // clear any previous save
   addPBP(`Game started — ${G.teams.away.name} @ ${G.teams.home.name}`);
   // Mark game as active in Supabase so Live button appears on scoreboard
   if(G_game_id){
@@ -1947,7 +1948,16 @@ function updateField(){
 // ═══════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════
+function saveState(){
+  try {
+    localStorage.setItem('mbr_baseball_game', JSON.stringify({
+      G, G_game_id, G_home_team_id, G_away_team_id
+    }));
+  } catch(e){ console.warn('autosave failed', e); }
+}
+
 function render(){
+  saveState();
   // Scores
   document.getElementById('sbAwayRuns').textContent=G.runs.away;
   document.getElementById('sbHomeRuns').textContent=G.runs.home;

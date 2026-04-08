@@ -1235,23 +1235,64 @@ async function connectGame(gameId){
   const existing = await eRes.json();
   existing.forEach(row => bbOnEvent(sbRowToEvt(row)));
 
-  // 3. Subscribe to realtime for new events
-  const ws = new WebSocket(
-    `wss://vtwupenqieesoktonbzg.supabase.co/realtime/v1/websocket?apikey=${LIVE_SB_KEY}&vsn=1.0.0`
-  );
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ topic:'realtime:public:game_events', event:'phx_join',
-      payload:{ config:{ broadcast:{ack:false}, presence:{key:''}, postgres_changes:[
-        { event:'INSERT', schema:'public', table:'game_events', filter:`game_id=eq.${gameId}` }
-      ]}}, ref:'1' }));
-  };
-  ws.onmessage = (msg) => {
-    const data = JSON.parse(msg.data);
-    if(data.event==='postgres_changes' && data.payload?.data?.record){
-      bbOnEvent(sbRowToEvt(data.payload.data.record));
+  // 3. Subscribe to realtime for new events (with reconnect loop)
+  let _ws = null;
+  let _reconnectDelay = 1000;
+  let _reconnectTimer = null;
+  let _intentionalClose = false;
+
+  function setConnectionStatus(status) {
+    // status: 'connected' | 'disconnected' | 'reconnecting'
+    let el = document.getElementById('live-conn-status');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'live-conn-status';
+      el.style.cssText = 'position:fixed;bottom:8px;right:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
+      document.body.appendChild(el);
     }
-  };
-  ws.onerror = (e) => console.error('Realtime error', e);
+    const dot = status === 'connected' ? '🟢' : status === 'reconnecting' ? '🟡' : '🔴';
+    const label = status === 'connected' ? 'Live' : status === 'reconnecting' ? 'Reconnecting…' : 'Disconnected';
+    el.innerHTML = `<span>${dot}</span><span style="color:#ccc">${label}</span>`;
+  }
+
+  function openSocket() {
+    if (_ws) { _ws.onclose = null; _ws.onerror = null; try { _ws.close(); } catch(e){} }
+    _ws = new WebSocket(
+      `wss://vtwupenqieesoktonbzg.supabase.co/realtime/v1/websocket?apikey=${LIVE_SB_KEY}&vsn=1.0.0`
+    );
+    _ws.onopen = () => {
+      _reconnectDelay = 1000; // reset backoff on successful connect
+      setConnectionStatus('connected');
+      _ws.send(JSON.stringify({ topic:'realtime:public:game_events', event:'phx_join',
+        payload:{ config:{ broadcast:{ack:false}, presence:{key:''}, postgres_changes:[
+          { event:'INSERT', schema:'public', table:'game_events', filter:`game_id=eq.${gameId}` }
+        ]}}, ref:'1' }));
+    };
+    _ws.onmessage = (msg) => {
+      const data = JSON.parse(msg.data);
+      if(data.event==='postgres_changes' && data.payload?.data?.record){
+        bbOnEvent(sbRowToEvt(data.payload.data.record));
+      }
+    };
+    _ws.onerror = (e) => console.error('Realtime error', e);
+    _ws.onclose = () => {
+      if (_intentionalClose) return;
+      setConnectionStatus('reconnecting');
+      console.warn(`Realtime disconnected — retrying in ${_reconnectDelay/1000}s`);
+      _reconnectTimer = setTimeout(() => {
+        // Re-fetch any events we may have missed while disconnected
+        fetch(`${LIVE_SB_URL}/rest/v1/game_events?game_id=eq.${gameId}&order=created_at.asc&select=*`,
+          { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } })
+          .then(r => r.json())
+          .then(rows => rows.forEach(row => bbOnEvent(sbRowToEvt(row))))
+          .catch(() => {})
+          .finally(() => openSocket());
+        _reconnectDelay = Math.min(_reconnectDelay * 2, 30000);
+      }, _reconnectDelay);
+    };
+  }
+
+  openSocket();
 }
 
 function sbRowToEvt(row){

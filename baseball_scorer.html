@@ -2220,7 +2220,7 @@ async function generatePDF(){
     try{
       const mbrImg = new Image();
       await new Promise(res=>{ mbrImg.onload=res; mbrImg.onerror=res; mbrImg.src=mbrLogoB64; });
-      const mbrH = 36;
+      const mbrH = 27;
       const mbrW = mbrImg.naturalWidth ? (mbrImg.naturalWidth/mbrImg.naturalHeight)*mbrH : 160;
       doc.addImage(mbrLogoB64,'PNG',ML+CW/2-mbrW/2,y,mbrW,mbrH);
       y += mbrH + 6;

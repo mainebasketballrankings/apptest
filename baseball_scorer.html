@@ -2321,10 +2321,11 @@ async function generatePDF(){
         const nm=(depth>0?'  > ':'')+( p.name||'\u2014');
         rct(ML,y,CW,12,si%2===0?[255,255,255]:[250,250,252]);
         cx=ML;
-        const gba = s.ab>0 ? (s.h/s.ab).toFixed(3).replace('0.','.'): '—';
-        const obp = (s.ab+s.bb)>0 ? ((s.h+s.bb)/(s.ab+s.bb)).toFixed(3).replace('0.','.') : '—';
-        const slg = s.ab>0 ? (((s.h-(s.d||0)-(s.t||0)-(s.hr||0))+(s.d||0)*2+(s.t||0)*3+(s.hr||0)*4)/s.ab).toFixed(3).replace('0.','.') : '—';
-        const gops = (obp!=='—'&&slg!=='—') ? '.'+(Math.round((parseFloat('.'+obp.slice(1))+parseFloat('.'+slg.slice(1)))*1000)).toString().padStart(3,'0') : '—';
+        const fmt3 = n => n.toFixed(3).replace(/^0\./, '.');
+        const gba = s.ab>0 ? fmt3(s.h/s.ab) : '—';
+        const gobpv = (s.ab+s.bb)>0 ? (s.h+s.bb)/(s.ab+s.bb) : null;
+        const gslgv = s.ab>0 ? ((s.h-(s.d||0)-(s.t||0)-(s.hr||0))+(s.d||0)*2+(s.t||0)*3+(s.hr||0)*4)/s.ab : null;
+        const gops = gobpv!==null&&gslgv!==null ? fmt3(gobpv+gslgv) : '—';
         [p.number||'',nm,posD,s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr||0,gba,gops]
           .forEach((v,i)=>{ cell(v,cx,y,cws[i],i>2?'center':'left',i===1&&depth===0); cx+=cws[i]; });
         y+=12;
@@ -2333,10 +2334,11 @@ async function generatePDF(){
     checkY(14);
     rct(ML,y,CW,14,[235,235,240]);
     cx=ML;
-    const tba = tot.ab>0 ? (tot.h/tot.ab).toFixed(3).replace('0.','.'): '—';
-    const tobp = (tot.ab+tot.bb)>0 ? ((tot.h+tot.bb)/(tot.ab+tot.bb)).toFixed(3).replace('0.','.') : '—';
-    const tslg = tot.ab>0 ? (((tot.h-tot.d-tot.t-tot.hr)+tot.d*2+tot.t*3+tot.hr*4)/tot.ab).toFixed(3).replace('0.','.') : '—';
-    const tops = (tobp!=='—'&&tslg!=='—') ? '.'+(Math.round((parseFloat('.'+tobp.slice(1))+parseFloat('.'+tslg.slice(1)))*1000)).toString().padStart(3,'0') : '—';
+    const fmt3t = n => n.toFixed(3).replace(/^0\./, '.');
+    const tba = tot.ab>0 ? fmt3t(tot.h/tot.ab) : '—';
+    const tobpv = (tot.ab+tot.bb)>0 ? (tot.h+tot.bb)/(tot.ab+tot.bb) : null;
+    const tslgv = tot.ab>0 ? ((tot.h-tot.d-tot.t-tot.hr)+tot.d*2+tot.t*3+tot.hr*4)/tot.ab : null;
+    const tops = tobpv!==null&&tslgv!==null ? fmt3t(tobpv+tslgv) : '—';
     ['','Totals','',tot.ab,tot.r,tot.h,tot.rbi,tot.bb,tot.k,tot.d,tot.t,tot.hr,tba,tops]
       .forEach((v,i)=>{ cell(v,cx,y,cws[i],i>2?'center':'left',true); cx+=cws[i]; });
     y+=26;  // extra gap before next section

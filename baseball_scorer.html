@@ -2688,10 +2688,7 @@ function closeAC(side){
 function restoreGame(){
   try {
     const data = JSON.parse(localStorage.getItem('mbr_bb_game'));
-    // Debug: check home lineup stats before assign
-    console.log('BEFORE assign - home lineup stats:', data.G.teams.home.lineup.map(p=>({name:p.name,ab:p.stats.ab,h:p.stats.h})));
     Object.assign(G, data.G);
-    console.log('AFTER assign - G.teams.home.lineup stats:', G.teams.home.lineup.map(p=>({name:p.name,ab:p.stats.ab,h:p.stats.h})));
     G_game_id      = data.G_game_id || null;
     G_home_team_id = data.G_home_team_id || null;
     G_away_team_id = data.G_away_team_id || null;

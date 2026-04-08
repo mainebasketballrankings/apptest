@@ -2240,37 +2240,38 @@ async function generatePDF(){
   y += 14;
   ln(ML,y,ML+CW,y,0.5); y+=10;
 
-  // Teams + score — fixed zones: logo(44) | name(160) | score(60) | vs(44) | score(60) | name(160) | logo(44)
-  const lsz=44;
-  const nameW=160, scoreW=60, vsW=CW-2*(lsz+nameW+scoreW);
-  const aLogoX=ML, aNameX=ML+lsz+4, aScoreX=ML+lsz+nameW+4;
-  const hScoreX=ML+CW-lsz-nameW-scoreW-4, hNameX=ML+CW-lsz-nameW, hLogoX=ML+CW-lsz;
+  // Teams + score — each side: logo | name | [score center] | name | logo
+  const lsz=44, gap=8, scoreZone=110;
+  const sideW=(CW-scoreZone)/2;
+  const aNameX=ML+lsz+gap, aNameMaxW=sideW-lsz-gap*2;
+  const hNameMaxW=sideW-lsz-gap*2, hNameRX=ML+CW-lsz-gap;
   if(awayLogoB64){
     try{
       const img=new Image(); await new Promise(r=>{img.onload=r;img.onerror=r;img.src=awayLogoB64;});
-      const w=img.naturalWidth?(img.naturalWidth/img.naturalHeight)*lsz:lsz;
-      doc.addImage(awayLogoB64,'PNG',aLogoX+(lsz-w)/2,y+4,w,lsz);
+      const w=Math.min(img.naturalWidth?(img.naturalWidth/img.naturalHeight)*lsz:lsz, lsz);
+      doc.addImage(awayLogoB64,'PNG',ML,y+4,w,lsz);
     }catch(e){}
   }
   if(homeLogoB64){
     try{
       const img=new Image(); await new Promise(r=>{img.onload=r;img.onerror=r;img.src=homeLogoB64;});
-      const w=img.naturalWidth?(img.naturalWidth/img.naturalHeight)*lsz:lsz;
-      doc.addImage(homeLogoB64,'PNG',hLogoX+(lsz-w)/2-4,y+4,w,lsz);
+      const w=Math.min(img.naturalWidth?(img.naturalWidth/img.naturalHeight)*lsz:lsz, lsz);
+      doc.addImage(homeLogoB64,'PNG',ML+CW-w,y+4,w,lsz);
     }catch(e){}
   }
-  const awayD = G.teams.away.name.length>18?G.teams.away.name.slice(0,16)+'...':G.teams.away.name;
-  const homeD = G.teams.home.name.length>18?G.teams.home.name.slice(0,16)+'...':G.teams.home.name;
-  // Away: logo + name left side
-  ff(16,'bold'); clr(30,30,30);
-  doc.text(awayD, aNameX, y+20);
-  // Home: name + logo right side
-  doc.text(homeD, hNameX+nameW, y+20, {align:'right'});
-  // Center: big score, small location below
+  // Auto-shrink font for long names
+  const awayName=G.teams.away.name, homeName=G.teams.home.name;
+  const awayFz=awayName.length>14?Math.max(10,16-(awayName.length-14)*0.6):16;
+  const homeFz=homeName.length>14?Math.max(10,16-(homeName.length-14)*0.6):16;
+  ff(awayFz,'bold'); clr(30,30,30);
+  doc.text(awayName, aNameX, y+24, {maxWidth:aNameMaxW});
+  ff(homeFz,'bold'); clr(30,30,30);
+  doc.text(homeName, hNameRX, y+24, {align:'right', maxWidth:hNameMaxW});
+  // Score centered
   ff(36,'bold'); clr(238,103,48);
-  doc.text(G.runs.away+'-'+G.runs.home, ML+CW/2, y+26, {align:'center'});
-  if(G.loc){ ff(8,'normal'); clr(130,130,130); doc.text(G.loc, ML+CW/2, y+42, {align:'center'}); }
-  y += 56;
+  doc.text(G.runs.away+'-'+G.runs.home, ML+CW/2, y+28, {align:'center'});
+  if(G.loc){ ff(8,'normal'); clr(130,130,130); doc.text(G.loc, ML+CW/2, y+44, {align:'center'}); }
+  y += 58;
   ln(ML,y,ML+CW,y,1); y+=12;
 
   // ── LINESCORE ──

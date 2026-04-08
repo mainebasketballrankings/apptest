@@ -860,7 +860,7 @@ function newPlayer(order, name, pos) {
 function psKey(side,idx){ return side+'_'+idx; }
 function getPS(side,idx){
   const k = psKey(side,idx);
-  if(!G.pitStats[k]) G.pitStats[k]={pitches:0,ip_outs:0,h:0,bb:0,k:0,er:0,uner:0,hr:0,name:'',num:''};
+  if(!G.pitStats[k]) G.pitStats[k]={pitches:0,strikes:0,ip_outs:0,h:0,bb:0,k:0,er:0,uner:0,hr:0,name:'',num:''};
   return G.pitStats[k];
 }
 function battingSide(){ return G.half==='top'?'away':'home'; }
@@ -1002,6 +1002,9 @@ function chargePitch(){
   if(p){
     const ps=getPS(p.side,p.idx);
     ps.pitches++;
+    // Count strikes: anything that isn't a ball (B) is a strike
+    const lastPitch = G.curPitches[G.curPitches.length-1];
+    if(lastPitch && lastPitch !== 'B') ps.strikes=(ps.strikes||0)+1;
     checkPitchLimit(ps.pitches);
   }
 }
@@ -2301,8 +2304,8 @@ async function generatePDF(){
     const team=G.teams[side];
     checkY(80);
     ff(7,'bold'); clr(100,100,100); doc.text(team.name.toUpperCase()+' \u2014 BATTING',ML,y); y+=8;
-    const hdr=['#','Name','Pos','AB','R','H','RBI','BB','K','2B','3B','HR'];
-    const cws=[20,120,28,20,18,18,22,20,18,20,20,20];
+    const hdr=['#','Name','Pos','AB','R','H','RBI','BB','K','2B','3B','HR','BA','OPS'];
+    const cws=[20,110,26,20,16,16,20,18,16,16,16,16,28,28];
     let cx=ML;
     rct(ML,y,CW,14,[240,240,245]);
     hdr.forEach((c,i)=>{ cell(c,cx,y,cws[i],i>2?'center':'left',true); cx+=cws[i]; });
@@ -2318,7 +2321,11 @@ async function generatePDF(){
         const nm=(depth>0?'  > ':'')+( p.name||'\u2014');
         rct(ML,y,CW,12,si%2===0?[255,255,255]:[250,250,252]);
         cx=ML;
-        [p.number||'',nm,posD,s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr||0]
+        const gba = s.ab>0 ? (s.h/s.ab).toFixed(3).replace('0.','.'): '—';
+        const obp = (s.ab+s.bb)>0 ? ((s.h+s.bb)/(s.ab+s.bb)).toFixed(3).replace('0.','.') : '—';
+        const slg = s.ab>0 ? (((s.h-(s.d||0)-(s.t||0)-(s.hr||0))+(s.d||0)*2+(s.t||0)*3+(s.hr||0)*4)/s.ab).toFixed(3).replace('0.','.') : '—';
+        const gops = (obp!=='—'&&slg!=='—') ? '.'+(Math.round((parseFloat('.'+obp.slice(1))+parseFloat('.'+slg.slice(1)))*1000)).toString().padStart(3,'0') : '—';
+        [p.number||'',nm,posD,s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr||0,gba,gops]
           .forEach((v,i)=>{ cell(v,cx,y,cws[i],i>2?'center':'left',i===1&&depth===0); cx+=cws[i]; });
         y+=12;
       });
@@ -2326,7 +2333,11 @@ async function generatePDF(){
     checkY(14);
     rct(ML,y,CW,14,[235,235,240]);
     cx=ML;
-    ['','Totals','',tot.ab,tot.r,tot.h,tot.rbi,tot.bb,tot.k,tot.d,tot.t,tot.hr]
+    const tba = tot.ab>0 ? (tot.h/tot.ab).toFixed(3).replace('0.','.'): '—';
+    const tobp = (tot.ab+tot.bb)>0 ? ((tot.h+tot.bb)/(tot.ab+tot.bb)).toFixed(3).replace('0.','.') : '—';
+    const tslg = tot.ab>0 ? (((tot.h-tot.d-tot.t-tot.hr)+tot.d*2+tot.t*3+tot.hr*4)/tot.ab).toFixed(3).replace('0.','.') : '—';
+    const tops = (tobp!=='—'&&tslg!=='—') ? '.'+(Math.round((parseFloat('.'+tobp.slice(1))+parseFloat('.'+tslg.slice(1)))*1000)).toString().padStart(3,'0') : '—';
+    ['','Totals','',tot.ab,tot.r,tot.h,tot.rbi,tot.bb,tot.k,tot.d,tot.t,tot.hr,tba,tops]
       .forEach((v,i)=>{ cell(v,cx,y,cws[i],i>2?'center':'left',true); cx+=cws[i]; });
     y+=26;  // extra gap before next section
   });
@@ -2338,8 +2349,8 @@ async function generatePDF(){
     if(!pitchers.length) return;
     checkY(50);
     ff(7,'bold'); clr(100,100,100); doc.text(team.name.toUpperCase()+' \u2014 PITCHING',ML,y); y+=8;
-    const phdr=['Name','IP','H','R','ER','BB','K','Pitches','Rest'];
-    const pcw=[160,36,28,28,28,28,28,44,36];
+    const phdr=['Name','IP','H','R','ER','BB','K','ERA','WHIP','P(S)','Rest'];
+    const pcw=[140,32,24,24,24,24,24,32,36,44,28];
     let cx=ML;
     rct(ML,y,CW,14,[240,240,245]);
     phdr.forEach((c,i)=>{ cell(c,cx,y,pcw[i],i>0?'center':'left',true); cx+=pcw[i]; });
@@ -2352,8 +2363,12 @@ async function generatePDF(){
       const warn=G.sport!=='softball'&&G.pitchLimits&&ps.pitches>=PL.warn;
       rct(ML,y,CW,13,pi%2===0?[255,255,255]:[250,250,252]);
       cx=ML;
-      [ps.name||'\u2014',ip,ps.h||0,(ps.er||0)+(ps.uner||0),ps.er||0,ps.bb||0,ps.k||0,ps.pitches,rest]
-        .forEach((v,i)=>{ if(i===8&&warn)clr(200,100,0); cell(v,cx,y,pcw[i],i>0?'center':'left',i===0); if(i===8&&warn)clr(30,30,30); cx+=pcw[i]; });
+      const ipDec = ps.ip_outs/3;
+      const era = ipDec>0 ? ((ps.er||0)*9/ipDec).toFixed(2) : '—';
+      const whip = ipDec>0 ? (((ps.h||0)+(ps.bb||0))/ipDec).toFixed(2) : '—';
+      const ps_str = ps.pitches+'('+(ps.strikes||0)+')';
+      [ps.name||'—',ip,ps.h||0,(ps.er||0)+(ps.uner||0),ps.er||0,ps.bb||0,ps.k||0,era,whip,ps_str,rest]
+        .forEach((v,i)=>{ if(i===10&&warn)clr(200,100,0); cell(v,cx,y,pcw[i],i>0?'center':'left',i===0); if(i===10&&warn)clr(30,30,30); cx+=pcw[i]; });
       y+=12;
     });
     doc.setDrawColor(180,180,180); doc.rect(ML,y-pitchers.length*13-14,CW,pitchers.length*13+14,'S');

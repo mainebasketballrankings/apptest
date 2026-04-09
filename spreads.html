@@ -387,7 +387,11 @@ async function loadSpreads() {
   // Auth check
   const { data: { session } } = await sb.auth.getSession();
   if (!session) {
-    window.location.href = 'login.html';
+    document.getElementById('app').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:var(--gray);">
+        <div style="font-size:15px;margin-bottom:16px;">Sign in to view spreads.</div>
+        <button onclick="document.getElementById('mbrSignInBtn')?.click()" style="background:#ee6730;color:#fff;border:none;border-radius:6px;padding:10px 24px;font-family:'Barlow',sans-serif;font-weight:600;font-size:14px;cursor:pointer;">Sign In</button>
+      </div>`;
     return;
   }
 

@@ -1,0 +1,22 @@
+{
+  "name": "MBR Baseball Scorer",
+  "short_name": "MBR Scorer",
+  "description": "Maine Basketball Rankings live baseball scoring",
+  "start_url": "/apptest/baseball_scorer.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dulfssb6y/image/upload/w_192,h_192,c_fit/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dulfssb6y/image/upload/w_512,h_512,c_fit/v1772934511/maine_basketball_rankings_logo_large_white_border_v7p2ls.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

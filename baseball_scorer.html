@@ -4,6 +4,19 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Baseball Scorer</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="MBR Scorer"/>
+<meta name="theme-color" content="#0f1117"/>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
+  });
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
 <style>
@@ -694,14 +707,74 @@ async function sbFetch(path){
   });
   return r.json();
 }
+// ── Push queue (offline resilience) ──────────────────────────
+const QUEUE_KEY = 'mbr_push_queue';
+let _flushing = false;
+
+function queueLoad(){ try { return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); } catch(e){ return []; } }
+function queueSave(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e){} }
+
+function setQueueStatus(){
+  const q = queueLoad();
+  let el = document.getElementById('push-queue-status');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'push-queue-status';
+    el.style.cssText = 'position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
+    document.body.appendChild(el);
+  }
+  if(q.length === 0){ el.innerHTML = ''; return; }
+  el.innerHTML = `<span>🟡</span><span style="color:#ccc">${q.length} event${q.length>1?'s':''} queued</span>`;
+}
+
+async function flushQueue(){
+  if(_flushing) return;
+  _flushing = true;
+  let q = queueLoad();
+  while(q.length > 0){
+    const {table, row} = q[0];
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+        method:'POST',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+        body: JSON.stringify(row)
+      });
+      if(!r.ok && r.status !== 409) throw new Error(`HTTP ${r.status}`); // 409 = duplicate, safe to discard
+      q.shift();
+      queueSave(q);
+      setQueueStatus();
+    } catch(e){
+      console.warn('flush failed, will retry', e);
+      break; // stop flushing, try again on next online event
+    }
+  }
+  _flushing = false;
+}
+
+// Flush whenever we come back online
+window.addEventListener('online', () => { flushQueue(); });
+// Also try flushing every 30s in case online event doesn't fire
+setInterval(() => { if(navigator.onLine) flushQueue(); }, 30000);
+
 async function sbInsert(table, row){
-  try {
-    await fetch(`${SB_URL}/rest/v1/${table}`, {
-      method:'POST',
-      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body: JSON.stringify(row)
-    });
-  } catch(e){ console.warn('pushEvt failed', e); }
+  if(navigator.onLine){
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+        method:'POST',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+        body: JSON.stringify(row)
+      });
+      if(!r.ok && r.status !== 409) throw new Error(`HTTP ${r.status}`);
+      await flushQueue(); // catch up any previously queued events
+      return;
+    } catch(e){ console.warn('sbInsert failed, queuing', e); }
+  }
+  // Offline or failed — queue it
+  const q = queueLoad();
+  q.push({table, row});
+  queueSave(q);
+  setQueueStatus();
+  console.warn(`Queued event (${q.length} total)`);
 }
 
 function basesArr(){

@@ -30,7 +30,7 @@ const MBRNav = (() => {
     { label: 'Tourney Guide',    href: 'https://www.mainebasketballrankings.com/tourney-guide/', key: 'tourney', external: true },
     { label: 'Podcast',          href: 'https://www.youtube.com/watch?v=ZvFlsDrIB2w&list=PLLOJcFaMXfS9gMPVDb-mb5I6oFS0Kl94I', key: 'podcast', external: true },
     { label: 'Merch',            href: 'https://maine-basketball-rankings.printify.me/', key: 'merch', external: true },
-    { label: 'mainebasketballrankings.com', href: 'https://www.mainebasketballrankings.com/', key: 'homepage', external: true },
+    { label: 'Newsletter', href: 'https://www.mainebasketballrankings.com/#/portal', key: 'newsletter', external: true },
   ];
 
   let sb = null;
@@ -53,7 +53,7 @@ const MBRNav = (() => {
     return `
 <header class="mbr-header" id="mbrHeader">
   <div class="mbr-topbar">
-    <a class="mbr-logo" href="index.html">
+    <a class="mbr-logo" href="https://www.mainebasketballrankings.com/" target="_blank" rel="noopener">
       <img src="${logoSrc}" alt="Maine Basketball Rankings" />
       <span class="mbr-wordmark">Maine Basketball<br>Rankings</span>
     </a>

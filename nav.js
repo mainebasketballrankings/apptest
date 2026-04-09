@@ -25,11 +25,12 @@ const MBRNav = (() => {
     { label: 'Rankings',         href: 'rankings.html',   key: 'rankings'   },
     { label: 'Heal Points',      href: 'heals.html',      key: 'heals'      },
     { label: 'Gold Ball Odds',   href: '#',               key: 'goldballs'  },
-    { label: 'Brackets',         href: 'https://docs.google.com/spreadsheets/d/1dIUqf9-aPeicGSCX2ms3olUDki8QVivnpiVXOZNI_wM/edit?gid=1894028799#gid=1894028799', key: 'brackets', external: true },
+    { label: 'Spreads',          href: 'spreads.html',    key: 'spreads'    },
     { label: 'Player Stats',     href: 'tournament.html', key: 'tournament' },
     { label: 'Tourney Guide',    href: 'https://www.mainebasketballrankings.com/tourney-guide/', key: 'tourney', external: true },
     { label: 'Podcast',          href: 'https://www.youtube.com/watch?v=ZvFlsDrIB2w&list=PLLOJcFaMXfS9gMPVDb-mb5I6oFS0Kl94I', key: 'podcast', external: true },
     { label: 'Merch',            href: 'https://maine-basketball-rankings.printify.me/', key: 'merch', external: true },
+    { label: 'mainebasketballrankings.com', href: 'https://www.mainebasketballrankings.com/', key: 'homepage', external: true },
   ];
 
   let sb = null;

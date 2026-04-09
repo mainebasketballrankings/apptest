@@ -1,6 +1,6 @@
 {
   "name": "Maine Basketball Rankings Baseball Scorer",
-  "short_name": "ME Bball Rankings",
+  "short_name": "Maine Basketball Rankings",
   "description": "Maine Basketball Rankings live baseball scoring",
   "start_url": "./baseball_scorer.html",
   "display": "standalone",

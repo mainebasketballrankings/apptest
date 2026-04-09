@@ -1,8 +1,8 @@
 {
-  "name": "MBR Baseball Scorer",
-  "short_name": "MBR Scorer",
+  "name": "Maine Basketball Rankings Baseball Scorer",
+  "short_name": "ME Bball Rankings",
   "description": "Maine Basketball Rankings live baseball scoring",
-  "start_url": "/apptest/baseball_scorer.html",
+  "start_url": "./baseball_scorer.html",
   "display": "standalone",
   "orientation": "landscape",
   "background_color": "#0f1117",

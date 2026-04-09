@@ -1,7 +1,7 @@
-// MBR Baseball Scorer — Service Worker
+// Maine Basketball Rankings Baseball Scorer — Service Worker
 const CACHE = 'mbr-scorer-v1';
 const PRECACHE = [
-  '/apptest/baseball_scorer.html',
+  './baseball_scorer.html',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap',
 ];
@@ -45,7 +45,7 @@ self.addEventListener('fetch', e => {
       }).catch(() => {
         // Offline fallback for navigation requests
         if(e.request.mode === 'navigate'){
-          return caches.match('/apptest/baseball_scorer.html');
+          return caches.match('./baseball_scorer.html');
         }
       });
     })

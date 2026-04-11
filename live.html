@@ -1219,11 +1219,12 @@ async function connectGame(gameId){
       { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
     );
     const players = await r.json();
-    if(Array.isArray(players)) players.forEach(p => {
-      if(!BB.batters[side].find(b=>b.name===p.name)){
+    if(Array.isArray(players) && players.length) {
+      BB.batters[side] = []; // clear sim roster
+      players.forEach(p => {
         BB.batters[side].push({name:p.name, num:p.number||'', pos:p.position||'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0});
-      }
-    });
+      });
+    }
   };
   await Promise.all([rosterFetch(game.home_team_id,'home'), rosterFetch(game.away_team_id,'away')]);
 
@@ -1697,6 +1698,7 @@ function bbOnEvent(e){
     if(e.key==='strikeout'&&batter) batter.k++;
     if(e.key==='strikeout'&&pitcher) pitcher.k++;
     if(pitcher) { pitcher.ip_outs++; }
+    if(BB.outs < 3) BB.outs++;
     if(e.x!=null) bbAddDot(e.x, e.y, 'out');
   } else if(e.key==='walk'||e.key==='hbp'){
     if(e.key==='walk'&&batter) batter.bb++;

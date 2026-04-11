@@ -1864,34 +1864,18 @@ function confirmSub(side,idx,fromBench){
     // Pitching change — update who's on the mound
     const prevPitcherIdx = G.pitchers[side];
     if(fromBench){
-      // Add new pitcher to lineup
-      G.teams[side].lineup.push(player);
+      // Replace previous pitcher in lineup at same slot index
+      const prevPitcher = G.teams[side].lineup[prevPitcherIdx];
+      player.subFor = prevPitcher?.name;
+      player.pos = 'P';
+      G.teams[side].lineup[prevPitcherIdx] = player;
       G.teams[side].bench.splice(idx,1);
-      const newIdx = G.teams[side].lineup.length-1;
-      G.pitchers[side] = newIdx;
-      const ps = getPS(side,newIdx);
+      G.pitchers[side] = prevPitcherIdx;
+      const ps = getPS(side, prevPitcherIdx);
       ps.name=player.name; ps.num=player.number;
-      // Add to the previous pitcher's batting slot so they appear in box score
-      if(G.teams[side].slots && prevPitcherIdx !== null){
-        // Find which slot the previous pitcher is in
-        let slotFound = false;
-        G.teams[side].slots.forEach(slot => {
-          if(slotFound) return;
-          if(slot.some(p => p === G.teams[side].lineup[prevPitcherIdx] || 
-                            (G.teams[side].lineup[prevPitcherIdx] && 
-                             p.name === G.teams[side].lineup[prevPitcherIdx].name))){
-            player.subFor = G.teams[side].lineup[prevPitcherIdx]?.name;
-            slot.push(player);
-            slotFound = true;
-          }
-        });
-        if(!slotFound){
-          // Fallback: find slot by pitcher's original position
-          G.teams[side].slots.forEach(slot => {
-            if(slotFound) return;
-            if(slot[0]?.pos === 'P'){ slot.push(player); slotFound = true; }
-          });
-        }
+      // Add to slot history for box score
+      if(G.teams[side].slots && G.teams[side].slots[prevPitcherIdx]){
+        G.teams[side].slots[prevPitcherIdx].push(player);
       }
       addPBP(`Pitching change: <strong>${player.name}</strong>`);
       pushEvt('sub_pitcher', {pitcher_name: player.name});

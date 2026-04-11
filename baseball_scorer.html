@@ -1160,7 +1160,7 @@ function doStrikeout(type){
   // Note: final strike already pushed to curPitches by logPitch()
   const sym=type==='K'?'ꓘ':'K';
   addPBP(`<strong>${b.player.name}</strong> ${sym}`);
-  pushEvt('strikeout');
+  pushEvt('strikeout', {outs_override: G.outs + 1});
   addOut(`K`);
 }
 
@@ -1324,7 +1324,7 @@ function confirmOut(type){
                  type==='GO'?'groundout':type==='FO'?'flyout':
                  type==='LO'?'lineout':type==='PO'?'popup':
                  type==='IFF'?'flyout':'groundout';
-  pushEvt(evtKey);
+  pushEvt(evtKey, {outs_override: G.outs + 1});
   // For sac fly: track batter so RBI is credited when runner scores in overlay
   if(isSacFly) G.pendingRBIbatter = b.player;
   addOut(notation);
@@ -1344,7 +1344,7 @@ function confirmDP(type){ saveSnapshot();
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation} (DP)`);
-  pushEvt('groundout', {notes: `${notation} (DP)`});
+  pushEvt('groundout', {notes: `${notation} (DP)`, outs_override: G.outs + 1});
   // Record batter out
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
@@ -1361,8 +1361,7 @@ function confirmTP(type){ saveSnapshot();
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation} (TP)`);
-  pushEvt('groundout');
-  // All 3 outs — just end the half inning
+  pushEvt('groundout', {outs_override: 3});
   const p=curPitcher();
   if(p){ getPS(p.side,p.idx).ip_outs+=3; }
   G.outs=3;

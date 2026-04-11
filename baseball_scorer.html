@@ -875,6 +875,28 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
   if(event && event.currentTarget) event.currentTarget.classList.add('selected');
   document.getElementById('gamePickerStatus').textContent = `✓ ${awayName} @ ${homeName}`;
   document.getElementById('gamePickerStatus').style.color = 'var(--green)';
+
+  // Fetch rosters from Supabase and pre-populate lineups
+  const sportId = 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+  const fetchRoster = async (teamId, side) => {
+    try {
+      const players = await sbFetch(
+        `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=30&select=name,number,position`
+      );
+      if(!Array.isArray(players) || !players.length) return;
+      G.teams[side].lineup = [];
+      G.teams[side].bench  = [];
+      players.forEach((p, i) => {
+        const player = newPlayer(i+1, p.name||'', p.position||'');
+        player.number = p.number ? String(p.number) : '';
+        if(i < 9) G.teams[side].lineup.push(player);
+        else       G.teams[side].bench.push(player);
+      });
+      renderLU(side);
+    } catch(e){ console.warn('roster fetch failed', side, e); }
+  };
+  fetchRoster(awayId, 'away');
+  fetchRoster(homeId, 'home');
 }
 
 // ═══════════════════════════════════════════════

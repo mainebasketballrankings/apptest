@@ -1706,27 +1706,35 @@ function bbOnEvent(e){
     if(e.key==='walk'&&batter) batter.bb++;
     if(pitcher) pitcher.bb++;
     const walkerRunner = {num:batter?batter.num:'', name:batter?batter.name:e.plast||''};
-    // Force advance all runners
-    if(BB.bases[0] && BB.bases[1] && BB.bases[2]){
-      // Bases loaded — runner on 2nd scores
-      const scorer = BB.bases[2];
-      BB[halfSide].score++;
-      BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + 1;
-      const scoringPlayer = BB.batters[halfSide].find(p=>p.num===scorer.num||p.name===scorer.name);
-      if(scoringPlayer) scoringPlayer.r = (scoringPlayer.r||0)+1;
-      if(pitcher) pitcher.r = (pitcher.r||0)+1;
-      BB.bases[2] = BB.bases[1];
-      BB.bases[1] = BB.bases[0];
-      BB.bases[0] = walkerRunner;
-    } else if(BB.bases[0] && BB.bases[1]){
-      BB.bases[2] = BB.bases[1];
-      BB.bases[1] = BB.bases[0];
-      BB.bases[0] = walkerRunner;
-    } else if(BB.bases[0]){
-      BB.bases[1] = BB.bases[0];
-      BB.bases[0] = walkerRunner;
+    if(e._replay){
+      // During replay, trust e.bases for runner positions; just credit runs from e.runs
+      if(e.runs){
+        BB[halfSide].score += e.runs;
+        BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
+        if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
+      }
     } else {
-      BB.bases[0] = walkerRunner;
+      // Live: force advance all runners
+      if(BB.bases[0] && BB.bases[1] && BB.bases[2]){
+        const scorer = BB.bases[2];
+        BB[halfSide].score++;
+        BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + 1;
+        const scoringPlayer = BB.batters[halfSide].find(p=>p.num===scorer.num||p.name===scorer.name);
+        if(scoringPlayer) scoringPlayer.r = (scoringPlayer.r||0)+1;
+        if(pitcher) pitcher.r = (pitcher.r||0)+1;
+        BB.bases[2] = BB.bases[1];
+        BB.bases[1] = BB.bases[0];
+        BB.bases[0] = walkerRunner;
+      } else if(BB.bases[0] && BB.bases[1]){
+        BB.bases[2] = BB.bases[1];
+        BB.bases[1] = BB.bases[0];
+        BB.bases[0] = walkerRunner;
+      } else if(BB.bases[0]){
+        BB.bases[1] = BB.bases[0];
+        BB.bases[0] = walkerRunner;
+      } else {
+        BB.bases[0] = walkerRunner;
+      }
     }
   } else if(e.key==='error'){
     BB[opp].errors++;

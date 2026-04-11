@@ -1182,10 +1182,11 @@ function doWalk(type){
   if(type==='BB'){ b.player.stats.bb++; if(p) getPS(p.side,p.idx).bb++; }
   // HBP counts as a pitch (BB's 4th ball already charged by logPitch)
   if(type==='HBP'){ G.curPitches.push('B'); chargePitch(); }
+  const basesLoaded = !!(G.bases[1] && G.bases[2] && G.bases[3]);
   const runner={name:b.player.name,num:b.player.number};
   forceAdvance(runner);
   addPBP(`<strong>${b.player.name}</strong> ${type} — reaches 1B`);
-  pushEvt(type==='BB'?'walk':'hbp');
+  pushEvt(type==='BB'?'walk':'hbp', basesLoaded ? {runs:1, rbi:1} : {});
   nextBatter(); resetCount(); render();
 }
 

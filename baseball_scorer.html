@@ -1238,7 +1238,11 @@ function scoreRunner(runner, side, unearned){
   // Credit run to the individual player
   if(runner && runner.name){
     const lu = G.teams[side].lineup;
-    const player = lu.find(p => p.name === runner.name);
+    let player = lu.find(p => p.name === runner.name);
+    // Fallback: search bench (player may have been moved)
+    if(!player) player = G.teams[side].bench.find(p => p.name === runner.name);
+    // Fallback: match by number
+    if(!player && runner.num) player = lu.find(p => p.number === runner.num) || G.teams[side].bench.find(p => p.number === runner.num);
     if(player) player.stats.r = (player.stats.r||0) + 1;
   }
   // Track earned/unearned for pitcher

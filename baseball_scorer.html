@@ -946,7 +946,7 @@ let G = {
 };
 
 function newPlayer(order, name, pos) {
-  return { name, number:'', pos:pos||'P', order,
+  return { name, number:'', pos:pos||'', order,
     stats:{ab:0,h:0,r:0,rbi:0,bb:0,k:0,hr:0,d:0,t:0,sb:0,sba:0,sf:0,sac:0,ibb:0,
            pitches:0,ip_outs:0,pk:0,pbb:0,pibb:0,per:0,phr:0,wp:0,gs:0,w:0,l:0,sv:0}};
 }
@@ -2187,7 +2187,7 @@ function buildBoxScore(){
         const s=p.stats;
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
         const isFirst = depth===0;
-        const posDisplay = !isFirst ? (p.isPR ? 'PR' : p.isDefSub ? `DS-${p.pos}` : `PH-${p.pos}`) : p.pos;
+        const posDisplay = !isFirst ? (p.isPR ? 'PR' : p.isDefSub ? `DS-${p.pos}` : `PH-${p.subPos||p.pos}`) : p.pos;
         const indent = !isFirst ? 'padding-left:20px;' : '';
         const prefix = !isFirst ? '▸ ' : '';
         html+=`<tr style="border-bottom:1px solid var(--border)">

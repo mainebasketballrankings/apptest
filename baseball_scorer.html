@@ -1024,12 +1024,22 @@ function renderLU(side){
 function addPlayer(side){ G.teams[side].lineup.push(newPlayer(G.teams[side].lineup.length+1,'')); renderLU(side); }
 function addBench(side){ G.teams[side].bench.push(newPlayer(0,'')); renderBench(side); }
 
+function addBenchToLineup(side, i){
+  const p = G.teams[side].bench[i];
+  if(!p) return;
+  p.order = G.teams[side].lineup.length + 1;
+  G.teams[side].lineup.push(p);
+  G.teams[side].bench.splice(i, 1);
+  renderLU(side);
+  renderBench(side);
+}
+
 function renderBench(side){
   const el=document.getElementById(side+'Bench');
   if(!el) return;
   el.innerHTML=G.teams[side].bench.map((p,i)=>`
     <div class="lu-row">
-      <span class="lu-num">B</span>
+      <button onclick="addBenchToLineup('${side}',${i})" style="background:#ee6730;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;font-family:'Barlow',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap">+ LU</button>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].bench[${i}].name=this.value"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].bench[${i}].number=this.value"/>
       <select class="lu-input" style="padding:5px 3px" onchange="G.teams['${side}'].bench[${i}].pos=this.value">
@@ -1829,7 +1839,7 @@ function openSub(mode){
     defense:`Defensive Sub — ${G.teams[fieldingSide()].name}`,
   };
   document.getElementById('ovSubTitle').textContent=titles[mode]||'Select Player';
-  const lineupHTML = G.teams[side].lineup.map((p,i)=>`
+  const lineupHTML = mode === 'batter' ? '' : G.teams[side].lineup.map((p,i)=>`
     <div class="sub-player" onclick="confirmSub('${side}',${i},false)">
       <span class="sub-num">${p.number||'—'}</span>
       <span class="sub-name">${p.name||'Player '+(i+1)}</span>

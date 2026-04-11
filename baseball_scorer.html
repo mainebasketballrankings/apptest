@@ -1075,6 +1075,7 @@ function startGame(){
     if(!G.teams[s].lineup.length) return; // skip if no lineup entered
     const pi=G.teams[s].lineup.findIndex(p=>p.pos==='P');
     G.pitchers[s]=pi>=0?pi:0;
+    G.teams[s].lineup[G.pitchers[s]].pos = 'P'; // ensure pitcher has pos set
     const ps=getPS(s,G.pitchers[s]);
     ps.name=G.teams[s].lineup[G.pitchers[s]].name;
     ps.num=G.teams[s].lineup[G.pitchers[s]].number;
@@ -2008,12 +2009,12 @@ function updateField(){
     if(pos === 'P' && activePitcherIdx !== null && activePitcherIdx !== undefined){
       player = lu[activePitcherIdx];
     } else {
-      // Prefer active (non-offField) players at this position
-      player = lu.find(p => p.pos === pos && !p.offField);
-      if(!player) player = lu.find(p => p.pos === pos);
+      // Prefer active (non-offField) players at this position, checking both pos and subPos
+      player = lu.find(p => (p.pos === pos || p.subPos === pos) && !p.offField);
+      if(!player) player = lu.find(p => p.pos === pos || p.subPos === pos);
     }
     if(player && player.name) {
-      const last = player.name.split(' ').pop().slice(0,8);
+      const last = player.name.split(' ').pop().slice(0,10);
       const num  = player.number ? ' #'+player.number : '';
       el.textContent = last + num;
     } else {

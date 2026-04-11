@@ -889,8 +889,7 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
       players.forEach((p, i) => {
         const player = newPlayer(i+1, p.name||'', p.position||'');
         player.number = p.number ? String(p.number) : '';
-        if(i < 9) G.teams[side].lineup.push(player);
-        else       G.teams[side].bench.push(player);
+        G.teams[side].bench.push(player);
       });
       renderLU(side);
     } catch(e){ console.warn('roster fetch failed', side, e); }

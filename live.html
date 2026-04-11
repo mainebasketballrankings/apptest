@@ -1237,15 +1237,17 @@ async function connectGame(gameId){
   let _lastEventTime = null;
 
   // Track last event time as events come in
-  const _trackEvent = (row) => {
+  const _trackEvent = (row, isReplay=false) => {
     if(row.created_at && (!_lastEventTime || row.created_at > _lastEventTime)){
       _lastEventTime = row.created_at;
     }
-    bbOnEvent(sbRowToEvt(row));
+    const evt = sbRowToEvt(row);
+    if(isReplay) evt._replay = true;
+    bbOnEvent(evt);
   };
 
   // Apply existing events and track last time
-  existing.forEach(row => _trackEvent(row));
+  existing.forEach(row => _trackEvent(row, true));
 
   // 3. Subscribe to realtime for new events (with reconnect loop)
   let _ws = null;
@@ -1709,12 +1711,13 @@ function bbOnEvent(e){
   } else if(e.key==='inning_end'){
     BB.outs = 3;
     bbUpdScoreboard(); bbUpdPanels();
-    setTimeout(()=>{
+    const doAdvance = () => {
       if(BB.half==='top'){ BB.half='bot'; }
       else { BB.half='top'; BB.inning++; }
       BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
       bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
-    }, 1500);
+    };
+    if(e._replay){ doAdvance(); } else { setTimeout(doAdvance, 1500); }
     bbEvts.unshift(e);
     bbUpdFeed();
     return;

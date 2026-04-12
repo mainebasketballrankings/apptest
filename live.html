@@ -1618,7 +1618,9 @@ function bbOnEvent(e){
   );
   let pitcher = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
 
-  if(!batter && e.plast){
+  // Skip auto-append for subs — they manage their own slot
+  const isSub = e.key === 'sub_pitcher' || e.key === 'sub_batter' || e.key === 'sub_defense';
+  if(!batter && e.plast && !isSub){
     batter = {name:e.plast, num:e.pnum||'', pos:'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0};
     BB.batters[s].push(batter);
   }
@@ -1747,9 +1749,23 @@ function bbOnEvent(e){
     try {
       const info = JSON.parse(e.notes||'{}');
       if(info.name && info.pos){
-        // ONLY update the defense map — batting order is unchanged
+        // Update fielding map
         BB.defense[opp][info.pos] = {name:info.name, num:info.num||''};
-        toast(`Def sub: ${info.name} (${info.pos})`);
+        // Replace outgoing player IN their batting order slot (not append)
+        const outgoing = info.outgoing||'';
+        const batSlot = outgoing
+          ? BB.batters[opp].find(p => nameEq(p.name, outgoing))
+          : BB.batters[opp].find(p => p.pos === info.pos);
+        if(batSlot){
+          batSlot.name = info.name;
+          batSlot.num  = info.num||'';
+          batSlot.pos  = info.pos;
+          // Reset stats for new player
+          batSlot.ab=0; batSlot.r=0; batSlot.h=0; batSlot.hr=0;
+          batSlot.rbi=0; batSlot.bb=0; batSlot.k=0; batSlot.sb=0;
+        }
+        const desc = outgoing ? `${info.name} replaces ${outgoing}` : `${info.name} (${info.pos})`;
+        toast(`Def sub: ${desc}`);
         bbUpdField();
       }
     } catch(err){ console.warn('sub_defense parse error', err); }

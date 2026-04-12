@@ -1763,6 +1763,7 @@ function bbOnEvent(e){
     const next = BB.batters[halfSide][BB.batIdx[halfSide]];
     if(next) BB.batter = { name:next.name, num:next.num||'', side:halfSide,
       line:`${next.h||0}–${next.ab||0}, ${next.rbi||0} RBI` };
+    BB.balls = 0; BB.strikes = 0;
   }
 
   // Reset batIdx on inning change handled in inning_end advance()

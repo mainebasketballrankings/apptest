@@ -1746,6 +1746,7 @@ function bbOnEvent(e){
       outgoingName = info.outgoing||'';
     } catch(err){}
     if(!incomingNum) incomingNum = e.pitcherNum||'';
+    console.log('[sub_pitcher] e.pitcher=',e.pitcher,'e.pitcherNum=',e.pitcherNum,'incomingNum=',incomingNum,'notes=',e.notes);
     const newP = {name:e.pitcher||'—', num:incomingNum, ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     const alreadyIn = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
     if(!alreadyIn) BB.pitchers[opp].push(newP);

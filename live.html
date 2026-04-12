@@ -1719,10 +1719,8 @@ function bbOnEvent(e){
         if(scoringPlayer) scoringPlayer.r = (scoringPlayer.r||0)+1;
       }
     }
-    // Force advance runners and place batter on 1st (always, live and replay)
-    BB.bases[2] = oldBasesSnap[1] || BB.bases[2];
-    BB.bases[1] = oldBasesSnap[0] || BB.bases[1];
-    BB.bases[0] = walkerRunner;
+    // Bases come from e.bases (now includes runner identity) — no manual override needed
+    // batter is already placed on 1st via the enrichment block above
   } else if(e.key==='error'){
     BB[opp].errors++;
   } else if(e.key==='inning_end'){

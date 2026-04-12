@@ -1,5 +1,5 @@
 // Maine Basketball Rankings Baseball Scorer — Service Worker
-const CACHE = 'mbr-scorer-v8';
+const CACHE = 'mbr-scorer-v9';
 const PRECACHE = [
   './baseball_scorer.html',
   './index.html',
@@ -31,8 +31,8 @@ self.addEventListener('fetch', e => {
   if(url.hostname.includes('supabase.co')) return;
   // Always go to network for Cloudinary (logos)
   if(url.hostname.includes('cloudinary.com')) return;
-  // Network-first for live.html (always needs latest)
-  if(url.pathname.includes('live.html')){
+  // Network-first for live.html and index.html (always needs latest)
+  if(url.pathname.includes('live.html') || url.pathname.endsWith('index.html') || url.pathname.endsWith('/')){
     e.respondWith(
       fetch(e.request).then(res => {
         if(res.ok){

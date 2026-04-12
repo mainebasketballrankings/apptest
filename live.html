@@ -1161,13 +1161,6 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     setTimeout(runSim, 1000);
   } else {
-    // Seed sim lineups as fallback — connectGame will override with real roster if available
-    BB_LINEUPS.away.forEach(p=>BB.batters.away.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
-    BB_LINEUPS.home.forEach(p=>BB.batters.home.push({...p,ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0}));
-    BB_LINEUPS.pitchers.away.forEach(p=>BB.pitchers.away.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
-    BB_LINEUPS.pitchers.home.forEach(p=>BB.pitchers.home.push({...p,ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}));
-    BB.pitcher = { name: BB_LINEUPS.pitchers.away[0].name, side:'away', pitches:0, ip:'0.0' };
-
     const gameId = new URLSearchParams(window.location.search).get('game_id');
     if(gameId){
       connectGame(gameId);
@@ -1208,18 +1201,20 @@ async function connectGame(gameId){
     { name: away.school_name, short: away.school_name.slice(0,3).toUpperCase(), short2: away.school_name.slice(0,3).toUpperCase(), logoUrl: away.logo_url||'' }
   );
 
-  // Fetch rosters to pre-populate lineup panels
+  // Fetch rosters as fallback only — lineup_set events will override with correct batting order
   const rosterFetch = async (teamId, side) => {
     const r = await fetch(
-      `${LIVE_SB_URL}/rest/v1/players?team_id=eq.${teamId}&order=number.asc&select=name,number,position&limit=25`,
+      `${LIVE_SB_URL}/rest/v1/players?team_id=eq.${teamId}&order=number.asc&select=name,number,position&limit=30`,
       { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
     );
     const players = await r.json();
     if(Array.isArray(players) && players.length) {
-      BB.batters[side] = []; // clear sim roster
-      players.forEach(p => {
-        BB.batters[side].push({name:p.name, num:p.number||'', pos:p.position||'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0});
-      });
+      // Only use roster if we have no lineup yet (will be overridden by lineup_set event)
+      BB._rosterFallback = BB._rosterFallback || {};
+      BB._rosterFallback[side] = players.map(p => ({
+        name:p.name, num:p.number||'', pos:p.position||'',
+        ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
+      }));
     }
   };
   await Promise.all([rosterFetch(game.home_team_id,'home'), rosterFetch(game.away_team_id,'away')]);
@@ -1244,6 +1239,14 @@ async function connectGame(gameId){
 
   // Apply existing events and track last time
   existing.forEach(row => _trackEvent(row, true));
+
+  // If no lineup_set event was found, fall back to roster for display
+  ['home','away'].forEach(side => {
+    if(BB.batters[side].length === 0 && BB._rosterFallback && BB._rosterFallback[side]){
+      BB.batters[side] = BB._rosterFallback[side].sort((a,b) => parseInt(a.num||0) - parseInt(b.num||0)).slice(0,9);
+    }
+  });
+  bbUpdPanels();
 
   // 3. Subscribe to realtime for new events (with reconnect loop)
   let _ws = null;
@@ -1629,7 +1632,6 @@ function bbOnEvent(e){
   let pitcher = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
 
   if(!batter && e.plast){
-    console.warn(`BATTER NOT FOUND: plast="${e.plast}" pnum="${e.pnum}" side="${s}" roster:`, BB.batters[s].map(p=>`${p.name}(${p.num})`).join(','));
     batter = {name:e.plast, num:e.pnum||'', pos:'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0};
     BB.batters[s].push(batter);
   }
@@ -1654,6 +1656,29 @@ function bbOnEvent(e){
       if(typeof b === 'object' && b.name) return b;
       return BB.bases[i] || true;
     });
+  }
+
+  // ── Lineup set (fired at game start by scorer) ───────────
+  if(e.key === 'lineup_set'){
+    try {
+      const lineup = JSON.parse(e.notes||'[]');
+      if(Array.isArray(lineup) && lineup.length){
+        BB.batters[s] = lineup.map(p => ({
+          name: p.name, num: p.num||'', pos: p.pos||'',
+          ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
+        }));
+        // Set starting pitcher
+        const pitcherEntry = lineup.find(p => p.pos === 'P');
+        if(pitcherEntry){
+          const existing = BB.pitchers[s].find(p => nameEq(p.name, pitcherEntry.name));
+          if(!existing){
+            BB.pitchers[s].push({name:pitcherEntry.name, num:pitcherEntry.num||'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0});
+          }
+        }
+      }
+    } catch(err){ console.warn('lineup_set parse error', err); }
+    bbUpdPanels();
+    return;
   }
 
   // ── Inning end ───────────────────────────────────────────

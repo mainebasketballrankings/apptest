@@ -1090,6 +1090,25 @@ function startGame(){
   document.getElementById('gameScreen').style.flexDirection='column';
   localStorage.removeItem('mbr_bb_game');
   addPBP(`Game started — ${G.teams.away.name} @ ${G.teams.home.name}`);
+  // Push lineup to Supabase so live.html knows the starting lineup and batting order
+  if(G_game_id){
+    ['away','home'].forEach(side => {
+      const lineup = G.teams[side].lineup.map(p => ({
+        name: p.name,
+        num: p.number||'',
+        pos: p.pos||''
+      }));
+      sbInsert('game_events', {
+        game_id: G_game_id,
+        team_id: side === 'home' ? G_home_team_id : G_away_team_id,
+        event_type: 'lineup_set',
+        period: 1, clock_seconds: 0, inning: 1, half: 'top',
+        outs: 0, balls: 0, strikes: 0, runs: 0, rbi: 0,
+        bases: [null, null, null],
+        notes: JSON.stringify(lineup),
+      });
+    });
+  }
   // Mark game as active in Supabase so Live button appears on scoreboard
   if(G_game_id){
     fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {

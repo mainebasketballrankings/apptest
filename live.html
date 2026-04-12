@@ -1606,148 +1606,123 @@ function bbAddDot(x, y, type){
 }
 
 function bbOnEvent(e){
-  const s = e.side, opp = s==='home'?'away':'home';
-  BB.inning = e.inning; BB.half = e.half;
-  e.scoreSnap = { away: BB.away.score, home: BB.home.score };
+  const s = e.side;
+  const opp = s==='home'?'away':'home';
+  const inn = e.inning - 1;
+  const halfSide = e.half==='top' ? 'away' : 'home';
 
-  // Ensure inning arrays are long enough
+  // ── Game state ──────────────────────────────────────────
+  BB.inning  = e.inning;
+  BB.half    = e.half;
+  BB.balls   = e.balls   ?? BB.balls;
+  BB.strikes = e.strikes ?? BB.strikes;
+  BB.outs    = e.outs    ?? BB.outs;
+
   while(BB.innings.home.length < e.inning) BB.innings.home.push(0);
   while(BB.innings.away.length < e.inning) BB.innings.away.push(0);
 
-  // Look up existing batter and pitcher — pre-seeded from BB_LINEUPS
-  let batter = BB.batters[s].find(p=>p.name===e.plast);
-  let pitcher = BB.pitchers[opp].find(p=>p.name===e.pitcher);
-  // Fallback: create if somehow not pre-seeded
-  if(!batter && e.plast){ batter={name:e.plast,num:e.pnum||'',ab:0,r:0,h:0,rbi:0,bb:0,k:0}; BB.batters[s].push(batter); }
-  if(!pitcher && e.pitcher){ pitcher={name:e.pitcher,num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0}; BB.pitchers[opp].push(pitcher); }
+  // ── Player lookup (case-insensitive, fallback to number) ─
+  const nameEq = (a,b) => a && b && a.trim().toUpperCase() === b.trim().toUpperCase();
+  let batter = BB.batters[s].find(p =>
+    nameEq(p.name, e.plast) || (e.pnum && String(p.num) === String(e.pnum))
+  );
+  let pitcher = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
 
-  // Update pitcher strip
-  BB.batter  = { name: e.plast||'—', num: e.pnum||'', side:s, line:'' };
-  BB.pitcher = { name: pitcher.name, num: pitcher.num||'', side:opp, pitches:pitcher.pitches, ip:`${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}` };
+  if(!batter && e.plast){
+    batter = {name:e.plast, num:e.pnum||'', pos:'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0};
+    BB.batters[s].push(batter);
+  }
+  if(!pitcher && e.pitcher){
+    pitcher = {name:e.pitcher, num:'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
+    BB.pitchers[opp].push(pitcher);
+  }
+
+  // ── Update batter/pitcher strip ─────────────────────────
+  BB.batter = { name:e.plast||'—', num:e.pnum||'', side:s, line:'' };
   if(batter) BB.batter.line = `${batter.h||0}–${batter.ab||0}, ${batter.rbi||0} RBI`;
+  if(pitcher) BB.pitcher = {
+    name:pitcher.name, num:pitcher.num||'', side:opp,
+    pitches:pitcher.pitches,
+    ip:`${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`
+  };
 
-  // Count state
-  BB.balls   = e.balls   !== undefined ? e.balls   : BB.balls;
-  BB.strikes = e.strikes !== undefined ? e.strikes : BB.strikes;
-  BB.outs    = e.outs    !== undefined ? e.outs    : BB.outs;
-  // Capture old bases BEFORE enrichment for R crediting
-  const oldBasesSnap = BB.bases.slice();
-
-  // Bases — use runner identity directly if available, fall back to inference
+  // ── Bases — trust e.bases directly ──────────────────────
   if(e.bases !== undefined){
-    const newBases = [false, false, false];
-    for(let i=0;i<3;i++){
-      const b = e.bases[i];
-      if(!b){ newBases[i] = false; continue; }
-      if(b && typeof b === 'object' && b.name){
-        // New format: runner identity stored directly
-        newBases[i] = b;
-      } else if(b){
-        // Old format: boolean true — try to infer from oldBasesSnap
-        if(oldBasesSnap[i] && oldBasesSnap[i].num) newBases[i] = oldBasesSnap[i];
-        else {
-          for(let j=i-1;j>=0;j--){
-            if(oldBasesSnap[j] && oldBasesSnap[j].num && !e.bases[j]){ newBases[i] = oldBasesSnap[j]; break; }
-          }
-          if(!newBases[i]) newBases[i] = true;
-        }
-      }
-    }
-    BB.bases = newBases;
-  }
-
-  const inn = e.inning - 1;
-  const halfSide = e.half==='top' ? 'away' : 'home'; // batting side
-
-  // Runs scored — credit BEFORE batter placement overwrites bases
-  if(e.runs){
-    BB[halfSide].score += e.runs;
-    BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
-    if(batter) batter.rbi = (batter.rbi||0) + (e.rbi||0);
-    if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
-    e.scoreSnap = { away: BB.away.score, home: BB.home.score };
-    let runsToCredit = e.runs;
-    const scorers = [];
-    // HR — batter scores first
-    if(e.key==='hr' && batter){ batter.r=(batter.r||0)+1; runsToCredit--; scorers.push(batter.name); }
-    const newOccRaw = e.bases || [false,false,false];
-    const batterBase = e.key==='single'?0:e.key==='double'?1:e.key==='triple'?2:-1;
-    oldBasesSnap.forEach((runner, idx)=>{
-      if(runsToCredit<=0) return;
-      if(!runner || !runner.num) return;
-      const vacated = !newOccRaw[idx] || idx===batterBase;
-      if(vacated){
-        const scorer = BB.batters[s].find(p=>p.num===runner.num);
-        if(scorer){ scorer.r=(scorer.r||0)+1; runsToCredit--; scorers.push(runner.name); }
-      }
+    BB.bases = e.bases.map((b,i) => {
+      if(!b) return false;
+      if(typeof b === 'object' && b.name) return b;
+      return BB.bases[i] || true;
     });
-    e.scorers = scorers;
   }
 
-  if(e.key==='single'||e.key==='double'||e.key==='triple'||e.key==='hr'){
-    if(batter){ batter.h++; batter.ab++; if(e.key==='hr') batter.hr++; }
-    BB[halfSide].hits++;
-    if(pitcher) pitcher.h++;
-    const dotType = e.key==='hr'?'hr': (e.key==='double'||e.key==='triple')?'xbh':'hit';
-    if(e.x!=null) bbAddDot(e.x, e.y, dotType);
-    // Place batter as runner object on the correct base
-    if(batter && e.key!=='hr'){
-      const targetBase = e.key==='single'?0:e.key==='double'?1:2;
-      BB.bases[targetBase] = {num:batter.num, name:batter.name};
-    }
-    toast(`<b>#${e.pnum} ${e.plast}</b> — ${BB_KLBL[e.key]}${e.rbi?' · '+e.rbi+' RBI':''}`);
-  } else if(['groundout','flyout','lineout','popup','strikeout'].includes(e.key)){
-    if(batter) batter.ab++;
-    if(e.key==='strikeout'&&batter) batter.k++;
-    if(e.key==='strikeout'&&pitcher) pitcher.k++;
-    if(pitcher) { pitcher.ip_outs++; }
-    if(BB.outs < 3) BB.outs++;
-    if(e.x!=null) bbAddDot(e.x, e.y, 'out');
-  } else if(e.key==='walk'||e.key==='hbp'){
-    if(e.key==='walk'&&batter) batter.bb++;
-    if(pitcher) pitcher.bb++;
-    // RBI credit for bases-loaded walk
-    if(e.rbi && batter) batter.rbi = (batter.rbi||0) + e.rbi;
-    // Score credit — use e.runs if stored, otherwise infer from oldBasesSnap
-    if(e.runs){
-      BB[halfSide].score += e.runs;
-      BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
-      if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
-      const scorer = oldBasesSnap[2];
-      if(scorer){
-        const scoringPlayer = BB.batters[halfSide].find(p=>p.num===scorer.num||p.name===scorer.name);
-        if(scoringPlayer) scoringPlayer.r = (scoringPlayer.r||0)+1;
-      }
-    }
-    // Bases come from e.bases (now includes runner identity) — no manual override needed
-    // batter is already placed on 1st via the enrichment block above
-  } else if(e.key==='error'){
-    BB[opp].errors++;
-  } else if(e.key==='inning_end'){
+  // ── Inning end ───────────────────────────────────────────
+  if(e.key === 'inning_end'){
     BB.outs = 3;
     bbUpdScoreboard(); bbUpdPanels();
-    const doAdvance = () => {
-      if(BB.half==='top'){ BB.half='bot'; }
-      else { BB.half='top'; BB.inning++; }
+    const advance = () => {
+      BB.half = BB.half==='top' ? 'bot' : 'top';
+      if(BB.half==='top') BB.inning++;
       BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
       bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
     };
-    if(e._replay){ doAdvance(); } else { setTimeout(doAdvance, 1500); }
+    e._replay ? advance() : setTimeout(advance, 1500);
     bbEvts.unshift(e);
     bbUpdFeed();
     return;
-  } else if(e.key==='sub_pitcher'){
-    pitcher = {name:e.pitcher||'—',num:'',ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
-    BB.pitchers[opp].push(pitcher);
-    toast(`Pitching change — ${e.pitcher}`);
   }
+
+  // ── Pitching change ──────────────────────────────────────
+  if(e.key === 'sub_pitcher'){
+    if(!pitcher){
+      pitcher = {name:e.pitcher||'—', num:'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
+      BB.pitchers[opp].push(pitcher);
+    }
+    BB.pitcher = { name:pitcher.name, num:pitcher.num||'', side:opp, pitches:0, ip:'0.0' };
+    toast(`Pitching change — ${e.pitcher}`);
+    bbEvts.unshift(e);
+    bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
+    return;
+  }
+
+  // ── Runs scored ──────────────────────────────────────────
+  if(e.runs){
+    BB[halfSide].score += e.runs;
+    BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
+    if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
+    if(batter)  batter.rbi = (batter.rbi||0) + (e.rbi||0);
+    if(e.key==='hr' && batter) batter.r = (batter.r||0)+1;
+  }
+  e.scoreSnap = { away:BB.away.score, home:BB.home.score };
+
+  // ── Per-event stats ──────────────────────────────────────
+  if(e.key==='single'||e.key==='double'||e.key==='triple'||e.key==='hr'){
+    if(batter){ batter.ab++; batter.h++; if(e.key==='hr') batter.hr++; }
+    BB[halfSide].hits++;
+    if(pitcher) pitcher.h++;
+    if(e.x!=null) bbAddDot(e.x, e.y, e.key==='hr'?'hr':(e.key==='double'||e.key==='triple')?'xbh':'hit');
+    toast(`<b>#${e.pnum} ${e.plast}</b> — ${BB_KLBL[e.key]}${e.rbi?' · '+e.rbi+' RBI':''}`);
+
+  } else if(['groundout','flyout','lineout','popup','strikeout'].includes(e.key)){
+    if(batter) batter.ab++;
+    if(e.key==='strikeout'){ if(batter) batter.k++; if(pitcher) pitcher.k++; }
+    if(pitcher) pitcher.ip_outs++;
+    BB.outs = Math.min(3, BB.outs+1);
+    if(e.x!=null) bbAddDot(e.x, e.y, 'out');
+
+  } else if(e.key==='walk'||e.key==='hbp'){
+    if(e.key==='walk'&&batter) batter.bb++;
+    if(pitcher) pitcher.bb++;
+    if(e.rbi&&batter) batter.rbi = (batter.rbi||0)+e.rbi;
+
+  } else if(e.key==='error'){
+    BB[opp].errors++;
+  }
+
+  // ── Pitcher pitch count ──────────────────────────────────
   if(pitcher && e.pitches) pitcher.pitches += e.pitches;
-  BB.pitcher.pitches = pitcher ? pitcher.pitches : BB.pitcher.pitches;
-  BB.pitcher.ip = pitcher ? `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}` : '0.0';
+  if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 
-  // Half-inning end resets count
-  if(e.newHalf){ BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false]; }
-
+  // ── Render ───────────────────────────────────────────────
   bbEvts.unshift(e);
   bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
 }

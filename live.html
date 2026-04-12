@@ -1711,7 +1711,9 @@ function bbOnEvent(e){
     if(pitcher) pitcher.bb++;
     const walkerRunner = {num:batter?batter.num:'', name:batter?batter.name:e.plast||''};
     // Score if bases were loaded pre-play
+    console.log('WALK event:', e.key, 'replay:', e._replay, 'oldBasesSnap:', JSON.stringify(oldBasesSnap), 'halfSide:', halfSide);
     if(oldBasesSnap[0] && oldBasesSnap[1] && oldBasesSnap[2]){
+      console.log('SCORING RUN from walk, bases were loaded');
       const scorer = oldBasesSnap[2];
       BB[halfSide].score++;
       BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + 1;

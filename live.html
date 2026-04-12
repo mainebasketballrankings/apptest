@@ -1311,6 +1311,7 @@ const BB = {
   innings:{ home:[], away:[] }, // runs per inning
   batter:{ name:'—', side:'away', line:'' },
   pitcher:{ name:'—', side:'home', pitches:0, ip:'0.0' },
+  batIdx:{ home:0, away:0 },
   // batting stats per player: { name, num, ab,r,h,rbi,bb,k }
   batters:{ home:[], away:[] },
   // pitching stats: { name, num, ip_outs, h, r, er, bb, k, pitches }
@@ -1638,6 +1639,11 @@ function bbOnEvent(e){
           }));
           BB._lineupSize = BB._lineupSize || {};
           BB._lineupSize[s] = lineup.length;
+          BB.batIdx[s] = 0;
+          const leadoff = lineup[0];
+          if(leadoff && s === (BB.half==='top'?'away':'home')){
+            BB.batter = {name:leadoff.name, num:leadoff.num||'', side:s, line:'0–0, 0 RBI'};
+          }
           // Set starting pitcher
           const pitcherEntry = lineup.find(p => p.pos === 'P');
           if(pitcherEntry){
@@ -1662,6 +1668,7 @@ function bbOnEvent(e){
       BB.half = BB.half==='top' ? 'bot' : 'top';
       if(BB.half==='top') BB.inning++;
       BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
+      // Don't reset batIdx — batting order continues across innings
       bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
     };
     e._replay ? advance() : setTimeout(advance, 1500);
@@ -1721,6 +1728,19 @@ function bbOnEvent(e){
   // ── Pitcher pitch count ──────────────────────────────────
   if(pitcher && e.pitches) pitcher.pitches += e.pitches;
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
+
+  // ── Advance to next batter after completed PA ───────────
+  const completedPA = ['single','double','triple','hr','groundout','flyout',
+                       'lineout','popup','strikeout','walk','hbp','sac_bunt','sac_fly',
+                       'fielders_choice','error'].includes(e.key);
+  if(completedPA && BB.batters[halfSide].length){
+    BB.batIdx[halfSide] = (BB.batIdx[halfSide] + 1) % BB.batters[halfSide].length;
+    const next = BB.batters[halfSide][BB.batIdx[halfSide]];
+    if(next) BB.batter = { name:next.name, num:next.num||'', side:halfSide,
+      line:`${next.h||0}–${next.ab||0}, ${next.rbi||0} RBI` };
+  }
+
+  // Reset batIdx on inning change handled in inning_end advance()
 
   // ── Render ───────────────────────────────────────────────
   bbEvts.unshift(e);

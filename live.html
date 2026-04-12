@@ -93,7 +93,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 .qc.aq{background:var(--rule2);border-radius:3px;color:var(--ink)!important;font-weight:700!important;}
 
 /* MAIN 3-COL */
-#main{display:grid;grid-template-columns:210px 1fr 210px;grid-template-areas:"home centre away";gap:0;flex:1;min-height:0;max-width:1100px;margin:0 auto;width:100%;padding:12px;box-sizing:border-box;align-items:start;}
+#main{display:grid;grid-template-columns:210px 1fr 210px;grid-template-areas:"away centre home";gap:0;flex:1;min-height:0;max-width:1100px;margin:0 auto;width:100%;padding:12px;box-sizing:border-box;align-items:start;}
 
 /* STAT PANELS */
 .stat-panel{display:flex;flex-direction:column;border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;}
@@ -269,9 +269,9 @@ body.sport-baseball .bball-only{display:none !important;}
 <div id="scoreboard">
   <div class="sb-inner">
     <div class="sb-row">
-      <!-- AWAY: score(far left) | name+meta(centre) | logo(far right) -->
+      <!-- AWAY: logo(far left) | name+meta(centre) | score(inside right) -->
       <div class="sb-team away">
-        <div class="sb-pts" id="away-score">0</div>
+        <div class="sb-logo" id="away-logo">C</div>
         <div class="sb-middle">
           <div class="sb-name" id="away-name">Cape Elizabeth</div>
           <div class="sb-meta">
@@ -279,7 +279,7 @@ body.sport-baseball .bball-only{display:none !important;}
             <span class="bball-only" id="away-to-lbl">5 TO left</span>
           </div>
         </div>
-        <div class="sb-logo" id="away-logo">C</div>
+        <div class="sb-pts" id="away-score">0</div>
       </div>
 
       <!-- CENTRE: basketball = clock+period+possession+qtr grid | baseball = inning+linescore -->
@@ -331,10 +331,9 @@ body.sport-baseball .bball-only{display:none !important;}
       </div>
 
 
-      <!-- HOME: logo + name/score stack -->
-      <!-- HOME: logo(far left) | name+meta(centre) | score(far right) -->
+      <!-- HOME: score(inside left) | name+meta(centre) | logo(far right) -->
       <div class="sb-team home">
-        <div class="sb-logo" id="home-logo">C</div>
+        <div class="sb-pts" id="home-score">0</div>
         <div class="sb-middle">
           <div class="sb-name" id="home-name">Camden Hills</div>
           <div class="sb-meta">
@@ -342,7 +341,7 @@ body.sport-baseball .bball-only{display:none !important;}
             <span class="bball-only" id="home-to-lbl">5 TO left</span>
           </div>
         </div>
-        <div class="sb-pts" id="home-score">0</div>
+        <div class="sb-logo" id="home-logo">C</div>
       </div>
     </div>
   </div>

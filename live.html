@@ -41,7 +41,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 #header-centre{display:flex;flex-direction:column;align-items:center;gap:1px;justify-self:center;}
 #header-venue{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--ink2);letter-spacing:.04em;text-align:center;}
 #header-event{font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;text-align:center;}
-#header-right{display:flex;justify-content:flex-end;}
+#header-right{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
 #live-pill{display:flex;align-items:center;gap:5px;background:var(--live);color:#fff;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;}
 #live-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:blink 1.4s ease-in-out infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
@@ -262,6 +262,7 @@ body.sport-baseball .bball-only{display:none !important;}
     <div id="header-venue"></div>
   </div>
   <div id="header-right">
+    <a id="stream-link" href="#" target="_blank" rel="noopener" style="display:none;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;font-weight:600;color:var(--ink);text-decoration:none;padding:3px 10px;border:1.5px solid var(--rule);border-radius:20px;letter-spacing:.08em;">▶ WATCH</a>
     <div id="live-pill"><div id="live-dot"></div><span id="live-lbl">LIVE</span></div>
   </div>
 </header>
@@ -1184,7 +1185,7 @@ let LIVE_away_team_id = null;
 async function connectGame(gameId){
   // 1. Fetch game info
   const gRes = await fetch(
-    `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,home_team_id,away_team_id,venue,location,game_date,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
+    `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,home_team_id,away_team_id,venue,location,game_date,stream_url,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
     { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
   );
   const games = await gRes.json();
@@ -1204,6 +1205,16 @@ async function connectGame(gameId){
   const venEl = document.getElementById('header-venue');
   if(evtEl) evtEl.textContent = game.venue || '';
   if(venEl) venEl.textContent = game.location || '';
+  // Stream link
+  const streamEl = document.getElementById('stream-link');
+  if(streamEl){
+    if(game.stream_url){
+      streamEl.href = game.stream_url;
+      streamEl.style.display = 'flex';
+    } else {
+      streamEl.style.display = 'none';
+    }
+  }
 
   // 2. Fetch and replay all existing events
   const eRes = await fetch(
@@ -1237,9 +1248,11 @@ async function connectGame(gameId){
       el.style.cssText = 'position:fixed;bottom:8px;right:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
       document.body.appendChild(el);
     }
-    const dot = status==='connected'?'🟢':status==='reconnecting'?'🟡':'🔴';
-    const label = status==='connected'?'Live':status==='reconnecting'?'Reconnecting…':'Disconnected';
-    el.innerHTML = `<span>${dot}</span><span style="color:#ccc">${label}</span>`;
+    if(status === 'connected'){ el.style.display='none'; return; }
+    el.style.display='flex';
+    const dot = status==='reconnecting'?'🟡':'🔴';
+    const label = status==='reconnecting'?'Reconnecting…':'Disconnected';
+    el.innerHTML = `<span>${dot}</span><span style="color:#333">${label}</span>`;
   }
 
   function openSocket() {

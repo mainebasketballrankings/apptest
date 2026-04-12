@@ -1746,11 +1746,12 @@ function bbOnEvent(e){
       outgoingName = info.outgoing||'';
     } catch(err){}
     if(!incomingNum) incomingNum = e.pitcherNum||'';
-    console.log('[sub_pitcher] e.pitcher=',e.pitcher,'e.pitcherNum=',e.pitcherNum,'incomingNum=',incomingNum,'notes=',e.notes);
     const newP = {name:e.pitcher||'—', num:incomingNum, ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     const alreadyIn = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
     if(!alreadyIn) BB.pitchers[opp].push(newP);
     const activeP = alreadyIn || newP;
+    // Backfill number if it was missing when pitcher was first created
+    if(activeP.num === '' && incomingNum) activeP.num = incomingNum;
     BB.pitcher = { name:activeP.name, num:activeP.num||'', side:opp,
       pitches:activeP.pitches, ip:`${Math.floor(activeP.ip_outs/3)}.${activeP.ip_outs%3}` };
     BB.defense[opp]['P'] = {name:activeP.name, num:activeP.num||''};

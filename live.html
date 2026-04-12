@@ -1633,24 +1633,25 @@ function bbOnEvent(e){
   // Capture old bases BEFORE enrichment for R crediting
   const oldBasesSnap = BB.bases.slice();
 
-  // Bases — smart enrichment
+  // Bases — use runner identity directly if available, fall back to inference
   if(e.bases !== undefined){
-    const newOcc = e.bases; // boolean array from sim
     const newBases = [false, false, false];
-    // Pass 1: keep runners who stayed on their same base
     for(let i=0;i<3;i++){
-      if(newOcc[i] && oldBasesSnap[i] && oldBasesSnap[i].num) newBases[i] = oldBasesSnap[i];
-    }
-    // Pass 2: advance runners — scan from highest base down to find who moved up
-    for(let i=2;i>=0;i--){
-      if(!newOcc[i] || newBases[i]) continue;
-      // Find nearest known runner on a lower base that vacated
-      for(let j=i-1;j>=0;j--){
-        if(oldBasesSnap[j] && oldBasesSnap[j].num && !newOcc[j] && !newBases[i]){
-          newBases[i] = oldBasesSnap[j]; break;
+      const b = e.bases[i];
+      if(!b){ newBases[i] = false; continue; }
+      if(b && typeof b === 'object' && b.name){
+        // New format: runner identity stored directly
+        newBases[i] = b;
+      } else if(b){
+        // Old format: boolean true — try to infer from oldBasesSnap
+        if(oldBasesSnap[i] && oldBasesSnap[i].num) newBases[i] = oldBasesSnap[i];
+        else {
+          for(let j=i-1;j>=0;j--){
+            if(oldBasesSnap[j] && oldBasesSnap[j].num && !e.bases[j]){ newBases[i] = oldBasesSnap[j]; break; }
+          }
+          if(!newBases[i]) newBases[i] = true;
         }
       }
-      if(!newBases[i]) newBases[i] = true;
     }
     BB.bases = newBases;
   }
@@ -1707,9 +1708,7 @@ function bbOnEvent(e){
     if(pitcher) pitcher.bb++;
     const walkerRunner = {num:batter?batter.num:'', name:batter?batter.name:e.plast||''};
     // Score if bases were loaded pre-play
-    console.log('WALK event:', e.key, 'replay:', e._replay, 'oldBasesSnap:', JSON.stringify(oldBasesSnap), 'halfSide:', halfSide);
     if(oldBasesSnap[0] && oldBasesSnap[1] && oldBasesSnap[2]){
-      console.log('SCORING RUN from walk, bases were loaded');
       const scorer = oldBasesSnap[2];
       BB[halfSide].score++;
       BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + 1;

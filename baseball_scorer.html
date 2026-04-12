@@ -778,7 +778,11 @@ async function sbInsert(table, row){
 }
 
 function basesArr(){
-  return [!!G.bases[1], !!G.bases[2], !!G.bases[3]];
+  return [
+    G.bases[1] ? {name: G.bases[1].name, num: G.bases[1].number||G.bases[1].num||''} : null,
+    G.bases[2] ? {name: G.bases[2].name, num: G.bases[2].number||G.bases[2].num||''} : null,
+    G.bases[3] ? {name: G.bases[3].name, num: G.bases[3].number||G.bases[3].num||''} : null,
+  ];
 }
 
 function curPitcherTeamId(){

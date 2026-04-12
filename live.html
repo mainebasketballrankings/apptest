@@ -1469,8 +1469,12 @@ function bbUpdPanels(){
         <div class="ts-stat"><div class="ts-val">${BB[side].errors}</div><div class="ts-lbl">E</div></div>`;
     }
 
-    // Batting rows
+    // Batting rows — starters (first 9) always shown; others only when appeared
     BB.batters[side].forEach((p, idx)=>{
+      const isStarter = idx < 9;
+      const hasAppeared = (p.ab||0)+(p.bb||0)+(p.k||0)+(p.r||0)+(p.h||0) > 0
+        || BB.bases.some(b => b && (b.num===p.num || b.name===p.name));
+      if(!isStarter && !hasAppeared) return;
       const div = document.createElement('div');
       div.className = 'bb-pl-row';
       const hab = `${p.h||0}-${p.ab||0}`;
@@ -1706,9 +1710,8 @@ function bbOnEvent(e){
     if(e.key==='walk'&&batter) batter.bb++;
     if(pitcher) pitcher.bb++;
     const walkerRunner = {num:batter?batter.num:'', name:batter?batter.name:e.plast||''};
-    // Force advance using pre-play bases snapshot
+    // Score if bases were loaded pre-play
     if(oldBasesSnap[0] && oldBasesSnap[1] && oldBasesSnap[2]){
-      // Bases loaded — runner on 3rd scores
       const scorer = oldBasesSnap[2];
       BB[halfSide].score++;
       BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + 1;
@@ -1717,6 +1720,10 @@ function bbOnEvent(e){
       if(pitcher) pitcher.r = (pitcher.r||0)+1;
       if(batter) batter.rbi = (batter.rbi||0)+1;
     }
+    // Force advance runners and place batter on 1st (always, live and replay)
+    BB.bases[2] = oldBasesSnap[1] || BB.bases[2];
+    BB.bases[1] = oldBasesSnap[0] || BB.bases[1];
+    BB.bases[0] = walkerRunner;
   } else if(e.key==='error'){
     BB[opp].errors++;
   } else if(e.key==='inning_end'){

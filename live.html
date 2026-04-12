@@ -1628,20 +1628,25 @@ function bbOnEvent(e){
     try {
       const lineup = JSON.parse(e.notes||'[]');
       if(Array.isArray(lineup) && lineup.length){
-        BB.batters[s] = lineup.map(p => ({
-          name: p.name, num: p.num||'', pos: p.pos||'',
-          ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
-        }));
-        BB._lineupSize = BB._lineupSize || {};
-        BB._lineupSize[s] = lineup.length;
-        // Set starting pitcher
-        const pitcherEntry = lineup.find(p => p.pos === 'P');
-        if(pitcherEntry){
-          const exists = BB.pitchers[s].find(p => nameEq(p.name, pitcherEntry.name));
-          if(!exists){
-            BB.pitchers[s].push({name:pitcherEntry.name, num:pitcherEntry.num||'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0});
+        // Only reset if lineup differs from current or batters is empty
+        const currentNames = BB.batters[s].map(p=>p.name).join(',');
+        const newNames = lineup.map(p=>p.name).join(',');
+        if(currentNames !== newNames){
+          BB.batters[s] = lineup.map(p => ({
+            name: p.name, num: p.num||'', pos: p.pos||'',
+            ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
+          }));
+          BB._lineupSize = BB._lineupSize || {};
+          BB._lineupSize[s] = lineup.length;
+          // Set starting pitcher
+          const pitcherEntry = lineup.find(p => p.pos === 'P');
+          if(pitcherEntry){
+            const exists = BB.pitchers[s].find(p => nameEq(p.name, pitcherEntry.name));
+            if(!exists){
+              BB.pitchers[s].push({name:pitcherEntry.name, num:pitcherEntry.num||'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0});
+            }
+            BB.pitcher = {name:pitcherEntry.name, num:pitcherEntry.num||'', side:s, pitches:0, ip:'0.0'};
           }
-          BB.pitcher = {name:pitcherEntry.name, num:pitcherEntry.num||'', side:s, pitches:0, ip:'0.0'};
         }
       }
     } catch(err){ console.warn('lineup_set parse error', err); }

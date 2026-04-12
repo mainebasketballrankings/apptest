@@ -1541,14 +1541,18 @@ function bbUpdFeed(){
 }
 
 function bbUpdField(){
-  // Fielding side = opposite of batting side (top=away bats, home fields; bot=home bats, away fields)
   const fieldingSide = BB.half==='top' ? 'home' : 'away';
-  const def = BB_LINEUPS.defense[fieldingSide];
   const posMap = {P:'bb-fn-p',C:'bb-fn-c','1B':'bb-fn-1b','2B':'bb-fn-2b',
                   '3B':'bb-fn-3b',SS:'bb-fn-ss',LF:'bb-fn-lf',CF:'bb-fn-cf',RF:'bb-fn-rf'};
-  Object.entries(posMap).forEach(([pos,id])=>{
-    const el = document.getElementById(id);
-    if(el) el.textContent = def[pos] || '';
+  // Clear all positions first
+  Object.values(posMap).forEach(id => { const el=document.getElementById(id); if(el) el.textContent=''; });
+  // Build from actual lineup
+  BB.batters[fieldingSide].forEach(p => {
+    const id = posMap[p.pos];
+    if(id){
+      const el = document.getElementById(id);
+      if(el) el.textContent = `#${p.num} ${p.name.split(' ').pop()}`;
+    }
   });
 }
 
@@ -1614,6 +1618,9 @@ function bbOnEvent(e){
     pitches:pitcher.pitches,
     ip:`${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`
   };
+
+  // ── Capture pre-play bases before updating ───────────────
+  const oldBases = BB.bases.slice();
 
   // ── Bases — trust e.bases directly ──────────────────────
   if(e.bases !== undefined){
@@ -1697,6 +1704,25 @@ function bbOnEvent(e){
     if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
     if(batter)  batter.rbi = (batter.rbi||0) + (e.rbi||0);
     if(e.key==='hr' && batter) batter.r = (batter.r||0)+1;
+    // Credit R to runners who were on base and are now gone (scored)
+    if(e.key !== 'hr'){ // HR already scores everyone, handled above via oldBases
+      oldBases.forEach((runner) => {
+        if(!runner || !runner.name) return;
+        // Runner scored if they're no longer on any base in the new state
+        const stillOn = BB.bases.some(b => b && b.name && b.name === runner.name);
+        if(!stillOn){
+          const scorer = BB.batters[halfSide].find(p => nameEq(p.name, runner.name));
+          if(scorer) scorer.r = (scorer.r||0)+1;
+        }
+      });
+    } else {
+      // HR: all runners on old bases scored
+      oldBases.forEach(runner => {
+        if(!runner || !runner.name) return;
+        const scorer = BB.batters[halfSide].find(p => nameEq(p.name, runner.name));
+        if(scorer) scorer.r = (scorer.r||0)+1;
+      });
+    }
   }
   e.scoreSnap = { away:BB.away.score, home:BB.home.score };
 
@@ -1719,7 +1745,6 @@ function bbOnEvent(e){
   } else if(e.key==='walk'||e.key==='hbp'){
     if(e.key==='walk'&&batter) batter.bb++;
     if(pitcher) pitcher.bb++;
-    if(e.rbi&&batter) batter.rbi = (batter.rbi||0)+e.rbi;
 
   } else if(e.key==='error'){
     BB[opp].errors++;
@@ -1747,91 +1772,6 @@ function bbOnEvent(e){
   bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
 }
 
-// ── BASEBALL LINEUPS (pre-seeded so all players show from start) ──
-const BB_LINEUPS = {
-  away: [
-    {name:'Reynolds', num:3, pos:'CF'},{name:'Torres',   num:7,  pos:'SS'},
-    {name:'Whitfield',num:24,pos:'1B'},{name:'Kimball',  num:11, pos:'LF'},
-    {name:'Doucette', num:18,pos:'3B'},{name:'Foss',     num:9,  pos:'RF'},
-    {name:'Norwood',  num:2, pos:'2B'},{name:'Callahan', num:15, pos:'C'},
-    {name:'Beal',     num:22,pos:'P'},
-  ],
-  home: [
-    {name:'Peaslee',  num:5, pos:'2B'},{name:'Larson',   num:14, pos:'CF'},
-    {name:'Pinkham',  num:22,pos:'SS'},{name:'Oakes',    num:8,  pos:'1B'},
-    {name:'Winslow',  num:33,pos:'LF'},{name:'Hamlin',   num:17, pos:'3B'},
-    {name:'Bouchard', num:21,pos:'RF'},{name:'Ingraham', num:6,  pos:'C'},
-    {name:'Crockett', num:44,pos:'P'},
-  ],
-  pitchers: {
-    away: [{name:'Beal',    num:22}],
-    home: [{name:'Crockett',num:44}],
-  },
-  // Fielding side lineup (who's on defense) — away bats top, so home fields
-  defense: {
-    home: {P:'#44 Crockett',C:'#6 Ingraham','1B':'#8 Oakes','2B':'#5 Peaslee',
-           '3B':'#17 Hamlin',SS:'#22 Pinkham',LF:'#33 Winslow',CF:'#14 Larson',RF:'#21 Bouchard'},
-    away: {P:'#22 Beal',C:'#15 Callahan','1B':'#24 Whitfield','2B':'#2 Norwood',
-           '3B':'#18 Doucette',SS:'#7 Torres',LF:'#11 Kimball',CF:'#3 Reynolds',RF:'#9 Foss'},
-  }
-};
-
-// ── BASEBALL SIMULATOR ────────────────────────────────
-const BB_SIM = (()=>{
-  const mk = (side, plast, pnum, key, inning, half, opts={}) =>
-    ({side, plast, pnum, key, inning, half, pitcher:opts.pitcher||'Crockett',
-      balls:opts.b??0, strikes:opts.s??0, outs:opts.o??0,
-      bases:opts.bases!==undefined?opts.bases:undefined,
-      runs:opts.runs||0, rbi:opts.rbi||0, pitches:opts.p||1,
-      x:opts.x??null, y:opts.y??null, newHalf:opts.newHalf||false });
-  return [
-    // Top 1st — Away bats
-    mk('away','Reynolds',3,'groundout',   1,'top',{b:1,s:1,o:1,p:4,x:210,y:210}),
-    mk('away','Torres',  7,'single',      1,'top',{b:2,s:1,o:1,bases:[true,false,false],p:5,x:195,y:175}),
-    mk('away','Whitfield',24,'strikeout', 1,'top',{b:1,s:2,o:2,bases:[true,false,false],p:6}),
-    mk('away','Kimball', 11,'single',     1,'top',{b:0,s:1,o:2,bases:[true,false,false],p:3,runs:1,rbi:1,x:240,y:155}),
-    mk('away','Doucette',18,'flyout',     1,'top',{b:1,s:2,o:3,p:5,x:170,y:115,newHalf:true}),
-    // Bot 1st — Home bats
-    mk('home','Peaslee', 5,'walk',        1,'bot',{b:3,s:2,o:0,bases:[true,false,false],p:8,pitcher:'Beal'}),
-    mk('home','Larson',  14,'double',     1,'bot',{b:1,s:0,o:0,bases:[false,true,false],p:4,runs:1,rbi:1,x:260,y:130}),
-    mk('home','Pinkham', 22,'groundout',  1,'bot',{b:0,s:1,o:1,bases:[false,true,false],p:3,x:225,y:215}),
-    mk('home','Oakes',   8,'strikeout',   1,'bot',{b:1,s:2,o:2,bases:[false,true,false],p:7}),
-    mk('home','Winslow', 33,'flyout',     1,'bot',{b:2,s:1,o:3,p:4,x:155,y:120,newHalf:true}),
-    // Top 2nd
-    mk('away','Foss',    9,'single',      2,'top',{b:0,s:0,o:0,bases:[true,false,false],p:3,x:205,y:180}),
-    mk('away','Norwood', 2,'groundout',   2,'top',{b:1,s:1,o:1,bases:[true,false,false],p:4,x:215,y:220}),
-    mk('away','Reynolds',3,'hr',          2,'top',{b:2,s:1,o:1,bases:[false,false,false],p:5,runs:2,rbi:2,x:175,y:108}),
-    mk('away','Torres',  7,'strikeout',   2,'top',{b:0,s:2,o:2,p:5}),
-    mk('away','Whitfield',24,'walk',      2,'top',{b:3,s:1,o:2,bases:[true,false,false],p:7}),
-    mk('away','Kimball', 11,'flyout',     2,'top',{b:1,s:1,o:3,p:3,x:280,y:120,newHalf:true}),
-    // Bot 2nd
-    mk('home','Hamlin',  17,'single',     2,'bot',{b:1,s:0,o:0,bases:[true,false,false],p:4,x:230,y:165}),
-    mk('home','Peaslee', 5,'double',      2,'bot',{b:0,s:1,o:0,bases:[false,true,false],p:3,runs:1,rbi:1,x:270,y:130}),
-    mk('home','Larson',  14,'groundout',  2,'bot',{b:2,s:2,o:1,bases:[false,true,false],p:6,x:200,y:210}),
-    mk('home','Pinkham', 22,'single',     2,'bot',{b:1,s:1,o:1,bases:[true,false,true],p:4,runs:1,rbi:1,x:240,y:178}),
-    mk('home','Oakes',   8,'strikeout',   2,'bot',{b:0,s:2,o:2,p:5}),
-    mk('home','Winslow', 33,'groundout',  2,'bot',{b:1,s:0,o:3,p:3,x:185,y:215,newHalf:true}),
-    // Top 3rd
-    mk('away','Doucette',18,'walk',       3,'top',{b:3,s:2,o:0,bases:[true,false,false],p:8,pitcher:'Crockett'}),
-    mk('away','Foss',    9,'strikeout',   3,'top',{b:1,s:2,o:1,p:5}),
-    mk('away','Norwood', 2,'single',      3,'top',{b:0,s:1,o:1,bases:[true,false,false],p:3,runs:1,rbi:1,x:220,y:170}),
-    mk('away','Reynolds',3,'flyout',      3,'top',{b:2,s:1,o:2,p:4,x:145,y:118}),
-    mk('away','Torres',  7,'groundout',   3,'top',{b:1,s:0,o:3,p:3,x:190,y:210,newHalf:true}),
-  ];
-})();
-
-let bbSimIdx = 0;
-function bbRunSim(){
-  if(bbSimIdx >= BB_SIM.length){
-    document.getElementById('live-pill').classList.add('final');
-    document.getElementById('live-lbl').textContent='FINAL';
-    return;
-  }
-  const evt = BB_SIM[bbSimIdx++];
-  bbOnEvent(evt);
-  const big = ['single','double','triple','hr'].includes(evt.key);
-  setTimeout(bbRunSim, (big?3000:2000)+Math.random()*900);
-}
 </script>
 </body>
 </html>

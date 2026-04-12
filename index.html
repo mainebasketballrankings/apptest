@@ -1068,6 +1068,7 @@
         .select('game_id, event_type, player_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
         .neq('event_type', 'inning_end')
+        .neq('event_type', 'lineup_set')
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 5);
       if(evts){
@@ -1093,7 +1094,7 @@
             };
             const half = e.half === 'top' ? '▲' : '▼';
             const inn = e.inning || '';
-            const evtLabel = e.notes || EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' ');
+            const evtLabel = EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' ');
             const name = e.player_name || '';
             const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
             card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> <strong>${name}</strong> ${evtLabel}${scored}`;

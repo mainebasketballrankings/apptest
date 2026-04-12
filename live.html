@@ -1290,6 +1290,7 @@ function sbRowToEvt(row){
     plast:       row.player_name || '',
     pnum:        row.player_num || '',
     pitcher:     row.pitcher_name || '',
+    pitcherNum:  row.pitcher_num || '',
     pitches:     row.pitches || 0,
     notes:       row.notes || null,
     x:           row.x ?? null,
@@ -1744,6 +1745,7 @@ function bbOnEvent(e){
       incomingNum = info.incomingNum||'';
       outgoingName = info.outgoing||'';
     } catch(err){}
+    if(!incomingNum) incomingNum = e.pitcherNum||'';
     const newP = {name:e.pitcher||'—', num:incomingNum, ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     const alreadyIn = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
     if(!alreadyIn) BB.pitchers[opp].push(newP);

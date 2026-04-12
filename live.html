@@ -1491,6 +1491,31 @@ function bbUpdPanels(){
           <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0;letter-spacing:-.02em;margin-left:4px">${hab}</div>
         </div>
         <div class="bb-pl-line">${statLine}</div>`;
+      // ESPN-style: show replaced players above current, indented with arrow
+      if(p.subs && p.subs.length){
+        const subsHtml = p.subs.map(s => {
+          const sHab = `${s.h||0}-${s.ab||0}`;
+          const sStatLine = [
+            s.r   ? `${s.r} <span>R</span>`    : '',
+            s.rbi ? `${s.rbi} <span>RBI</span>` : '',
+            s.bb  ? `${s.bb} <span>BB</span>`  : '',
+            s.k   ? `${s.k} <span>K</span>`    : '',
+          ].filter(Boolean).join(' ') || `<span style="color:var(--ink3)">—</span>`;
+          return `<div style="padding:1px 8px 1px 22px;opacity:0.55;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
+              <div style="display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;">
+                <span style="color:var(--ink3);font-size:9px;flex-shrink:0">↳</span>
+                <span style="font-family:'DM Mono',monospace;font-size:10px;flex-shrink:0">#${s.num||'—'}</span>
+                <span style="font-family:'Barlow',sans-serif;font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</span>
+                <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);flex-shrink:0">${s.pos||''}</span>
+              </div>
+              <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:11px;color:var(--ink3);flex-shrink:0">${sHab}</span>
+            </div>
+            <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);padding-left:14px">${sStatLine}</div>
+          </div>`;
+        }).join('');
+        div.insertAdjacentHTML('afterbegin', subsHtml);
+      }
       cont.appendChild(div);
     });
 
@@ -1757,12 +1782,20 @@ function bbOnEvent(e){
           ? BB.batters[opp].find(p => nameEq(p.name, outgoing))
           : BB.batters[opp].find(p => p.pos === info.pos);
         if(batSlot){
+          // Push outgoing player into slot history before replacing
+          if(!batSlot.subs) batSlot.subs = [];
+          batSlot.subs.push({
+            name: batSlot.name, num: batSlot.num||'', pos: batSlot.pos||'',
+            ab: batSlot.ab||0, h: batSlot.h||0, r: batSlot.r||0,
+            rbi: batSlot.rbi||0, bb: batSlot.bb||0, k: batSlot.k||0
+          });
           batSlot.name = info.name;
           batSlot.num  = info.num||'';
           batSlot.pos  = info.pos;
           // Reset stats for new player
           batSlot.ab=0; batSlot.r=0; batSlot.h=0; batSlot.hr=0;
           batSlot.rbi=0; batSlot.bb=0; batSlot.k=0; batSlot.sb=0;
+          batSlot.subs = batSlot.subs; // keep reference
         }
         const desc = outgoing ? `${info.name} replaces ${outgoing}` : `${info.name} (${info.pos})`;
         toast(`Def sub: ${desc}`);

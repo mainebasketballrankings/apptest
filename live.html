@@ -1595,7 +1595,14 @@ function bbUpdField(){
     const el = document.getElementById(id);
     if(!el) return;
     const p = BB.defense[fieldingSide][pos];
-    el.textContent = p ? `#${p.num} ${p.name.split(' ').pop()}` : '';
+    if(!p){ el.textContent=''; return; }
+    // Fall back to pitchers list for number if missing
+    let num = p.num||'';
+    if(!num && pos==='P'){
+      const pitEntry = BB.pitchers[fieldingSide].find(x=>x.name===p.name);
+      if(pitEntry) num = pitEntry.num||'';
+    }
+    el.textContent = num ? `#${num} ${p.name.split(' ').pop()}` : p.name.split(' ').pop();
   });
 }
 

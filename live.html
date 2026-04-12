@@ -1329,7 +1329,7 @@ const BB_KLBL = {
   'stolen_base':'Stolen base','caught_stealing':'Caught stealing',
   'wild_pitch':'Wild pitch','passed_ball':'Passed ball',
   'pickoff':'Pickoff','balk':'Balk',
-  'sub_pitcher':'Pitching change','sub_batter':'Pinch hitter',
+  'sub_pitcher':'Pitching change','sub_batter':'Pinch hitter','sub_defense':'Defensive sub',
 };
 
 function advanceHalf(){
@@ -1540,16 +1540,14 @@ function bbUpdFeed(){
     dot.style.background=e.side==='home'?'var(--home)':'var(--away)';
     const body=document.createElement('div'); body.className='fr-body';
     const who=`<b>#${e.pnum} ${e.plast}</b>`;
-    const action = e.notes || BB_KLBL[e.key] || e.key;
+    const isOutEvt = ['groundout','flyout','lineout','popup','strikeout'].includes(e.key);
+    const action = BB_KLBL[e.key] || e.key;
     if(e.key==='inning_end') return;
     const halfLbl=e.half==='top'?'▲':'▼';
-    // Build description
     let desc = `${who} — ${action}`;
-    if(e.scorers && e.scorers.length){
-      const scored = e.scorers.join(', ');
-      desc += `. <span style="color:var(--green);font-weight:600">${scored} score${e.scorers.length>1?'':'s'}.</span>`;
-    }
-    if(e.rbi) desc += ` <span style="color:var(--ink3)">${e.rbi} RBI</span>`;
+    if(e.runs) desc += ` <span style="color:var(--green);font-weight:600">· ${e.runs} run${e.runs>1?'s':''}</span>`;
+    if(e.rbi && !e.runs) desc += ` <span style="color:var(--ink3)">${e.rbi} RBI</span>`;
+    if(isOutEvt && e.outs) desc += ` <span style="color:var(--ink3)">· ${e.outs} out${e.outs>1?'s':''}</span>`;
     body.innerHTML=`<div class="fr-desc">${desc}</div><div class="fr-meta">${halfLbl}${e.inning}</div>`;
     const sc=document.createElement('div'); sc.className='fr-score';
     sc.style.color=e.side==='home'?'var(--home)':'var(--away)';
@@ -1700,14 +1698,54 @@ function bbOnEvent(e){
 
   // ── Pitching change ──────────────────────────────────────
   if(e.key === 'sub_pitcher'){
-    if(!pitcher){
-      pitcher = {name:e.pitcher||'—', num:'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
-      BB.pitchers[opp].push(pitcher);
-    }
-    BB.pitcher = { name:pitcher.name, num:pitcher.num||'', side:opp, pitches:0, ip:'0.0' };
+    const newP = {name:e.pitcher||'—', num:'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
+    const alreadyIn = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
+    if(!alreadyIn) BB.pitchers[opp].push(newP);
+    const activeP = alreadyIn || newP;
+    BB.pitcher = { name:activeP.name, num:activeP.num||'', side:opp,
+      pitches:activeP.pitches, ip:`${Math.floor(activeP.ip_outs/3)}.${activeP.ip_outs%3}` };
+    // Update pitcher slot in fielding side's batting lineup
+    const pitSlot = BB.batters[opp].find(p => p.pos === 'P');
+    if(pitSlot){ pitSlot.name = activeP.name; pitSlot.num = activeP.num||''; }
     toast(`Pitching change — ${e.pitcher}`);
     bbEvts.unshift(e);
     bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
+    return;
+  }
+
+  if(e.key === 'sub_batter'){
+    try {
+      const info = JSON.parse(e.notes||'{}');
+      if(info.name){
+        const idx = BB.batIdx[halfSide] % BB.batters[halfSide].length;
+        BB.batters[halfSide][idx] = {
+          name:info.name, num:info.num||'', pos:info.pos||'',
+          ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
+        };
+        BB.batter = {name:info.name, num:info.num||'', side:halfSide, line:'0–0, 0 RBI'};
+      }
+    } catch(err){ console.warn('sub_batter parse error', err); }
+    toast(`PH: ${e.plast}`);
+    bbEvts.unshift(e);
+    bbUpdPanels();
+    return;
+  }
+
+  if(e.key === 'sub_defense'){
+    try {
+      const info = JSON.parse(e.notes||'{}');
+      if(info.name && info.pos){
+        // Clear old player from that position in the fielding side's lineup
+        BB.batters[opp].forEach(p => { if(p.pos === info.pos) p.pos = ''; });
+        // Find the incoming player and update their position
+        const defPlayer = BB.batters[opp].find(p => nameEq(p.name, info.name));
+        if(defPlayer) defPlayer.pos = info.pos;
+        bbUpdField();
+      }
+    } catch(err){ console.warn('sub_defense parse error', err); }
+    toast(`Def sub: ${e.plast}`);
+    bbEvts.unshift(e);
+    bbUpdPanels();
     return;
   }
 

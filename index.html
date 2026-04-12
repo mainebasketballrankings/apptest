@@ -1065,7 +1065,7 @@
     if(activeGames.length){
       const ids = activeGames.map(g => `"${g.id}"`).join(',');
       const { data: evts } = await sb.from('game_events')
-        .select('game_id, event_type, player_name, inning, half, outs, runs, rbi, bases, notes, created_at')
+        .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
         .neq('event_type', 'lineup_set')
         .order('created_at', { ascending: false })
@@ -1087,17 +1087,24 @@
           if(card && e){
             const EVT_LABEL = {
               single:'singles', double:'doubles', triple:'triples', hr:'homers',
-              groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops out',
+              groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops up',
               strikeout:'strikes out', walk:'walks', hbp:'hit by pitch',
               error:'reaches on error', fielders_choice:'fielder\'s choice',
               sac_bunt:'sac bunt', sac_fly:'sac fly', sub_pitcher:'pitching change',
+              sub_batter:'pinch hit', sub_defense:'defensive sub',
             };
             const half = e.half === 'top' ? '▲' : '▼';
             const inn = e.inning || '';
-            const evtLabel = EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' ');
-            const name = e.player_name || '';
+            const isDP = e.notes && e.notes.includes('(DP)');
+            const evtLabel = isDP ? 'grounds into double play' : (EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' '));
+            const name = e.event_type === 'sub_pitcher' ? '' : (e.player_name || '');
+            const pitchDesc = e.event_type === 'sub_pitcher' && e.pitcher_name ? `Pitching change: ${e.pitcher_name}` : null;
             const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
-            card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> <strong>${name}</strong> ${evtLabel}${scored}`;
+            const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
+            const isOut = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
+            const outNum = isDP ? ` · 2 outs` : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
+            const desc = pitchDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}`;
+            card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
           }
           // Update top bar left span with scorebug
           const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
@@ -1107,7 +1114,8 @@
             let dispInn = se.inning || 1;
             let dispBases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
             let dispOuts = se.outs || 0;
-            if(se.event_type === 'inning_end'){
+            // If 3 outs recorded, advance to next half for display
+            if(dispOuts >= 3 || se.event_type === 'inning_end'){
               dispBases = [false,false,false];
               dispOuts = 0;
               if(dispHalf === 'top'){ dispHalf = 'bot'; }

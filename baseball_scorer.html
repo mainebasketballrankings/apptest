@@ -955,10 +955,19 @@ function newPlayer(order, name, pos) {
            pitches:0,ip_outs:0,pk:0,pbb:0,pibb:0,per:0,phr:0,wp:0,gs:0,w:0,l:0,sv:0}};
 }
 
-function psKey(side,idx){ return side+'_'+idx; }
-function getPS(side,idx){
-  const k = psKey(side,idx);
-  if(!G.pitStats[k]) G.pitStats[k]={pitches:0,strikes:0,ip_outs:0,h:0,bb:0,k:0,er:0,uner:0,hr:0,name:'',num:''};
+function psKey(side, idx){
+  // Key by side+idx for initial lookup, but pitching changes use side+name
+  return side + '_' + idx;
+}
+function psKeyForPitcher(side, name, idx){
+  // Unique per pitcher appearance: use name if available, fallback to idx
+  return name ? side + '_' + name.replace(/\s+/g,'_') : side + '_' + idx;
+}
+function getPS(side, idx){
+  // Find the active pitcher's key for this side/idx
+  const pitcher = G.teams[side]?.lineup?.[idx];
+  const k = pitcher?.name ? psKeyForPitcher(side, pitcher.name, idx) : psKey(side, idx);
+  if(!G.pitStats[k]) G.pitStats[k]={pitches:0,strikes:0,ip_outs:0,h:0,bb:0,k:0,er:0,uner:0,hr:0,name:pitcher?.name||'',num:pitcher?.number||''};
   return G.pitStats[k];
 }
 function battingSide(){ return G.half==='top'?'away':'home'; }
@@ -1117,12 +1126,12 @@ function startGame(){
       });
     });
   }
-  // Mark game as active in Supabase so Live button appears on scoreboard
+  // Mark game as active and reset live scores
   if(G_game_id){
     fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
       method:'PATCH',
       headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body: JSON.stringify({ status:'active' })
+      body: JSON.stringify({ status:'active', home_score_live:0, away_score_live:0 })
     }).then(r=>{ if(!r.ok) r.text().then(t=>console.error('Status update failed:',t)); })
       .catch(e=>console.error('Status update error:',e));
   }
@@ -1190,7 +1199,9 @@ function doStrikeout(type){
   }
   // Note: final strike already pushed to curPitches by logPitch()
   const sym=type==='K'?'ꓘ':'K';
-  addPBP(`<strong>${b.player.name}</strong> ${sym}`);
+  const kType = type==='K' ? 'Called strike' : 'Strikeout';
+  const outCount = G.outs + 1;
+  addPBP(`<strong>${b.player.name}</strong> ${sym} — ${outCount} out${outCount>1?'s':''}`);
   pushEvt('strikeout', {outs_override: G.outs + 1});
   addOut(`K`);
 }
@@ -1352,7 +1363,12 @@ function confirmOut(type){
   const isSacFly=(type==='SF');
   if(!isSacBunt && !isSacFly) b.player.stats.ab++;
   else b.player.stats.sac=(b.player.stats.sac||0)+1;
-  addPBP(`<strong>${b.player.name}</strong> — ${notation}`);
+  const outAction = isSacBunt?'Sac bunt':isSacFly?'Sac fly':
+                    type==='GO'?'Grounds out':type==='FO'?'Flies out':
+                    type==='LO'?'Lines out':type==='PO'?'Pops up':
+                    type==='IFF'?'Infield fly':'Out';
+  const outCount = G.outs + 1; // outs after this play
+  addPBP(`<strong>${b.player.name}</strong> ${outAction} (${notation}) — ${outCount} out${outCount>1?'s':''}`);
   closeOv('ovInPlay');
   G.curPitches.push('X');
   chargePitch();
@@ -1907,8 +1923,6 @@ function confirmSub(side,idx,fromBench){
       G.teams[side].lineup[prevPitcherIdx] = player;
       G.teams[side].bench.splice(idx,1);
       G.pitchers[side] = prevPitcherIdx;
-      const ps = getPS(side, prevPitcherIdx);
-      ps.name=player.name; ps.num=player.number;
       // Add to slot history for box score
       if(G.teams[side].slots && G.teams[side].slots[prevPitcherIdx]){
         G.teams[side].slots[prevPitcherIdx].push(player);
@@ -1939,6 +1953,10 @@ function confirmSub(side,idx,fromBench){
     if(G.teams[bside].slots[batIdx]) G.teams[bside].slots[batIdx].push(player);
     if(fromBench) G.teams[bside].bench.splice(idx,1);
     addPBP(`PH: <strong>${player.name}</strong> for <strong>${replaced.name}</strong>`);
+    pushEvt('sub_batter', {
+      player_override: player,
+      notes: JSON.stringify({name:player.name, num:player.number||'', pos:player.subPos||'', subFor:replaced.name})
+    });
   }
   closeOv('ovSub');
   render();
@@ -2664,6 +2682,10 @@ function confirmDefSub(pos){
     if(G.pitchers[side]===oldIdx && pos==='P') G.pitchers[side]=lu.length-1;
   }
   addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${replaced?' for '+replaced.name:''}`);
+  pushEvt('sub_defense', {
+    player_override: player,
+    notes: JSON.stringify({name:player.name, num:player.number||'', pos, subFor:replaced?replaced.name:''})
+  });
   closeOv('ovSub'); render();
 }
 

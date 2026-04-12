@@ -1189,7 +1189,8 @@ function doWalk(type){
   const basesLoaded = !!(G.bases[1] && G.bases[2] && G.bases[3]);
   const runner={name:b.player.name,num:b.player.number};
   forceAdvance(runner);
-  addPBP(`<strong>${b.player.name}</strong> ${type} — reaches 1B`);
+  if(basesLoaded) b.player.stats.rbi = (b.player.stats.rbi||0) + 1;
+  addPBP(`<strong>${b.player.name}</strong> ${type} — reaches 1B${basesLoaded?' · 1 RBI':''}`);
   pushEvt(type==='BB'?'walk':'hbp', basesLoaded ? {runs:1, rbi:1} : {});
   nextBatter(); resetCount(); render();
 }

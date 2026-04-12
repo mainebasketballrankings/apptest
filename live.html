@@ -54,8 +54,8 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 
 /* Team half — logo on outside, name+meta centre, score on inside */
 .sb-team{display:flex;flex-direction:row;align-items:center;padding:12px 24px 10px;width:100%;box-sizing:border-box;justify-content:space-between;gap:16px;}
-.sb-team.home{border-right:1px solid var(--rule2);}
-.sb-team.away{border-left:1px solid var(--rule2);}
+.sb-team.home{border-left:1px solid var(--rule2);}
+.sb-team.away{border-right:1px solid var(--rule2);}
 .sb-logo{width:76px;height:76px;min-width:76px;max-width:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:26px;overflow:hidden;flex-shrink:0;border:2px solid var(--rule);background:var(--rule2);color:var(--ink2);}
 .sb-logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
 .sb-name{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;color:var(--ink);line-height:1.1;}
@@ -161,8 +161,8 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
 }
 @media(max-width:500px){
   .sb-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
-  .sb-team.home{grid-column:1;grid-row:1;border-right:1px solid var(--rule2);border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
-  .sb-team.away{grid-column:2;grid-row:1;border-left:none;border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
+  .sb-team.home{grid-column:2;grid-row:1;border-left:1px solid var(--rule2);border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
+  .sb-team.away{grid-column:1;grid-row:1;border-left:none;border-bottom:1px solid var(--rule2);padding:8px 10px 6px;}
   .sb-centre{grid-column:1/-1;grid-row:2;padding:8px 12px 6px;}
   .sb-logo{width:36px;height:36px;min-width:36px;max-width:36px;font-size:14px;}
   .sb-name{font-size:14px;}
@@ -269,18 +269,17 @@ body.sport-baseball .bball-only{display:none !important;}
 <div id="scoreboard">
   <div class="sb-inner">
     <div class="sb-row">
-      <!-- HOME: logo + name/score stack -->
-      <!-- HOME: logo(far left) | name+meta(centre) | score(far right) -->
-      <div class="sb-team home">
-        <div class="sb-logo" id="home-logo">C</div>
+      <!-- AWAY: score(far left) | name+meta(centre) | logo(far right) -->
+      <div class="sb-team away">
+        <div class="sb-pts" id="away-score">0</div>
         <div class="sb-middle">
-          <div class="sb-name" id="home-name">Camden Hills</div>
+          <div class="sb-name" id="away-name">Cape Elizabeth</div>
           <div class="sb-meta">
-            <span class="sb-foul bball-only" id="home-foul-lbl">0 fouls</span>
-            <span class="bball-only" id="home-to-lbl">5 TO left</span>
+            <span class="sb-foul bball-only" id="away-foul-lbl">0 fouls</span>
+            <span class="bball-only" id="away-to-lbl">5 TO left</span>
           </div>
         </div>
-        <div class="sb-pts" id="home-score">0</div>
+        <div class="sb-logo" id="away-logo">C</div>
       </div>
 
       <!-- CENTRE: basketball = clock+period+possession+qtr grid | baseball = inning+linescore -->
@@ -331,17 +330,19 @@ body.sport-baseball .bball-only{display:none !important;}
         </div>
       </div>
 
-      <!-- AWAY: score(far left) | name+meta(centre) | logo(far right) -->
-      <div class="sb-team away">
-        <div class="sb-pts" id="away-score">0</div>
+
+      <!-- HOME: logo + name/score stack -->
+      <!-- HOME: logo(far left) | name+meta(centre) | score(far right) -->
+      <div class="sb-team home">
+        <div class="sb-logo" id="home-logo">C</div>
         <div class="sb-middle">
-          <div class="sb-name" id="away-name">Cape Elizabeth</div>
+          <div class="sb-name" id="home-name">Camden Hills</div>
           <div class="sb-meta">
-            <span class="sb-foul bball-only" id="away-foul-lbl">0 fouls</span>
-            <span class="bball-only" id="away-to-lbl">5 TO left</span>
+            <span class="sb-foul bball-only" id="home-foul-lbl">0 fouls</span>
+            <span class="bball-only" id="home-to-lbl">5 TO left</span>
           </div>
         </div>
-        <div class="sb-logo" id="away-logo">C</div>
+        <div class="sb-pts" id="home-score">0</div>
       </div>
     </div>
   </div>

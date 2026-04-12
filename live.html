@@ -1706,16 +1706,18 @@ function bbOnEvent(e){
   } else if(e.key==='walk'||e.key==='hbp'){
     if(e.key==='walk'&&batter) batter.bb++;
     if(pitcher) pitcher.bb++;
-    const walkerRunner = {num:batter?batter.num:'', name:batter?batter.name:e.plast||''};
-    // Score if bases were loaded pre-play
-    if(oldBasesSnap[0] && oldBasesSnap[1] && oldBasesSnap[2]){
+    // RBI credit for bases-loaded walk
+    if(e.rbi && batter) batter.rbi = (batter.rbi||0) + e.rbi;
+    // Score credit — use e.runs if stored, otherwise infer from oldBasesSnap
+    if(e.runs){
+      BB[halfSide].score += e.runs;
+      BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + e.runs;
+      if(pitcher) pitcher.r = (pitcher.r||0) + e.runs;
       const scorer = oldBasesSnap[2];
-      BB[halfSide].score++;
-      BB.innings[halfSide][inn] = (BB.innings[halfSide][inn]||0) + 1;
-      const scoringPlayer = BB.batters[halfSide].find(p=>p.num===scorer.num||p.name===scorer.name);
-      if(scoringPlayer) scoringPlayer.r = (scoringPlayer.r||0)+1;
-      if(pitcher) pitcher.r = (pitcher.r||0)+1;
-      if(batter) batter.rbi = (batter.rbi||0)+1;
+      if(scorer){
+        const scoringPlayer = BB.batters[halfSide].find(p=>p.num===scorer.num||p.name===scorer.name);
+        if(scoringPlayer) scoringPlayer.r = (scoringPlayer.r||0)+1;
+      }
     }
     // Force advance runners and place batter on 1st (always, live and replay)
     BB.bases[2] = oldBasesSnap[1] || BB.bases[2];

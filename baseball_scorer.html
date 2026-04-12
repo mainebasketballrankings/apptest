@@ -1031,18 +1031,17 @@ function addBench(side){ G.teams[side].bench.push(newPlayer(0,'')); renderBench(
 function addBenchToLineup(side, i){
   const p = G.teams[side].bench[i];
   if(!p) return;
-  // Read current displayed values from DOM (onchange may not have fired if user didn't interact)
+  // Read current name/number from DOM in case user typed without tabbing out
   const benchEl = document.getElementById(side+'Bench');
   if(benchEl){
     const rows = benchEl.querySelectorAll('.lu-row');
     if(rows[i]){
-      const sel = rows[i].querySelector('select');
-      if(sel && sel.value) p.pos = sel.value;
       const inputs = rows[i].querySelectorAll('input');
       if(inputs[0]) p.name = inputs[0].value;
       if(inputs[1]) p.number = inputs[1].value;
     }
   }
+  p.pos = ''; // position set in lineup, not bench
   p.order = G.teams[side].lineup.length + 1;
   G.teams[side].lineup.push(p);
   G.teams[side].bench.splice(i, 1);
@@ -1058,9 +1057,6 @@ function renderBench(side){
       <button onclick="addBenchToLineup('${side}',${i})" style="background:#ee6730;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;font-family:'Barlow',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap">+ LU</button>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].bench[${i}].name=this.value"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].bench[${i}].number=this.value"/>
-      <select class="lu-input" style="padding:5px 3px" onchange="G.teams['${side}'].bench[${i}].pos=this.value">
-        ${POSITIONS.map(pos=>`<option value="${pos}" ${pos===p.pos?'selected':''}>${pos}</option>`).join('')}
-      </select>
       <button class="lu-del" onclick="removeBench('${side}',${i})">✕</button>
     </div>`).join('');
 }

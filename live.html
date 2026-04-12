@@ -1479,6 +1479,27 @@ function bbUpdPanels(){
         p.k   ? `${p.k} <span>K</span>`    : '',
         p.sb  ? `${p.sb} <span>SB</span>`  : '',
       ].filter(Boolean).join(' ') || `<span style="color:var(--ink3)">—</span>`;
+      // ESPN-style: slot # once, replaced players shown first (faded), current player active below
+      const subsHtml = (p.subs||[]).map(s => {
+        const sHab = `${s.h||0}-${s.ab||0}`;
+        const sStatLine = [
+          s.r   ? `${s.r} <span>R</span>`    : '',
+          s.rbi ? `${s.rbi} <span>RBI</span>` : '',
+          s.bb  ? `${s.bb} <span>BB</span>`  : '',
+          s.k   ? `${s.k} <span>K</span>`    : '',
+        ].filter(Boolean).join(' ') || `<span>—</span>`;
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;opacity:0.45;padding:1px 0;">
+            <div style="display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;padding-left:16px;">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;flex-shrink:0">#${s.num||'—'}</span>
+              <span style="font-family:'Barlow',sans-serif;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name}</span>
+              <span style="font-family:'DM Mono',monospace;font-size:9px;flex-shrink:0">${s.pos||''}</span>
+            </div>
+            <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:12px;flex-shrink:0;">${sHab}</span>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);padding-left:32px;opacity:0.45;">${sStatLine}</div>`;
+      }).join('');
+
       div.innerHTML=`
         <div class="bb-pl-top">
           <div class="pl-ident" style="min-width:0;overflow:hidden;">
@@ -1490,32 +1511,8 @@ function bbUpdPanels(){
           </div>
           <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:${(p.h||0)>0?'var(--ink)':'var(--ink3)'};flex-shrink:0;letter-spacing:-.02em;margin-left:4px">${hab}</div>
         </div>
-        <div class="bb-pl-line">${statLine}</div>`;
-      // ESPN-style: show replaced players above current, indented with arrow
-      if(p.subs && p.subs.length){
-        const subsHtml = p.subs.map(s => {
-          const sHab = `${s.h||0}-${s.ab||0}`;
-          const sStatLine = [
-            s.r   ? `${s.r} <span>R</span>`    : '',
-            s.rbi ? `${s.rbi} <span>RBI</span>` : '',
-            s.bb  ? `${s.bb} <span>BB</span>`  : '',
-            s.k   ? `${s.k} <span>K</span>`    : '',
-          ].filter(Boolean).join(' ') || `<span style="color:var(--ink3)">—</span>`;
-          return `<div style="padding:1px 8px 1px 22px;opacity:0.55;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
-              <div style="display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;">
-                <span style="color:var(--ink3);font-size:9px;flex-shrink:0">↳</span>
-                <span style="font-family:'DM Mono',monospace;font-size:10px;flex-shrink:0">#${s.num||'—'}</span>
-                <span style="font-family:'Barlow',sans-serif;font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</span>
-                <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);flex-shrink:0">${s.pos||''}</span>
-              </div>
-              <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:11px;color:var(--ink3);flex-shrink:0">${sHab}</span>
-            </div>
-            <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);padding-left:14px">${sStatLine}</div>
-          </div>`;
-        }).join('');
-        div.insertAdjacentHTML('afterbegin', subsHtml);
-      }
+        <div class="bb-pl-line">${statLine}</div>
+        ${subsHtml}`;
       cont.appendChild(div);
     });
 

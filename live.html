@@ -1675,7 +1675,19 @@ function bbOnEvent(e){
       BB.half = BB.half==='top' ? 'bot' : 'top';
       if(BB.half==='top') BB.inning++;
       BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
-      // Don't reset batIdx — batting order continues across innings
+      // Update batter to current leadoff for new half
+      const newBattingSide = BB.half==='top' ? 'away' : 'home';
+      const nextBatter = BB.batters[newBattingSide][BB.batIdx[newBattingSide]];
+      if(nextBatter) BB.batter = { name:nextBatter.name, num:nextBatter.num||'', side:newBattingSide,
+        line:`${nextBatter.h||0}–${nextBatter.ab||0}, ${nextBatter.rbi||0} RBI` };
+      // Update pitcher to current pitcher for new fielding side
+      const newFieldingSide = BB.half==='top' ? 'home' : 'away';
+      const curP = BB.pitchers[newFieldingSide];
+      if(curP && curP.length){
+        const p = curP[curP.length-1];
+        BB.pitcher = { name:p.name, num:p.num||'', side:newFieldingSide,
+          pitches:p.pitches, ip:`${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` };
+      }
       bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
     };
     e._replay ? advance() : setTimeout(advance, 1500);

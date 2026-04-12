@@ -1067,16 +1067,15 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .neq('event_type', 'inning_end')
         .neq('event_type', 'lineup_set')
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 5);
       if(evts){
-        const lastEvt = {};  // for play description (skips runner-out)
-        const stateEvt = {}; // for outs/bases scorebug (uses latest event)
+        const lastEvt = {};  // for play description (skips inning_end)
+        const stateEvt = {}; // for outs/bases/inning scorebug (uses latest including inning_end)
         evts.forEach(e => {
           if(!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
-          if(!lastEvt[e.game_id] && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
+          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
@@ -1102,17 +1101,26 @@
           // Update top bar left span with scorebug
           const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
           if(topLeft && se){
-            const half = se.half === 'top' ? '▲' : '▼';
-            const inn = se.inning || '1';
-            const bases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
-            const outs = se.outs || 0;
+            // If latest event is inning_end, advance to next half for display
+            let dispHalf = se.half;
+            let dispInn = se.inning || 1;
+            let dispBases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
+            let dispOuts = se.outs || 0;
+            if(se.event_type === 'inning_end'){
+              dispBases = [false,false,false];
+              dispOuts = 0;
+              if(dispHalf === 'top'){ dispHalf = 'bot'; }
+              else { dispHalf = 'top'; dispInn = dispInn + 1; }
+            }
+            const half = dispHalf === 'top' ? '▲' : '▼';
+            const inn = dispInn;
             const bd = (on) => `<span style="width:6px;height:6px;border-radius:1px;transform:rotate(45deg);background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
             const od = (on) => `<span style="width:5px;height:5px;border-radius:50%;background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
             const baseGrid = `<span style="display:grid;grid-template-columns:8px 8px 8px;grid-template-rows:8px 8px;gap:1px;flex-shrink:0">
-              <span></span>${bd(bases[1])}<span></span>
-              ${bd(bases[2])}<span></span>${bd(bases[0])}
+              <span></span>${bd(dispBases[1])}<span></span>
+              ${bd(dispBases[2])}<span></span>${bd(dispBases[0])}
             </span>`;
-            const outCol = `<span style="display:flex;flex-direction:column;gap:2px;justify-content:center;flex-shrink:0">${od(outs>0)}${od(outs>1)}</span>`;
+            const outCol = `<span style="display:flex;flex-direction:column;gap:2px;justify-content:center;flex-shrink:0">${od(dispOuts>0)}${od(dispOuts>1)}</span>`;
             topLeft.style.display = 'flex';
             topLeft.style.alignItems = 'center';
             topLeft.style.gap = '5px';

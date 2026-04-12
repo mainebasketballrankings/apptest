@@ -1102,7 +1102,7 @@
               try {
                 const info = JSON.parse(e.notes||'{}');
                 return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`;
-              } catch(){ return `Pitching change: ${e.pitcher_name}`; }
+              } catch(err){ return `Pitching change: ${e.pitcher_name}`; }
             })() : null;
             const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
             const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';

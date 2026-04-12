@@ -1770,9 +1770,19 @@ function bbOnEvent(e){
       const info = JSON.parse(e.notes||'{}');
       if(info.name){
         const idx = BB.batIdx[halfSide] % BB.batters[halfSide].length;
+        const slot = BB.batters[halfSide][idx];
+        // Store outgoing batter in subs history before replacing
+        if(!slot.subs) slot.subs = [];
+        slot.subs.push({
+          name: slot.name, num: slot.num||'', pos: slot.pos||'',
+          ab: slot.ab||0, h: slot.h||0, r: slot.r||0,
+          rbi: slot.rbi||0, bb: slot.bb||0, k: slot.k||0
+        });
+        const prevSubs = slot.subs;
         BB.batters[halfSide][idx] = {
           name:info.name, num:info.num||'', pos:info.pos||'',
-          ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
+          ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0,
+          subs: prevSubs
         };
         BB.batter = {name:info.name, num:info.num||'', side:halfSide, line:'0–0, 0 RBI'};
         toast(`PH: ${info.name}`);

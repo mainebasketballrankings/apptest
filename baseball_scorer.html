@@ -1458,7 +1458,7 @@ function doHR(){
   // Score batter + all runners (default earned; prompt will adjust if errorThisHalf)
   scoreRunner({name:b.player.name}, side, false);
   runners.forEach(r => scoreRunner(r, side, false));
-  b.player.stats.ab++; b.player.stats.h++; b.player.stats.hr++; b.player.stats.r++; b.player.stats.rbi+=runs;
+  b.player.stats.ab++; b.player.stats.h++; b.player.stats.hr++; b.player.stats.rbi+=runs;
   const p=curPitcher();
   if(p){ const ps=getPS(p.side,p.idx); ps.hr++; ps.h++; }
   G.hits[side]++;
@@ -2832,6 +2832,21 @@ function restoreGame(){
     document.getElementById('gameScreen').style.display='flex';
     document.getElementById('gameScreen').style.flexDirection='column';
     document.getElementById('restoreBanner')?.remove();
+    // Resync slots to use the same object references as lineup
+    // After JSON.parse, slots and lineup are separate objects — must relink
+    ['away','home'].forEach(side => {
+      if(!G.teams[side].slots) return;
+      G.teams[side].slots = G.teams[side].slots.map((slot, i) => {
+        return slot.map((slotPlayer, depth) => {
+          if(depth === 0) {
+            // Find matching player in lineup by name and merge stats
+            const lu = G.teams[side].lineup.find(p => p.name === slotPlayer.name);
+            if(lu) { Object.assign(lu.stats, slotPlayer.stats); return lu; }
+          }
+          return slotPlayer;
+        });
+      });
+    });
     init(true); // skip test players
     renderLU('away'); renderLU('home'); renderBench('away'); renderBench('home');
     render();

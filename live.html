@@ -258,8 +258,8 @@ body.sport-baseball .bball-only{display:none !important;}
 <header id="site-header">
   <a class="mbr-wordmark" href="#">Maine Basketball Rankings<span>·</span>Live</a>
   <div id="header-centre">
-    <div id="header-event">Class A South Quarterfinal</div>
-    <div id="header-venue">Augusta Civic Center</div>
+    <div id="header-event"></div>
+    <div id="header-venue"></div>
   </div>
   <div id="header-right">
     <div id="live-pill"><div id="live-dot"></div><span id="live-lbl">LIVE</span></div>
@@ -1184,7 +1184,7 @@ let LIVE_away_team_id = null;
 async function connectGame(gameId){
   // 1. Fetch game info
   const gRes = await fetch(
-    `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
+    `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,home_team_id,away_team_id,venue,location,game_date,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
     { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
   );
   const games = await gRes.json();
@@ -1198,6 +1198,12 @@ async function connectGame(gameId){
     { name: game.home_team.school_name, short: game.home_team.school_name.slice(0,3).toUpperCase(), logoUrl: game.home_team.logo_url||'' },
     { name: game.away_team.school_name, short: game.away_team.school_name.slice(0,3).toUpperCase(), logoUrl: game.away_team.logo_url||'' }
   );
+
+  // Populate header event/venue from real game data
+  const evtEl = document.getElementById('header-event');
+  const venEl = document.getElementById('header-venue');
+  if(evtEl) evtEl.textContent = game.venue || '';
+  if(venEl) venEl.textContent = game.location || '';
 
   // 2. Fetch and replay all existing events
   const eRes = await fetch(

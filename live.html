@@ -1526,26 +1526,21 @@ function bbUpdPanels(){
       hdr.style.cssText='font-family:\'DM Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:5px 10px 3px;border-top:1.5px solid var(--rule);border-bottom:1px solid var(--rule2);background:var(--paper);';
       hdr.textContent='Pitching';
       cont.appendChild(hdr);
-      BB.pitchers[side].forEach((p, pi)=>{
-        const isActive = pi === BB.pitchers[side].length - 1;
+      BB.pitchers[side].forEach(p=>{
         const ip_str = Math.floor(p.ip_outs/3)+'.'+(p.ip_outs%3);
         const div=document.createElement('div');
         div.className='bb-pl-row';
-        const statLine = [
-          p.h   ? `${p.h} <span>H</span>`   : '',
-          p.r   ? `${p.r} <span>R</span>`   : '',
-          p.bb  ? `${p.bb} <span>BB</span>` : '',
-          p.pitches ? `${p.pitches} <span>P</span>` : '',
-        ].filter(Boolean).join(' ') || '<span style="color:var(--ink3)">—</span>';
-        const arrow = !isActive ? '' : (pi > 0 ? '<span style="color:var(--ink3);font-size:10px;flex-shrink:0;margin-right:2px;">↳</span>' : '');
-        const fade = isActive ? '' : 'opacity:0.45;';
-        const indent = (!isActive || pi === 0) ? '' : 'padding-left:6px;';
         div.innerHTML=`
-          <div class="bb-pl-top" style="${fade}${indent}">
-            <div class="pl-ident">${arrow}<span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
+          <div class="bb-pl-top">
+            <div class="pl-ident"><span class="pl-num">#${p.num||'—'}</span><span class="pl-name">${p.name}</span></div>
             <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;flex-shrink:0;color:var(--ink);letter-spacing:-.02em;text-align:right;white-space:nowrap">${ip_str} IP · ${p.k||0} K</div>
           </div>
-          <div class="bb-pl-line" style="${fade}${indent}">${statLine}</div>`;
+          <div class="bb-pl-line">${[
+            p.h   ? `${p.h} <span>H</span>`   : '',
+            p.r   ? `${p.r} <span>R</span>`   : '',
+            p.bb  ? `${p.bb} <span>BB</span>` : '',
+            p.pitches ? `${p.pitches} <span>P</span>` : '',
+          ].filter(Boolean).join(' ') || '<span style="color:var(--ink3)">—</span>'}</div>`;
         cont.appendChild(div);
       });
     }
@@ -1750,7 +1745,19 @@ function bbOnEvent(e){
       pitches:activeP.pitches, ip:`${Math.floor(activeP.ip_outs/3)}.${activeP.ip_outs%3}` };
     BB.defense[opp]['P'] = {name:activeP.name, num:activeP.num||''};
     const pitSlot = BB.batters[opp].find(p => p.pos === 'P');
-    if(pitSlot){ pitSlot.name = activeP.name; pitSlot.num = activeP.num||''; }
+    if(pitSlot){
+      // Store outgoing pitcher in subs history before replacing
+      if(!pitSlot.subs) pitSlot.subs = [];
+      pitSlot.subs.push({
+        name: pitSlot.name, num: pitSlot.num||'', pos: 'P',
+        ab: pitSlot.ab||0, h: pitSlot.h||0, r: pitSlot.r||0,
+        rbi: pitSlot.rbi||0, bb: pitSlot.bb||0, k: pitSlot.k||0
+      });
+      pitSlot.name = activeP.name;
+      pitSlot.num  = activeP.num||'';
+      pitSlot.ab=0; pitSlot.r=0; pitSlot.h=0; pitSlot.hr=0;
+      pitSlot.rbi=0; pitSlot.bb=0; pitSlot.k=0; pitSlot.sb=0;
+    }
     const desc = outgoingName ? `${activeP.name} replaces ${outgoingName}` : activeP.name;
     toast(`Pitching change — ${desc}`);
     bbEvts.unshift(e);

@@ -1629,6 +1629,7 @@ function bbOnEvent(e){
   let pitcher = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
 
   if(!batter && e.plast){
+    console.warn(`BATTER NOT FOUND: plast="${e.plast}" pnum="${e.pnum}" side="${s}" roster:`, BB.batters[s].map(p=>`${p.name}(${p.num})`).join(','));
     batter = {name:e.plast, num:e.pnum||'', pos:'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0};
     BB.batters[s].push(batter);
   }

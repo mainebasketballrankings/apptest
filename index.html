@@ -1074,6 +1074,7 @@
         const lastEvt = {};  // for play description (skips inning_end)
         const stateEvt = {}; // for outs/bases/inning scorebug (uses latest including inning_end)
         evts.forEach(e => {
+          if(e.event_type === 'lineup_set') return; // skip for both state and play display
           if(!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
           if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
         });
@@ -1083,7 +1084,7 @@
           if(!e && !se) return;
           // Update footer with last play
           const card = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
-          if(card){
+          if(card && e){
             const EVT_LABEL = {
               single:'singles', double:'doubles', triple:'triples', hr:'homers',
               groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops out',

@@ -1182,7 +1182,7 @@ let LIVE_home_team_id = null;
 let LIVE_away_team_id = null;
 
 async function connectGame(gameId){
-  // 1. Fetch game info (team names, logos)
+  // 1. Fetch game info
   const gRes = await fetch(
     `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
     { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
@@ -1194,32 +1194,12 @@ async function connectGame(gameId){
   LIVE_home_team_id = game.home_team_id;
   LIVE_away_team_id = game.away_team_id;
 
-  const home = game.home_team;
-  const away = game.away_team;
   initView(
-    { name: home.school_name, short: home.school_name.slice(0,3).toUpperCase(), short2: home.school_name.slice(0,3).toUpperCase(), logoUrl: home.logo_url||'' },
-    { name: away.school_name, short: away.school_name.slice(0,3).toUpperCase(), short2: away.school_name.slice(0,3).toUpperCase(), logoUrl: away.logo_url||'' }
+    { name: game.home_team.school_name, short: game.home_team.school_name.slice(0,3).toUpperCase(), logoUrl: game.home_team.logo_url||'' },
+    { name: game.away_team.school_name, short: game.away_team.school_name.slice(0,3).toUpperCase(), logoUrl: game.away_team.logo_url||'' }
   );
 
-  // Fetch rosters as fallback only — lineup_set events will override with correct batting order
-  const rosterFetch = async (teamId, side) => {
-    const r = await fetch(
-      `${LIVE_SB_URL}/rest/v1/players?team_id=eq.${teamId}&order=number.asc&select=name,number,position&limit=30`,
-      { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
-    );
-    const players = await r.json();
-    if(Array.isArray(players) && players.length) {
-      // Only use roster if we have no lineup yet (will be overridden by lineup_set event)
-      BB._rosterFallback = BB._rosterFallback || {};
-      BB._rosterFallback[side] = players.map(p => ({
-        name:p.name, num:p.number||'', pos:p.position||'',
-        ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
-      }));
-    }
-  };
-  await Promise.all([rosterFetch(game.home_team_id,'home'), rosterFetch(game.away_team_id,'away')]);
-
-  // 2. Fetch existing events (catch up on plays already recorded)
+  // 2. Fetch and replay all existing events
   const eRes = await fetch(
     `${LIVE_SB_URL}/rest/v1/game_events?game_id=eq.${gameId}&order=created_at.asc&select=*`,
     { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
@@ -1227,7 +1207,6 @@ async function connectGame(gameId){
   const existing = await eRes.json();
   let _lastEventTime = null;
 
-  // Track last event time as events come in
   const _trackEvent = (row, isReplay=false) => {
     if(row.created_at && (!_lastEventTime || row.created_at > _lastEventTime)){
       _lastEventTime = row.created_at;
@@ -1237,25 +1216,14 @@ async function connectGame(gameId){
     bbOnEvent(evt);
   };
 
-  // Apply existing events and track last time
   existing.forEach(row => _trackEvent(row, true));
 
-  // If no lineup_set event was found, fall back to roster for display
-  ['home','away'].forEach(side => {
-    if(BB.batters[side].length === 0 && BB._rosterFallback && BB._rosterFallback[side]){
-      BB.batters[side] = BB._rosterFallback[side].sort((a,b) => parseInt(a.num||0) - parseInt(b.num||0)).slice(0,9);
-    }
-  });
-  bbUpdPanels();
-
-  // 3. Subscribe to realtime for new events (with reconnect loop)
+  // 3. WebSocket for live events with reconnect
   let _ws = null;
   let _reconnectDelay = 1000;
-  let _reconnectTimer = null;
   let _intentionalClose = false;
 
   function setConnectionStatus(status) {
-    // status: 'connected' | 'disconnected' | 'reconnecting'
     let el = document.getElementById('live-conn-status');
     if (!el) {
       el = document.createElement('div');
@@ -1263,18 +1231,16 @@ async function connectGame(gameId){
       el.style.cssText = 'position:fixed;bottom:8px;right:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
       document.body.appendChild(el);
     }
-    const dot = status === 'connected' ? '🟢' : status === 'reconnecting' ? '🟡' : '🔴';
-    const label = status === 'connected' ? 'Live' : status === 'reconnecting' ? 'Reconnecting…' : 'Disconnected';
+    const dot = status==='connected'?'🟢':status==='reconnecting'?'🟡':'🔴';
+    const label = status==='connected'?'Live':status==='reconnecting'?'Reconnecting…':'Disconnected';
     el.innerHTML = `<span>${dot}</span><span style="color:#ccc">${label}</span>`;
   }
 
   function openSocket() {
-    if (_ws) { _ws.onclose = null; _ws.onerror = null; try { _ws.close(); } catch(e){} }
-    _ws = new WebSocket(
-      `wss://vtwupenqieesoktonbzg.supabase.co/realtime/v1/websocket?apikey=${LIVE_SB_KEY}&vsn=1.0.0`
-    );
+    if (_ws) { _ws.onclose=null; _ws.onerror=null; try{_ws.close();}catch(e){} }
+    _ws = new WebSocket(`wss://vtwupenqieesoktonbzg.supabase.co/realtime/v1/websocket?apikey=${LIVE_SB_KEY}&vsn=1.0.0`);
     _ws.onopen = () => {
-      _reconnectDelay = 1000; // reset backoff on successful connect
+      _reconnectDelay = 1000;
       setConnectionStatus('connected');
       _ws.send(JSON.stringify({ topic:'realtime:public:game_events', event:'phx_join',
         payload:{ config:{ broadcast:{ack:false}, presence:{key:''}, postgres_changes:[
@@ -1289,19 +1255,17 @@ async function connectGame(gameId){
     };
     _ws.onerror = (e) => console.error('Realtime error', e);
     _ws.onclose = () => {
-      if (_intentionalClose) return;
+      if(_intentionalClose) return;
       setConnectionStatus('reconnecting');
-      console.warn(`Realtime disconnected — retrying in ${_reconnectDelay/1000}s`);
-      _reconnectTimer = setTimeout(() => {
-        // Only fetch events newer than the last one we processed
+      setTimeout(() => {
         const since = _lastEventTime ? `&created_at=gt.${encodeURIComponent(_lastEventTime)}` : '';
         fetch(`${LIVE_SB_URL}/rest/v1/game_events?game_id=eq.${gameId}&order=created_at.asc&select=*${since}`,
           { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } })
-          .then(r => r.json())
-          .then(rows => rows.forEach(row => _trackEvent(row)))
-          .catch(() => {})
-          .finally(() => openSocket());
-        _reconnectDelay = Math.min(_reconnectDelay * 2, 30000);
+          .then(r=>r.json())
+          .then(rows=>rows.forEach(row=>_trackEvent(row)))
+          .catch(()=>{})
+          .finally(()=>openSocket());
+        _reconnectDelay = Math.min(_reconnectDelay*2, 30000);
       }, _reconnectDelay);
     };
   }
@@ -1468,12 +1432,13 @@ function bbUpdPanels(){
         <div class="ts-stat"><div class="ts-val">${BB[side].errors}</div><div class="ts-lbl">E</div></div>`;
     }
 
-    // Batting rows — starters (first 9) always shown; others only when appeared
+    // Batting rows — show all lineup players; extras (substitutes) only when appeared
+    const lineupSize = BB._lineupSize?.[side] || 9;
     BB.batters[side].forEach((p, idx)=>{
-      const isStarter = idx < 9;
+      const inStartingLineup = idx < lineupSize;
       const hasAppeared = (p.ab||0)+(p.bb||0)+(p.k||0)+(p.r||0)+(p.h||0) > 0
         || BB.bases.some(b => b && (b.num===p.num || b.name===p.name));
-      if(!isStarter && !hasAppeared) return;
+      if(!inStartingLineup && !hasAppeared) return;
       const div = document.createElement('div');
       div.className = 'bb-pl-row';
       const hab = `${p.h||0}-${p.ab||0}`;
@@ -1667,13 +1632,16 @@ function bbOnEvent(e){
           name: p.name, num: p.num||'', pos: p.pos||'',
           ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
         }));
+        BB._lineupSize = BB._lineupSize || {};
+        BB._lineupSize[s] = lineup.length;
         // Set starting pitcher
         const pitcherEntry = lineup.find(p => p.pos === 'P');
         if(pitcherEntry){
-          const existing = BB.pitchers[s].find(p => nameEq(p.name, pitcherEntry.name));
-          if(!existing){
+          const exists = BB.pitchers[s].find(p => nameEq(p.name, pitcherEntry.name));
+          if(!exists){
             BB.pitchers[s].push({name:pitcherEntry.name, num:pitcherEntry.num||'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0});
           }
+          BB.pitcher = {name:pitcherEntry.name, num:pitcherEntry.num||'', side:s, pitches:0, ip:'0.0'};
         }
       }
     } catch(err){ console.warn('lineup_set parse error', err); }
@@ -1732,7 +1700,8 @@ function bbOnEvent(e){
     if(batter) batter.ab++;
     if(e.key==='strikeout'){ if(batter) batter.k++; if(pitcher) pitcher.k++; }
     if(pitcher) pitcher.ip_outs++;
-    BB.outs = Math.min(3, BB.outs+1);
+    // e.outs is post-play (scorer pushes outs_override: G.outs+1)
+    // so BB.outs is already set correctly from e.outs above — no additional increment needed
     if(e.x!=null) bbAddDot(e.x, e.y, 'out');
 
   } else if(e.key==='walk'||e.key==='hbp'){

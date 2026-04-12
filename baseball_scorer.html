@@ -1018,7 +1018,7 @@ function renderLU(side){
       <span class="lu-num">${i+1}</span>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].lineup[${i}].name=this.value"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].lineup[${i}].number=this.value"/>
-      <select class="lu-input" style="padding:5px 3px" onchange="G.teams['${side}'].lineup[${i}].pos=this.value">
+      <select class="lu-input" style="padding:5px 3px" onchange="G.teams['${side}'].lineup[${i}].pos=this.value"><option value="">Pos</option>
         ${POSITIONS.map(pos=>`<option value="${pos}" ${pos===p.pos?'selected':''}>${pos}</option>`).join('')}
       </select>
       <button class="lu-del" onclick="removePlayer('${side}',${i})">✕</button>

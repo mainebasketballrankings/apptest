@@ -561,7 +561,7 @@ input,select,button{font-family:inherit;}
   <div class="ocard">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div class="otitle" style="margin:0">Baserunners</div>
-      <button class="ocancel" onclick="closeOv('ovRunners')">Done</button>
+      <button class="ocancel" onclick="pushRunnerAdvance(); closeOv('ovRunners')">Done</button>
     </div>
     <!-- Mini diamond with tappable bases -->
     <div style="position:relative;width:220px;height:220px;margin:0 auto 16px;">
@@ -1593,9 +1593,23 @@ function confirmRBI(){
 }
 
 
+function pushRunnerAdvance(){
+  if(!G_game_id) return;
+  const side = battingSide();
+  const runsStart = G._overlayRunsStart || {home:0, away:0};
+  const runsScored = G.runs[side] - (runsStart[side] || 0);
+  pushEvt('runner_advance', {
+    runs: runsScored,
+    rbi: 0, // RBI credited on the play event, not here
+  });
+  G._overlayRunsStart = null;
+}
+
 function openRunners(){
   updateRunnerDiamond();
   deselectRunner();
+  // Capture run totals at overlay open so we can diff on close
+  G._overlayRunsStart = {home: G.runs.home, away: G.runs.away};
   openOv('ovRunners');
 }
 
@@ -1929,12 +1943,12 @@ function confirmSub(side,idx,fromBench){
         G.teams[side].slots[prevPitcherIdx].push(player);
       }
       addPBP(`Pitching change: <strong>${player.name}</strong> replaces <strong>${prevPitcher?.name||'pitcher'}</strong>`);
-      pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, outgoing:prevPitcher?.name||''})});
+      pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, incomingNum:player.number||'', outgoing:prevPitcher?.name||''})});
     } else {
       const prevPitcher = G.teams[side].lineup[G.pitchers[side]];
       G.pitchers[side]=idx;
       addPBP(`Pitching change: <strong>${player.name||'P'+(idx+1)}</strong> replaces <strong>${prevPitcher?.name||'pitcher'}</strong>`);
-      pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, outgoing:prevPitcher?.name||''})});
+      pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, incomingNum:player.number||'', outgoing:prevPitcher?.name||''})});
     }
   } else if(subMode==='defense'){
     G.pendingDefSub={side,idx,fromBench,player};

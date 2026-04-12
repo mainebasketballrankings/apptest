@@ -1331,6 +1331,7 @@ const BB_KLBL = {
   'wild_pitch':'Wild pitch','passed_ball':'Passed ball',
   'pickoff':'Pickoff','balk':'Balk',
   'sub_pitcher':'Pitching change','sub_batter':'Pinch hitter','sub_defense':'Defensive sub',
+  'runner_advance':'Runners advance',
 };
 
 function advanceHalf(){
@@ -1544,6 +1545,7 @@ function bbUpdFeed(){
     const isOutEvt = ['groundout','flyout','lineout','popup','strikeout'].includes(e.key);
     const action = BB_KLBL[e.key] || e.key;
     if(e.key==='inning_end') return;
+    if(e.key==='runner_advance' && !e.runs) return; // silent unless run scored
     const halfLbl=e.half==='top'?'▲':'▼';
     let desc = `${who} — ${action}`;
     if(e.runs) desc += ` <span style="color:var(--green);font-weight:600">· ${e.runs} run${e.runs>1?'s':''}</span>`;
@@ -1700,22 +1702,24 @@ function bbOnEvent(e){
 
   // ── Pitching change ──────────────────────────────────────
   if(e.key === 'sub_pitcher'){
-    const newP = {name:e.pitcher||'—', num:'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
+    let incomingNum = '';
+    let outgoingName = '';
+    try {
+      const info = JSON.parse(e.notes||'{}');
+      incomingNum = info.incomingNum||'';
+      outgoingName = info.outgoing||'';
+    } catch(err){}
+    const newP = {name:e.pitcher||'—', num:incomingNum, ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     const alreadyIn = BB.pitchers[opp].find(p => nameEq(p.name, e.pitcher));
     if(!alreadyIn) BB.pitchers[opp].push(newP);
     const activeP = alreadyIn || newP;
     BB.pitcher = { name:activeP.name, num:activeP.num||'', side:opp,
       pitches:activeP.pitches, ip:`${Math.floor(activeP.ip_outs/3)}.${activeP.ip_outs%3}` };
-    // Update defense map for P position
     BB.defense[opp]['P'] = {name:activeP.name, num:activeP.num||''};
-    // Update pitcher's batting slot (they bat when half flips)
     const pitSlot = BB.batters[opp].find(p => p.pos === 'P');
     if(pitSlot){ pitSlot.name = activeP.name; pitSlot.num = activeP.num||''; }
-    try {
-      const info = JSON.parse(e.notes||'{}');
-      const desc = info.outgoing ? `${info.incoming} replaces ${info.outgoing}` : e.pitcher;
-      toast(`Pitching change — ${desc}`);
-    } catch(err){ toast(`Pitching change — ${e.pitcher}`); }
+    const desc = outgoingName ? `${activeP.name} replaces ${outgoingName}` : activeP.name;
+    toast(`Pitching change — ${desc}`);
     bbEvts.unshift(e);
     bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
     return;

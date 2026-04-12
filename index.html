@@ -1098,7 +1098,12 @@
             const isDP = e.notes && e.notes.includes('(DP)');
             const evtLabel = isDP ? 'grounds into double play' : (EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' '));
             const name = e.event_type === 'sub_pitcher' ? '' : (e.player_name || '');
-            const pitchDesc = e.event_type === 'sub_pitcher' && e.pitcher_name ? `Pitching change: ${e.pitcher_name}` : null;
+            const pitchDesc = e.event_type === 'sub_pitcher' && e.pitcher_name ? (() => {
+              try {
+                const info = JSON.parse(e.notes||'{}');
+                return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`;
+              } catch(){ return `Pitching change: ${e.pitcher_name}`; }
+            })() : null;
             const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
             const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
             const isOut = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);

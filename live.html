@@ -1305,17 +1305,18 @@ function sbRowToEvt(row){
 const BB = {
   home:{ name:'', short:'', score:0, hits:0, errors:0 },
   away:{ name:'', short:'', score:0, hits:0, errors:0 },
-  inning:1, half:'top', // 'top'|'bot'
+  inning:1, half:'top',
   outs:0, balls:0, strikes:0,
-  bases:[false,false,false], // [1B,2B,3B]
-  innings:{ home:[], away:[] }, // runs per inning
+  bases:[false,false,false],
+  innings:{ home:[], away:[] },
   batter:{ name:'—', side:'away', line:'' },
   pitcher:{ name:'—', side:'home', pitches:0, ip:'0.0' },
   batIdx:{ home:0, away:0 },
-  // batting stats per player: { name, num, ab,r,h,rbi,bb,k }
   batters:{ home:[], away:[] },
-  // pitching stats: { name, num, ip_outs, h, r, er, bb, k, pitches }
   pitchers:{ home:[], away:[] },
+  // Fielding positions per side — updated by lineup_set and sub_defense
+  // { P:{name,num}, C:{name,num}, '1B':{name,num}, ... }
+  defense:{ home:{}, away:{} },
 };
 
 let bbEvts = [];
@@ -1562,15 +1563,11 @@ function bbUpdField(){
   const fieldingSide = BB.half==='top' ? 'home' : 'away';
   const posMap = {P:'bb-fn-p',C:'bb-fn-c','1B':'bb-fn-1b','2B':'bb-fn-2b',
                   '3B':'bb-fn-3b',SS:'bb-fn-ss',LF:'bb-fn-lf',CF:'bb-fn-cf',RF:'bb-fn-rf'};
-  // Clear all positions first
-  Object.values(posMap).forEach(id => { const el=document.getElementById(id); if(el) el.textContent=''; });
-  // Build from actual lineup
-  BB.batters[fieldingSide].forEach(p => {
-    const id = posMap[p.pos];
-    if(id){
-      const el = document.getElementById(id);
-      if(el) el.textContent = `#${p.num} ${p.name.split(' ').pop()}`;
-    }
+  Object.entries(posMap).forEach(([pos,id])=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const p = BB.defense[fieldingSide][pos];
+    el.textContent = p ? `#${p.num} ${p.name.split(' ').pop()}` : '';
   });
 }
 
@@ -1665,6 +1662,11 @@ function bbOnEvent(e){
           BB._lineupSize = BB._lineupSize || {};
           BB._lineupSize[s] = lineup.length;
           BB.batIdx[s] = 0;
+          // Build defense map from lineup positions
+          BB.defense[s] = {};
+          lineup.forEach(p => {
+            if(p.pos) BB.defense[s][p.pos] = {name:p.name, num:p.num||''};
+          });
           const leadoff = lineup[0];
           if(leadoff && s === (BB.half==='top'?'away':'home')){
             BB.batter = {name:leadoff.name, num:leadoff.num||'', side:s, line:'0–0, 0 RBI'};
@@ -1704,10 +1706,16 @@ function bbOnEvent(e){
     const activeP = alreadyIn || newP;
     BB.pitcher = { name:activeP.name, num:activeP.num||'', side:opp,
       pitches:activeP.pitches, ip:`${Math.floor(activeP.ip_outs/3)}.${activeP.ip_outs%3}` };
-    // Update pitcher slot in fielding side's batting lineup
+    // Update defense map for P position
+    BB.defense[opp]['P'] = {name:activeP.name, num:activeP.num||''};
+    // Update pitcher's batting slot (they bat when half flips)
     const pitSlot = BB.batters[opp].find(p => p.pos === 'P');
     if(pitSlot){ pitSlot.name = activeP.name; pitSlot.num = activeP.num||''; }
-    toast(`Pitching change — ${e.pitcher}`);
+    try {
+      const info = JSON.parse(e.notes||'{}');
+      const desc = info.outgoing ? `${info.incoming} replaces ${info.outgoing}` : e.pitcher;
+      toast(`Pitching change — ${desc}`);
+    } catch(err){ toast(`Pitching change — ${e.pitcher}`); }
     bbEvts.unshift(e);
     bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
     return;
@@ -1723,9 +1731,9 @@ function bbOnEvent(e){
           ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
         };
         BB.batter = {name:info.name, num:info.num||'', side:halfSide, line:'0–0, 0 RBI'};
+        toast(`PH: ${info.name}`);
       }
     } catch(err){ console.warn('sub_batter parse error', err); }
-    toast(`PH: ${e.plast}`);
     bbEvts.unshift(e);
     bbUpdPanels();
     return;
@@ -1735,15 +1743,12 @@ function bbOnEvent(e){
     try {
       const info = JSON.parse(e.notes||'{}');
       if(info.name && info.pos){
-        // Clear old player from that position in the fielding side's lineup
-        BB.batters[opp].forEach(p => { if(p.pos === info.pos) p.pos = ''; });
-        // Find the incoming player and update their position
-        const defPlayer = BB.batters[opp].find(p => nameEq(p.name, info.name));
-        if(defPlayer) defPlayer.pos = info.pos;
+        // ONLY update the defense map — batting order is unchanged
+        BB.defense[opp][info.pos] = {name:info.name, num:info.num||''};
+        toast(`Def sub: ${info.name} (${info.pos})`);
         bbUpdField();
       }
     } catch(err){ console.warn('sub_defense parse error', err); }
-    toast(`Def sub: ${e.plast}`);
     bbEvts.unshift(e);
     bbUpdPanels();
     return;

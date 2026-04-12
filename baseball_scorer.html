@@ -1380,8 +1380,8 @@ function confirmOut(type){
   // For sac fly: track batter so RBI is credited when runner scores in overlay
   if(isSacFly) G.pendingRBIbatter = b.player;
   addOut(notation);
-  // Both sac bunt and sac fly: open runners so scorer decides what each runner does
-  if((isSacBunt || isSacFly) && hasRunners()){
+  // Open runners overlay whenever there are runners (allows advances, scores, etc.)
+  if(hasRunners() && G.outs < 3){
     setTimeout(()=>{ openRunners(); }, 150);
   } else {
     G.pendingRBIbatter = null;
@@ -1574,7 +1574,8 @@ function confirmRBI(){
   const notation = result==='E' && G.pendingErrorNotation
     ? G.pendingErrorNotation + (G.pendingErrorFielder ? ` (${G.pendingErrorFielder})` : '')
     : result;
-  addPBP(`<strong>${b.player.name}</strong> ${notation}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
+  const hitLabel = {'1B':'singles','2B':'doubles','3B':'triples'}[result] || notation;
+  addPBP(`<strong>${b.player.name}</strong> ${isHit ? hitLabel : notation}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
   // Push event — map result to event_type
   const evtKey = result==='1B'?'single':result==='2B'?'double':result==='3B'?'triple':
                  result==='E'?'error':result==='FC'?'fielders_choice':'single';
@@ -1927,14 +1928,13 @@ function confirmSub(side,idx,fromBench){
       if(G.teams[side].slots && G.teams[side].slots[prevPitcherIdx]){
         G.teams[side].slots[prevPitcherIdx].push(player);
       }
-      addPBP(`Pitching change: <strong>${player.name}</strong>`);
-      pushEvt('sub_pitcher', {pitcher_name: player.name});
+      addPBP(`Pitching change: <strong>${player.name}</strong> replaces <strong>${prevPitcher?.name||'pitcher'}</strong>`);
+      pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, outgoing:prevPitcher?.name||''})});
     } else {
+      const prevPitcher = G.teams[side].lineup[G.pitchers[side]];
       G.pitchers[side]=idx;
-      const ps=getPS(side,idx);
-      ps.name=player.name; ps.num=player.number;
-      addPBP(`Pitching change: <strong>${player.name||'P'+(idx+1)}</strong>`);
-      pushEvt('sub_pitcher', {pitcher_name: player.name});
+      addPBP(`Pitching change: <strong>${player.name||'P'+(idx+1)}</strong> replaces <strong>${prevPitcher?.name||'pitcher'}</strong>`);
+      pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, outgoing:prevPitcher?.name||''})});
     }
   } else if(subMode==='defense'){
     G.pendingDefSub={side,idx,fromBench,player};
@@ -2651,35 +2651,25 @@ function confirmDefSub(pos){
     }));
   }
   if(fromBench){
-    // Add to lineup and remove from bench
-    G.teams[side].lineup.push(player);
     G.teams[side].bench.splice(idx,1);
-    const newIdx = G.teams[side].lineup.length-1;
-    if(pos==='P') G.pitchers[side]=newIdx;
-    // Attach def sub to replaced player's slot, or add standalone if no replacement
-    if(G.teams[side].slots){
-      const alreadyInSlots = G.teams[side].slots.some(slot => slot.some(p => p.name === player.name));
-      if(!alreadyInSlots){
-        let attached = false;
-        if(replaced){
-          G.teams[side].slots.forEach(slot => {
-            if(attached) return;
-            if(slot.some(p => p.name === replaced.name)){ slot.push(player); attached = true; }
-          });
-        }
-        if(!attached) G.teams[side].slots.push([player]);
+    if(replaced && oldIdx >= 0){
+      // Replace outgoing player in their batting order slot
+      player.subFor = replaced.name;
+      G.teams[side].lineup[oldIdx] = player;
+      if(pos==='P') G.pitchers[side] = oldIdx;
+      if(G.teams[side].slots && G.teams[side].slots[oldIdx]){
+        G.teams[side].slots[oldIdx].push(player);
       }
+    } else {
+      // No replaced player found — append as edge case
+      G.teams[side].lineup.push(player);
+      const newIdx = G.teams[side].lineup.length-1;
+      if(pos==='P') G.pitchers[side] = newIdx;
+      if(G.teams[side].slots) G.teams[side].slots.push([player]);
     }
   } else {
     lu[idx].pos = pos;
     if(pos==='P') G.pitchers[side]=idx;
-  }
-  // Mark replaced player as no longer on field (but keep in batting order)
-  // Give replaced player a unique "off-field" marker so field display skips them
-  if(replaced && oldIdx >= 0){
-    replaced.offField = true;
-    replaced.offFieldPos = pos; // which position they vacated
-    if(G.pitchers[side]===oldIdx && pos==='P') G.pitchers[side]=lu.length-1;
   }
   addPBP(`Defensive sub: <strong>${player.name}</strong> at ${pos}${replaced?' for '+replaced.name:''}`);
   pushEvt('sub_defense', {

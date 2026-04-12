@@ -1313,7 +1313,6 @@ function endHalf(){
   if(G.linescore[inn] && G.linescore[inn][scoringSide] === null){
     G.linescore[inn][scoringSide] = 0;
   }
-  pushEvt('inning_end'); // push with 3 outs before state resets
   G.bases={1:null,2:null,3:null}; G.outs=0; resetCount(); G.curPitches=[]; G.errorThisHalf=false; G.phantomOuts=0;
   const h=G.half==='top'?'Top':'Bottom';
   document.getElementById('ovHalfTitle').textContent=`End of ${h} ${G.inning}`;

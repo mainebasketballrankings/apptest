@@ -1332,6 +1332,26 @@ const BB_KLBL = {
   'sub_pitcher':'Pitching change','sub_batter':'Pinch hitter',
 };
 
+function advanceHalf(){
+  BB.half = BB.half==='top' ? 'bot' : 'top';
+  if(BB.half==='top') BB.inning++;
+  BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
+  // Update batter to next up in new half
+  const battingSide = BB.half==='top' ? 'away' : 'home';
+  const nextBatter = BB.batters[battingSide][BB.batIdx[battingSide]];
+  if(nextBatter) BB.batter = { name:nextBatter.name, num:nextBatter.num||'', side:battingSide,
+    line:`${nextBatter.h||0}–${nextBatter.ab||0}, ${nextBatter.rbi||0} RBI` };
+  // Update pitcher to new fielding side's current pitcher
+  const fieldingSide = BB.half==='top' ? 'home' : 'away';
+  const pitchers = BB.pitchers[fieldingSide];
+  if(pitchers && pitchers.length){
+    const p = pitchers[pitchers.length-1];
+    BB.pitcher = { name:p.name, num:p.num||'', side:fieldingSide,
+      pitches:p.pitches, ip:`${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` };
+  }
+  bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
+}
+
 function bbUpdScoreboard(){
   document.getElementById('home-score').textContent = BB.home.score;
   document.getElementById('away-score').textContent = BB.away.score;
@@ -1667,30 +1687,12 @@ function bbOnEvent(e){
     return;
   }
 
-  // ── Inning end ───────────────────────────────────────────
+  // ── Inning end — detected from outs===3, not a separate event ───
   if(e.key === 'inning_end'){
+    // Legacy support for old events — treat same as outs===3
     BB.outs = 3;
     bbUpdScoreboard(); bbUpdPanels();
-    const advance = () => {
-      BB.half = BB.half==='top' ? 'bot' : 'top';
-      if(BB.half==='top') BB.inning++;
-      BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
-      // Update batter to current leadoff for new half
-      const newBattingSide = BB.half==='top' ? 'away' : 'home';
-      const nextBatter = BB.batters[newBattingSide][BB.batIdx[newBattingSide]];
-      if(nextBatter) BB.batter = { name:nextBatter.name, num:nextBatter.num||'', side:newBattingSide,
-        line:`${nextBatter.h||0}–${nextBatter.ab||0}, ${nextBatter.rbi||0} RBI` };
-      // Update pitcher to current pitcher for new fielding side
-      const newFieldingSide = BB.half==='top' ? 'home' : 'away';
-      const curP = BB.pitchers[newFieldingSide];
-      if(curP && curP.length){
-        const p = curP[curP.length-1];
-        BB.pitcher = { name:p.name, num:p.num||'', side:newFieldingSide,
-          pitches:p.pitches, ip:`${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` };
-      }
-      bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
-    };
-    e._replay ? advance() : setTimeout(advance, 1500);
+    advanceHalf();
     bbEvts.unshift(e);
     bbUpdFeed();
     return;
@@ -1750,9 +1752,14 @@ function bbOnEvent(e){
     if(batter) batter.ab++;
     if(e.key==='strikeout'){ if(batter) batter.k++; if(pitcher) pitcher.k++; }
     if(pitcher) pitcher.ip_outs++;
-    // e.outs is post-play (scorer pushes outs_override: G.outs+1)
-    // so BB.outs is already set correctly from e.outs above — no additional increment needed
     if(e.x!=null) bbAddDot(e.x, e.y, 'out');
+    // If this was the 3rd out, advance the half-inning
+    if(BB.outs >= 3){
+      bbEvts.unshift(e);
+      bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
+      advanceHalf();
+      return;
+    }
 
   } else if(e.key==='walk'||e.key==='hbp'){
     if(e.key==='walk'&&batter) batter.bb++;

@@ -1031,6 +1031,18 @@ function addBench(side){ G.teams[side].bench.push(newPlayer(0,'')); renderBench(
 function addBenchToLineup(side, i){
   const p = G.teams[side].bench[i];
   if(!p) return;
+  // Read current displayed values from DOM (onchange may not have fired if user didn't interact)
+  const benchEl = document.getElementById(side+'Bench');
+  if(benchEl){
+    const rows = benchEl.querySelectorAll('.lu-row');
+    if(rows[i]){
+      const sel = rows[i].querySelector('select');
+      if(sel && sel.value) p.pos = sel.value;
+      const inputs = rows[i].querySelectorAll('input');
+      if(inputs[0]) p.name = inputs[0].value;
+      if(inputs[1]) p.number = inputs[1].value;
+    }
+  }
   p.order = G.teams[side].lineup.length + 1;
   G.teams[side].lineup.push(p);
   G.teams[side].bench.splice(i, 1);

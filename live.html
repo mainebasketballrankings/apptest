@@ -1961,6 +1961,9 @@ function bbOnEvent(e){
     console.log('[LaGross]', e.key, 'inn'+e.inning, e.half, 'pitches='+e.pitches, 'isPAEvent='+isPAEvent, 'pitcher found='+(!!pitcher), 'opp='+opp, 'BB.pitchers[opp]='+JSON.stringify(BB.pitchers[opp].map(p=>p.name)));
   }
   if(pitcher && e.pitches && isPAEvent) pitcher.pitches += e.pitches;
+  if(e.pitcher && e.pitcher.includes('LaGross') && pitcher){
+    console.log('[LaGross after] pitcher.pitches='+pitcher.pitches, 'pitcher===BB.pitchers[opp].find?'+(pitcher===BB.pitchers[opp].find(p=>p.name===pitcher.name)));
+  }
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 
   // ── Advance to next batter after completed PA ───────────

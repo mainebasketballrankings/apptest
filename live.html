@@ -1352,7 +1352,19 @@ const BB_KLBL = {
   'pickoff':'Pickoff','balk':'Balk',
   'sub_pitcher':'Pitching change','sub_batter':'Pinch hitter','sub_defense':'Defensive sub',
   'runner_advance':'Runners advance',
+  'game_over':'Game over',
 };
+
+function checkMercyRule(){
+  const diff = Math.abs(BB.home.score - BB.away.score);
+  const inning = BB.inning;
+  // Maine mercy: 10+ run lead after 5 innings (or any complete inning after that)
+  if(inning >= 5 && diff >= 10){
+    document.getElementById('live-pill').classList.add('final');
+    document.getElementById('live-lbl').textContent='FINAL';
+    document.getElementById('live-dot').style.animation='none';
+  }
+}
 
 function advanceHalf(){
   BB.half = BB.half==='top' ? 'bot' : 'top';
@@ -1372,6 +1384,7 @@ function advanceHalf(){
       pitches:p.pitches, ip:`${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` };
   }
   bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdField();
+  checkMercyRule();
 }
 
 function bbUpdScoreboard(){
@@ -1593,7 +1606,20 @@ function bbUpdFeed(){
     if(e.key==='inning_end') return;
     if(e.key==='runner_advance' && !e.runs) return; // silent unless run scored
     const halfLbl=e.half==='top'?'▲':'▼';
-    let desc = `${who} — ${action}`;
+    // For runner_advance (stolen base etc), show runner not batter
+    let desc;
+    if(e.key==='runner_advance'){
+      try {
+        const info = JSON.parse(e.notes||'{}');
+        const runnerName = info.runner || info.name || e.plast;
+        const runnerNum  = info.runnerNum || info.num || e.pnum;
+        const moveDesc   = info.from && info.to ? ` (${info.from}→${info.to})` : '';
+        const runnerWho  = `<b>#${runnerNum} ${runnerName}</b>`;
+        desc = `${runnerWho} — Stolen base${moveDesc}`;
+      } catch(err){ desc = `${who} — ${action}`; }
+    } else {
+      desc = `${who} — ${action}`;
+    }
     if(e.runs) desc += ` <span style="color:var(--green);font-weight:600">· ${e.runs} run${e.runs>1?'s':''}</span>`;
     if(e.rbi && !e.runs) desc += ` <span style="color:var(--ink3)">${e.rbi} RBI</span>`;
     if(isOutEvt && e.outs) desc += ` <span style="color:var(--ink3)">· ${e.outs} out${e.outs>1?'s':''}</span>`;
@@ -1860,6 +1886,16 @@ function bbOnEvent(e){
     return;
   }
 
+  // ── Game over (mercy rule or completion) ───────────────────
+  if(e.key === 'game_over'){
+    document.getElementById('live-pill').classList.add('final');
+    document.getElementById('live-lbl').textContent='FINAL';
+    document.getElementById('live-dot').style.animation='none';
+    bbEvts.unshift(e);
+    bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed();
+    return;
+  }
+
   // ── Runs scored ──────────────────────────────────────────
   if(e.runs){
     BB[halfSide].score += e.runs;
@@ -1919,7 +1955,9 @@ function bbOnEvent(e){
   }
 
   // ── Pitcher pitch count ──────────────────────────────────
-  if(pitcher && e.pitches) pitcher.pitches += e.pitches;
+  // Only accumulate pitches on actual PA events, not subs/admin events
+  const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over','runner_advance'].includes(e.key);
+  if(pitcher && e.pitches && isPAEvent) pitcher.pitches = e.pitches; // cumulative total, not delta
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 
   // ── Advance to next batter after completed PA ───────────

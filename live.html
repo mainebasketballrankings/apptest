@@ -1938,8 +1938,11 @@ function bbOnEvent(e){
     if(e.key==='strikeout'){ if(batter) batter.k++; if(pitcher) pitcher.k++; }
     if(pitcher) pitcher.ip_outs++;
     if(e.x!=null) bbAddDot(e.x, e.y, 'out');
-    // If this was the 3rd out, advance the half-inning
+    // If this was the 3rd out, advance the half-inning (after pitch count below)
     if(BB.outs >= 3){
+      // Pitch count must be accumulated before returning
+      if(pitcher && e.pitches) pitcher.pitches += e.pitches;
+      if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
       bbEvts.unshift(e);
       bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
       advanceHalf();
@@ -1955,15 +1958,8 @@ function bbOnEvent(e){
   }
 
   // ── Pitcher pitch count ──────────────────────────────────
-  // Only accumulate pitches on actual PA events, not subs/admin events
   const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over','runner_advance'].includes(e.key);
-  if(e.pitcher && e.pitcher.includes('LaGross')){
-    console.log('[LaGross]', e.key, 'inn'+e.inning, e.half, 'pitches='+e.pitches, 'isPAEvent='+isPAEvent, 'pitcher found='+(!!pitcher), 'opp='+opp, 'BB.pitchers[opp]='+JSON.stringify(BB.pitchers[opp].map(p=>p.name)));
-  }
   if(pitcher && e.pitches && isPAEvent) pitcher.pitches += e.pitches;
-  if(e.pitcher && e.pitcher.includes('LaGross') && pitcher){
-    console.log('[LaGross after] pitcher.pitches='+pitcher.pitches, 'pitcher===BB.pitchers[opp].find?'+(pitcher===BB.pitchers[opp].find(p=>p.name===pitcher.name)));
-  }
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 
   // ── Advance to next batter after completed PA ───────────

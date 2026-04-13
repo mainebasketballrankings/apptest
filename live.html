@@ -1957,6 +1957,9 @@ function bbOnEvent(e){
   // ── Pitcher pitch count ──────────────────────────────────
   // Only accumulate pitches on actual PA events, not subs/admin events
   const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over','runner_advance'].includes(e.key);
+  if(e.pitcher && e.pitcher.includes('LaGross')){
+    console.log('[LaGross]', e.key, 'inn'+e.inning, e.half, 'pitches='+e.pitches, 'isPAEvent='+isPAEvent, 'pitcher found='+(!!pitcher), 'opp='+opp, 'BB.pitchers[opp]='+JSON.stringify(BB.pitchers[opp].map(p=>p.name)));
+  }
   if(pitcher && e.pitches && isPAEvent) pitcher.pitches += e.pitches;
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 

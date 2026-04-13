@@ -1957,7 +1957,7 @@ function bbOnEvent(e){
   // ── Pitcher pitch count ──────────────────────────────────
   // Only accumulate pitches on actual PA events, not subs/admin events
   const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over','runner_advance'].includes(e.key);
-  if(pitcher && e.pitches && isPAEvent) pitcher.pitches = e.pitches; // cumulative total, not delta
+  if(pitcher && e.pitches && isPAEvent) pitcher.pitches = e.pitches; // cumulative running total per pitcher
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 
   // ── Advance to next batter after completed PA ───────────

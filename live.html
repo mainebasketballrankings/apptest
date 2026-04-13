@@ -1754,14 +1754,14 @@ function bbOnEvent(e){
           if(leadoff && s === (BB.half==='top'?'away':'home')){
             BB.batter = {name:leadoff.name, num:leadoff.num||'', side:s, line:'0–0, 0 RBI'};
           }
-          // Set starting pitcher — pitcher belongs to the FIELDING side (opp), not the batting side
+          // Set starting pitcher — pitcher belongs to the same side as their lineup
           const pitcherEntry = lineup.find(p => p.pos === 'P');
           if(pitcherEntry){
-            const exists = BB.pitchers[opp].find(p => nameEq(p.name, pitcherEntry.name));
+            const exists = BB.pitchers[s].find(p => nameEq(p.name, pitcherEntry.name));
             if(!exists){
-              BB.pitchers[opp].push({name:pitcherEntry.name, num:pitcherEntry.num||'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0});
+              BB.pitchers[s].push({name:pitcherEntry.name, num:pitcherEntry.num||'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0});
             }
-            BB.pitcher = {name:pitcherEntry.name, num:pitcherEntry.num||'', side:opp, pitches:0, ip:'0.0'};
+            BB.pitcher = {name:pitcherEntry.name, num:pitcherEntry.num||'', side:s, pitches:0, ip:'0.0'};
           }
         }
       }
@@ -1956,7 +1956,7 @@ function bbOnEvent(e){
 
   // ── Pitcher pitch count ──────────────────────────────────
   // Only accumulate pitches on actual PA events, not subs/admin events
-  const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over'].includes(e.key);
+  const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over','runner_advance'].includes(e.key);
   if(pitcher && e.pitches && isPAEvent) pitcher.pitches += e.pitches;
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 

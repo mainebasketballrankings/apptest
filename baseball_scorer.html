@@ -1600,8 +1600,9 @@ function pushRunnerAdvance(){
   const runsScored = G.runs[side] - (runsStart[side] || 0);
   // Credit RBI to current batter for runs scored via runners overlay
   if(runsScored > 0){
-    const b = G.teams[side].lineup[G.teams[side].batIdx];
-    if(b && b.player) b.player.stats.rbi = (b.player.stats.rbi||0) + runsScored;
+    const idx = G.batIdx[side] % G.teams[side].lineup.length;
+    const player = G.teams[side].lineup[idx];
+    if(player && player.stats) player.stats.rbi = (player.stats.rbi||0) + runsScored;
   }
   pushEvt('runner_advance', {
     runs: runsScored,

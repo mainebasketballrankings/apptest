@@ -1606,7 +1606,8 @@ function bbUpdFeed(){
     if(e.key==='inning_end') return;
     if(e.key==='runner_advance' && !e.runs) return; // silent unless run scored
     const halfLbl=e.half==='top'?'▲':'▼';
-    // For runner_advance (stolen base etc), show runner not batter
+    // For runner_advance, show runner not batter
+    // For sub_pitcher, show incoming pitcher not batter
     let desc;
     if(e.key==='runner_advance'){
       try {
@@ -1617,6 +1618,15 @@ function bbUpdFeed(){
         const runnerWho  = `<b>#${runnerNum} ${runnerName}</b>`;
         desc = `${runnerWho} — Stolen base${moveDesc}`;
       } catch(err){ desc = `${who} — ${action}`; }
+    } else if(e.key==='sub_pitcher'){
+      try {
+        const info = JSON.parse(e.notes||'{}');
+        const incoming = e.pitcher || info.incoming || '';
+        const outgoing = info.outgoing || '';
+        desc = outgoing
+          ? `Pitching change — <b>${incoming}</b> replaces <b>${outgoing}</b>`
+          : `Pitching change — <b>${incoming}</b>`;
+      } catch(err){ desc = `Pitching change`; }
     } else {
       desc = `${who} — ${action}`;
     }

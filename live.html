@@ -1731,7 +1731,9 @@ function bbOnEvent(e){
   }
 
   // ── Update batter/pitcher strip ─────────────────────────
-  BB.batter = { name:e.plast||'—', num:e.pnum||'', side:s, line:'' };
+  // Don't update batter display for non-PA events
+  const isNonPADisplay = ['runner_advance','sub_defense','inning_end','game_over'].includes(e.key);
+  if(!isNonPADisplay) BB.batter = { name:e.plast||'—', num:e.pnum||'', side:s, line:'' };
   if(batter) BB.batter.line = `${batter.h||0}–${batter.ab||0}, ${batter.rbi||0} RBI`;
   if(pitcher) BB.pitcher = {
     name:pitcher.name, num:pitcher.num||'', side:opp,
@@ -1993,6 +1995,7 @@ function bbOnEvent(e){
     const next = BB.batters[halfSide][BB.batIdx[halfSide]];
     if(next) BB.batter = { name:next.name, num:next.num||'', side:halfSide,
       line:`${next.h||0}–${next.ab||0}, ${next.rbi||0} RBI` };
+    console.log('[batAdvance]', e.key, 'next:', BB.batter.name, 'idx:', BB.batIdx[halfSide]);
     BB.balls = 0; BB.strikes = 0;
   }
 

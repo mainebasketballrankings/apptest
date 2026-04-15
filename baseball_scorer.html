@@ -2832,9 +2832,48 @@ function schoolAC(inp, side){
   dd.style.display='block';
 }
 
-function pickSchool(name, side){
+async function pickSchool(name, side){
   document.getElementById(side+'NameInp').value = name;
   document.getElementById(side+'AC').style.display='none';
+  // Fetch team and roster for this school
+  try {
+    const sportVal = document.getElementById('sportSel')?.value||'baseball';
+    const sportId = sportVal==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+    const teamRes = await fetch(
+      `${SB_URL}/rest/v1/teams?school_name=eq.${encodeURIComponent(name)}&sport_id=eq.${sportId}&select=id&limit=1`,
+      {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}}
+    );
+    const teams = await teamRes.json();
+    if(!teams.length) return;
+    const teamId = teams[0].id;
+    if(side==='home') G_home_team_id = teamId;
+    else G_away_team_id = teamId;
+    // Fetch roster
+    const rRes = await fetch(
+      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&season_year=eq.2026&select=name,number,position&order=number.asc`,
+      {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}}
+    );
+    const players = await rRes.json();
+    if(!players.length) return;
+    // Populate lineup slots
+    const lineup = G.teams[side].lineup;
+    // Clear existing placeholder rows and replace with real players
+    const container = document.getElementById(side==='away'?'awayLineup':'homeLineup');
+    if(!container) return;
+    // Use the existing addPlayerRow mechanism — rebuild lineup
+    G.teams[side].lineup = players.slice(0,9).map((p,i)=>{
+      const pl = newPlayer(i+1, p.name, p.position||'');
+      pl.number = p.number||'';
+      return pl;
+    });
+    G.teams[side].bench = players.slice(9).map((p,i)=>{
+      const pl = newPlayer(i+10, p.name, p.position||'');
+      pl.number = p.number||'';
+      return pl;
+    });
+    renderLU(side);
+    renderBench(side);
+  } catch(e){ console.warn('roster fetch failed', e); }
 }
 
 function closeAC(side){

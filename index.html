@@ -1104,11 +1104,21 @@
                 return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`;
               } catch(err){ return `Pitching change: ${e.pitcher_name}`; }
             })() : null;
-            const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
+            // runner_advance: show batter — runner scores
+            const runnerAdvDesc = e.event_type === 'runner_advance' && e.runs ? (() => {
+              try {
+                const info = JSON.parse(e.notes||'{}');
+                const scorer = info.scorers && info.scorers[0];
+                const scorerName = scorer ? scorer.name : (info.runner || '');
+                const runDesc = scorerName ? `${scorerName} scores` : 'runner scores';
+                return `<strong>${name}</strong> — ${runDesc} · ${e.runs} run${e.runs>1?'s':''}`;
+              } catch(err){ return null; }
+            })() : null;
+            const scored = e.runs && e.event_type !== 'runner_advance' ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
             const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
             const isOut = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
             const outNum = isDP ? ` · 2 outs` : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
-            const desc = pitchDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}`;
+            const desc = pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}`;
             card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
           }
           // Update top bar left span with scorebug

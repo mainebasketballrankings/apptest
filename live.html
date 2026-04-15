@@ -1616,8 +1616,16 @@ function bbUpdFeed(){
         const runnerNum  = info.runnerNum || info.num || e.pnum;
         const moveDesc   = info.from && info.to ? ` (${info.from}→${info.to})` : '';
         const runnerWho  = `<b>#${runnerNum} ${runnerName}</b>`;
-        const raLabel = info.sb ? 'Stolen base' : (e.runs ? `${runnerName} scores` : 'Advances');
-        desc = `${runnerWho} — ${raLabel}${moveDesc}`;
+        let raLabel;
+        if(info.sb) raLabel = 'Stolen base';
+        else if(e.runs) raLabel = `scores`;
+        else raLabel = 'Advances';
+        // For non-SB runs, show as "Batter — runner scores · N runs"
+        if(e.runs && !info.sb){
+          desc = `<b>#${e.pnum} ${e.plast}</b> — ${runnerName} scores`;
+        } else {
+          desc = `${runnerWho} — ${raLabel}${moveDesc}`;
+        }
       } catch(err){ desc = `${who} — ${action}`; }
     } else if(e.key==='sub_pitcher'){
       try {

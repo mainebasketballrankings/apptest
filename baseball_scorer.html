@@ -1111,8 +1111,12 @@ async function startGame(){
       } else {
         const t = await res.text();
         console.error('Game creation failed:', t);
+        showAlert('⚠️ Could not connect game to MBR Live. Stats will not be broadcast. Check your connection and try again.');
       }
-    } catch(e){ console.error('Game creation error:', e); }
+    } catch(e){
+      console.error('Game creation error:', e);
+      showAlert('⚠️ Could not connect game to MBR Live. Stats will not be broadcast. Check your connection and try again.');
+    }
   }
   G.pitStats = {};
   G.linescore = [];
@@ -1598,15 +1602,16 @@ function confirmRBI(){
   if(mode==='runners'){
     // ── Runners-only mode: no batter stats, just movement + push ──
     G.bases=newBases;
-    // Credit RBI: use pendingRBIbatter if set (sac fly), else current batter
-    if(runsScored>0){
-      const rbiTarget = G.pendingRBIbatter || (b && b.player);
-      if(rbiTarget) rbiTarget.stats.rbi = (rbiTarget.stats.rbi||0) + runsScored;
-      G.pendingRBIbatter = null;
+    // Capture batter BEFORE clearing pendingRBIbatter
+    const rbiPlayer = G.pendingRBIbatter || (b && b.player);
+    // Credit RBI: use pendingRBIbatter if set (sac fly/out), else current batter
+    if(runsScored>0 && rbiPlayer){
+      rbiPlayer.stats.rbi = (rbiPlayer.stats.rbi||0) + runsScored;
     }
+    G.pendingRBIbatter = null;
     G.runDecisions={}; G._rbiMode=null; G._rbiResult=null;
     closeOv('ovRBI');
-    pushEvt('runner_advance', {runs: runsScored, rbi: runsScored});
+    pushEvt('runner_advance', {runs: runsScored, rbi: runsScored, player_override: rbiPlayer || undefined});
     if(G.pendingUnearnedCheck && G.pendingUnearnedCheck.length){
       G.pendingUnearnedQueue = G.pendingUnearnedCheck;
       G.pendingUnearnedCheck = null;

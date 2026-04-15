@@ -2855,12 +2855,7 @@ async function pickSchool(name, side){
     );
     const players = await rRes.json();
     if(!players.length) return;
-    // Populate lineup slots
-    const lineup = G.teams[side].lineup;
-    // Clear existing placeholder rows and replace with real players
-    const container = document.getElementById(side==='away'?'awayLineup':'homeLineup');
-    if(!container) return;
-    // Use the existing addPlayerRow mechanism — rebuild lineup
+    // Rebuild lineup with roster data
     G.teams[side].lineup = players.slice(0,9).map((p,i)=>{
       const pl = newPlayer(i+1, p.name, p.position||'');
       pl.number = p.number||'';

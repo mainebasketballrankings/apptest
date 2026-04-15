@@ -1309,7 +1309,6 @@ function forceAdvance(runner){
 }
 
 function scoreRunner(runner, side, unearned){
-  if(runner && runner.name) console.log('[scoreRunner]', runner.name, new Error().stack.split('\n')[1].trim());
   side = side || battingSide();
   G.runs[side]++;
   const inn=G.inning-1;

@@ -1,5 +1,5 @@
 // Maine Basketball Rankings Baseball Scorer — Service Worker
-const CACHE = 'mbr-scorer-v9';
+const CACHE = 'mbr-scorer-v10';
 const PRECACHE = [
   './baseball_scorer.html',
   './index.html',

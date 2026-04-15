@@ -1309,6 +1309,7 @@ function forceAdvance(runner){
 }
 
 function scoreRunner(runner, side, unearned){
+  if(runner && runner.name) console.log('[scoreRunner]', runner.name, new Error().stack.split('\n')[1].trim());
   side = side || battingSide();
   G.runs[side]++;
   const inn=G.inning-1;
@@ -1578,6 +1579,7 @@ function confirmRBI(){
 
   // ── Resolve runner positions ─────────────────────────────
   let runsScored=0;
+  const scoredRunners=[];
   const newBases={1:null,2:null,3:null};
   [3,2,1].forEach(base=>{
     const runner=G.bases[base]; if(!runner) return;
@@ -1589,10 +1591,7 @@ function confirmRBI(){
       }
       scoreRunner(runner, side, false);
       runsScored++;
-      // Credit R to runner
-      const rPlayer = G.teams[side].lineup.find(p=>p.name===runner.name)
-                   || G.teams[side].bench.find(p=>p.name===runner.name);
-      if(rPlayer) rPlayer.stats.r = (rPlayer.stats.r||0)+1;
+      scoredRunners.push({name:runner.name, num:runner.num||runner.number||''});
     }
     else if(dec==='to2') newBases[2]=runner;
     else if(dec==='to3') newBases[3]=runner;
@@ -1611,7 +1610,8 @@ function confirmRBI(){
     G.pendingRBIbatter = null;
     G.runDecisions={}; G._rbiMode=null; G._rbiResult=null;
     closeOv('ovRBI');
-    pushEvt('runner_advance', {runs: runsScored, rbi: runsScored, player_override: rbiPlayer || undefined});
+    const raNotes = scoredRunners.length ? JSON.stringify({scorers: scoredRunners}) : null;
+    pushEvt('runner_advance', {runs: runsScored, rbi: runsScored, player_override: rbiPlayer || undefined, notes: raNotes});
     if(G.pendingUnearnedCheck && G.pendingUnearnedCheck.length){
       G.pendingUnearnedQueue = G.pendingUnearnedCheck;
       G.pendingUnearnedCheck = null;

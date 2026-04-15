@@ -1073,7 +1073,7 @@ function renderBench(side){
 function removeBench(side,i){ G.teams[side].bench.splice(i,1); renderBench(side); }
 function removePlayer(side,i){ G.teams[side].lineup.splice(i,1); renderLU(side); }
 
-function startGame(){
+async function startGame(){
   G.sport=document.getElementById('sportSel').value;
   G.level=document.getElementById('levelSel').value;
   G.date=document.getElementById('gameDateInp').value;
@@ -1084,6 +1084,36 @@ function startGame(){
   G.mode=document.getElementById('modeSel').value;
   G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
+  // Auto-create game in Supabase if no game_id yet
+  if(!G_game_id && G_home_team_id && G_away_team_id){
+    try {
+      const sportVal = G.sport||'baseball';
+      const sportId = sportVal==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+      const res = await fetch(`${SB_URL}/rest/v1/games`, {
+        method:'POST',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' },
+        body: JSON.stringify({
+          home_team_id: G_home_team_id,
+          away_team_id: G_away_team_id,
+          sport_id: sportId,
+          season_year: 2026,
+          game_date: G.date || new Date().toISOString().slice(0,10),
+          location: G.loc || null,
+          status: 'active',
+          home_score_live: 0,
+          away_score_live: 0,
+        })
+      });
+      if(res.ok){
+        const rows = await res.json();
+        G_game_id = rows[0]?.id || null;
+        console.log('Game created:', G_game_id);
+      } else {
+        const t = await res.text();
+        console.error('Game creation failed:', t);
+      }
+    } catch(e){ console.error('Game creation error:', e); }
+  }
   G.pitStats = {};
   G.linescore = [];
   for(let i=0;i<G.maxInn;i++) G.linescore.push({away:null,home:null});

@@ -1407,8 +1407,9 @@ function confirmOut(type){
                  type==='LO'?'lineout':type==='PO'?'popup':
                  type==='IFF'?'flyout':'groundout';
   pushEvt(evtKey, {outs_override: G.outs + 1});
-  // For sac fly: track batter so RBI is credited when runner scores in overlay
-  if(isSacFly) G.pendingRBIbatter = b.player;
+  // Track batter so RBI is credited correctly when runner scores in overlay
+  // (after addOut/nextBatter, curBatter() points to the next batter)
+  G.pendingRBIbatter = b.player;
   addOut(notation);
   // Open runners overlay whenever there are runners (allows advances, scores, etc.)
   if(hasRunners() && G.outs < 3){
@@ -1933,6 +1934,7 @@ function doSteal(from, dest){
   G.bases[dest]=r; G.bases[from]=null;
   r.sb=(r.sb||0)+1;
   addPBP(`${r.name} SB — steals ${dest===2?'2nd':'3rd'}`);
+  pushEvt('runner_advance', {runs:0, rbi:0, notes: JSON.stringify({sb:true, runner:r.name, runnerNum:r.num||r.number||'', from, to:dest})});
   deselectRunner(); updateRunnerDiamond(); render();
 }
 

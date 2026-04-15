@@ -480,7 +480,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn hi"     onclick="openSub('pitcher')">Change P</button>
     <button class="abtn"        onclick="openSub('batter')">Pinch Hit</button>
     <button class="abtn"        onclick="openSub('defense')">Def. Sub</button>
-    <button class="abtn blue"   onclick="openRunners()">Runners</button>
+    <button class="abtn blue"   onclick="openRBIResolver(null,'runners')">Runners</button>
     <button class="abtn blue"   onclick="doBalk()">Balk</button>
     <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
@@ -1263,7 +1263,7 @@ function doDroppedThird(){
   pushEvt('strikeout', {notes:'dropped 3rd strike'});
   closeOv('ovInPlay');
   nextBatter(); resetCount();
-  if(hadRunners) setTimeout(()=>openRunners(), 150);
+  if(hadRunners) setTimeout(()=>openRBIResolver(null,'runners'), 150);
   render();
 }
 
@@ -1382,7 +1382,7 @@ function confirmOut(type){
   addOut(notation);
   // Open runners overlay whenever there are runners (allows advances, scores, etc.)
   if(hasRunners() && G.outs < 3){
-    setTimeout(()=>{ openRunners(); }, 150);
+    setTimeout(()=>openRBIResolver(null,'runners'), 150);
   } else {
     G.pendingRBIbatter = null;
   }
@@ -1451,7 +1451,7 @@ function recordDPRunnerOut(base){
   setTimeout(()=>pushEvt('groundout', {player_override: r, notes: 'out (DP)', bases_override: dpBases, outs_override: dpOuts}), 200);
   if(G.outs>=3){ endHalf(); return; }
   render();
-  if(hasRunners()) setTimeout(()=>openRunners(),150);
+  if(hasRunners()) setTimeout(()=>openRBIResolver(null,'runners'),150);
 }
 
 function hasRunners(){ return !!(G.bases[1]||G.bases[2]||G.bases[3]); }
@@ -1492,8 +1492,12 @@ function doHR(){
   }
 }
 
-function openRBIResolver(result){
+function openRBIResolver(result, mode){
+  // mode: 'hit' (default) = batter result + runner movement
+  //       'runners' = runner movement only, no batter involved (outs, errors, steals, etc.)
   G.runDecisions={};
+  G._rbiMode = mode || 'hit';
+  G._rbiResult = result;
   const el=document.getElementById('rbiRunners');
   const isHit=['1B','2B','3B'].includes(result);
   el.innerHTML=[3,2,1].map(base=>{
@@ -1512,10 +1516,12 @@ function openRBIResolver(result){
       <div class="rbi-btns">${btns}</div>
     </div>`;
   }).join('') || '<div style="color:var(--dim);font-size:13px;padding:8px">No runners on base</div>';
-  document.getElementById('ovRBITitle').textContent=`${result} — Where do runners go?`;
-  // Only show manual RBI input for errors (runs without RBI)
+  document.getElementById('ovRBITitle').textContent = mode==='runners'
+    ? 'Where do runners go?'
+    : `${result} — Where do runners go?`;
+  // Only show manual RBI input for errors in hit mode
   const rbiRow=document.getElementById('rbiCountRow');
-  if(rbiRow) rbiRow.style.display=isHit?'none':'';
+  if(rbiRow) rbiRow.style.display=(isHit||mode==='runners')?'none':'';
   document.getElementById('rbiInp').value='0';
   openOv('ovRBI');
 }
@@ -1530,10 +1536,13 @@ function setRD(base,action){
 
 function confirmRBI(){
   saveSnapshot();
-  const result=G.pendingHit;
+  const mode = G._rbiMode || 'hit';
+  const result = G._rbiResult || G.pendingHit;
   const b=curBatter(), side=battingSide();
   const isHit=['1B','2B','3B'].includes(result);
-  let autoRBI=0;
+
+  // ── Resolve runner positions ─────────────────────────────
+  let runsScored=0;
   const newBases={1:null,2:null,3:null};
   [3,2,1].forEach(base=>{
     const runner=G.bases[base]; if(!runner) return;
@@ -1544,12 +1553,39 @@ function confirmRBI(){
         G.pendingUnearnedCheck.push({runner, side});
       }
       scoreRunner(runner, side, false);
-      if(isHit) autoRBI++;
+      runsScored++;
+      // Credit R to runner
+      const rPlayer = G.teams[side].lineup.find(p=>p.name===runner.name)
+                   || G.teams[side].bench.find(p=>p.name===runner.name);
+      if(rPlayer) rPlayer.stats.r = (rPlayer.stats.r||0)+1;
     }
     else if(dec==='to2') newBases[2]=runner;
     else if(dec==='to3') newBases[3]=runner;
     else newBases[base]=runner;
   });
+
+  if(mode==='runners'){
+    // ── Runners-only mode: no batter stats, just movement + push ──
+    G.bases=newBases;
+    // Credit RBI: use pendingRBIbatter if set (sac fly), else current batter
+    if(runsScored>0){
+      const rbiTarget = G.pendingRBIbatter || (b && b.player);
+      if(rbiTarget) rbiTarget.stats.rbi = (rbiTarget.stats.rbi||0) + runsScored;
+      G.pendingRBIbatter = null;
+    }
+    G.runDecisions={}; G._rbiMode=null; G._rbiResult=null;
+    closeOv('ovRBI');
+    pushEvt('runner_advance', {runs: runsScored, rbi: runsScored});
+    if(G.pendingUnearnedCheck && G.pendingUnearnedCheck.length){
+      G.pendingUnearnedQueue = G.pendingUnearnedCheck;
+      G.pendingUnearnedCheck = null;
+      processUnearnedQueue();
+    } else { render(); }
+    return;
+  }
+
+  // ── Hit/error/FC mode: full batter stat update ───────────
+  const autoRBI=runsScored; // runners that scored on this hit
   const manualRBI=isHit?0:(parseInt(document.getElementById('rbiInp').value)||0);
   const totalRBI=autoRBI+manualRBI;
   b.player.stats.ab++; b.player.stats.rbi+=totalRBI;
@@ -1566,8 +1602,7 @@ function confirmRBI(){
   if(isHit) G.hits[side]++;
   const p=curPitcher();
   if(p){ const ps=getPS(p.side,p.idx);
-    if(isHit) ps.h++;           // errors don't count as hits allowed
-    // ER tracked in scoreRunner() directly
+    if(isHit) ps.h++;
   }
   G.curPitches.push('X');
   chargePitch();
@@ -1576,13 +1611,12 @@ function confirmRBI(){
     : result;
   const hitLabel = {'1B':'singles','2B':'doubles','3B':'triples'}[result] || notation;
   addPBP(`<strong>${b.player.name}</strong> ${isHit ? hitLabel : notation}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
-  // Push event — map result to event_type
   const evtKey = result==='1B'?'single':result==='2B'?'double':result==='3B'?'triple':
                  result==='E'?'error':result==='FC'?'fielders_choice':'single';
-  const runsScored = autoRBI + manualRBI; // approximation — actual runs tracked in scoreRunner
-  pushEvt(evtKey, {runs: runsScored, rbi: totalRBI});
+  const totalRuns = autoRBI + manualRBI;
+  pushEvt(evtKey, {runs: totalRuns, rbi: totalRBI});
   G.pendingErrorNotation=null; G.pendingErrorFielder=null;
-  G.runDecisions={};
+  G.runDecisions={}; G._rbiMode=null; G._rbiResult=null;
   closeOv('ovRBI');
   nextBatter(); resetCount();
   if(G.pendingUnearnedCheck && G.pendingUnearnedCheck.length){
@@ -1598,25 +1632,16 @@ function pushRunnerAdvance(){
   const side = battingSide();
   const runsStart = G._overlayRunsStart || {home:0, away:0};
   const runsScored = G.runs[side] - (runsStart[side] || 0);
-  // Credit RBI to current batter for runs scored via runners overlay
-  if(runsScored > 0){
-    const idx = G.batIdx[side] % G.teams[side].lineup.length;
-    const player = G.teams[side].lineup[idx];
-    if(player && player.stats) player.stats.rbi = (player.stats.rbi||0) + runsScored;
-  }
   pushEvt('runner_advance', {
     runs: runsScored,
-    rbi: runsScored,
+    rbi: 0, // RBI credited on the play event, not here
   });
   G._overlayRunsStart = null;
 }
 
 function openRunners(){
-  updateRunnerDiamond();
-  deselectRunner();
-  // Capture run totals at overlay open so we can diff on close
-  G._overlayRunsStart = {home: G.runs.home, away: G.runs.away};
-  openOv('ovRunners');
+  // Legacy alias — now uses unified RBI resolver
+  openRBIResolver(null,'runners');
 }
 
 let selectedRunnerBase = null;
@@ -1796,7 +1821,7 @@ function confirmPR(base, name, number){
   const benchIdx = G.teams[bside].bench.findIndex(p=>p.name===name);
   if(benchIdx >= 0) G.teams[bside].bench.splice(benchIdx,1);
   addPBP(`PR: <strong>${name}</strong> for <strong>${replaced?.name}</strong>`);
-  openRunners(); render();
+  openRBIResolver(null,'runners'); render();
 }
 
 function advanceOnError(from, dest){
@@ -1840,7 +1865,7 @@ function fieldingErrorNoPlay(posNum, posName, fielderName){
   addPBP(`E${posNum} (${fielderName}) — fielding error`);
   render();
   // Open runners overlay so scorer can advance any runners on the error
-  if(hasRunners()) setTimeout(()=>openRunners(), 150);
+  if(hasRunners()) setTimeout(()=>openRBIResolver(null,'runners'), 150);
 }
 
 function openErrorFielderPicker(callback){
@@ -1898,7 +1923,7 @@ function runnerPickedOff(base){
   addOut('PO'); render();
 }
 
-function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRunners(); render(); }
+function runScore(base){ const r=G.bases[base]; scoreRunner(r); G.bases[base]=null; addPBP(`<strong>${r?.name}</strong> scores`); openRBIResolver(null,'runners'); render(); }
 
 let subMode='pitcher';
 

@@ -1612,19 +1612,22 @@ function bbUpdFeed(){
     if(e.key==='runner_advance'){
       try {
         const info = JSON.parse(e.notes||'{}');
-        const runnerName = info.runner || info.name || e.plast;
-        const runnerNum  = info.runnerNum || info.num || e.pnum;
-        const moveDesc   = info.from && info.to ? ` (${info.from}→${info.to})` : '';
-        const runnerWho  = `<b>#${runnerNum} ${runnerName}</b>`;
-        let raLabel;
-        if(info.sb) raLabel = 'Stolen base';
-        else if(e.runs) raLabel = `scores`;
-        else raLabel = 'Advances';
-        // For non-SB runs, show as "Batter — runner scores · N runs"
+        // For non-SB runs, show batter as subject, runner as object
         if(e.runs && !info.sb){
-          desc = `<b>#${e.pnum} ${e.plast}</b> — ${runnerName} scores`;
+          // Get runner name from scorers array or fall back
+          const scorer = info.scorers && info.scorers[0];
+          const scorerName = scorer ? scorer.name : (info.runner || info.name || '');
+          const runnerDesc = scorerName ? ` — ${scorerName} scores` : ' — Runner scores';
+          desc = `<b>#${e.pnum} ${e.plast}</b>${runnerDesc}`;
+        } else if(info.sb){
+          const runnerName = info.runner || info.name || e.plast;
+          const runnerNum  = info.runnerNum || info.num || e.pnum;
+          const moveDesc   = info.from && info.to ? ` (${info.from}→${info.to})` : '';
+          desc = `<b>#${runnerNum} ${runnerName}</b> — Stolen base${moveDesc}`;
         } else {
-          desc = `${runnerWho} — ${raLabel}${moveDesc}`;
+          const runnerName = info.runner || info.name || e.plast;
+          const runnerNum  = info.runnerNum || info.num || e.pnum;
+          desc = `<b>#${runnerNum} ${runnerName}</b> — Advances`;
         }
       } catch(err){ desc = `${who} — ${action}`; }
     } else if(e.key==='sub_pitcher'){

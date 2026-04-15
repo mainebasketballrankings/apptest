@@ -1436,6 +1436,7 @@ function confirmDP(type){ saveSnapshot();
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
   if(G.outs>=3){ endHalf(); return; }
+  G.pendingRBIbatter = b.player; // capture batter before nextBatter() advances
   nextBatter(); resetCount();
   // Open DP runner overlay — scorer picks which runner is out
   openDPOverlay();

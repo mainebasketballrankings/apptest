@@ -1474,11 +1474,11 @@
     }
 
     // Top status bar
-    const submitBtnTop = !isFinal && !isPPD
-      ? `<button class="submit-btn-inline" data-id="${g.id}">${isLive ? 'Update' : 'Submit'}</button>`
+    const submitBtnTop = !isPPD
+      ? `<button class="submit-btn-inline" data-id="${g.id}">${isFinal ? 'Edit' : isLive ? 'Update' : 'Submit'}</button>`
       : `<span></span>`;
     const topBar = isFinal
-      ? `<div class="card-top"><span>Final</span><span class="card-top-center">${clsLabel} · ${home.gender}</span><span></span></div>`
+      ? `<div class="card-top"><span>Final</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`
       : isLive
         ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock ? g.game_clock : 'Live'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`
         : isPPD
@@ -1549,10 +1549,10 @@
         </div>
         <div class="ppd-hint">Leave date blank if rescheduled date is unknown — will show as "PPD"</div>
       </div>` : ''}
-      ${!isFinal && !isPPD ? `
+      ${!isPPD ? `
       <div class="submit-panel" id="panel-${g.id}">
-        <h4>Submit Score</h4>
-        ${(sport==='baseball'||sport==='softball') ? `
+        <h4>${isFinal ? 'Edit Score' : 'Submit Score'}</h4>
+        ${!isFinal && (sport==='baseball'||sport==='softball') ? `
         <a href="baseball_scorer.html?game_id=${g.id}" target="_blank" style="display:block;margin-bottom:10px;padding:8px 12px;background:var(--green);color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;text-align:center;">
           Score This Game Live →
         </a>` : ''}
@@ -1560,27 +1560,27 @@
           <div class="score-inputs">
             <div class="si-group">
               <label>${home.school_name}</label>
-              <input type="number" name="home_score" min="0" max="250" placeholder="0" required />
+              <input type="number" name="home_score" min="0" max="250" placeholder="0" value="${isFinal && hSc !== null ? hSc : ''}" required />
             </div>
             <div class="si-dash">–</div>
             <div class="si-group">
               <label>${away.school_name}</label>
-              <input type="number" name="away_score" min="0" max="250" placeholder="0" required />
+              <input type="number" name="away_score" min="0" max="250" placeholder="0" value="${isFinal && aSc !== null ? aSc : ''}" required />
             </div>
           </div>
           <div class="si-extras">
             <div class="si-clock-row">
               ${periodClockHTML(sport)}
             </div>
-            <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)"></textarea>
+            <textarea name="notes" placeholder="Notes (e.g. Nolan Ames 32 pts 10 reb)">${notesMap[g.id] || ''}</textarea>
           </div>
           <div class="si-row">
             <label class="final-label">
-              <input type="checkbox" name="is_final" /> Final score
+              <input type="checkbox" name="is_final" ${isFinal ? 'checked' : ''} /> Final score
             </label>
-            <button type="submit" class="si-submit">Submit</button>
+            <button type="submit" class="si-submit">${isFinal ? 'Save' : 'Submit'}</button>
           </div>
-          <div class="si-success" id="ok-${g.id}">✓ Submitted — thanks!</div>
+          <div class="si-success" id="ok-${g.id}">✓ Saved!</div>
         </form>
       </div>` : ''}
     </div>`;

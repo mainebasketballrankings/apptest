@@ -1651,7 +1651,8 @@
     // Patch just this card's scores in place — no page reload
     if (isFinal) {
       patchCardFinal(id, hSc, aSc, gameClock,
-        allGames.find(g => g.id === id));
+        allGames.find(g => g.id === id),
+        form.notes.value.trim() || null);
     } else {
       patchCardScores(id, hSc, aSc, gameClock);
     }
@@ -1795,9 +1796,8 @@
 
       // If game just became final, re-render the card fully (status changed)
       if (isFinal && wasLive) {
-        const sport = cardEl.closest('[data-sport-section]')?.dataset.sportSection
-          || activeSport;
-        const notesMap = {};
+        const sport = cardEl.closest('[data-sport-section]')?.dataset.sportSection || activeSport;
+        const notesMap = await fetchNotes([g]);
         cardEl.outerHTML = card(g, notesMap, sport);
         attachCardListeners(document.querySelector(`[data-game-id="${g.id}"]`));
       }
@@ -1896,13 +1896,13 @@
   }
 
   // Patch a card that just became final — re-render it fully but in-place
-  function patchCardFinal(id, hSc, aSc, gameClock, gameObj) {
+  function patchCardFinal(id, hSc, aSc, gameClock, gameObj, notes) {
     const cardEl = document.querySelector(`[data-game-id="${id}"]`);
     if (!cardEl || !gameObj) return;
-    // Build updated game object
     const updated = { ...gameObj, status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock };
-    const sport = activeSport !== 'all' ? activeSport : 'baseball'; // best effort
-    const newHtml = card(updated, {}, sport);
+    const sport = activeSport !== 'all' ? activeSport : 'baseball';
+    const notesMap = notes ? { [id]: notes } : {};
+    const newHtml = card(updated, notesMap, sport);
     cardEl.outerHTML = newHtml;
     attachCardListeners(document.querySelector(`[data-game-id="${id}"]`));
   }

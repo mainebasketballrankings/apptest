@@ -284,11 +284,21 @@ function fmtHeading(d) {
   return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }) + ' Picks';
 }
 
+function maxAllowedDate() {
+  // After 8pm Eastern, allow tomorrow's picks
+  const now = new Date();
+  const etOffset = -5 * 60; // EST offset in minutes (ignores DST, close enough)
+  const etNow = new Date(now.getTime() + (now.getTimezoneOffset() + etOffset) * 60000);
+  const today = new Date(etNow); today.setHours(12,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  return etNow.getHours() >= 20 ? tomorrow : today;
+}
+
 function navigate(dir) {
-  const today = new Date(); today.setHours(12,0,0,0);
+  const max = maxAllowedDate();
   const next = new Date(currentDate);
   next.setDate(next.getDate() + dir);
-  if (next > today) return; // can't go into the future
+  if (next > max) return;
   currentDate = next;
   loadSpreads();
 }
@@ -296,8 +306,8 @@ function navigate(dir) {
 function pickDate(val) {
   if (!val) return;
   const d = new Date(val + 'T12:00:00');
-  const today = new Date(); today.setHours(12,0,0,0);
-  if (d > today) return; // no future dates
+  const max = maxAllowedDate();
+  if (d > max) return;
   currentDate = d;
   loadSpreads();
 }
@@ -398,10 +408,9 @@ async function loadSpreads() {
   const ds = toISO(currentDate);
   document.getElementById('dateHeading').textContent = fmtHeading(currentDate);
   document.getElementById('datePicker').value = ds;
-  document.getElementById('datePicker').max = toISO(new Date());
+  document.getElementById('datePicker').max = toISO(maxAllowedDate());
 
-  const today = new Date(); today.setHours(12,0,0,0);
-  const isToday = ds === toISO(today);
+  const isToday = ds === toISO(maxAllowedDate());
   document.getElementById('todayBtn').style.display = isToday ? 'none' : '';
 
   document.getElementById('app').innerHTML =

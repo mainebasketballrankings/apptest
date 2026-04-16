@@ -1000,7 +1000,7 @@
     const { data, error } = await sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index,
       is_neutral_site, is_tournament,
-      home_score, away_score, home_score_live, away_score_live, game_clock,
+      home_score, away_score, home_score_live, away_score_live, game_clock, notes,
       home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, team_class,
         team_classifications ( classes ( name ) ) ),
       away_team:away_team_id ( id, school_name, gender, logo_url, team_class,
@@ -1013,16 +1013,9 @@
     return data.filter(g => g.home_team && g.away_team);
   }
 
-  async function fetchNotes(games) {
-    const gameIds = games.map(g => g.id);
-    if (!gameIds.length) return {};
+  function buildNotesMap(games) {
     const notesMap = {};
-    const { data: subs } = await sb.from('score_submissions')
-      .select('game_id, notes, created_at')
-      .in('game_id', gameIds)
-      .not('notes', 'is', null)
-      .order('created_at', { ascending: false });
-    if (subs) subs.forEach(s => { if (!notesMap[s.game_id]) notesMap[s.game_id] = s.notes; });
+    games.forEach(g => { if (g.notes) notesMap[g.id] = g.notes; });
     return notesMap;
   }
 
@@ -1046,7 +1039,7 @@
     const sportsWithGames = results.filter(r => r.games.length > 0);
 
     await Promise.all(sportsWithGames.map(async ({ sport, season, games }) => {
-      const notesMap = await fetchNotes(games);
+      const notesMap = buildNotesMap(games);
       allSportsGames[sport] = { games, notesMap, season };
     }));
 
@@ -1620,8 +1613,8 @@
 
     // Write directly to games table — auto-authorized
     const gameUpdate = isFinal
-      ? { status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock }
-      : { status: 'active', home_score_live: hSc, away_score_live: aSc, game_clock: gameClock };
+      ? { status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock, notes: form.notes.value.trim() || null }
+      : { status: 'active', home_score_live: hSc, away_score_live: aSc, game_clock: gameClock, notes: form.notes.value.trim() || null };
 
     const { error } = await sb.from('games').update(gameUpdate).eq('id', id);
 
@@ -1799,12 +1792,12 @@
       if (isFinal && wasLive) newlyFinal.push(g);
     });
 
-    // Re-render cards that just flipped to final (needs async fetchNotes, can't be inside forEach)
+    // Re-render cards that just flipped to final (async-safe, outside forEach)
     for (const g of newlyFinal) {
       const cardEl = document.querySelector(`[data-game-id="${g.id}"]`);
       if (!cardEl) continue;
       const sport = cardEl.closest('[data-sport-section]')?.dataset.sportSection || activeSport;
-      const notesMap = await fetchNotes([g]);
+      const notesMap = buildNotesMap([g]);
       cardEl.outerHTML = card(g, notesMap, sport);
       attachCardListeners(document.querySelector(`[data-game-id="${g.id}"]`));
     }
@@ -1905,9 +1898,9 @@
   function patchCardFinal(id, hSc, aSc, gameClock, gameObj, notes) {
     const cardEl = document.querySelector(`[data-game-id="${id}"]`);
     if (!cardEl || !gameObj) return;
-    const updated = { ...gameObj, status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock };
+    const updated = { ...gameObj, status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock, notes };
     const sport = activeSport !== 'all' ? activeSport : 'baseball';
-    const notesMap = notes ? { [id]: notes } : {};
+    const notesMap = buildNotesMap([updated]);
     const newHtml = card(updated, notesMap, sport);
     cardEl.outerHTML = newHtml;
     attachCardListeners(document.querySelector(`[data-game-id="${id}"]`));

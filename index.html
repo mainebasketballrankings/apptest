@@ -1472,16 +1472,13 @@
     }
 
     // Top status bar
-    const submitBtnTop = !isFinal && !isPPD && !isLive
-      ? `<button class="submit-btn-inline" data-id="${g.id}">Submit</button>`
-      : `<span></span>`;
-    const liveBtnTop = isLive && (sport==='baseball'||sport==='softball')
-      ? `<a class="submit-btn-inline" href="live.html?game_id=${g.id}" target="_blank" style="text-decoration:none;color:var(--green);border-color:var(--green)">Live ↗</a>`
+    const submitBtnTop = !isFinal && !isPPD
+      ? `<button class="submit-btn-inline" data-id="${g.id}">${isLive ? 'Update' : 'Submit'}</button>`
       : `<span></span>`;
     const topBar = isFinal
       ? `<div class="card-top"><span>Final</span><span class="card-top-center">${clsLabel} · ${home.gender}</span><span></span></div>`
       : isLive
-        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>Live</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${liveBtnTop}</div>`
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock ? g.game_clock : 'Live'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`
         : isPPD
           ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span class="card-top-center" style="display:flex;align-items:center;gap:6px">${clsLabel} · ${home.gender} <span class="ppd-badge">${ppdLabel}</span></span><span></span></div>`
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`;
@@ -1508,8 +1505,7 @@
         ? `<div class="card-meta" style="color:var(--black)">${notes}</div>`
         : `<div class="card-meta" style="color:var(--lgray)">—</div>`;
     } else if (isLive) {
-      const streamEl = streamUrl ? `<a class="stream-link" href="${streamUrl}" target="_blank">▶ Watch Live</a>` : '';
-      footerMeta = `<div class="card-meta">${streamEl}</div>`;
+      footerMeta = `<div class="card-meta" style="color:var(--lgray)">In progress</div>`;
     } else {
       footerMeta = `<div class="card-meta">${eventEl}${loc}<br/>${dateShort}${g.game_time ? ' · ' + fmtTime(g.game_time) : ''}</div>`;
     }
@@ -1615,16 +1611,25 @@
     const gameClock = period
       ? (noTime || !clockTime ? period : `${period} | ${clockTime}`)
       : null;
+    const isFinal = form.is_final.checked;
 
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
-    const { error } = await sb.from('score_submissions').insert({
+    // Write directly to games table — auto-authorized
+    const gameUpdate = isFinal
+      ? { status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock }
+      : { status: 'active', home_score_live: hSc, away_score_live: aSc, game_clock: gameClock };
+
+    const { error } = await sb.from('games').update(gameUpdate).eq('id', id);
+
+    // Also log to score_submissions for audit trail
+    await sb.from('score_submissions').insert({
       game_id: id, home_score: hSc, away_score: aSc,
-      is_final: form.is_final.checked,
+      is_final: isFinal,
       game_clock: gameClock,
       notes: form.notes.value.trim() || null,
-      status: 'pending',
+      status: 'approved',
     });
 
     if (error) {
@@ -1633,17 +1638,17 @@
       return;
     }
 
+    // Show success briefly, then re-enable for further updates
     ok.style.display = 'block';
-    btn.style.display = 'none';
-    showToast('Score submitted — thanks!');
+    showToast(isFinal ? '✓ Final score saved!' : '✓ Score updated!');
+    setTimeout(() => {
+      ok.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = 'Update';
+    }, 2500);
 
-    if (form.is_final.checked) {
-      await sb.from('games').update({
-        status: 'active', home_score_live: hSc, away_score_live: aSc,
-        game_clock: gameClock,
-      }).eq('id', id);
-      setTimeout(() => loadGames(currentDate), 1500);
-    }
+    // Reload to reflect new status
+    setTimeout(() => loadGames(currentDate), 1000);
   }
 
   function showToast(msg, isError = false) {

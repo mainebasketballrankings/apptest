@@ -1764,9 +1764,10 @@
     );
     const freshGames = results.flatMap(r => r.games);
 
+    const newlyFinal = [];
     freshGames.forEach(g => {
       const cardEl = document.querySelector(`[data-game-id="${g.id}"]`);
-      if (!cardEl) return; // new game added after initial load — full reload needed on next nav
+      if (!cardEl) return;
 
       const wasLive  = cardEl.classList.contains('live');
       const isFinal  = g.status === 'final';
@@ -1790,19 +1791,23 @@
       if (g.game_clock) {
         const topLeft = cardEl.querySelector('.card-top > span:first-child');
         if (topLeft && isLive && !topLeft.querySelector('span[style*="grid"]')) {
-          // Only update plain-text clock; leave scorebug alone (game_events patch handles it)
           topLeft.innerHTML = `<span class="live-dot"></span>${g.game_clock}`;
         }
       }
 
-      // If game just became final, re-render the card fully (status changed)
-      if (isFinal && wasLive) {
-        const sport = cardEl.closest('[data-sport-section]')?.dataset.sportSection || activeSport;
-        const notesMap = await fetchNotes([g]);
-        cardEl.outerHTML = card(g, notesMap, sport);
-        attachCardListeners(document.querySelector(`[data-game-id="${g.id}"]`));
-      }
+      // Collect newly-final cards for async re-render after loop
+      if (isFinal && wasLive) newlyFinal.push(g);
     });
+
+    // Re-render cards that just flipped to final (needs async fetchNotes, can't be inside forEach)
+    for (const g of newlyFinal) {
+      const cardEl = document.querySelector(`[data-game-id="${g.id}"]`);
+      if (!cardEl) continue;
+      const sport = cardEl.closest('[data-sport-section]')?.dataset.sportSection || activeSport;
+      const notesMap = await fetchNotes([g]);
+      cardEl.outerHTML = card(g, notesMap, sport);
+      attachCardListeners(document.querySelector(`[data-game-id="${g.id}"]`));
+    }
 
     // Patch game_events for active games
     const activeGames = freshGames.filter(g => g.status === 'active');

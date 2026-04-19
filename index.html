@@ -1528,7 +1528,7 @@
         ${footerMeta}
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
-          ${streamIconEl(streamUrl)}
+          ${isLive && streamUrl ? streamIconEl(streamUrl) : ''}
           ${!isFinal && !isPPD && !isLive ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
           ${isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}" style="border-color:#c0392b;color:#c0392b">Edit PPD</button>` : ''}
         </div>

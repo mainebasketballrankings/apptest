@@ -449,6 +449,18 @@
 
     .submit-btn-inline:hover { background: var(--green); color: #fff; }
 
+    .live-btn {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 11px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      background: transparent; border: 1px solid var(--green);
+      color: var(--green); padding: 4px 10px;
+      border-radius: 5px;
+      white-space: nowrap; flex-shrink: 0;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .live-btn:hover { background: var(--green); color: #fff; }
     .ppd-btn {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700; font-size: 11px;
@@ -1528,7 +1540,8 @@
         ${footerMeta}
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
-          ${isLive && streamUrl ? streamIconEl(streamUrl) : ''}
+          ${streamUrl ? streamIconEl(streamUrl) : ''}
+          ${isLive ? `<a href="live.html?game_id=${g.id}" class="live-btn">LIVE</a>` : ''}
           ${!isFinal && !isPPD && !isLive ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
           ${isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}" style="border-color:#c0392b;color:#c0392b">Edit PPD</button>` : ''}
         </div>

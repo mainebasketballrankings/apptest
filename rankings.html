@@ -329,6 +329,15 @@
     <button class="gender-tab" data-gender="Girls">Girls</button>
   </div>
 
+  <div id="season-row" style="display:flex;align-items:center;gap:8px;margin:8px 0 0;font-family:'Barlow',sans-serif;font-size:13px;color:var(--ink3)">
+    <span>Season:</span>
+    <select id="seasonSel" style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer">
+      <option value="2026">25-26</option>
+      <option value="2025">24-25</option>
+      <option value="2024">23-24</option>
+    </select>
+  </div>
+
   <div class="class-tabs" id="classTabs">
     <button class="class-tab active" data-class="all">All</button>
     <button class="class-tab" data-class="A">Class A</button>
@@ -388,6 +397,12 @@
   let activeClass  = 'all';
   let activeSport  = 'basketball';
   let activeSeason = 2026;
+
+  // Season dropdown — default seasons per sport
+  const SPORT_DEFAULT_SEASON = {
+    'basketball': 2026, 'baseball': 2026, 'softball': 2026, 'lacrosse': 2026,
+    'soccer': 2025, 'field-hockey': 2025, 'football': 2025,
+  };
   let sortCol      = 'rank_overall';
   let sortAsc      = true;
   let visibleCols  = { pf: true, pa: true, diff: true, pct: true, sos: true, odds: false };
@@ -608,12 +623,20 @@
   }
 
   // Gender tabs
+  // Season dropdown handler
+  document.getElementById('seasonSel')?.addEventListener('change', function() {
+    activeSeason = parseInt(this.value);
+    loadRankings();
+  });
+
   document.querySelectorAll('.sport-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeSport  = btn.dataset.sport;
-      activeSeason = parseInt(btn.dataset.season);
+      activeSeason = SPORT_DEFAULT_SEASON[activeSport] || 2026;
+      const sel = document.getElementById('seasonSel');
+      if(sel) sel.value = activeSeason;
       activeClass  = 'all';
       sortCol = 'rank_overall'; sortAsc = true;
       // Show/hide gender tabs

@@ -531,6 +531,9 @@
     loadRegions();
   });
 
+  // Cancellation token — incremented on every new load to cancel stale requests
+  let _loadToken = 0;
+
   // ── Load selector (region for basketball, class for others) ──
   async function loadRegions() {
     const sel   = document.getElementById('regionSelect');
@@ -624,20 +627,23 @@
       if (activeRegion) sel.value = activeRegion;
     }
 
-    sel.addEventListener('change', () => {
+    sel.onchange = () => {
       activeRegion = sel.value;
       expandedTeam = null;
       loadData();
-    });
+    };
 
     loadData();
   }
 
   // ── Load all teams + games for selected sport/region/class/gender ──
   async function loadData() {
+    _loadToken++;
+    const myToken = _loadToken;
     document.getElementById('tableWrap').innerHTML =
       '<div class="loading"><div class="spinner"></div><span>Calculating…</span></div>';
     try {
+    const cancelled = () => myToken !== _loadToken;
 
     let teams = [];
 
@@ -694,6 +700,7 @@
       teams = (teamData || []).map(t => ({ ...t, class: t.team_class }));
     }
 
+    if (cancelled()) return;
     if (!teams.length) {
       document.getElementById('tableWrap').innerHTML =
         '<div class="empty"><h3>No teams</h3><p>No teams found for this selection.</p></div>';
@@ -767,6 +774,7 @@
       return results;
     };
 
+    if (cancelled()) return;
     const [allHomeGames, allAwayGames] = await Promise.all([
       fetchGames('home_team_id', allTeamIds),
       fetchGames('away_team_id', allTeamIds),
@@ -803,6 +811,7 @@
       return results;
     };
 
+    if (cancelled()) return;
     const [schedHome, schedAway] = await Promise.all([
       fetchAllScheduled('home_team_id', allTeamIds),
       fetchAllScheduled('away_team_id', allTeamIds),
@@ -823,31 +832,39 @@
       return Math.max(count, 12);
     };
 
-    // Load rank from rankings_snapshots for display only
-    const { data: snapData } = await sb
-      .from('rankings_snapshots')
-      .select('team_id, rank_overall, team:team_id(sport_id)')
-      .eq('season_year', season)
-      .order('snapshot_date', { ascending: false });
-
+    // Load rank from rankings_snapshots — filter by known team IDs to avoid loading all sports
     const snapMap = {};
-    if (snapData) {
-      snapData.forEach(s => {
-        if (s.team?.sport_id === sportId && !snapMap[s.team_id])
-          snapMap[s.team_id] = { rank: s.rank_overall };
-      });
+    if (allTeamIds.length) {
+      const { data: snapData } = await sb
+        .from('rankings_snapshots')
+        .select('team_id, rank_overall')
+        .eq('season_year', season)
+        .in('team_id', allTeamIds.slice(0, 400))
+        .order('snapshot_date', { ascending: false })
+        .limit(allTeamIds.length * 2);
+      if (snapData) {
+        snapData.forEach(s => {
+          if (!snapMap[s.team_id]) snapMap[s.team_id] = { rank: s.rank_overall };
+        });
+      }
     }
+    if (cancelled()) return;
 
     // ── Step 1: Calculate PI for ALL teams in the sport ──────────
     // PI = sum of win point values / max(scheduled, 12); 0 wins -> 1.0
     const piMap = {}; // team_id -> calculated PI
 
-    // Get scheduled game count per team from snapMap
+    // Pre-index games by team_id to avoid O(n*m) scans in calcPI
+    const gamesByTeam = {};
+    allGames.forEach(g => {
+      const hid = g.home_team?.id, aid = g.away_team?.id;
+      if (hid) { if (!gamesByTeam[hid]) gamesByTeam[hid] = []; gamesByTeam[hid].push(g); }
+      if (aid) { if (!gamesByTeam[aid]) gamesByTeam[aid] = []; gamesByTeam[aid].push(g); }
+    });
+
     const calcPI = (tid) => {
       if (piMap[tid] !== undefined) return piMap[tid];
-      const teamAllGames = allGames.filter(g =>
-        g.home_team?.id === tid || g.away_team?.id === tid
-      );
+      const teamAllGames = gamesByTeam[tid] || [];
       let sumWinPts = 0, wins = 0, played = 0;
       teamAllGames.forEach(g => {
         const isHome   = g.home_team?.id === tid;
@@ -877,9 +894,9 @@
 
     // ── Step 2: Calculate Heal Points for each team in selected region ──
     allTeams = teams.map(team => {
-      const teamGames = games.filter(g =>
-        g.home_team?.id === team.id || g.away_team?.id === team.id
-      ).sort((a, b) => a.game_date.localeCompare(b.game_date));
+      const teamGames = (gamesByTeam[team.id] || [])
+        .filter(g => teamIds.includes(g.home_team?.id) || teamIds.includes(g.away_team?.id))
+        .sort((a, b) => a.game_date.localeCompare(b.game_date));
 
       const gameDetails = teamGames.map(g => {
         const isHome    = g.home_team?.id === team.id;
@@ -919,6 +936,7 @@
       return { team, gameDetails, wins, losses, ties, pi, heal, denom };
     });
 
+    if (cancelled()) return;
     // Sort by Heal desc
     allTeams.sort((a, b) => b.heal - a.heal);
     renderTable();

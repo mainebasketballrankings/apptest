@@ -1869,7 +1869,7 @@ function bbOnEvent(e){
       }
     } catch(err){ console.warn('sub_batter parse error', err); }
     bbEvts.unshift(e);
-    bbUpdPanels();
+    bbUpdScoreboard(); bbUpdPanels();
     return;
   }
 

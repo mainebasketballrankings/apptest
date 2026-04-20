@@ -2753,6 +2753,8 @@ function confirmFC(outBase){
   const b=curBatter(), side=battingSide();
   b.player.stats.ab++;
   const bRunner={name:b.player.name,num:b.player.number};
+
+  // Remove the retired runner first
   if(outBase!==null && G.bases[outBase]){
     const retired=G.bases[outBase];
     G.bases[outBase]=null;
@@ -2760,15 +2762,25 @@ function confirmFC(outBase){
   } else {
     addPBP(`<strong>${b.player.name}</strong> FC — reaches 1st`);
   }
-  // Batter goes to 1st (may need to shift runners)
-  if(G.bases[1] && outBase!==1){
-    // 1st is still occupied — force advance
-    if(!G.bases[2]) G.bases[2]=G.bases[1];
-    else if(!G.bases[3]) G.bases[3]=G.bases[2];
+
+  // Batter always reaches 1st on FC — shift any runner still on 1st
+  if(G.bases[1]){
+    // Runner still on 1st needs to advance
+    if(!G.bases[2])       G.bases[2]=G.bases[1];
+    else if(!G.bases[3])  G.bases[3]=G.bases[1];
+    // If 2nd and 3rd both occupied, runner is stuck (scorer can use Runners button to fix)
   }
-  if(outBase!==1) G.bases[1]=bRunner;
+  G.bases[1]=bRunner;
+
+  G.pendingRBIbatter = b.player;
   addOut('FC');
-  render();
+  // Open runners overlay if there are runners who may have scored/advanced
+  if(hasRunners() && G.outs < 3){
+    setTimeout(()=>openRBIResolver(null,'runners'), 150);
+  } else {
+    G.pendingRBIbatter = null;
+    render();
+  }
 }
 
 function openErrorOverlay(){

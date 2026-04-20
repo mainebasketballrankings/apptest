@@ -488,6 +488,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn danger" onclick="doUndo()">Undo</button>
     <button class="abtn" style="grid-column:span 2" onclick="openBoxScore()">Box Score</button>
     <button class="abtn" style="grid-column:span 2;background:#1a7a4a;color:#fff;border-color:#1a7a4a" onclick="generatePDF().catch(e=>alert('PDF error: '+e.message))">Game Report</button>
+    <button class="abtn danger" style="grid-column:span 4" onclick="openEndGame()">End Game</button>
 
   </div>
 
@@ -670,10 +671,24 @@ input,select,button{font-family:inherit;}
     <div class="half-summary" id="ovHalfSummary"></div>
     <div class="oactions">
       <button class="oconfirm" onclick="confirmHalf()">Next Half-Inning →</button>
+      <button class="ocancel" style="margin-top:8px" onclick="closeOv('ovHalfEnd');openEndGame()">End Game</button>
     </div>
   </div>
 </div>
 
+
+<!-- End Game overlay -->
+<div class="overlay" id="ovEndGame" style="display:none">
+  <div class="ocard">
+    <div class="otitle">End Game</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--dim);margin-bottom:12px">Assign decisions before finalizing</div>
+    <div id="endGamePickers"></div>
+    <div class="oactions">
+      <button class="oconfirm" onclick="confirmEndGame()">Finalize Game</button>
+      <button class="ocancel" style="margin-top:8px" onclick="closeOv('ovEndGame')">Cancel</button>
+    </div>
+  </div>
+</div>
 <!-- RBI resolver -->
 <div class="overlay" id="ovRBI" style="display:none">
   <div class="ocard">
@@ -1383,6 +1398,44 @@ function checkGameEnd(){
 }
 
 // ═══════════════════════════════════════════════
+
+function openEndGame(){
+  const sides = ["away","home"];
+  let html = "";
+  sides.forEach(side => {
+    const label = side === "away" ? G.teams.away.name : G.teams.home.name;
+    const pitchers = G.teams[side].pitchers || [];
+    if(!pitchers.length) return;
+    const opts = pitchers.map((p,i) => `<option value="${i}">${p.name}</option>`).join("");
+    html += `<div style="margin-bottom:12px;font-family:'Barlow Condensed',sans-serif"><div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${label}</div><select id="egPitcher_${side}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:14px;background:var(--surface);color:var(--text)"><option value="">— no decision —</option>${opts}</select></div>`;
+  });
+  const winningSide = G.runs.home > G.runs.away ? "home" : "away";
+  const closingPitchers = G.teams[winningSide].pitchers || [];
+  const saveOpts = closingPitchers.map((p,i) => `<option value="${i}">${p.name}</option>`).join("");
+  html += `<div style="margin-bottom:12px;font-family:'Barlow Condensed',sans-serif"><div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Save (optional)</div><select id="egSave" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:14px;background:var(--surface);color:var(--text)"><option value="">— no save —</option>${saveOpts}</select></div>`;
+  document.getElementById("endGamePickers").innerHTML = html;
+  openOv("ovEndGame");
+}
+
+function confirmEndGame(){
+  addPBP("<strong>Final</strong>");
+  pushEvt("game_over", {});
+  if(G.game_id){
+    sb.from("games").update({
+      status: "final",
+      home_score: G.runs.home,
+      away_score: G.runs.away,
+    }).eq("id", G.game_id).then(()=>{});
+  }
+  closeOv("ovEndGame");
+  document.getElementById("ovHalfTitle").textContent = "Game Final";
+  document.getElementById("ovHalfSummary").textContent =
+    `${G.teams.away.name} ${G.runs.away}, ${G.teams.home.name} ${G.runs.home}`;
+  document.querySelector("#ovHalfEnd .oactions").innerHTML =
+    `<button class="oconfirm" onclick="closeOv('ovHalfEnd');render()">Done</button>`;
+  openOv("ovHalfEnd");
+  saveState();
+}
 // IN-PLAY
 // ═══════════════════════════════════════════════
 function openInPlay(){ G.fldSeq=[]; document.getElementById('fldSeq').textContent='—'; openOv('ovInPlay'); }
@@ -1488,7 +1541,7 @@ function recordDPRunnerOut(base){
   setTimeout(()=>pushEvt('groundout', {player_override: r, notes: 'out (DP)', bases_override: dpBases, outs_override: dpOuts}), 200);
   if(G.outs>=3){ endHalf(); return; }
   render();
-  if(hasRunners()) setTimeout(()=>openRBIResolver(null,'runners'),150);
+  // No RBI credit on double play per official scoring rules
 }
 
 function hasRunners(){ return !!(G.bases[1]||G.bases[2]||G.bases[3]); }

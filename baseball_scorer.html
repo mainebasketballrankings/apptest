@@ -1432,6 +1432,122 @@ function openEndGame(){
   openOv("ovEndGame");
 }
 
+
+async function pushPlayerStats(){
+  if(!G_home_team_id && !G_away_team_id) return;
+  const sportId = G.sport==='softball'
+    ? '095c9841-7261-4cb1-824e-6304792b53d0'
+    : 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+  const headers = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' };
+
+  // Helper: fetch existing player row
+  async function fetchExisting(teamId, name){
+    const res = await fetch(
+      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&name=eq.${encodeURIComponent(name)}&season_year=eq.2026&limit=1`,
+      { headers }
+    );
+    const rows = await res.json();
+    return rows[0] || null;
+  }
+
+  // Helper: upsert player row
+  async function upsertPlayer(row){
+    await fetch(`${SB_URL}/rest/v1/players`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(row)
+    });
+  }
+
+  // ── Batting stats ──────────────────────────────────────
+  for(const side of ['away','home']){
+    const teamId = side==='home' ? G_home_team_id : G_away_team_id;
+    if(!teamId) continue;
+    for(const player of G.teams[side].lineup){
+      const s = player.stats;
+      // Only push if player appeared (has AB or BB)
+      if(!s.ab && !s.bb) continue;
+      const existing = await fetchExisting(teamId, player.name);
+      const ex = existing || {};
+      const newAb    = (ex.ab    ||0) + (s.ab   ||0);
+      const newHits  = (ex.hits  ||0) + (s.h    ||0);
+      const newBb    = (ex.bb    ||0) + (s.bb   ||0);
+      const newRuns  = (ex.runs  ||0) + (s.r    ||0);
+      const newRbi   = (ex.rbi   ||0) + (s.rbi  ||0);
+      const newHr    = (ex.hr    ||0) + (s.hr   ||0);
+      const newKbat  = (ex.k_bat ||0) + (s.k    ||0);
+      const newDbl   = (ex.doubles||0)+ (s.d    ||0);
+      const newTri   = (ex.triples||0)+ (s.t    ||0);
+      const newSb    = (ex.sb    ||0) + (s.sb   ||0);
+      const newGames = (ex.games ||0) + 1;
+      // Recalculate BA and OPS
+      const ba  = newAb > 0 ? newHits/newAb : null;
+      const obp = (newAb+newBb) > 0 ? (newHits+newBb)/(newAb+newBb) : null;
+      const slg = newAb > 0 ? (newHits + newDbl + 2*newTri + 3*newHr)/newAb : null;
+      const ops = (obp!=null && slg!=null) ? obp+slg : null;
+      await upsertPlayer({
+        team_id:    teamId,
+        name:       player.name,
+        number:     player.number||null,
+        sport_id:   sportId,
+        season_year: 2026,
+        games:      newGames,
+        ab:         newAb,
+        hits:       newHits,
+        bb:         newBb,
+        runs:       newRuns,
+        rbi:        newRbi,
+        hr:         newHr,
+        k_bat:      newKbat,
+        doubles:    newDbl,
+        triples:    newTri,
+        sb:         newSb,
+        ba:         ba!=null ? Math.round(ba*1000)/1000 : null,
+        ops:        ops!=null ? Math.round(ops*1000)/1000 : null,
+      });
+    }
+  }
+
+  // ── Pitching stats ─────────────────────────────────────
+  for(const [key, ps] of Object.entries(G.pitStats)){
+    if(!ps.pitches && !ps.ip_outs) continue;
+    const side   = key.startsWith('home_') ? 'home' : 'away';
+    const teamId = side==='home' ? G_home_team_id : G_away_team_id;
+    if(!teamId || !ps.name) continue;
+    const existing = await fetchExisting(teamId, ps.name);
+    const ex = existing || {};
+    const newIpOuts = (ex.ip_outs||0) + (ps.ip_outs||0);
+    const newPh     = (ex.p_h    ||0) + (ps.h      ||0);
+    const newPbb    = (ex.p_bb   ||0) + (ps.bb     ||0);
+    const newPer    = (ex.p_er   ||0) + (ps.er     ||0);
+    const newK      = (ex.k      ||0) + (ps.k      ||0);
+    const newW      = (ex.w      ||0) + (ps.w      ||0);
+    const newL      = (ex.l      ||0) + (ps.l      ||0);
+    const ipDec     = newIpOuts/3;
+    const era       = ipDec>0 ? Math.round((newPer*9/ipDec)*100)/100 : null;
+    const whip      = ipDec>0 ? Math.round(((newPh+newPbb)/ipDec)*100)/100 : null;
+    const ipStr     = Math.floor(newIpOuts/3)+'.'+(newIpOuts%3);
+    await upsertPlayer({
+      team_id:     teamId,
+      name:        ps.name,
+      number:      ps.num||null,
+      sport_id:    sportId,
+      season_year: 2026,
+      ip_outs:     newIpOuts,
+      p_h:         newPh,
+      p_bb:        newPbb,
+      p_er:        newPer,
+      k:           newK,
+      w:           newW,
+      l:           newL,
+      ip:          ipStr,
+      era:         era,
+      whip:        whip,
+    });
+  }
+  console.log('Player stats pushed.');
+}
+
 function confirmEndGame(){
   // Read W/L/Save decisions and stamp on pitStats
   ['away','home'].forEach(side => {
@@ -1460,6 +1576,8 @@ function confirmEndGame(){
       away_score: G.runs.away,
     }).eq("id", G.game_id).then(()=>{});
   }
+  // Push player stats to Supabase
+  pushPlayerStats().catch(e => console.warn("Player stat push failed:", e));
   closeOv("ovEndGame");
   document.getElementById("ovHalfTitle").textContent = "Game Final";
   document.getElementById("ovHalfSummary").textContent =

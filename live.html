@@ -1353,6 +1353,7 @@ const BB_KLBL = {
   'sub_pitcher':'Pitching change','sub_batter':'Pinch hitter','sub_defense':'Defensive sub',
   'runner_advance':'Runners advance',
   'game_over':'Game over',
+  'batter_up':'Batter up',
 };
 
 function checkMercyRule(){
@@ -1602,6 +1603,7 @@ function bbUpdFeed(){
     const isOutEvt = ['groundout','flyout','lineout','popup','strikeout'].includes(e.key);
     const action = BB_KLBL[e.key] || e.key;
     if(e.key==='inning_end') return;
+    if(e.key==='batter_up') return;
     if(e.key==='runner_advance' && !e.runs) return; // silent unless run scored
     const halfLbl=e.half==='top'?'▲':'▼';
     // For runner_advance, show runner not batter
@@ -1730,7 +1732,7 @@ function bbOnEvent(e){
 
   // ── Update batter/pitcher strip ─────────────────────────
   // Don't update batter display for non-PA events
-  const isNonPADisplay = ['runner_advance','sub_defense','inning_end','game_over'].includes(e.key);
+  const isNonPADisplay = ['runner_advance','sub_defense','inning_end','game_over','batter_up'].includes(e.key);
   if(!isNonPADisplay) BB.batter = { name:e.plast||'—', num:e.pnum||'', side:s, line:'' };
   if(batter) BB.batter.line = `${batter.h||0}–${batter.ab||0}, ${batter.rbi||0} RBI`;
   if(pitcher) BB.pitcher = {
@@ -1909,6 +1911,24 @@ function bbOnEvent(e){
   }
 
   // ── Game over (mercy rule or completion) ───────────────────
+  // ── Batter up — scorer signals next batter without a pitch ──
+  if(e.key === 'batter_up'){
+    const battingSide = e.half==='top' ? 'away' : 'home';
+    // Sync batIdx to this batter
+    const idx = BB.batters[battingSide].findIndex(p =>
+      nameEq(p.name, e.plast) || (e.pnum && String(p.num) === String(e.pnum))
+    );
+    if(idx !== -1) BB.batIdx[battingSide] = idx;
+    const batter = idx !== -1 ? BB.batters[battingSide][idx] : null;
+    BB.batter = {
+      name: e.plast||'—', num: e.pnum||'', side: battingSide,
+      line: batter ? `${batter.h||0}–${batter.ab||0}, ${batter.rbi||0} RBI` : ''
+    };
+    BB.balls = 0; BB.strikes = 0;
+    bbUpdScoreboard();
+    return;
+  }
+
   if(e.key === 'game_over'){
     document.getElementById('live-pill').classList.add('final');
     document.getElementById('live-lbl').textContent='FINAL';
@@ -1980,7 +2000,7 @@ function bbOnEvent(e){
   }
 
   // ── Pitcher pitch count ──────────────────────────────────
-  const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over','runner_advance'].includes(e.key);
+  const isPAEvent = !['sub_pitcher','sub_batter','sub_defense','lineup_set','inning_end','game_over','runner_advance','batter_up'].includes(e.key);
   if(pitcher && e.pitches && isPAEvent) pitcher.pitches += e.pitches;
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 

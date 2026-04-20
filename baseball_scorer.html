@@ -864,7 +864,7 @@ async function loadTodaysGames(){
   const sportId = document.getElementById('sportSel').value === 'baseball'
     ? 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0'
     : '095c9841-7261-4cb1-824e-6304792b53d0';
-  const today = new Date().toISOString().slice(0,10);
+  const today = (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
   const games = await sbFetch(
     `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&or=(status.eq.scheduled,status.eq.active)` +
     `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
@@ -1005,7 +1005,7 @@ function curPitcher(){
 let setupTab='away';
 
 function init(skipTestPlayers){
-  document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
+  document.getElementById('gameDateInp').value = (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
   if(!skipTestPlayers){
     TEST_NAMES_A.forEach((n,i)=>{
       G.teams.away.lineup.push(newPlayer(i+1,n,i===0?'P':['C','1B','2B','3B','SS','LF','CF','RF'][i-1]||'LF'));
@@ -1112,7 +1112,7 @@ async function startGame(){
           away_team_id: G_away_team_id,
           sport_id: sportId,
           season_year: 2026,
-          game_date: G.date || new Date().toISOString().slice(0,10),
+          game_date: G.date || (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})(),
           location: G.loc || null,
           status: 'active',
           home_score_live: 0,
@@ -1364,7 +1364,14 @@ function addOut(notation){
   }
 }
 
-function nextBatter(){ const s=battingSide(); G.batIdx[s]=(G.batIdx[s]+1)%G.teams[s].lineup.length; G.curPitches=[]; }
+function nextBatter(){
+  const s=battingSide();
+  G.batIdx[s]=(G.batIdx[s]+1)%G.teams[s].lineup.length;
+  G.curPitches=[];
+  // Push batter_up so live.html knows who's on deck without waiting for first pitch
+  const next=G.teams[s].lineup[G.batIdx[s]];
+  if(next) pushEvt('batter_up', {player_override: next});
+}
 function resetCount(){ G.balls=0; G.strikes=0; }
 
 function endHalf(){
@@ -1511,7 +1518,7 @@ function confirmDP(type){ saveSnapshot();
   // Record batter out
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
-  if(G.outs>=3){ nextBatter(); endHalf(); return; }
+  if(G.outs>=3){ endHalf(); return; }
   // No RBI on double play per official scoring rules
   G.pendingRBIbatter = null;
   nextBatter(); resetCount();
@@ -1532,7 +1539,6 @@ function confirmTP(type){ saveSnapshot();
   G.outs=3;
   // Clear all bases
   G.bases={1:null,2:null,3:null};
-  nextBatter(); // advance past batter who hit into TP, same as addOut() does for 3rd out
   endHalf();
 }
 
@@ -2713,7 +2719,7 @@ async function generatePDF(){
   }
   const away=G.teams.away.name.replace(/\s+/g,'-');
   const home=G.teams.home.name.replace(/\s+/g,'-');
-  const d=G.date||new Date().toISOString().slice(0,10);
+  const d=G.date||(()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
   doc.save(d+'_'+away+'_vs_'+home+'.pdf');
 }
 
@@ -2911,7 +2917,7 @@ function showAlert(msg){ setTimeout(()=>alert(msg),50); }
 document.addEventListener('DOMContentLoaded', () => {
   const hasSave = !!localStorage.getItem('mbr_bb_game');
   init(hasSave); // skip test players if we have a saved game to restore
-  document.getElementById('gameDateInp').value = new Date().toISOString().slice(0,10);
+  document.getElementById('gameDateInp').value = (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
   // Check for ?game_id= in URL — if present, load that game directly
   const urlGameId = new URLSearchParams(window.location.search).get('game_id');
   if(urlGameId){

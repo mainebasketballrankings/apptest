@@ -1452,11 +1452,12 @@ async function pushPlayerStats(){
 
   // Helper: upsert player row
   async function upsertPlayer(row){
-    await fetch(`${SB_URL}/rest/v1/players`, {
+    const res = await fetch(`${SB_URL}/rest/v1/players?on_conflict=team_id,name,season_year`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify(row)
     });
+    if(!res.ok) console.warn('upsertPlayer failed', res.status, await res.text());
   }
 
   // ── Batting stats ──────────────────────────────────────

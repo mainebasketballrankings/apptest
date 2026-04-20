@@ -1511,7 +1511,7 @@ function confirmDP(type){ saveSnapshot();
   // Record batter out
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
-  if(G.outs>=3){ endHalf(); return; }
+  if(G.outs>=3){ nextBatter(); endHalf(); return; }
   // No RBI on double play per official scoring rules
   G.pendingRBIbatter = null;
   nextBatter(); resetCount();
@@ -1532,6 +1532,7 @@ function confirmTP(type){ saveSnapshot();
   G.outs=3;
   // Clear all bases
   G.bases={1:null,2:null,3:null};
+  nextBatter(); // advance past batter who hit into TP, same as addOut() does for 3rd out
   endHalf();
 }
 

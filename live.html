@@ -1370,11 +1370,9 @@ function advanceHalf(){
   BB.half = BB.half==='top' ? 'bot' : 'top';
   if(BB.half==='top') BB.inning++;
   BB.balls=0; BB.strikes=0; BB.outs=0; BB.bases=[false,false,false];
-  // Update batter to next up in new half
+  // Don't guess next batter — first event of new half carries the correct name
   const battingSide = BB.half==='top' ? 'away' : 'home';
-  const nextBatter = BB.batters[battingSide][BB.batIdx[battingSide]];
-  if(nextBatter) BB.batter = { name:nextBatter.name, num:nextBatter.num||'', side:battingSide,
-    line:`${nextBatter.h||0}–${nextBatter.ab||0}, ${nextBatter.rbi||0} RBI` };
+  BB.batter = { name:'—', num:'', side:battingSide, line:'' };
   // Update pitcher to new fielding side's current pitcher
   const fieldingSide = BB.half==='top' ? 'home' : 'away';
   const pitchers = BB.pitchers[fieldingSide];
@@ -1986,19 +1984,23 @@ function bbOnEvent(e){
   if(pitcher && e.pitches && isPAEvent) pitcher.pitches += e.pitches;
   if(pitcher){ BB.pitcher.pitches = pitcher.pitches; BB.pitcher.ip = `${Math.floor(pitcher.ip_outs/3)}.${pitcher.ip_outs%3}`; }
 
-  // ── Advance to next batter after completed PA ───────────
+  // ── Sync batIdx to current batter (event-driven, never locally incremented) ──
   const completedPA = ['single','double','triple','hr','groundout','flyout',
                        'lineout','popup','strikeout','walk','hbp','sac_bunt','sac_fly',
                        'fielders_choice','error'].includes(e.key);
-  if(completedPA && BB.batters[halfSide].length){
-    BB.batIdx[halfSide] = (BB.batIdx[halfSide] + 1) % BB.batters[halfSide].length;
-    const next = BB.batters[halfSide][BB.batIdx[halfSide]];
-    if(next) BB.batter = { name:next.name, num:next.num||'', side:halfSide,
-      line:`${next.h||0}–${next.ab||0}, ${next.rbi||0} RBI` };
+  if(completedPA){
+    // Sync batIdx to who just batted so lineup highlight stays correct
+    const battedIdx = BB.batters[halfSide].findIndex(p =>
+      nameEq(p.name, e.plast) || (e.pnum && String(p.num) === String(e.pnum))
+    );
+    if(battedIdx !== -1) BB.batIdx[halfSide] = battedIdx;
     BB.balls = 0; BB.strikes = 0;
+    // Don't guess next batter — next event from scorer carries the correct name.
+    // Clear strip to avoid showing wrong player.
+    BB.batter = { name:'—', num:'', side:halfSide, line:'' };
   }
 
-  // Reset batIdx on inning change handled in inning_end advance()
+  // Reset batIdx on inning change handled in advanceHalf()
 
   // ── Render ───────────────────────────────────────────────
   bbEvts.unshift(e);

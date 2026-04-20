@@ -1357,20 +1357,23 @@ function addOut(notation){
   if(G.outs>=3){
     // DO NOT call nextBatter here — the 3rd out batter stays in the
     // batting order slot; next half inning starts with the NEXT batter
-    nextBatter();  // advance past the batter who made the 3rd out
+    nextBatter(true);  // advance past the batter who made the 3rd out; skip batter_up (inning flipping)
     endHalf();
   } else {
     nextBatter(); resetCount(); render();
   }
 }
 
-function nextBatter(){
+function nextBatter(skipBatterUp=false){
   const s=battingSide();
   G.batIdx[s]=(G.batIdx[s]+1)%G.teams[s].lineup.length;
   G.curPitches=[];
   // Push batter_up after delay so PA event always lands in Supabase first
-  const next=G.teams[s].lineup[G.batIdx[s]];
-  if(next) setTimeout(()=>pushEvt('batter_up', {player_override: next}), 400);
+  // Skip when inning is ending — other team is about to bat, not this one
+  if(!skipBatterUp){
+    const next=G.teams[s].lineup[G.batIdx[s]];
+    if(next) setTimeout(()=>pushEvt('batter_up', {player_override: next}), 400);
+  }
 }
 function resetCount(){ G.balls=0; G.strikes=0; }
 
@@ -1518,7 +1521,7 @@ function confirmDP(type){ saveSnapshot();
   // Record batter out
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
-  if(G.outs>=3){ nextBatter(); endHalf(); return; }
+  if(G.outs>=3){ nextBatter(true); endHalf(); return; }
   // No RBI on double play per official scoring rules
   G.pendingRBIbatter = null;
   nextBatter(); resetCount();
@@ -1539,7 +1542,7 @@ function confirmTP(type){ saveSnapshot();
   G.outs=3;
   // Clear all bases
   G.bases={1:null,2:null,3:null};
-  nextBatter(); // advance past batter who hit into TP
+  nextBatter(true); // advance past batter who hit into TP; skip batter_up (inning flipping)
   endHalf();
 }
 

@@ -811,9 +811,12 @@ async function pushEvt(key, extras={}){
   const b = extras.player_override ? {player: extras.player_override} : curBatter();
   const p = curPitcher();
   const side = battingSide();
+  // Fielding-side events: use fielding team's ID, not batting team's
+  const isFieldingEvt = ['sub_pitcher','sub_defense'].includes(key);
+  const evtSide = isFieldingEvt ? fieldingSide() : side;
   const row = {
     game_id:      G_game_id,
-    team_id:      side === 'home' ? G_home_team_id : G_away_team_id,
+    team_id:      evtSide === 'home' ? G_home_team_id : G_away_team_id,
     event_type:   key,
     period:       G.inning,
     clock_seconds: 0,
@@ -825,8 +828,12 @@ async function pushEvt(key, extras={}){
     bases:        extras.bases_override !== undefined ? extras.bases_override : basesArr(),
     runs:         extras.runs || 0,
     rbi:          extras.rbi  || 0,
-    player_name:  extras.player_override ? extras.player_override.name : (b?.player?.name || null),
-    player_num:   extras.player_override ? (extras.player_override.number ? parseInt(extras.player_override.number) : null) : (b?.player?.number ? parseInt(b.player.number) : null),
+    player_name:  isFieldingEvt
+      ? (p ? G.teams[p.side].lineup[p.idx]?.name : null)
+      : (extras.player_override ? extras.player_override.name : (b?.player?.name || null)),
+    player_num:   isFieldingEvt
+      ? (p ? (parseInt(G.teams[p.side].lineup[p.idx]?.number||0)||null) : null)
+      : (extras.player_override ? (extras.player_override.number ? parseInt(extras.player_override.number) : null) : (b?.player?.number ? parseInt(b.player.number) : null)),
     pitcher_name: p ? G.teams[p.side].lineup[p.idx]?.name : null,
     pitches:      extras.pitches !== undefined ? extras.pitches : G.curPitches.length,
     x:            extras.x ?? null,
@@ -896,7 +903,8 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
   document.getElementById('gamePickerStatus').style.color = 'var(--green)';
 
   // Fetch rosters from Supabase and pre-populate lineups
-  const sportId = 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+  const sportVal2 = document.getElementById('sportSel')?.value||'baseball';
+  const sportId = sportVal2==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
   const fetchRoster = async (teamId, side) => {
     try {
       const players = await sbFetch(
@@ -907,10 +915,11 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
       G.teams[side].bench  = [];
       players.forEach((p, i) => {
         const player = newPlayer(i+1, p.name||'', p.position||'');
-        player.number = p.number ? String(p.number) : '';
+        player.number = p.number ? String(parseInt(p.number)) : '';
         G.teams[side].bench.push(player);
       });
       renderLU(side);
+      renderBench(side);
     } catch(e){ console.warn('roster fetch failed', side, e); }
   };
   fetchRoster(awayId, 'away');
@@ -1133,7 +1142,16 @@ async function startGame(){
       showAlert('⚠️ Could not connect game to MBR Live. Stats will not be broadcast. Check your connection and try again.');
     }
   }
-  G.pitStats = {};
+  // Reset all game state
+  G.inning=1; G.half='top'; G.outs=0; G.balls=0; G.strikes=0;
+  G.bases={1:null,2:null,3:null};
+  G.runs={away:0,home:0}; G.hits={away:0,home:0}; G.errors={away:0,home:0};
+  G.batIdx={away:0,home:0};
+  G.curPitches=[]; G.pbp=[]; G.pitStats={};
+  G.errorThisHalf=false; G.phantomOuts=0;
+  G.pendingHit=null; G.pendingRBIbatter=null; G.pendingScore=null;
+  G.pendingUnearnedCheck=null; G.pendingUnearnedQueue=null;
+  G.runDecisions={}; G.fldSeq=[];
   G.linescore = [];
   for(let i=0;i<G.maxInn;i++) G.linescore.push({away:null,home:null});
   // Initialize batting order slots (each slot tracks all players at that position)
@@ -1464,7 +1482,16 @@ async function pushPlayerStats(){
   for(const side of ['away','home']){
     const teamId = side==='home' ? G_home_team_id : G_away_team_id;
     if(!teamId) continue;
-    for(const player of G.teams[side].lineup){
+    // Use slots to capture ALL players including those replaced by subs
+    const allPlayers = [];
+    const seen = new Set();
+    const slots = G.teams[side].slots && G.teams[side].slots.length
+      ? G.teams[side].slots
+      : G.teams[side].lineup.map(p=>[p]);
+    slots.forEach(slot => slot.forEach(p => { if(p.name && !seen.has(p.name)){ seen.add(p.name); allPlayers.push(p); } }));
+    // Also catch any lineup players not in slots
+    G.teams[side].lineup.forEach(p => { if(p.name && !seen.has(p.name)){ seen.add(p.name); allPlayers.push(p); } });
+    for(const player of allPlayers){
       const s = player.stats;
       // Only push if player appeared (has AB or BB)
       if(!s.ab && !s.bb) continue;
@@ -1555,7 +1582,8 @@ function confirmEndGame(){
     const sel = document.getElementById('egPitcher_' + side);
     if(sel && sel.value){
       const winningSide = G.runs.home > G.runs.away ? 'home' : 'away';
-      const key = side + '_' + sel.value;
+      // pitStats keys use underscores for spaces: side_First_Last
+      const key = side + '_' + sel.value.replace(/\s+/g,'_');
       if(G.pitStats[key]){
         if(side === winningSide) G.pitStats[key].w = 1;
         else G.pitStats[key].l = 1;
@@ -1565,17 +1593,17 @@ function confirmEndGame(){
   const saveSel = document.getElementById('egSave');
   if(saveSel && saveSel.value){
     const winningSide = G.runs.home > G.runs.away ? 'home' : 'away';
-    const key = winningSide + '_' + saveSel.value;
+    const key = winningSide + '_' + saveSel.value.replace(/\s+/g,'_');
     if(G.pitStats[key]) G.pitStats[key].sv = 1;
   }
   addPBP("<strong>Final</strong>");
   pushEvt("game_over", {});
-  if(G.game_id){
-    sb.from("games").update({
-      status: "final",
-      home_score: G.runs.home,
-      away_score: G.runs.away,
-    }).eq("id", G.game_id).then(()=>{});
+  if(G_game_id){
+    fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method: 'PATCH',
+      headers: { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ status:'final', home_score:G.runs.home, away_score:G.runs.away })
+    }).catch(e=>console.warn('game final patch failed',e));
   }
   // Push player stats to Supabase
   pushPlayerStats().catch(e => console.warn("Player stat push failed:", e));
@@ -2892,6 +2920,7 @@ function confirmFC(outBase){
   G.bases[1]=bRunner;
 
   G.pendingRBIbatter = b.player;
+  pushEvt('fielders_choice', {outs_override: G.outs + 1});
   addOut('FC');
   // Open runners overlay if there are runners who may have scored/advanced
   if(hasRunners() && G.outs < 3){
@@ -3107,7 +3136,7 @@ async function pickSchool(name, side){
     else G_away_team_id = teamId;
     // Fetch roster
     const rRes = await fetch(
-      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&season_year=eq.2026&select=name,number,position&order=number.asc`,
+      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&select=name,number,position&order=number.asc`,
       {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}}
     );
     const players = await rRes.json();

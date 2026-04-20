@@ -1400,18 +1400,23 @@ function checkGameEnd(){
 // ═══════════════════════════════════════════════
 
 function openEndGame(){
+  // Build pitcher lists from G.pitStats keyed as side_Name
+  function getPitchersForSide(side){
+    return Object.entries(G.pitStats)
+      .filter(([k, ps]) => k.startsWith(side + '_') && (ps.pitches > 0 || ps.ip_outs > 0))
+      .map(([k, ps]) => ps.name || k.replace(side + '_', ''));
+  }
   const sides = ["away","home"];
   let html = "";
   sides.forEach(side => {
-    const label = side === "away" ? G.teams.away.name : G.teams.home.name;
-    const pitchers = G.teams[side].pitchers || [];
-    if(!pitchers.length) return;
-    const opts = pitchers.map((p,i) => `<option value="${i}">${p.name}</option>`).join("");
+    const label = G.teams[side].name;
+    const pitchers = getPitchersForSide(side);
+    const opts = pitchers.map(name => `<option value="${name}">${name}</option>`).join("");
     html += `<div style="margin-bottom:12px;font-family:'Barlow Condensed',sans-serif"><div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${label}</div><select id="egPitcher_${side}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:14px;background:var(--surface);color:var(--text)"><option value="">— no decision —</option>${opts}</select></div>`;
   });
   const winningSide = G.runs.home > G.runs.away ? "home" : "away";
-  const closingPitchers = G.teams[winningSide].pitchers || [];
-  const saveOpts = closingPitchers.map((p,i) => `<option value="${i}">${p.name}</option>`).join("");
+  const winPitchers = getPitchersForSide(winningSide);
+  const saveOpts = winPitchers.map(name => `<option value="${name}">${name}</option>`).join("");
   html += `<div style="margin-bottom:12px;font-family:'Barlow Condensed',sans-serif"><div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Save (optional)</div><select id="egSave" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:14px;background:var(--surface);color:var(--text)"><option value="">— no save —</option>${saveOpts}</select></div>`;
   document.getElementById("endGamePickers").innerHTML = html;
   openOv("ovEndGame");

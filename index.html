@@ -1073,7 +1073,7 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .neq('event_type', 'lineup_set')
+        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 5);
       if(evts){
@@ -1082,7 +1082,7 @@
         evts.forEach(e => {
           if(e.event_type === 'lineup_set') return; // skip for both state and play display
           if(!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
-          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
+          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
@@ -1821,7 +1821,7 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .neq('event_type', 'lineup_set')
+        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 5);
       if (evts) {
@@ -1829,7 +1829,7 @@
         const stateEvt = {};
         evts.forEach(e => {
           if (!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
-          if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
+          if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];

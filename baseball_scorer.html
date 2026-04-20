@@ -1423,6 +1423,24 @@ function openEndGame(){
 }
 
 function confirmEndGame(){
+  // Read W/L/Save decisions and stamp on pitStats
+  ['away','home'].forEach(side => {
+    const sel = document.getElementById('egPitcher_' + side);
+    if(sel && sel.value){
+      const winningSide = G.runs.home > G.runs.away ? 'home' : 'away';
+      const key = side + '_' + sel.value;
+      if(G.pitStats[key]){
+        if(side === winningSide) G.pitStats[key].w = 1;
+        else G.pitStats[key].l = 1;
+      }
+    }
+  });
+  const saveSel = document.getElementById('egSave');
+  if(saveSel && saveSel.value){
+    const winningSide = G.runs.home > G.runs.away ? 'home' : 'away';
+    const key = winningSide + '_' + saveSel.value;
+    if(G.pitStats[key]) G.pitStats[key].sv = 1;
+  }
   addPBP("<strong>Final</strong>");
   pushEvt("game_over", {});
   if(G.game_id){
@@ -2653,7 +2671,8 @@ async function generatePDF(){
       const era = ipDec>0 ? ((ps.er||0)*9/ipDec).toFixed(2) : '—';
       const whip = ipDec>0 ? (((ps.h||0)+(ps.bb||0))/ipDec).toFixed(2) : '—';
       const ps_str = ps.pitches+'('+(ps.strikes||0)+')';
-      [ps.name||'—',ip,ps.h||0,(ps.er||0)+(ps.uner||0),ps.er||0,ps.bb||0,ps.k||0,era,whip,ps_str,rest]
+      const decision = ps.w ? ' (W)' : ps.l ? ' (L)' : ps.sv ? ' (S)' : '';
+      [(ps.name||'—')+decision,ip,ps.h||0,(ps.er||0)+(ps.uner||0),ps.er||0,ps.bb||0,ps.k||0,era,whip,ps_str,rest]
         .forEach((v,i)=>{ if(i===10&&warn)clr(200,100,0); cell(v,cx,y,pcw[i],i>0?'center':'left',i===0); if(i===10&&warn)clr(30,30,30); cx+=pcw[i]; });
       y+=12;
     });

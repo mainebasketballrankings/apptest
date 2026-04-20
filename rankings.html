@@ -412,7 +412,7 @@
       .select('snapshot_date, team:team_id(sport_id)')
       .eq('season_year', activeSeason)
       .order('snapshot_date', { ascending: false })
-      .limit(500);
+      .limit(2000);
 
     const sportDateData = (dateData || []).filter(r => r.team?.sport_id === sportId);
 

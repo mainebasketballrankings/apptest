@@ -395,8 +395,8 @@
   let allData      = [];
   let activeGender = 'Boys';
   let activeClass  = 'all';
-  let activeSport  = 'basketball';
-  let activeSeason = 2026;
+  let activeSport  = localStorage.getItem('mbr_rankings_sport') || 'basketball';
+  let activeSeason = parseInt(localStorage.getItem('mbr_rankings_season') || '2026');
 
   // Season dropdown — default seasons per sport
   const SPORT_DEFAULT_SEASON = {
@@ -420,24 +420,36 @@
 
     const sportId = SPORT_IDS[activeSport];
 
-    // Get most recent snapshot date for this sport+season
-    // Fetch recent snapshots with team sport_id, filter client-side
-    const { data: dateData } = await sb
-      .from('rankings_snapshots')
-      .select('snapshot_date, team:team_id(sport_id)')
-      .eq('season_year', activeSeason)
-      .order('snapshot_date', { ascending: false })
-      .limit(2000);
+    // Get all team IDs for this sport so we can filter snapshots server-side
+    const { data: teamIdData } = await sb
+      .from('teams')
+      .select('id')
+      .eq('sport_id', sportId)
+      .eq('active', true);
+    const sportTeamIds = (teamIdData || []).map(t => t.id);
 
-    const sportDateData = (dateData || []).filter(r => r.team?.sport_id === sportId);
-
-    if (!sportDateData.length) {
+    if (!sportTeamIds.length) {
       document.getElementById('tableWrap').innerHTML =
         '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
       return;
     }
 
-    const latestDate = sportDateData[0].snapshot_date;
+    // Get most recent snapshot date filtered by sport team IDs directly
+    const { data: dateData } = await sb
+      .from('rankings_snapshots')
+      .select('snapshot_date')
+      .eq('season_year', activeSeason)
+      .in('team_id', sportTeamIds)
+      .order('snapshot_date', { ascending: false })
+      .limit(1);
+
+    if (!dateData || !dateData.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
+      return;
+    }
+
+    const latestDate = dateData[0].snapshot_date;
     document.getElementById('updatedNote').textContent =
       'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -458,7 +470,8 @@
         )
       `)
       .eq('snapshot_date', latestDate)
-      .eq('season_year', activeSeason);
+      .eq('season_year', activeSeason)
+      .in('team_id', sportTeamIds);
 
     if (error || !data) {
       document.getElementById('tableWrap').innerHTML =
@@ -466,8 +479,7 @@
       return;
     }
 
-    // Filter client-side by sport_id since PostgREST can't filter on FK columns
-    allData = data.filter(r => r.team && r.team.sport_id === sportId);
+    allData = data.filter(r => r.team != null);
     renderTable();
   }
 
@@ -626,6 +638,7 @@
   // Season dropdown handler
   document.getElementById('seasonSel')?.addEventListener('change', function() {
     activeSeason = parseInt(this.value);
+    localStorage.setItem('mbr_rankings_season', activeSeason);
     loadRankings();
   });
 
@@ -635,6 +648,8 @@
       btn.classList.add('active');
       activeSport  = btn.dataset.sport;
       activeSeason = SPORT_DEFAULT_SEASON[activeSport] || 2026;
+      localStorage.setItem('mbr_rankings_sport', activeSport);
+      localStorage.setItem('mbr_rankings_season', activeSeason);
       const sel = document.getElementById('seasonSel');
       if(sel) sel.value = activeSeason;
       activeClass  = 'all';
@@ -686,6 +701,19 @@
       renderTable();
     });
   });
+
+  // Restore active sport tab and season dropdown from localStorage
+  document.querySelectorAll('.sport-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.sport === activeSport);
+  });
+  const selRestore = document.getElementById('seasonSel');
+  if (selRestore) selRestore.value = activeSeason;
+  // Restore gender tab if sport has single gender
+  const genderTabs = document.querySelector('.gender-tabs');
+  if (SINGLE_GENDER[activeSport]) {
+    genderTabs.style.display = 'none';
+    activeGender = SINGLE_GENDER[activeSport];
+  }
 
   updateClassTabs();
   loadRankings();

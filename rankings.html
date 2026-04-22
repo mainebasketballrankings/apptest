@@ -440,8 +440,7 @@
     const { data: teamIdData } = await sb
       .from('teams')
       .select('id')
-      .eq('sport_id', sportId)
-      .eq('active', true);
+      .eq('sport_id', sportId);
     const sportTeamIds = (teamIdData || []).map(t => t.id);
 
     if (!sportTeamIds.length) {

@@ -314,7 +314,7 @@
   <div class="page-title">Power Rankings</div>
   <div class="page-sub" id="updatedNote">Loading latest snapshot…</div>
 
-  <div class="sport-tabs">
+  <div class="sport-tabs" id="sportTabs">
     <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
     <button class="sport-tab" data-sport="baseball" data-season="2026">Baseball</button>
     <button class="sport-tab" data-sport="softball" data-season="2026">Softball</button>
@@ -323,6 +323,16 @@
     <button class="sport-tab" data-sport="field-hockey" data-season="2025">Field Hockey</button>
     <button class="sport-tab" data-sport="football" data-season="2025">Football</button>
   </div>
+  <script>
+    (function(){
+      var sp = localStorage.getItem('mbr_rankings_sport');
+      if(sp){
+        document.querySelectorAll('#sportTabs .sport-tab').forEach(function(b){
+          b.classList.toggle('active', b.dataset.sport === sp);
+        });
+      }
+    })();
+  </script>
 
   <div class="gender-tabs">
     <button class="gender-tab active" data-gender="Boys">Boys</button>
@@ -336,6 +346,12 @@
       <option value="2025">24-25</option>
       <option value="2024">23-24</option>
     </select>
+    <script>
+      (function(){
+        var s = localStorage.getItem('mbr_rankings_season');
+        if(s){ var el = document.getElementById('seasonSel'); if(el) el.value = s; }
+      })();
+    </script>
   </div>
 
   <div class="class-tabs" id="classTabs">

@@ -292,12 +292,13 @@ function switchTab(tab) {
   document.getElementById('tab-pit').classList.toggle('active', tab === 'pit');
 }
 
-function pyth(a, b) {
+function pyth(a, b, sportKey) {
   if (a == null || b == null) return null;
   if (a === 0 && b === 0) return 0.5;
-  const d = a - b;
-  if (d > 35) return 1; if (d < -35) return 0;
-  const pa = Math.pow(a + 0.5, 11), pb = Math.pow(b + 0.5, 11);
+  const isBball = !sportKey || sportKey === 'basketball';
+  const offset = isBball ? 0 : 10;
+  const exp    = isBball ? 11 : 3.7;
+  const pa = Math.pow(a + offset, exp), pb = Math.pow(b + offset, exp);
   return pa / (pa + pb);
 }
 
@@ -309,7 +310,7 @@ function logoEl(url, name, lg) {
   return `<div class="${fb}">${ch}</div>`;
 }
 
-function healsCalc(games, tid, smap, regEnd, getScheduled) {
+function healsCalc(games, tid, smap, regEnd, getScheduled, sportKey) {
   const reg = games.filter(g => !g.is_tournament && g.game_date <= regEnd && g.status !== 'cancelled');
   const denom = getScheduled(tid);
   let piSum = 0, healSum = 0;
@@ -330,7 +331,7 @@ function healsCalc(games, tid, smap, regEnd, getScheduled) {
     if (tied) piSum += wval * 0.5;
     const contrib = won ? opi / denom : tied ? (opi * 0.5) / denom : 0;
     healSum += contrib;
-    details[`${g.game_date}_${oid}`] = { wp: pyth(ms, os), contrib, oppPI: opi };
+    details[`${g.game_date}_${oid}`] = { wp: pyth(ms, os, sportKey), contrib, oppPI: opi };
   }
   const played = reg.filter(g => g.status === 'final').length;
   const pi = played === 0 ? 1.0 : piSum / denom;
@@ -503,7 +504,7 @@ async function load() {
       if (pos !== -1) rRegion = pos + 1;
     }
 
-    const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd, getScheduled);
+    const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd, getScheduled, sport);
 
     let wins = 0, losses = 0, pointDiff = 0;
     for (const g of games) {

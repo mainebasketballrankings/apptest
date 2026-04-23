@@ -1023,11 +1023,11 @@
   // ── Render expanded game detail ───────────────────────────────
   function winPct(myScore, oppScore) {
     if (myScore === null || oppScore === null) return null;
-    const diff = myScore - oppScore;
-    if (diff > 35)  return 1.0;
-    if (diff < -35) return 0.0;
-    const exp = 11;
-    return (Math.pow(myScore, exp)) / (Math.pow(myScore, exp) + Math.pow(oppScore, exp));
+    const offset = activeSport === 'basketball' ? 0 : 10;
+    const exp    = activeSport === 'basketball' ? 11 : 3.7;
+    const a = Math.pow(myScore + offset, exp);
+    const b = Math.pow(oppScore + offset, exp);
+    return a / (a + b);
   }
 
   function renderDetail(entry) {

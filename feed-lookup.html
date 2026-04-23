@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MBR Live Feed Lookup</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --orange: #ee6730;
+    --orange-dim: #c8522200;
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --text: #f0f0f0;
+    --muted: #888;
+    --green: #4ade80;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 16px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .wordmark {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 420px;
+    line-height: 1.5;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    width: 100%;
+    max-width: 620px;
+    margin-bottom: 20px;
+  }
+
+  .date-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  input[type="date"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 15px;
+    padding: 10px 14px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type="date"]:focus {
+    border-color: var(--orange);
+  }
+
+  .sport-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .sport-tab {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    transition: all 0.15s;
+  }
+
+  .sport-tab:hover { border-color: var(--orange); color: var(--text); }
+  .sport-tab.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+
+  #results {
+    width: 100%;
+    max-width: 620px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .game-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+
+  .game-card:hover { border-color: #444; }
+
+  .game-teams {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .vs {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .game-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.04em;
+  }
+
+  .status-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 6px;
+  }
+
+  .status-live { background: #ef444420; color: #ef4444; border: 1px solid #ef444440; }
+  .status-scheduled { background: #44444420; color: var(--muted); border: 1px solid var(--border); }
+  .status-final { background: #4ade8020; color: var(--green); border: 1px solid #4ade8040; }
+
+  .feed-url-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .feed-url {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-family: 'Barlow Condensed', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: all;
+  }
+
+  .copy-btn {
+    background: var(--orange);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 16px;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+
+  .copy-btn:hover { opacity: 0.85; }
+  .copy-btn.copied { background: var(--green); color: #000; }
+
+  .empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .dot {
+    display: inline-block;
+    animation: blink 1.2s infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+
+  .notice {
+    background: #ee673010;
+    border: 1px solid #ee673030;
+    border-radius: 8px;
+    color: #ee6730cc;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 8px;
+    padding: 10px 14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Maine Basketball Rankings</div>
+  <h1>Live Feed Lookup</h1>
+  <p class="subtitle">Find a game and copy its XML feed URL for vMix or any broadcast graphics system.</p>
+</header>
+
+<div class="card">
+  <div class="date-row">
+    <div style="flex:1">
+      <label for="datePicker">Game Date</label>
+      <input type="date" id="datePicker">
+    </div>
+  </div>
+  <div class="sport-tabs" id="sportTabs">
+    <button class="sport-tab active" data-sport="c87a4d6c">Baseball</button>
+    <button class="sport-tab" data-sport="095c9841">Softball</button>
+    <button class="sport-tab" data-sport="9c34ec5c">Lacrosse</button>
+    <button class="sport-tab" data-sport="ff80a695">Soccer</button>
+  </div>
+</div>
+
+<div id="results"></div>
+
+<script>
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQxMjYzMTcsImV4cCI6MjAwOTcwMjMxN30.HbLMBHk2tGBMNFMdjWHWBVa5XVlVMJJxTuLCjZFHpvs';
+const FEED_BASE = 'https://vtwupenqieesoktonbzg.supabase.co/functions/v1/baseball-feed';
+
+let activeSport = 'c87a4d6c';
+let activeDate = '';
+
+// Set today's date
+const today = new Date();
+const pad = n => String(n).padStart(2,'0');
+activeDate = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+document.getElementById('datePicker').value = activeDate;
+
+document.getElementById('datePicker').addEventListener('change', e => {
+  activeDate = e.target.value;
+  loadGames();
+});
+
+document.getElementById('sportTabs').addEventListener('click', e => {
+  const tab = e.target.closest('.sport-tab');
+  if (!tab) return;
+  document.querySelectorAll('.sport-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  activeSport = tab.dataset.sport;
+  loadGames();
+});
+
+async function loadGames() {
+  const results = document.getElementById('results');
+  results.innerHTML = `<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>`;
+
+  try {
+    // Fetch games for this date + sport
+    const params = new URLSearchParams({
+      select: 'id,game_date,game_time,status,venue,home_team_id,away_team_id',
+      game_date: `eq.${activeDate}`,
+      sport_id: `eq.${activeSport}`,
+      order: 'game_time.asc.nullslast',
+    });
+
+    const gamesRes = await fetch(`${SB_URL}/rest/v1/games?${params}`, {
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+    });
+    const games = await gamesRes.json();
+
+    if (!games.length) {
+      results.innerHTML = `<div class="empty">No games scheduled for this date.</div>`;
+      return;
+    }
+
+    // Fetch team names for all team IDs
+    const teamIds = [...new Set([...games.map(g => g.home_team_id), ...games.map(g => g.away_team_id)])];
+    const teamsRes = await fetch(`${SB_URL}/rest/v1/teams?id=in.(${teamIds.join(',')})&select=id,school`, {
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+    });
+    const teams = await teamsRes.json();
+    const teamMap = {};
+    teams.forEach(t => teamMap[t.id] = t.school);
+
+    // Render
+    let html = `<div class="section-label">${games.length} game${games.length !== 1 ? 's' : ''} — ${formatDate(activeDate)}</div>`;
+
+    games.forEach(g => {
+      const home = teamMap[g.home_team_id] || 'Home Team';
+      const away = teamMap[g.away_team_id] || 'Away Team';
+      const feedUrl = `${FEED_BASE}?game_id=${g.id}`;
+      const statusLabel = g.status === 'in_progress' ? 'Live'
+        : g.status === 'final' ? 'Final'
+        : 'Scheduled';
+      const statusClass = g.status === 'in_progress' ? 'status-live'
+        : g.status === 'final' ? 'status-final'
+        : 'status-scheduled';
+      const timeStr = g.game_time ? formatTime(g.game_time) : 'TBD';
+
+      html += `
+        <div class="game-card">
+          <div class="game-teams">
+            ${esc(away)} <span class="vs">@</span> ${esc(home)}
+            <span class="status-badge ${statusClass}">${statusLabel}</span>
+          </div>
+          <div class="game-meta">${timeStr}${g.venue ? ' · ' + esc(g.venue) : ''}</div>
+          <div class="feed-url-row">
+            <div class="feed-url" title="${feedUrl}">${feedUrl}</div>
+            <button class="copy-btn" onclick="copyUrl(this, '${feedUrl}')">Copy URL</button>
+          </div>
+          ${g.status === 'scheduled' ? `<div class="notice">Feed URL is active now — vMix can connect before the game starts. Data populates as scoring begins.</div>` : ''}
+        </div>`;
+    });
+
+    results.innerHTML = html;
+
+  } catch(err) {
+    results.innerHTML = `<div class="empty">Error loading games. Check your connection.</div>`;
+    console.error(err);
+  }
+}
+
+function copyUrl(btn, url) {
+  navigator.clipboard.writeText(url).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy URL';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+function formatDate(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Initial load
+loadGames();
+</script>
+</body>
+</html>

@@ -363,12 +363,12 @@ async function loadGames() {
 
     // Fetch team names for all team IDs
     const teamIds = [...new Set([...games.map(g => g.home_team_id), ...games.map(g => g.away_team_id)])];
-    const teamsRes = await fetch(`${SB_URL}/rest/v1/teams?id=in.(${teamIds.join(',')})&select=id,school`, {
+    const teamsRes = await fetch(`${SB_URL}/rest/v1/teams?id=in.(${teamIds.join(',')})&select=id,school_name`, {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
     });
     const teams = await teamsRes.json();
     const teamMap = {};
-    teams.forEach(t => teamMap[t.id] = t.school);
+    teams.forEach(t => teamMap[t.id] = t.school_name);
 
     // Render
     let html = `<div class="section-label">${games.length} game${games.length !== 1 ? 's' : ''} — ${formatDate(activeDate)}</div>`;

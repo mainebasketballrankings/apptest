@@ -86,6 +86,19 @@
     margin-bottom: 6px;
   }
 
+
+  .day-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 8px 14px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .day-btn:hover { border-color: var(--orange); color: var(--orange); }
   input[type="date"] {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -275,17 +288,17 @@
 </header>
 
 <div class="card">
+  <label>Game Date</label>
   <div class="date-row">
-    <div style="flex:1">
-      <label for="datePicker">Game Date</label>
-      <input type="date" id="datePicker">
-    </div>
+    <button class="day-btn" id="prevDay">&#8592;</button>
+    <input type="date" id="datePicker">
+    <button class="day-btn" id="nextDay">&#8594;</button>
   </div>
   <div class="sport-tabs" id="sportTabs">
-    <button class="sport-tab active" data-sport="c87a4d6c">Baseball</button>
-    <button class="sport-tab" data-sport="095c9841">Softball</button>
-    <button class="sport-tab" data-sport="9c34ec5c">Lacrosse</button>
-    <button class="sport-tab" data-sport="ff80a695">Soccer</button>
+    <button class="sport-tab active" data-sport="c87a4d6c-a471-47e1-b6a0-d1643d942bf0">Baseball</button>
+    <button class="sport-tab" data-sport="095c9841-7261-4cb1-824e-6304792b53d0">Softball</button>
+    <button class="sport-tab" data-sport="9c34ec5c-81b4-4e2e-9f60-740bb30fee4d">Lacrosse</button>
+    <button class="sport-tab" data-sport="ff80a695-0e78-4432-98f2-141b2b571e0e">Soccer</button>
   </div>
 </div>
 
@@ -296,7 +309,7 @@ const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQxMjYzMTcsImV4cCI6MjAwOTcwMjMxN30.HbLMBHk2tGBMNFMdjWHWBVa5XVlVMJJxTuLCjZFHpvs';
 const FEED_BASE = 'https://vtwupenqieesoktonbzg.supabase.co/functions/v1/baseball-feed';
 
-let activeSport = 'c87a4d6c';
+let activeSport = 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
 let activeDate = '';
 
 // Set today's date
@@ -310,6 +323,18 @@ document.getElementById('datePicker').addEventListener('change', e => {
   loadGames();
 });
 
+
+document.getElementById('prevDay').addEventListener('click', () => shiftDate(-1));
+document.getElementById('nextDay').addEventListener('click', () => shiftDate(1));
+
+function shiftDate(delta) {
+  const [y, m, d] = activeDate.split('-').map(Number);
+  const dt = new Date(y, m-1, d + delta);
+  const pad = n => String(n).padStart(2,'0');
+  activeDate = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+  document.getElementById('datePicker').value = activeDate;
+  loadGames();
+}
 document.getElementById('sportTabs').addEventListener('click', e => {
   const tab = e.target.closest('.sport-tab');
   if (!tab) return;

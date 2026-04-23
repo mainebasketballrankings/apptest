@@ -350,16 +350,10 @@ async function loadGames() {
 
   try {
     // Fetch games for this date + sport
-    const params = new URLSearchParams({
-      select: 'id,game_date,game_time,status,venue,home_team_id,away_team_id',
-      game_date: `eq.${activeDate}`,
-      sport_id: `eq.${activeSport}`,
-      order: 'game_time.asc.nullslast',
-    });
-
-    const gamesRes = await fetch(`${SB_URL}/rest/v1/games?${params}`, {
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
-    });
+    const gamesRes = await fetch(
+      `${SB_URL}/rest/v1/games?select=id,game_date,game_time,status,venue,home_team_id,away_team_id&game_date=eq.${activeDate}&sport_id=eq.${activeSport}&order=game_time.asc.nullslast`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
     const games = await gamesRes.json();
 
     if (!games.length) {

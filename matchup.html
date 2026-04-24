@@ -109,6 +109,30 @@
     .chip-val { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; line-height: 1; margin-bottom: 2px; }
     .chip-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--lgray); }
 
+
+    /* ── Game switcher ── */
+    .game-switcher { margin-bottom: 16px; }
+    .game-switcher-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--lgray); margin-bottom: 6px; }
+    .game-switcher select {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--black);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 14px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    .game-switcher select:focus { border-color: var(--green2); }
     .watermark { text-align: center; padding: 20px 0 0; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--lgray); }
 
     @media (max-width: 580px) {
@@ -123,6 +147,10 @@
 <div id="mbr-header"></div>
 
 <div class="page-wrap">
+  <div class="game-switcher" id="gameSwitcher" style="display:none">
+    <div class="game-switcher-label">Today's Games</div>
+    <select id="gameSelect"></select>
+  </div>
   <div id="gateWrap">
     <div id="content">
       <div class="state-msg"><div class="spinner"></div><span>Loading matchup…</span></div>
@@ -216,7 +244,7 @@ async function loadMatchup() {
   // 1. Fetch game
   const { data: game, error: gErr } = await sb.from('games').select(`
     id, game_date, game_time, location, sport_id, season_year,
-    home_score, away_score, status, stax_index, pick_team, spread, is_neutral_site,
+    home_score, away_score, status, stax_index, pick_team, spread, win_prob, is_neutral_site,
     home_team:home_team_id ( id, school_name, gender, logo_url, team_class, team_region,
       team_classifications ( classes(name), regions(name,abbreviation) ) ),
     away_team:away_team_id ( id, school_name, gender, logo_url, team_class, team_region,
@@ -224,6 +252,9 @@ async function loadMatchup() {
   `).eq('id', gameId).single();
 
   if (gErr || !game) { el.innerHTML = '<div class="state-msg">Game not found.</div>'; return; }
+
+  // Load today's game dropdown (fire and forget)
+  loadTodaysGames(gameId, game.game_date);
 
   const home = game.home_team, away = game.away_team;
   const sportKey = SPORT_KEY_BY_ID[game.sport_id] || 'basketball';
@@ -387,11 +418,10 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     : '';
   const statusLabel = isFinal ? `Final · ${dateStr}` : isLive ? `Live · ${dateStr}` : dateStr;
 
-  // Win prob
+  // Win prob — use game.win_prob (GameDay projected win% for home team)
   let winProbHTML = '';
-  if (hSnap.win_pct != null && aSnap.win_pct != null) {
-    const total = hSnap.win_pct + aSnap.win_pct;
-    const hp = total > 0 ? (hSnap.win_pct / total * 100).toFixed(0) : 50;
+  if (game.win_prob != null) {
+    const hp = Math.round(game.win_prob * 100);
     const ap = 100 - hp;
     winProbHTML = `<div class="win-prob">
       <div class="win-prob-bar">
@@ -545,6 +575,59 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
 
   <div class="watermark">mainebasketballrankings.com</div>`;
 }
+// ── Game switcher ─────────────────────────────────────────────────────────────
+
+const SPORT_DISPLAY = {
+  'b31ab283-b28e-4ba8-9684-b1cf30cea219': 'Basketball',
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0': 'Baseball',
+  '095c9841-7261-4cb1-824e-6304792b53d0': 'Softball',
+  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d': 'Lacrosse',
+  'ff80a695-0e78-4432-98f2-141b2b571e0e': 'Soccer',
+  '1054869a-2b3c-4d5e-6f7a-8b9c0d1e2f3a': 'Field Hockey',
+  'fa905ca5-1234-5678-abcd-ef0123456789': 'Football',
+  'e26b0fcc-e661-4945-8b2d-063c37ace44f': 'Volleyball',
+};
+
+async function loadTodaysGames(currentGameId, gameDate) {
+  const sb = MBRNav.getSB();
+  const { data: games } = await sb
+    .from('games')
+    .select(`id, sport_id, status,
+      home_team:home_team_id(school_name),
+      away_team:away_team_id(school_name)`)
+    .eq('game_date', gameDate)
+    .not('status', 'eq', 'postponed')
+    .order('game_time', { ascending: true, nullsFirst: false });
+
+  if (!games || games.length < 2) return;
+
+  const sel = document.getElementById('gameSelect');
+  sel.innerHTML = '';
+  games.forEach(g => {
+    const sport = SPORT_DISPLAY[g.sport_id] || '';
+    const away = g.away_team?.school_name || '?';
+    const home = g.home_team?.school_name || '?';
+    const status = g.status === 'final' ? ' ✓' : g.status === 'in_progress' ? ' ●' : '';
+    const label = `${sport}: ${away} @ ${home}${status}`;
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = label;
+    if (g.id === currentGameId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  sel.addEventListener('change', () => {
+    const newId = sel.value;
+    const url = new URL(window.location.href);
+    url.searchParams.set('game_id', newId);
+    window.history.pushState({}, '', url);
+    document.getElementById('content').innerHTML = '<div class="state-msg"><div class="spinner"></div><span>Loading matchup…</span></div>';
+    loadMatchup();
+  });
+
+  document.getElementById('gameSwitcher').style.display = 'block';
+}
+
 </script>
 <script src="nav.js"></script>
 <script>MBRNav.init({ active: 'matchup' });</script>

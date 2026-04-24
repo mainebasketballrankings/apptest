@@ -358,11 +358,20 @@ input,select,button{font-family:inherit;}
     </div>
   </div>
 
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">
+    <button id="testModePill" class="pill" onclick="toggleTestMode()" style="background:#f59e0b;border-color:#f59e0b;color:#fff;font-size:13px;padding:8px 18px;border-radius:20px;font-weight:700;opacity:0.4">🧪 Test Mode: OFF</button>
+    <span style="font-size:12px;color:var(--dim);max-width:200px;line-height:1.4">Test games won't appear on the scoreboard</span>
+  </div>
   <button class="start-btn" onclick="startGame()">Start Game →</button>
 </div>
 
 <!-- ══ GAME SCREEN ══ -->
 <div id="gameScreen">
+
+  <!-- Test Mode Banner -->
+  <div id="testModeBanner" style="display:none;background:#f59e0b;color:#000;text-align:center;padding:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.05em">
+    🧪 TEST MODE — This game will NOT appear on the MBR scoreboard
+  </div>
 
   <!-- Scoreboard -->
   <div class="sb">
@@ -559,7 +568,7 @@ input,select,button{font-family:inherit;}
 
 <!-- Runners (visual diamond) -->
 <div class="overlay" id="ovRunners" style="display:none">
-  <div class="ocard">
+  <div class="ocard" style="max-height:85vh;overflow-y:auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div class="otitle" style="margin:0">Baserunners</div>
       <button class="ocancel" onclick="pushRunnerAdvance(); closeOv('ovRunners')">Done</button>
@@ -605,7 +614,7 @@ input,select,button{font-family:inherit;}
 
 <!-- In-play -->
 <div class="overlay" id="ovInPlay" style="display:none">
-  <div class="ocard">
+  <div class="ocard" style="max-height:85vh;overflow-y:auto;">
     <div class="otitle">In Play — What happened?</div>
     <div class="sec-lbl">Hits / Reaches</div>
     <div class="hit-grid">
@@ -655,7 +664,7 @@ input,select,button{font-family:inherit;}
 
 <!-- Sub -->
 <div class="overlay" id="ovSub" style="display:none">
-  <div class="ocard">
+  <div class="ocard" style="max-height:85vh;overflow-y:auto;">
     <div class="otitle" id="ovSubTitle">Select Player</div>
     <div class="sub-list" id="subList"></div>
     <div class="oactions">
@@ -713,6 +722,7 @@ const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
 let G_game_id = null; // set from schedule picker or URL param
+let G_test_mode = false; // when true, skip Supabase game creation
 let G_home_team_id = null;
 let G_away_team_id = null;
 
@@ -772,6 +782,7 @@ window.addEventListener('online', () => { flushQueue(); });
 setInterval(() => { if(navigator.onLine) flushQueue(); }, 30000);
 
 async function sbInsert(table, row){
+  if(G_test_mode) return; // test mode — no Supabase writes
   if(navigator.onLine){
     try {
       const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
@@ -1047,7 +1058,10 @@ function switchTab(side){
 function renderLU(side){
   const el=document.getElementById(side+'LU');
   el.innerHTML=G.teams[side].lineup.map((p,i)=>`
-    <div class="lu-row">
+    <div class="lu-row" draggable="true" data-side="${side}" data-idx="${i}"
+         ondragstart="luDragStart(event)" ondragover="luDragOver(event)" ondrop="luDrop(event)"
+         ondragend="luDragEnd(event)" ontouchstart="luTouchStart(event)" ontouchmove="luTouchMove(event)" ontouchend="luTouchEnd(event)">
+      <span class="lu-drag" style="cursor:grab;padding:0 6px;color:#aaa;font-size:18px;touch-action:none">≡</span>
       <span class="lu-num">${i+1}</span>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].lineup[${i}].name=this.value"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].lineup[${i}].number=this.value"/>
@@ -1097,6 +1111,20 @@ function renderBench(side){
 function removeBench(side,i){ G.teams[side].bench.splice(i,1); renderBench(side); }
 function removePlayer(side,i){ G.teams[side].lineup.splice(i,1); renderLU(side); }
 
+function toggleTestMode(){
+  G_test_mode = !G_test_mode;
+  const pill = document.getElementById('testModePill');
+  if(G_test_mode){
+    pill.textContent = '🧪 Test Mode: ON';
+    pill.style.opacity = '1';
+    pill.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.4)';
+  } else {
+    pill.textContent = '🧪 Test Mode: OFF';
+    pill.style.opacity = '0.4';
+    pill.style.boxShadow = 'none';
+  }
+}
+
 async function startGame(){
   G.sport=document.getElementById('sportSel').value;
   G.level=document.getElementById('levelSel').value;
@@ -1109,7 +1137,7 @@ async function startGame(){
   G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
   // Auto-create game in Supabase if no game_id yet
-  if(!G_game_id && G_home_team_id && G_away_team_id){
+  if(!G_test_mode && !G_game_id && G_home_team_id && G_away_team_id){
     try {
       const sportVal = G.sport||'baseball';
       const sportId = sportVal==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
@@ -1171,11 +1199,17 @@ async function startGame(){
   });
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('gameScreen').style.display='flex';
+  document.getElementById('testModeBanner').style.display = G_test_mode ? '' : 'none';
   document.getElementById('gameScreen').style.flexDirection='column';
   localStorage.removeItem('mbr_bb_game');
   addPBP(`Game started — ${G.teams.away.name} @ ${G.teams.home.name}`);
   // Push lineup to Supabase so live.html knows the starting lineup and batting order
-  if(G_game_id){
+  if(G_game_id && !G_test_mode){
+    // Delete any existing events for this game (handles scorer restarts cleanly)
+    await fetch(`${SB_URL}/rest/v1/game_events?game_id=eq.${G_game_id}`, {
+      method: 'DELETE',
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, Prefer: 'return=minimal' }
+    }).catch(e => console.error('Event cleanup error:', e));
     ['away','home'].forEach(side => {
       const lineup = G.teams[side].lineup.map(p => ({
         name: p.name,
@@ -1194,7 +1228,7 @@ async function startGame(){
     });
   }
   // Mark game as active and reset live scores
-  if(G_game_id){
+  if(G_game_id && !G_test_mode){
     fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
       method:'PATCH',
       headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },

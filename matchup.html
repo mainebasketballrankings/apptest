@@ -206,7 +206,14 @@ function applyGate(isPaid) {
 
 window.mbrAuthCallback = function(user, isPaid) {
   applyGate(isPaid);
-  if (isPaid) loadMatchup();
+  const gameId = new URLSearchParams(window.location.search).get('game_id');
+  // Always load today's game switcher
+  const today = new Date().toISOString().slice(0, 10);
+  loadTodaysGames(gameId, today);
+  if (isPaid && gameId) loadMatchup();
+  else if (!gameId) {
+    document.getElementById('content').innerHTML = '<div class="state-msg">Select a game above.</div>';
+  }
 };
 
 // ── Rank helpers ────────────────────────────────────────────────────────────
@@ -252,9 +259,6 @@ async function loadMatchup() {
   `).eq('id', gameId).single();
 
   if (gErr || !game) { el.innerHTML = '<div class="state-msg">Game not found.</div>'; return; }
-
-  // Load today's game dropdown (fire and forget)
-  loadTodaysGames(gameId, game.game_date);
 
   const home = game.home_team, away = game.away_team;
   const sportKey = SPORT_KEY_BY_ID[game.sport_id] || 'basketball';
@@ -592,32 +596,65 @@ async function loadTodaysGames(currentGameId, gameDate) {
   const sb = MBRNav.getSB();
   const { data: games } = await sb
     .from('games')
-    .select(`id, sport_id, status,
+    .select(`id, sport_id, status, game_time,
       home_team:home_team_id(school_name),
       away_team:away_team_id(school_name)`)
     .eq('game_date', gameDate)
     .not('status', 'eq', 'postponed')
+    .order('sport_id', { ascending: true })
     .order('game_time', { ascending: true, nullsFirst: false });
 
-  if (!games || games.length < 2) return;
+  if (!games || !games.length) return;
+
+  // Sort: sport display name, then home team name
+  const sportOrder = ['Baseball','Basketball','Field Hockey','Football','Lacrosse','Soccer','Softball','Volleyball'];
+  games.sort((a, b) => {
+    const sa = SPORT_DISPLAY[a.sport_id] || 'Z';
+    const sb2 = SPORT_DISPLAY[b.sport_id] || 'Z';
+    const si = sportOrder.indexOf(sa) - sportOrder.indexOf(sb2);
+    if (si !== 0) return si;
+    return (a.home_team?.school_name || '').localeCompare(b.home_team?.school_name || '');
+  });
 
   const sel = document.getElementById('gameSelect');
   sel.innerHTML = '';
+
+  // Add blank option if no game selected
+  if (!currentGameId) {
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = '— Select a game —';
+    blank.disabled = true;
+    blank.selected = true;
+    sel.appendChild(blank);
+  }
+
+  let lastSport = null;
   games.forEach(g => {
-    const sport = SPORT_DISPLAY[g.sport_id] || '';
+    const sport = SPORT_DISPLAY[g.sport_id] || 'Other';
     const away = g.away_team?.school_name || '?';
     const home = g.home_team?.school_name || '?';
     const status = g.status === 'final' ? ' ✓' : g.status === 'in_progress' ? ' ●' : '';
-    const label = `${sport}: ${away} @ ${home}${status}`;
+
+    // Add optgroup when sport changes
+    if (sport !== lastSport) {
+      const grp = document.createElement('optgroup');
+      grp.label = sport;
+      sel.appendChild(grp);
+      lastSport = sport;
+    }
+
+    const label = `${away} @ ${home}${status}`;
     const opt = document.createElement('option');
     opt.value = g.id;
     opt.textContent = label;
     if (g.id === currentGameId) opt.selected = true;
-    sel.appendChild(opt);
+    sel.lastElementChild.appendChild(opt);
   });
 
   sel.addEventListener('change', () => {
     const newId = sel.value;
+    if (!newId) return;
     const url = new URL(window.location.href);
     url.searchParams.set('game_id', newId);
     window.history.pushState({}, '', url);

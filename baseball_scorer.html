@@ -53,9 +53,9 @@ input,select,button{font-family:inherit;}
 .ttab{flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-align:center;}
 .ttab.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 
-.lu-row{display:grid;grid-template-columns:22px 1fr 52px 48px 28px;gap:6px;align-items:center;margin-bottom:6px;}
+.lu-row{display:grid;grid-template-columns:20px 20px 1fr 46px 44px 24px;gap:4px;align-items:center;margin-bottom:6px;}
 .lu-num{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);text-align:center;}
-.lu-input{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 8px;color:var(--text);font-size:13px;width:100%;}
+.lu-input{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:5px 4px;color:var(--text);font-size:12px;width:100%;}
 .lu-input:focus{outline:none;border-color:var(--blue);}
 .lu-del{background:none;border:none;color:var(--ldim);font-size:15px;cursor:pointer;padding:2px;}
 .lu-del:hover{color:var(--red);}
@@ -1061,7 +1061,7 @@ function renderLU(side){
     <div class="lu-row" draggable="true" data-side="${side}" data-idx="${i}"
          ondragstart="luDragStart(event)" ondragover="luDragOver(event)" ondrop="luDrop(event)"
          ondragend="luDragEnd(event)" ontouchstart="luTouchStart(event)" ontouchmove="luTouchMove(event)" ontouchend="luTouchEnd(event)">
-      <span class="lu-drag" style="cursor:grab;padding:0 6px;color:#aaa;font-size:18px;touch-action:none">≡</span>
+      <span class="lu-drag" style="cursor:grab;padding:0 2px;color:#aaa;font-size:16px;touch-action:none">≡</span>
       <span class="lu-num">${i+1}</span>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].lineup[${i}].name=this.value"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].lineup[${i}].number=this.value"/>

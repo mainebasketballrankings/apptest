@@ -286,7 +286,7 @@ input,select,button{font-family:inherit;}
     <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
     <div class="srow">
       <span class="slabel">Sport</span>
-      <select class="sselect" id="pickerSportSel" onchange="document.getElementById('sportSel').value=this.value;loadTodaysGames()">
+      <select class="sselect" id="pickerSportSel" onchange="document.getElementById('sportSel').value=this.value;loadTodaysGames();onSportChange()">
         <option value="baseball">Baseball</option>
         <option value="softball">Softball</option>
       </select>
@@ -1049,7 +1049,7 @@ function init(skipTestPlayers){
       G.teams.home.lineup.push(newPlayer(i+1,n,i===0?'P':['C','1B','2B','3B','SS','LF','CF','RF'][i-1]||'LF'));
     });
   }
-  renderLU('away'); renderLU('home');
+  renderLU('away'); renderLU('home'); onSportChange();
   updatePitchHint(); updateMercyHint();
 }
 
@@ -1179,8 +1179,8 @@ function renderBench(side){
   const el=document.getElementById(side+'Bench');
   if(!el) return;
   el.innerHTML=G.teams[side].bench.map((p,i)=>`
-    <div class="lu-row">
-      <button onclick="addBenchToLineup('${side}',${i})" style="background:#ee6730;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;font-family:'Barlow',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap">+ LU</button>
+    <div style="display:grid;grid-template-columns:36px 1fr 46px 24px;gap:4px;align-items:center;margin-bottom:6px;">
+      <button onclick="addBenchToLineup('${side}',${i})" style="background:#ee6730;color:#fff;border:none;border-radius:4px;padding:3px 6px;font-size:11px;font-family:'Barlow',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap">+LU</button>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].bench[${i}].name=this.value"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].bench[${i}].number=this.value"/>
       <button class="lu-del" onclick="removeBench('${side}',${i})">✕</button>
@@ -3350,7 +3350,7 @@ function restoreGame(){
       });
     });
     init(true); // skip test players
-    renderLU('away'); renderLU('home'); renderBench('away'); renderBench('home');
+    renderLU('away'); renderLU('home'); renderBench('away'); renderBench('home'); updateCRDropdowns('away'); updateCRDropdowns('home'); onSportChange();
     render();
   } catch(e){ alert('Could not restore: '+e.message); discardSave(); }
 }

@@ -787,8 +787,7 @@ async function load() {
             cells.push(`<td class="rt-stat">${n(p.ftp,1)}</td>`);
             cells.push(`<td class="rt-stat">${p.eff != null && p.games ? (p.eff/p.games).toFixed(1) : ''}</td>`);
             cells.push(`<td class="rt-stat">${p.plusminus != null ? (p.plusminus > 0 ? '+' : '') + p.plusminus : ''}</td>`);
-            const hasPitching = p.ip_outs > 0 || p.w != null || p.l != null;
-            return hasPitching ? `<tr>${cells.join('')}</tr>` : '';
+            return `<tr>${cells.join('')}</tr>`;
           }).join('');
           const headerRow = headCells.join('');
           rosterHtml = `
@@ -815,8 +814,7 @@ async function load() {
             cells.push(`<td class="rt-stat">${n(p.rbi)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.sb)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.ops,3)}</td>`);
-            const hasPitching = p.ip_outs > 0 || p.w != null || p.l != null;
-            return hasPitching ? `<tr>${cells.join('')}</tr>` : '';
+            return `<tr>${cells.join('')}</tr>`;
           }).join('');
 
           const pitRows = players.map((p, i) => {

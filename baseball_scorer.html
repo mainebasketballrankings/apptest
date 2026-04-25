@@ -53,7 +53,7 @@ input,select,button{font-family:inherit;}
 .ttab{flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-align:center;}
 .ttab.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 
-.lu-row{display:grid;grid-template-columns:20px 20px 1fr 46px 44px 24px;gap:4px;align-items:center;margin-bottom:6px;}
+.lu-row{display:grid;grid-template-columns:20px 20px 1fr 46px 44px auto 24px;gap:4px;align-items:center;margin-bottom:6px;}
 .lu-num{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);text-align:center;}
 .lu-input{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:5px 4px;color:var(--text);font-size:12px;width:100%;}
 .lu-input:focus{outline:none;border-color:var(--blue);}
@@ -345,6 +345,13 @@ input,select,button{font-family:inherit;}
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px">Bench / Extra Pitchers <span style="color:var(--ldim);font-size:9px">— available for substitution</span></div>
       <div id="awayBench"></div>
       <button class="add-btn" onclick="addBench('away')">+ Add Bench Player</button>
+      <div id="awayCRSection" style="display:none;margin-top:12px;padding:10px;background:#fef9ec;border-radius:8px;border:1px solid #f59e0b22">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b45309;margin-bottom:8px">Courtesy Runners (Softball)</div>
+        <div class="srow"><span class="slabel" style="font-size:11px">CR for P</span>
+          <select class="sselect" id="awayCRforP" style="font-size:12px"><option value="">None</option></select></div>
+        <div class="srow"><span class="slabel" style="font-size:11px">CR for C</span>
+          <select class="sselect" id="awayCRforC" style="font-size:12px"><option value="">None</option></select></div>
+      </div>
     </div>
     <div id="homeSetup" style="display:none">
       <div class="srow"><span class="slabel">Team Name</span>
@@ -355,6 +362,13 @@ input,select,button{font-family:inherit;}
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px">Bench / Extra Pitchers <span style="color:var(--ldim);font-size:9px">— available for substitution</span></div>
       <div id="homeBench"></div>
       <button class="add-btn" onclick="addBench('home')">+ Add Bench Player</button>
+      <div id="homeCRSection" style="display:none;margin-top:12px;padding:10px;background:#fef9ec;border-radius:8px;border:1px solid #f59e0b22">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b45309;margin-bottom:8px">Courtesy Runners (Softball)</div>
+        <div class="srow"><span class="slabel" style="font-size:11px">CR for P</span>
+          <select class="sselect" id="homeCRforP" style="font-size:12px"><option value="">None</option></select></div>
+        <div class="srow"><span class="slabel" style="font-size:11px">CR for C</span>
+          <select class="sselect" id="homeCRforC" style="font-size:12px"><option value="">None</option></select></div>
+      </div>
     </div>
   </div>
 
@@ -963,6 +977,7 @@ let G = {
   runs:{away:0,home:0}, hits:{away:0,home:0}, errors:{away:0,home:0},
   linescore:[],
   batIdx:{away:0,home:0},
+  cr:{away:{p:null,c:null},home:{p:null,c:null}}, // courtesy runners
   curPitches:[],
   pbp:[],
   pitStats:{},   // "away_0":{pitches,outs,h,bb,k,er,...}
@@ -985,7 +1000,7 @@ let G = {
 };
 
 function newPlayer(order, name, pos) {
-  return { name, number:'', pos:pos||'', order,
+  return { name, number:'', pos:pos||'', order, flex:false,
     stats:{ab:0,h:0,r:0,rbi:0,bb:0,k:0,hr:0,d:0,t:0,sb:0,sba:0,sf:0,sac:0,ibb:0,
            pitches:0,ip_outs:0,pk:0,pbb:0,pibb:0,per:0,phr:0,wp:0,gs:0,w:0,l:0,sv:0}};
 }
@@ -1043,7 +1058,16 @@ function togglePill(id){
   el.classList.toggle('on');
   el.textContent=el.classList.contains('on')?'On':'Off';
 }
-function onSportChange(){ updateMercyHint(); document.getElementById('pitchLimitRow').style.display=document.getElementById('sportSel').value==='softball'?'none':''; }
+function onSportChange(){
+  updateMercyHint();
+  const isSoftball = document.getElementById('sportSel').value === 'softball';
+  document.getElementById('pitchLimitRow').style.display = isSoftball ? 'none' : '';
+  ['away','home'].forEach(side => {
+    const cr = document.getElementById(side+'CRSection');
+    if(cr) cr.style.display = isSoftball ? '' : 'none';
+  });
+  renderLU('away'); renderLU('home'); // re-render to show/hide FLEX buttons
+}
 function onLevelChange(){ updatePitchHint(); }
 function updatePitchHint(){ const l=document.getElementById('levelSel').value; document.getElementById('pitchHint').textContent=`${l==='varsity'?'Varsity':'JV'}: max ${PITCH_LIMITS[l].max}`; }
 function updateMercyHint(){ const s=document.getElementById('sportSel').value; document.getElementById('mercyHint').textContent=s==='baseball'?'10 runs after 5 inn':'15 runs after 3 inn'; }
@@ -1057,10 +1081,12 @@ function switchTab(side){
 
 function renderLU(side){
   const el=document.getElementById(side+'LU');
+  const isSoftball = document.getElementById('sportSel')?.value === 'softball';
   el.innerHTML=G.teams[side].lineup.map((p,i)=>`
     <div class="lu-row" draggable="true" data-side="${side}" data-idx="${i}"
          ondragstart="luDragStart(event)" ondragover="luDragOver(event)" ondrop="luDrop(event)"
-         ondragend="luDragEnd(event)" ontouchstart="luTouchStart(event)" ontouchmove="luTouchMove(event)" ontouchend="luTouchEnd(event)">
+         ondragend="luDragEnd(event)" ontouchstart="luTouchStart(event)" ontouchmove="luTouchMove(event)" ontouchend="luTouchEnd(event)"
+         style="${p.flex ? 'opacity:0.6;background:#fef9ec;border-radius:6px;' : ''}">
       <span class="lu-drag" style="cursor:grab;padding:4px 6px;color:#aaa;font-size:18px;touch-action:none;display:inline-flex;align-items:center;min-width:28px;min-height:36px;justify-content:center">≡</span>
       <span class="lu-num">${i+1}</span>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].lineup[${i}].name=this.value"/>
@@ -1068,12 +1094,65 @@ function renderLU(side){
       <select class="lu-input" style="padding:5px 3px" onchange="G.teams['${side}'].lineup[${i}].pos=this.value"><option value="">Pos</option>
         ${POSITIONS.map(pos=>`<option value="${pos}" ${pos===p.pos?'selected':''}>${pos}</option>`).join('')}
       </select>
+      ${isSoftball ? `<button style="background:${p.flex?'#f59e0b':'none'};color:${p.flex?'#fff':'#aaa'};border:1px solid ${p.flex?'#f59e0b':'#ccc'};border-radius:4px;font-size:10px;font-weight:700;padding:3px 5px;cursor:pointer;white-space:nowrap" onclick="toggleFlex('${side}',${i})">${p.flex?'FLEX':'FLX?'}</button>` : ''}
       <button class="lu-del" onclick="removePlayer('${side}',${i})">✕</button>
     </div>`).join('');
 }
 
+
+
+function updateCRDropdowns(side){
+  // Populate CR dropdowns with bench players
+  const bench = G.teams[side].bench;
+  ['P','C'].forEach(pos => {
+    const sel = document.getElementById(side+'CRfor'+pos);
+    if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">None</option>' +
+      bench.map(p => `<option value="${p.name}" ${p.name===cur?'selected':''}>${p.name}</option>`).join('');
+  });
+}
+
+function readCRSelections(){
+  ['away','home'].forEach(side => {
+    const p = document.getElementById(side+'CRforP')?.value || null;
+    const c = document.getElementById(side+'CRforC')?.value || null;
+    G.cr[side] = { p, c };
+  });
+}
+
+function getCRfor(side, batter){
+  // Return courtesy runner name if batter is the designated P or C for this side
+  const lineup = G.teams[side].lineup;
+  const pitcher = lineup.find(p => p.pos === 'P');
+  const catcher = lineup.find(p => p.pos === 'C');
+  if(pitcher && batter.name === pitcher.name && G.cr[side].p) return G.cr[side].p;
+  if(catcher && batter.name === catcher.name && G.cr[side].c) return G.cr[side].c;
+  return null;
+}
+
+function applyCR(side, base, batter){
+  // If batter has a courtesy runner, swap them on base immediately
+  const crName = getCRfor(side, batter);
+  if(!crName) return false;
+  const crPlayer = G.teams[side].bench.find(p => p.name === crName)
+    || {name: crName, number:'', pos:'', stats:{}};
+  G.bases[base] = crPlayer;
+  addPBP(`CR: ${crName} runs for ${batter.name}`);
+  pushEvt('runner_advance', {
+    player_override: crPlayer,
+    notes: { cr: true, for: batter.name }
+  });
+  return true;
+}
+function toggleFlex(side, i){
+  luSyncFromDOM(side);
+  G.teams[side].lineup[i].flex = !G.teams[side].lineup[i].flex;
+  renderLU(side);
+  updateCRDropdowns(side);
+}
 function addPlayer(side){ G.teams[side].lineup.push(newPlayer(G.teams[side].lineup.length+1,'')); renderLU(side); }
-function addBench(side){ G.teams[side].bench.push(newPlayer(0,'')); renderBench(side); }
+function addBench(side){ G.teams[side].bench.push(newPlayer(0,'')); renderBench(side); updateCRDropdowns(side); }
 
 function addBenchToLineup(side, i){
   const p = G.teams[side].bench[i];
@@ -1108,7 +1187,7 @@ function renderBench(side){
     </div>`).join('');
 }
 
-function removeBench(side,i){ G.teams[side].bench.splice(i,1); renderBench(side); }
+function removeBench(side,i){ G.teams[side].bench.splice(i,1); renderBench(side); updateCRDropdowns(side); }
 function removePlayer(side,i){ G.teams[side].lineup.splice(i,1); renderLU(side); }
 
 function toggleTestMode(){
@@ -1203,6 +1282,8 @@ async function startGame(){
   document.getElementById('gameScreen').style.flexDirection='column';
   localStorage.removeItem('mbr_bb_game');
   addPBP(`Game started — ${G.teams.away.name} @ ${G.teams.home.name}`);
+  // Read courtesy runner selections
+  readCRSelections();
   // Push lineup to Supabase so live.html knows the starting lineup and batting order
   if(G_game_id && !G_test_mode){
     // Delete any existing events for this game (handles scorer restarts cleanly)
@@ -1328,6 +1409,8 @@ function doWalk(type){
   const basesLoaded = !!(G.bases[1] && G.bases[2] && G.bases[3]);
   const runner={name:b.player.name,num:b.player.number};
   forceAdvance(runner);
+  // Apply courtesy runner if designated
+  applyCR(battingSide(), 1, b.player);
   if(basesLoaded) b.player.stats.rbi = (b.player.stats.rbi||0) + 1;
   addPBP(`<strong>${b.player.name}</strong> ${type} — reaches 1B${basesLoaded?' · 1 RBI':''}`);
   pushEvt(type==='BB'?'walk':'hbp', basesLoaded ? {runs:1, rbi:1} : {});
@@ -1360,6 +1443,7 @@ function doDroppedThird(){
   const runner={name:b.player.name, num:b.player.number};
   const hadRunners = hasRunners();
   forceAdvance(runner);
+  applyCR(battingSide(), 1, b.player);
   addPBP('<strong>'+b.player.name+'</strong> K (dropped 3rd strike) — reaches 1B');
   pushEvt('strikeout', {notes:'dropped 3rd strike'});
   closeOv('ovInPlay');
@@ -1418,7 +1502,12 @@ function addOut(notation){
 
 function nextBatter(skipBatterUp=false){
   const s=battingSide();
-  G.batIdx[s]=(G.batIdx[s]+1)%G.teams[s].lineup.length;
+  // Advance batting index, skipping FLEX players
+  let safety=0;
+  do {
+    G.batIdx[s]=(G.batIdx[s]+1)%G.teams[s].lineup.length;
+    safety++;
+  } while(G.teams[s].lineup[G.batIdx[s]]?.flex && safety < G.teams[s].lineup.length);
   G.curPitches=[];
   // Push batter_up after delay so PA event always lands in Supabase first
   // Skip when inning is ending — other team is about to bat, not this one
@@ -1899,11 +1988,14 @@ function confirmRBI(){
     if(result==='3B') b.player.stats.t++;
   }
   const bRunner={name:b.player.name,num:b.player.number};
-  if(result==='1B'||result==='E'||result==='FC') newBases[1]=bRunner;
-  else if(result==='2B') newBases[2]=bRunner;
-  else if(result==='3B') newBases[3]=bRunner;
+  let batterBase = 0;
+  if(result==='1B'||result==='E'||result==='FC'){ newBases[1]=bRunner; batterBase=1; }
+  else if(result==='2B'){ newBases[2]=bRunner; batterBase=2; }
+  else if(result==='3B'){ newBases[3]=bRunner; batterBase=3; }
   for(let i=0;i<manualRBI;i++) scoreRunner(null, side);
   G.bases=newBases;
+  // Apply courtesy runner if designated (softball DP/FLEX)
+  if(batterBase > 0) applyCR(side, batterBase, b.player);
   if(isHit) G.hits[side]++;
   const p=curPitcher();
   if(p){ const ps=getPS(p.side,p.idx);

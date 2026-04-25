@@ -366,7 +366,7 @@ async function load() {
 
     // Paginated fetch helper
     // Fetch roster players for this team
-    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops,w,l,ip,era,whip,k&order=number.asc&limit=100`);
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops,w,l,ip_outs,era,whip,k&order=number.asc&limit=100`);
 
     async function fetchAll(query) {
       const pageSize = 1000;
@@ -787,7 +787,8 @@ async function load() {
             cells.push(`<td class="rt-stat">${n(p.ftp,1)}</td>`);
             cells.push(`<td class="rt-stat">${p.eff != null && p.games ? (p.eff/p.games).toFixed(1) : ''}</td>`);
             cells.push(`<td class="rt-stat">${p.plusminus != null ? (p.plusminus > 0 ? '+' : '') + p.plusminus : ''}</td>`);
-            return `<tr>${cells.join('')}</tr>`;
+            const hasPitching = p.ip_outs > 0 || p.w != null || p.l != null;
+            return hasPitching ? `<tr>${cells.join('')}</tr>` : '';
           }).join('');
           const headerRow = headCells.join('');
           rosterHtml = `
@@ -814,7 +815,8 @@ async function load() {
             cells.push(`<td class="rt-stat">${n(p.rbi)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.sb)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.ops,3)}</td>`);
-            return `<tr>${cells.join('')}</tr>`;
+            const hasPitching = p.ip_outs > 0 || p.w != null || p.l != null;
+            return hasPitching ? `<tr>${cells.join('')}</tr>` : '';
           }).join('');
 
           const pitRows = players.map((p, i) => {
@@ -822,11 +824,13 @@ async function load() {
             const wl = (p.w != null || p.l != null) ? `${p.w ?? 0}-${p.l ?? 0}` : '';
             const cells = [...bioRows[i]];
             cells.push(`<td class="rt-stat">${wl}</td>`);
-            cells.push(`<td class="rt-stat">${n(p.ip,1)}</td>`);
+            const ipStr = p.ip_outs != null ? `${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` : '';
+            cells.push(`<td class="rt-stat">${ipStr}</td>`);
             cells.push(`<td class="rt-stat">${n(p.era,2)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.whip,2)}</td>`);
             cells.push(`<td class="rt-stat">${n(p.k)}</td>`);
-            return `<tr>${cells.join('')}</tr>`;
+            const hasPitching = p.ip_outs > 0 || p.w != null || p.l != null;
+            return hasPitching ? `<tr>${cells.join('')}</tr>` : '';
           }).join('');
 
           rosterHtml = `

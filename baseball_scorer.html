@@ -503,7 +503,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn hi"     onclick="openSub('pitcher')">Change P</button>
     <button class="abtn"        onclick="openSub('batter')">Pinch Hit</button>
     <button class="abtn"        onclick="openSub('defense')">Def. Sub</button>
-    <button class="abtn blue"   onclick="openRBIResolver(null,'runners')">Runners</button>
+    <button class="abtn blue"   onclick="openOv('ovRunners')">Runners</button>
     <button class="abtn blue"   onclick="doBalk()">Balk</button>
     <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
@@ -945,6 +945,7 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
       });
       renderLU(side);
       renderBench(side);
+      updateCRDropdowns(side);
     } catch(e){ console.warn('roster fetch failed', side, e); }
   };
   fetchRoster(awayId, 'away');

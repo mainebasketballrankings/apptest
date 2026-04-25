@@ -1061,7 +1061,7 @@ function renderLU(side){
     <div class="lu-row" draggable="true" data-side="${side}" data-idx="${i}"
          ondragstart="luDragStart(event)" ondragover="luDragOver(event)" ondrop="luDrop(event)"
          ondragend="luDragEnd(event)" ontouchstart="luTouchStart(event)" ontouchmove="luTouchMove(event)" ontouchend="luTouchEnd(event)">
-      <span class="lu-drag" style="cursor:grab;padding:0 2px;color:#aaa;font-size:16px;touch-action:none">≡</span>
+      <span class="lu-drag" style="cursor:grab;padding:4px 6px;color:#aaa;font-size:18px;touch-action:none;display:inline-flex;align-items:center;min-width:28px;min-height:36px;justify-content:center">≡</span>
       <span class="lu-num">${i+1}</span>
       <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].lineup[${i}].name=this.value"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].lineup[${i}].number=this.value"/>
@@ -3266,6 +3266,114 @@ function restoreGame(){
 function discardSave(){
   localStorage.removeItem('mbr_bb_game');
   document.getElementById('restoreBanner')?.remove();
+}
+
+
+// ── Lineup drag-to-reorder ────────────────────────────────────────────────
+let _luDragSide = null, _luDragIdx = null, _luDragEl = null;
+let _luTouchSide = null, _luTouchIdx = null, _luTouchClone = null;
+let _luTouchStartY = 0;
+
+function luSyncFromDOM(side) {
+  const el = document.getElementById(side + 'LU');
+  if (!el) return;
+  el.querySelectorAll('.lu-row').forEach((row, i) => {
+    const inputs = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    if (inputs[0]) G.teams[side].lineup[i].name = inputs[0].value;
+    if (inputs[1]) G.teams[side].lineup[i].number = inputs[1].value;
+    if (sel) G.teams[side].lineup[i].pos = sel.value;
+  });
+}
+
+function luDragStart(e) {
+  const row = e.currentTarget;
+  _luDragSide = row.dataset.side;
+  _luDragIdx = parseInt(row.dataset.idx);
+  _luDragEl = row;
+  luSyncFromDOM(_luDragSide);
+  e.dataTransfer.effectAllowed = 'move';
+  row.style.opacity = '0.4';
+}
+
+function luDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const row = e.currentTarget;
+  if (row === _luDragEl) return;
+  row.style.borderTop = '2px solid #ee6730';
+}
+
+function luDrop(e) {
+  e.preventDefault();
+  const targetRow = e.currentTarget;
+  const targetIdx = parseInt(targetRow.dataset.idx);
+  if (_luDragIdx === null || _luDragIdx === targetIdx) return;
+  const arr = G.teams[_luDragSide].lineup;
+  const [moved] = arr.splice(_luDragIdx, 1);
+  arr.splice(targetIdx, 0, moved);
+  renderLU(_luDragSide);
+}
+
+function luDragEnd(e) {
+  if (_luDragEl) _luDragEl.style.opacity = '';
+  const side = _luDragSide;
+  if (side) {
+    const el = document.getElementById(side + 'LU');
+    if (el) el.querySelectorAll('.lu-row').forEach(r => r.style.borderTop = '');
+  }
+  _luDragEl = null; _luDragIdx = null; _luDragSide = null;
+}
+
+function luTouchStart(e) {
+  const row = e.currentTarget;
+  const touch = e.touches[0];
+  const rowRect = row.getBoundingClientRect();
+  if (touch.clientX > rowRect.left + 60) return;
+  e.preventDefault();
+  _luTouchSide = row.dataset.side;
+  _luTouchIdx = parseInt(row.dataset.idx);
+  _luTouchStartY = touch.clientY;
+  luSyncFromDOM(_luTouchSide);
+  _luTouchClone = row.cloneNode(true);
+  _luTouchClone.style.cssText = `position:fixed;left:${rowRect.left}px;top:${rowRect.top}px;width:${row.offsetWidth}px;opacity:0.85;z-index:9999;pointer-events:none;background:#fff;border:2px solid #ee6730;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.2);`;
+  document.body.appendChild(_luTouchClone);
+  row.style.opacity = '0.3';
+}
+
+function luTouchMove(e) {
+  if (_luTouchIdx === null || !_luTouchClone) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const dy = touch.clientY - _luTouchStartY;
+  const curTop = parseFloat(_luTouchClone.style.top);
+  _luTouchClone.style.top = (curTop + dy) + 'px';
+  _luTouchStartY = touch.clientY;
+}
+
+function luTouchEnd(e) {
+  if (_luTouchIdx === null) return;
+  const touch = e.changedTouches[0];
+  if (_luTouchClone) { _luTouchClone.remove(); _luTouchClone = null; }
+  const el = document.getElementById(_luTouchSide + 'LU');
+  if (el) {
+    el.querySelectorAll('.lu-row').forEach(r => { r.style.opacity = ''; });
+    const rows = [...el.querySelectorAll('.lu-row')];
+    for (const row of rows) {
+      const rect = row.getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        const targetIdx = parseInt(row.dataset.idx);
+        if (targetIdx !== _luTouchIdx) {
+          const arr = G.teams[_luTouchSide].lineup;
+          const [moved] = arr.splice(_luTouchIdx, 1);
+          arr.splice(targetIdx, 0, moved);
+          renderLU(_luTouchSide);
+        }
+        break;
+      }
+    }
+  }
+  _luTouchIdx = null; _luTouchSide = null;
 }
 
 </script>

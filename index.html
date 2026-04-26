@@ -1344,7 +1344,10 @@
     let src = '';
     let alt = 'Stream';
 
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    if (url.includes('easternmainesportsmedia') || url.includes('easternmainesports') || url.includes('eastern-maine')) {
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278369/eastern_maine_sport_vp5nya.png';
+      alt = 'Eastern Maine Sports';
+    } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
       src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278312/You-Tube-14_nqkseu.png';
       alt = 'YouTube';
     } else if (url.includes('nfhs')) {
@@ -1362,9 +1365,6 @@
     } else if (url.includes('theticket') || url.includes('ticket.tv')) {
       src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680872/tickettv_llamh1.jpg';
       alt = 'The Ticket';
-    } else if (url.includes('easternmainesports') || url.includes('eastern-maine')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278369/eastern_maine_sport_vp5nya.png';
-      alt = 'Eastern Maine Sports';
     } else if (url.includes('munzing')) {
       src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278428/munzing_c4tion.png';
       alt = 'Munzing';

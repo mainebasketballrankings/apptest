@@ -465,7 +465,10 @@
         <button class="tab active" data-tab="pending">Pending</button>
         <button class="tab" data-tab="confirmed">Approved</button>
         <button class="tab" data-tab="rejected">Rejected</button>
+        <button class="tab" data-tab="late" onclick="loadLateScores()" style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏰ Late Scores</button>
       </div>
+
+      <div id="late-scores-list" style="display:none"></div>
 
       <div id="submissions-list"></div>
     </main>
@@ -515,7 +518,14 @@
       document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       currentTab = t.dataset.tab;
-      render();
+      if (t.dataset.tab === 'late') {
+        document.getElementById('submissions-list').style.display = 'none';
+        loadLateScores();
+      } else {
+        document.getElementById('submissions-list').style.display = '';
+        document.getElementById('late-scores-list').style.display = 'none';
+        render();
+      }
     });
   });
 
@@ -702,6 +712,94 @@
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3000);
   }
+// ── Late Scores ────────────────────────────────────────────────────────────
+let lateLoaded = false;
+
+async function loadLateScores() {
+  // Show late panel, hide submissions
+  document.getElementById('submissions-list').style.display = 'none';
+  document.getElementById('late-scores-list').style.display = '';
+
+  if (lateLoaded) return;
+  document.getElementById('late-scores-list').innerHTML = '<div style="padding:20px;color:#888">Loading...</div>';
+
+  // Fetch final games where updated_at is more than 1 day after game_date
+  const { data: games, error } = await sb
+    .from('games')
+    .select(`
+      id, game_date, home_score, away_score, status, season_year, updated_at,
+      home_team:home_team_id(school_name),
+      away_team:away_team_id(school_name),
+      sport:sport_id(name)
+    `)
+    .eq('status', 'final')
+    .eq('season_year', 2026)
+    .order('game_date', { ascending: false })
+    .limit(500);
+
+  if (error) {
+    document.getElementById('late-scores-list').innerHTML = '<div style="padding:20px;color:red">Error loading games</div>';
+    return;
+  }
+
+  // Filter: updated_at more than 20 hours after game_date
+  const late = games.filter(g => {
+    if (!g.updated_at || !g.game_date) return false;
+    const gameDay = new Date(g.game_date + 'T23:59:00');
+    const updated = new Date(g.updated_at);
+    const diffHours = (updated - gameDay) / (1000 * 60 * 60);
+    return diffHours > 20;
+  });
+
+  if (!late.length) {
+    document.getElementById('late-scores-list').innerHTML = '<div style="padding:20px;color:#888">No late-reported scores found.</div>';
+    lateLoaded = true;
+    return;
+  }
+
+  // Sort by how late they were reported (most late first)
+  late.sort((a, b) => {
+    const daysLate = g => {
+      const gameDay = new Date(g.game_date + 'T23:59:00');
+      return (new Date(g.updated_at) - gameDay) / (1000 * 60 * 60 * 24);
+    };
+    return daysLate(b) - daysLate(a);
+  });
+
+  const rows = late.map(g => {
+    const gameDay = new Date(g.game_date + 'T23:59:00');
+    const updated = new Date(g.updated_at);
+    const daysLate = Math.round((updated - gameDay) / (1000 * 60 * 60 * 24));
+    const sport = g.sport?.name || '';
+    const home = g.home_team?.school_name || '?';
+    const away = g.away_team?.school_name || '?';
+    const score = `${g.away_score}-${g.home_score}`;
+    const dateStr = g.game_date;
+    const updatedStr = updated.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    const lateColor = daysLate >= 7 ? '#ef4444' : daysLate >= 3 ? '#f59e0b' : '#888';
+
+    return `<div style="display:grid;grid-template-columns:90px 1fr 80px 80px 60px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #eee;font-size:13px">
+      <div style="color:#888;font-size:12px">${dateStr}</div>
+      <div><strong>${away}</strong> @ <strong>${home}</strong> <span style="color:#888;font-size:11px">${sport}</span></div>
+      <div style="font-weight:700">${score}</div>
+      <div style="color:#888;font-size:11px">Updated ${updatedStr}</div>
+      <div style="color:${lateColor};font-weight:700;font-size:12px">+${daysLate}d</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('late-scores-list').innerHTML = `
+    <div style="padding:12px 0 4px;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">
+      ${late.length} late-reported scores — add these to Excel
+    </div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:12px">Sorted by how late the score was entered. Red = 7+ days late.</div>
+    ${rows}`;
+
+  lateLoaded = true;
+}
+
+// Reset late cache on refresh
+const origLoadData = loadData;
+
 </script>
 </body>
 </html>

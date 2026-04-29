@@ -731,7 +731,7 @@ async function loadLateScores() {
   const { data: games, error } = await sb
     .from('games')
     .select(`
-      id, game_date, home_score, away_score, status, season_year, updated_at,
+      id, game_date, home_score, away_score, status, season_year, updated_at, gender,
       home_team:home_team_id(school_name),
       away_team:away_team_id(school_name),
       sport:sport_id(name)
@@ -779,7 +779,11 @@ async function loadLateScores() {
     const gameDay = new Date(g.game_date + 'T23:59:00');
     const updated = new Date(g.updated_at);
     const daysLate = Math.round((updated - gameDay) / (1000 * 60 * 60 * 24));
-    const sport = g.sport?.name || '';
+    const sportName = g.sport?.name || '';
+    const gender = g.gender || '';
+    const sport = ['Lacrosse','Soccer'].includes(sportName) && gender
+      ? `${gender === 'Boys' ? 'Boys' : 'Girls'} ${sportName}`
+      : sportName;
     const home = g.home_team?.school_name || '?';
     const away = g.away_team?.school_name || '?';
     const score = `${g.away_score}-${g.home_score}`;

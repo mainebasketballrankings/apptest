@@ -419,8 +419,8 @@
     'basketball': 2026, 'baseball': 2026, 'softball': 2026, 'lacrosse': 2026,
     'soccer': 2025, 'field-hockey': 2025, 'football': 2025,
   };
-  let sortCol      = 'rank_overall';
-  let sortAsc      = true;
+  let sortCol      = 'dirigo';
+  let sortAsc      = false;
   let visibleCols  = { pf: true, pa: true, diff: true, pct: true, sos: true, odds: false };
 
   // Region abbreviation → full name
@@ -473,7 +473,7 @@
       .from('rankings_snapshots')
       .select(`
         id, rank_overall, rank_class, rank_region,
-        pi, heal_points, wins, losses, avg_pf, avg_pa, sos,
+        pi, heal_points, dirigo, mheals_18, wins, losses, avg_pf, avg_pa, sos,
         pct_perfect, signature_win, ats_record, win_pct,
         tournament_odds,
         team:team_id (
@@ -518,8 +518,8 @@
         container.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         activeClass = btn.dataset.class;
-        sortCol = activeClass === 'all' ? 'rank_overall' : 'rank_class';
-        sortAsc = true;
+        sortCol = 'dirigo';
+        sortAsc = false;
         renderTable();
       });
     });
@@ -572,7 +572,7 @@
         ${showDiff ? th('Diff', 'avg_pf', 'num hide-mobile') : ''}
         ${showSOS  ? th('SOS', 'sos', 'num hide-mobile') : ''}
         ${showPct  ? th('%Perfect', 'pct_perfect', 'num hide-mobile') : ''}
-        ${th('DIRIGO', 'heal_points', 'num')}
+        ${th('DIRIGO', 'dirigo', 'num')}
         ${showOdds ? th('Gold Ball %', 'tournament_odds', 'num hide-mobile') : ''}
       </tr></thead>
       <tbody>`;
@@ -583,7 +583,7 @@
       const reg    = getRegion(r);
       const odds   = r.tournament_odds || {};
       const gbNum  = odds.gold_ball || 0;
-      const heal   = r.heal_points ? r.heal_points.toFixed(2) : '—';
+      const heal   = r.dirigo ? r.dirigo.toFixed(2) : '—';
       const sos    = r.sos ? r.sos.toFixed(2) : '—';
       const pct    = r.pct_perfect ? (r.pct_perfect * 100).toFixed(1) + '%' : '—';
       const pf     = r.avg_pf ? r.avg_pf.toFixed(1) : '—';
@@ -668,7 +668,7 @@
       const sel = document.getElementById('seasonSel');
       if(sel) sel.value = activeSeason;
       activeClass  = 'all';
-      sortCol = 'rank_overall'; sortAsc = true;
+      sortCol = 'dirigo'; sortAsc = false;
       // Show/hide gender tabs
       const genderTabs = document.querySelector('.gender-tabs');
       if (SINGLE_GENDER[activeSport]) {
@@ -690,7 +690,7 @@
       activeClass  = 'all';
       document.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
       document.querySelector('.class-tab[data-class="all"]').classList.add('active');
-      sortCol = 'rank_overall'; sortAsc = true;
+      sortCol = 'dirigo'; sortAsc = false;
       renderTable();
     });
   });

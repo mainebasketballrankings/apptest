@@ -276,7 +276,7 @@ async function loadMatchup() {
   while (true) {
     const { data: batch } = await sb.from('rankings_snapshots')
       .select(`team_id, avg_pf, avg_pa, sos, pct_perfect, vs_top_25, vs_top_50,
-               win_pct, heal_points, ats_record, wins, losses, rank_overall, snapshot_date,
+               win_pct, heal_points, dirigo, mheals_18, ats_record, wins, losses, rank_overall, snapshot_date,
                team:team_id(sport_id, gender, team_class, team_region, team_classifications(classes(name), regions(abbreviation)))`)
       .eq('season_year', game.season_year)
       .order('snapshot_date', { ascending: false })

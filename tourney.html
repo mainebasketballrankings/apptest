@@ -263,21 +263,30 @@ function sbFetch(path) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
-window.mbrAuthCallback = function(user, paid) {
-  isPaid = paid;
-  if (!paid) {
-    document.getElementById('gateWrap').innerHTML = `
-      <div class="gate-wrap">
-        <div class="tbl-wrap gate-blur" style="height:260px;overflow:hidden">
-          <div style="padding:20px;color:#aaa;font-size:13px">Tournament odds data</div>
-        </div>
-        <div class="gate-overlay">
-          <div class="gate-msg">Gold Ball Odds requires a Pro subscription</div>
-          <a class="gate-btn" href="https://www.mainebasketballrankings.com/#/portal/signup">Upgrade to Pro</a>
-        </div>
-      </div>`;
-    return;
+function applyGate(paid) {
+  isPaid = !!paid;
+  const wrap = document.getElementById('gateWrap');
+  const tbl  = document.getElementById('tblWrap');
+  if (!isPaid) {
+    tbl.classList.add('gate-blur');
+    // Add overlay if not present
+    if (!document.getElementById('gateOverlay')) {
+      const ov = document.createElement('div');
+      ov.id = 'gateOverlay';
+      ov.className = 'gate-overlay';
+      ov.innerHTML = `<div class="gate-msg">Gold Ball Odds requires a Pro subscription</div>
+        <a class="gate-btn" href="https://www.mainebasketballrankings.com/#/portal/signup">Upgrade to Pro</a>`;
+      wrap.appendChild(ov);
+    }
+  } else {
+    tbl.classList.remove('gate-blur');
+    const ov = document.getElementById('gateOverlay');
+    if (ov) ov.remove();
   }
+}
+
+window.mbrAuthCallback = function(user, paid) {
+  applyGate(paid);
   loadData();
 };
 
@@ -572,5 +581,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('wlModal').style.display = 'none';
 });
 </script>
+<script>if(typeof MBRNav !== 'undefined') MBRNav.init({ active: 'rankings' });</script>
 </body>
 </html>

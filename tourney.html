@@ -185,7 +185,7 @@
   </style>
 </head>
 <body>
-
+<div id="mbr-header"></div>
 <div class="page">
   <h1 class="page-title">Gold Ball Odds</h1>
   <p class="page-sub">10,000 Monte Carlo simulations · Click any team for W-L breakdown</p>
@@ -262,6 +262,12 @@ function sbFetch(path) {
   }).then(r => r.json());
 }
 
+// Get authenticated supabase client from nav.js
+function getSB() {
+  if (typeof MBRNav !== 'undefined' && MBRNav.getSB) return MBRNav.getSB();
+  return supabase.createClient(SB_URL, SB_KEY);
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────
 function applyGate(paid) {
   isPaid = !!paid;
@@ -330,10 +336,12 @@ async function loadData() {
   const gender  = SPORT_GENDER[activeSport] || activeGender;
   const sportId = SPORT_IDS[activeSport];
 
+  console.log('[tourney] loading', activeSport, gender, sportId);
   const teams = await sbFetch(
     `teams?sport_id=eq.${sportId}&gender=eq.${gender}&active=eq.true` +
     `&select=id,school_name,team_class,team_region,logo_url&limit=500`
   );
+  console.log('[tourney] teams loaded:', teams.length, Array.isArray(teams) ? '' : teams);
   if (!teams.length) {
     document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No teams found.</div>';
     return;
@@ -347,6 +355,7 @@ async function loadData() {
     `&order=snapshot_date.desc&limit=3000`
   );
 
+  console.log('[tourney] snaps loaded:', snaps.length, Array.isArray(snaps) ? '' : snaps);
   // Most recent snapshot per team
   const snapMap = {};
   for (const s of snaps) {

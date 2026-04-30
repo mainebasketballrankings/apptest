@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MBR · Tournament Odds</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Google tag -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-LMHHJT0QX2');</script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #f5f4f2;
+  --paper:    #ffffff;
+  --paper2:   #f0eeeb;
+  --ink:      #1a1a1a;
+  --dim:      #666;
+  --ldim:     #aaa;
+  --border:   #e0ddd8;
+  --orange:   #ee6730;
+  --green:    #16a34a;
+  --green2:   #14532d;
+  --teal:     #0d9488;
+  --teal-bg:  #f0fdfa;
+  --teal-lt:  #ccfbf1;
+  --bye-bg:   #dcfce7;
+  --bye-bd:   #86efac;
+  --in-bg:    #e0f2fe;
+  --in-bd:    #7dd3fc;
+  --bubble-bg:#fef9c3;
+  --bubble-bd:#fde047;
+  --out-bg:   #fef2f2;
+  --out-bd:   #fca5a5;
+  --rule:     #e5e7eb;
+}
+
+body { background:var(--bg); color:var(--ink); font-family:'Barlow',sans-serif; min-height:100vh; }
+
+/* ── Nav placeholder ── */
+#nav-placeholder { height: 56px; }
+
+/* ── Page layout ── */
+.page { max-width: 1200px; margin: 0 auto; padding: 24px 16px 80px; }
+
+/* ── Sport tabs ── */
+.sport-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.sport-pill {
+  background:var(--paper2); border:1px solid var(--border); border-radius:20px;
+  color:var(--dim); cursor:pointer; font-family:'Barlow',sans-serif;
+  font-size:13px; font-weight:600; padding:6px 16px; transition:all .15s;
+}
+.sport-pill:hover { border-color:var(--teal); color:var(--teal); }
+.sport-pill.active { background:var(--teal); border-color:var(--teal); color:#fff; }
+
+/* ── Gender tabs ── */
+.gender-row { display:flex; gap:6px; margin-bottom:12px; }
+.gender-btn {
+  background:var(--paper2); border:1px solid var(--border); border-radius:6px;
+  color:var(--dim); cursor:pointer; font-size:12px; font-weight:600;
+  padding:4px 12px; transition:all .15s;
+}
+.gender-btn.active { background:var(--ink); border-color:var(--ink); color:#fff; }
+
+/* ── Region tabs ── */
+.region-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.region-btn {
+  background:var(--paper); border:1px solid var(--border); border-radius:6px;
+  color:var(--dim); cursor:pointer; font-family:'Barlow Condensed',sans-serif;
+  font-size:12px; font-weight:700; letter-spacing:.04em; padding:5px 12px;
+  text-transform:uppercase; transition:all .15s;
+}
+.region-btn:hover { border-color:var(--teal); color:var(--teal); }
+.region-btn.active { background:var(--teal); border-color:var(--teal); color:#fff; }
+
+/* ── Season selector ── */
+.season-wrap { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+.season-select {
+  background:var(--paper); border:1px solid var(--border); border-radius:6px;
+  color:var(--ink); font-family:'Barlow',sans-serif; font-size:13px;
+  padding:5px 10px; cursor:pointer; outline:none;
+}
+
+/* ── Sim badge ── */
+.sim-badge {
+  font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--ldim);
+  margin-left:auto;
+}
+
+/* ── Main table ── */
+.tbl-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:var(--paper); }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th {
+  background:var(--paper2); border-bottom:1px solid var(--border);
+  font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:.06em; padding:8px 10px; text-align:center; text-transform:uppercase;
+  white-space:nowrap; color:var(--dim);
+}
+thead th.left { text-align:left; }
+tbody tr { border-bottom:1px solid var(--rule); cursor:pointer; transition:background .1s; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:var(--paper2); }
+td { padding:7px 10px; text-align:center; font-family:'Barlow Condensed',sans-serif; font-size:13px; }
+td.left { text-align:left; font-family:'Barlow',sans-serif; font-weight:600; font-size:13px; }
+td.rank { color:var(--ldim); font-size:12px; width:28px; }
+td.avg { font-weight:700; }
+td.pct { font-size:12px; }
+td.seed-pct { font-size:11px; color:var(--dim); }
+td.seed-pct.hi { font-weight:700; color:var(--ink); }
+
+/* Row tiers */
+tr.tier-bye  { background:#f0fdf4; }
+tr.tier-in   { background:#f0f9ff; }
+tr.tier-bubble { background:#fefce8; }
+tr.tier-out  { background:#fff; }
+tr.tier-bye:hover  { background:#dcfce7; }
+tr.tier-in:hover   { background:#e0f2fe; }
+tr.tier-bubble:hover { background:#fef9c3; }
+
+/* In? badge */
+.in-badge {
+  display:inline-block; border-radius:4px; font-size:10px; font-weight:700;
+  letter-spacing:.05em; padding:2px 7px; text-transform:uppercase; white-space:nowrap;
+}
+.in-badge.bye    { background:var(--bye-bg);    color:#15803d; border:1px solid var(--bye-bd); }
+.in-badge.in     { background:var(--in-bg);     color:#0369a1; border:1px solid var(--in-bd); }
+.in-badge.bubble { background:var(--bubble-bg); color:#a16207; border:1px solid var(--bubble-bd); }
+.in-badge.out    { background:var(--out-bg);    color:#b91c1c; border:1px solid var(--out-bd); }
+
+/* ── WL Modal ── */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200;
+  display:flex; align-items:center; justify-content:center; padding:16px;
+}
+.modal-box {
+  background:var(--paper); border-radius:12px; max-width:780px; width:100%;
+  max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);
+}
+.modal-header {
+  position:sticky; top:0; background:var(--paper); border-bottom:1px solid var(--border);
+  padding:16px 20px; display:flex; align-items:center; justify-content:space-between; z-index:1;
+}
+.modal-title { font-size:16px; font-weight:700; }
+.modal-sub { font-size:12px; color:var(--dim); margin-top:2px; }
+.modal-close {
+  background:none; border:none; cursor:pointer; font-size:20px; color:var(--ldim);
+  padding:4px 8px; border-radius:4px;
+}
+.modal-close:hover { background:var(--paper2); color:var(--ink); }
+.modal-body { padding:16px 20px; }
+
+/* WL table */
+.wl-table { width:100%; border-collapse:collapse; font-size:12px; }
+.wl-table thead th {
+  font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:700;
+  letter-spacing:.06em; text-transform:uppercase; padding:6px 8px;
+  background:var(--paper2); border-bottom:1px solid var(--border); text-align:center;
+}
+.wl-table thead th:first-child { text-align:left; }
+.wl-table tbody tr { border-bottom:1px solid var(--rule); }
+.wl-table tbody tr:last-child { border-bottom:none; }
+.wl-table td { padding:5px 8px; text-align:center; font-family:'Barlow Condensed',sans-serif; }
+.wl-table td:first-child { text-align:left; font-weight:700; }
+.wl-table td.dim { color:var(--ldim); }
+.wl-bar {
+  height:4px; border-radius:2px; background:var(--teal); display:inline-block; min-width:2px;
+}
+
+/* ── Loading / empty ── */
+.state-msg { padding:48px; text-align:center; color:var(--dim); font-size:14px; }
+.spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--border);
+  border-top-color:var(--teal); border-radius:50%; animation:spin .7s linear infinite; margin-right:8px; vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── Legend ── */
+.legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; font-size:11px; color:var(--dim); }
+.legend-item { display:flex; align-items:center; gap:4px; }
+.legend-dot { width:10px; height:10px; border-radius:2px; }
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<div class="page">
+  <!-- Sport tabs -->
+  <div class="sport-row" id="sportRow">
+    <button class="sport-pill active" data-sport="baseball">Baseball</button>
+    <button class="sport-pill" data-sport="softball">Softball</button>
+    <button class="sport-pill" data-sport="lax">Lacrosse</button>
+  </div>
+
+  <!-- Gender (lax only) -->
+  <div class="gender-row" id="genderRow" style="display:none">
+    <button class="gender-btn active" data-gender="Boys">Boys</button>
+    <button class="gender-btn" data-gender="Girls">Girls</button>
+  </div>
+
+  <!-- Season -->
+  <div class="season-wrap">
+    <select class="season-select" id="seasonSel">
+      <option value="2026">25-26</option>
+    </select>
+    <span class="sim-badge" id="simBadge"></span>
+  </div>
+
+  <!-- Region tabs -->
+  <div class="region-row" id="regionRow"></div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>BYE (first round)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7dd3fc"></div>IN (play-in)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fde047"></div>Bubble</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fca5a5"></div>OUT</div>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-wrap" id="tblWrap">
+    <div class="state-msg">Select a sport to load tournament odds.</div>
+  </div>
+</div>
+
+<!-- WL Modal -->
+<div class="modal-overlay" id="wlModal" style="display:none" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">Team</div>
+        <div class="modal-sub">W-L record distribution across 10,000 simulations</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('wlModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+const SPORT_IDS = {
+  baseball: 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+  softball: '095c9841-7261-4cb1-824e-6304792b53d0',
+  lax:      '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+};
+
+const SPORT_GENDER = {
+  baseball: 'Boys',
+  softball: 'Girls',
+  lax:      null, // user selects
+};
+
+// Max seeds to show per sport
+const MAX_SEEDS = { baseball: 12, softball: 11, lax: 14 };
+
+let activeSport  = 'baseball';
+let activeGender = 'Boys';
+let activeSeason = 2026;
+let activeRegion = null;
+let allSnaps     = [];
+let regions      = [];
+
+function sb(path) {
+  return fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+  }).then(r => r.json());
+}
+
+// Auth gate
+window.mbrAuthCallback = function(user, isPaid) {
+  if (!isPaid) {
+    document.querySelector('.page').innerHTML =
+      '<div class="state-msg">This page requires a Pro subscription.</div>';
+    return;
+  }
+  loadData();
+};
+
+// ── Sport / gender / region tabs ──────────────────────────────────────────
+document.getElementById('sportRow').addEventListener('click', e => {
+  const pill = e.target.closest('.sport-pill');
+  if (!pill) return;
+  document.querySelectorAll('.sport-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  activeSport = pill.dataset.sport;
+  // Show gender row only for lax
+  document.getElementById('genderRow').style.display = activeSport === 'lax' ? 'flex' : 'none';
+  activeGender = SPORT_GENDER[activeSport] || (activeSport === 'lax' ? 'Boys' : 'Boys');
+  loadData();
+});
+
+document.getElementById('genderRow').addEventListener('click', e => {
+  const btn = e.target.closest('.gender-btn');
+  if (!btn) return;
+  document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeGender = btn.dataset.gender;
+  loadData();
+});
+
+document.getElementById('seasonSel').addEventListener('change', e => {
+  activeSeason = parseInt(e.target.value);
+  loadData();
+});
+
+// ── Load data ─────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('tblWrap').innerHTML = '<div class="state-msg"><span class="spinner"></span>Loading…</div>';
+  document.getElementById('regionRow').innerHTML = '';
+  document.getElementById('simBadge').textContent = '';
+
+  const gender = SPORT_GENDER[activeSport] || activeGender;
+  const sportId = SPORT_IDS[activeSport];
+
+  // Fetch teams for this sport/gender
+  const teams = await sb(`teams?sport_id=eq.${sportId}&gender=eq.${gender}&active=eq.true&select=id,school_name,team_class,team_region,logo_url&limit=500`);
+  if (!teams.length) {
+    document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No teams found.</div>';
+    return;
+  }
+
+  const teamIds = teams.map(t => t.id);
+  const teamMap = {};
+  teams.forEach(t => teamMap[t.id] = t);
+
+  // Fetch most recent snapshot per team for this season
+  const snaps = await sb(
+    `rankings_snapshots?team_id=in.(${teamIds.join(',')})&season_year=eq.${activeSeason}` +
+    `&select=team_id,rank_overall,rank_class,wins,losses,tournament_odds,wl_distribution,snapshot_date` +
+    `&order=snapshot_date.desc&limit=2000`
+  );
+
+  // Keep only most recent per team
+  const snapMap = {};
+  for (const s of snaps) {
+    if (!snapMap[s.team_id]) snapMap[s.team_id] = s;
+  }
+
+  // Filter to teams with tournament_odds
+  allSnaps = teams
+    .filter(t => snapMap[t.id]?.tournament_odds)
+    .map(t => {
+      const snap = snapMap[t.id];
+      const odds = snap.tournament_odds || {};
+      return {
+        team_id:    t.id,
+        name:       t.school_name,
+        logo:       t.logo_url,
+        class:      t.team_class,
+        region:     activeSport === 'lax' ? t.team_class : (t.team_region || t.team_class),
+        wins:       snap.wins || 0,
+        losses:     snap.losses || 0,
+        playoff:    (odds.playoff || 0) * 100,
+        bye:        (odds.bye    || 0) * 100,
+        in:         (odds.in     || 0) * 100,
+        out:        ((1 - (odds.playoff || 0)) * 100),
+        seeds:      Array.from({length:16}, (_,i) => (odds[`s${i+1}`] || 0) * 100),
+        avg_seed:   computeAvgSeed(odds),
+        wl_dist:    snap.wl_distribution || null,
+      };
+    });
+
+  if (!allSnaps.length) {
+    document.getElementById('tblWrap').innerHTML =
+      '<div class="state-msg">No simulation data found. Run simulate_spring.py --push first.</div>';
+    return;
+  }
+
+  // Build region list
+  regions = [...new Set(allSnaps.map(s => s.region).filter(Boolean))].sort();
+  renderRegionTabs();
+  if (!activeRegion || !regions.includes(activeRegion)) activeRegion = regions[0];
+  document.querySelectorAll('.region-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.region === activeRegion);
+  });
+
+  renderTable();
+}
+
+function computeAvgSeed(odds) {
+  let total = 0, weight = 0;
+  for (let i = 1; i <= 16; i++) {
+    const p = odds[`s${i}`] || 0;
+    total += i * p;
+    weight += p;
+  }
+  return weight > 0 ? total / weight : 99;
+}
+
+function renderRegionTabs() {
+  const row = document.getElementById('regionRow');
+  row.innerHTML = regions.map(r =>
+    `<button class="region-btn" data-region="${r}">${r}</button>`
+  ).join('');
+  row.addEventListener('click', e => {
+    const btn = e.target.closest('.region-btn');
+    if (!btn) return;
+    document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeRegion = btn.dataset.region;
+    renderTable();
+  });
+}
+
+function renderTable() {
+  const maxS = MAX_SEEDS[activeSport] || 12;
+  const regional = allSnaps
+    .filter(s => s.region === activeRegion)
+    .sort((a, b) => a.avg_seed - b.avg_seed);
+
+  if (!regional.length) {
+    document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No data for this region.</div>';
+    return;
+  }
+
+  // Determine tier thresholds from data
+  // BYE = bye% >= 50 on avg, IN = playoff% > 50, bubble = playoff 20-50, out = <20
+  const seedCols = Array.from({length: maxS}, (_, i) => i + 1);
+
+  let html = `<table>
+    <thead>
+      <tr>
+        <th class="left" style="width:28px">#</th>
+        <th class="left">Team</th>
+        <th>In?</th>
+        <th>Avg Seed</th>
+        <th>Bye%</th>
+        <th>In%</th>
+        <th>Out%</th>
+        ${seedCols.map(s => `<th>S${s}</th>`).join('')}
+      </tr>
+    </thead>
+    <tbody>`;
+
+  regional.forEach((s, i) => {
+    const tier = s.bye >= 50 ? 'bye' : s.playoff >= 50 ? 'in' : s.playoff >= 20 ? 'bubble' : 'out';
+    const inLabel = s.bye >= 50 ? 'BYE' : s.playoff >= 50 ? 'IN' : s.out >= 80 ? 'OUT' : '???';
+    const inClass = s.bye >= 50 ? 'bye' : s.playoff >= 50 ? 'in' : s.out >= 80 ? 'out' : 'bubble';
+    const maxSeedPct = Math.max(...s.seeds.slice(0, maxS));
+
+    html += `<tr class="tier-${tier}" data-team="${encodeURIComponent(s.name)}" onclick="openWL(this)">
+      <td class="rank">${i+1}</td>
+      <td class="left">${s.name}</td>
+      <td><span class="in-badge ${inClass}">${inLabel}</span></td>
+      <td class="avg">${s.avg_seed.toFixed(2)}</td>
+      <td class="pct" style="color:#15803d;font-weight:600">${s.bye.toFixed(1)}%</td>
+      <td class="pct" style="color:#0369a1;font-weight:600">${s.in.toFixed(1)}%</td>
+      <td class="pct" style="color:#b91c1c">${s.out.toFixed(1)}%</td>
+      ${s.seeds.slice(0, maxS).map((p, si) => {
+        if (p < 0.1) return `<td class="seed-pct"></td>`;
+        const isHi = p === maxSeedPct && p > 5;
+        return `<td class="seed-pct ${isHi ? 'hi' : ''}">${p.toFixed(1)}%</td>`;
+      }).join('')}
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tblWrap').innerHTML = html;
+
+  // Attach team references for modal
+  document.querySelectorAll('tbody tr').forEach((row, i) => {
+    row._snap = regional[i];
+  });
+  document.getElementById('simBadge').textContent = '10,000 simulations';
+}
+
+// ── WL Modal ──────────────────────────────────────────────────────────────
+function openWL(row) {
+  const snap = row._snap;
+  if (!snap) return;
+
+  document.getElementById('modalTitle').textContent = snap.name;
+
+  const wl = snap.wl_dist;
+  if (!wl || !Object.keys(wl).length) {
+    document.getElementById('modalBody').innerHTML =
+      '<div class="state-msg" style="padding:32px">No W-L distribution data available.<br>Re-run simulate_spring.py --push to generate it.</div>';
+    document.getElementById('wlModal').style.display = 'flex';
+    return;
+  }
+
+  // Sort records by wins desc, losses asc
+  const records = Object.entries(wl).sort((a, b) => {
+    const [aw, al] = a[0].split('-').map(Number);
+    const [bw, bl] = b[0].split('-').map(Number);
+    return bw !== aw ? bw - aw : al - bl;
+  });
+
+  // Find max seed used
+  let maxS = 1;
+  for (const [, d] of records) {
+    for (const s of Object.keys(d.seeds || {})) {
+      maxS = Math.max(maxS, parseInt(s));
+    }
+  }
+  maxS = Math.min(maxS, MAX_SEEDS[activeSport] || 12);
+  const seedCols = Array.from({length: maxS}, (_, i) => i + 1);
+
+  let html = `
+    <p style="font-size:12px;color:var(--dim);margin-bottom:12px">
+      Shows how often ${snap.name} finishes with each record, their playoff chances at that record,
+      and seed distribution. Click a row to see detail.
+    </p>
+    <div style="overflow-x:auto">
+    <table class="wl-table">
+      <thead>
+        <tr>
+          <th>Record</th>
+          <th>How Often?</th>
+          <th>IN?</th>
+          ${seedCols.map(s => `<th>S${s}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+  for (const [record, d] of records) {
+    if (d.how_often < 0.1) continue;
+    const [wins, losses] = record.split('-').map(Number);
+    const inPct = d.in_pct || 0;
+    const inColor = inPct >= 90 ? '#15803d' : inPct >= 50 ? '#0369a1' : inPct >= 20 ? '#a16207' : '#b91c1c';
+    const seeds = d.seeds || {};
+
+    // Bar width for how_often
+    const barW = Math.round(d.how_often * 1.5);
+
+    html += `<tr>
+      <td style="font-weight:700">${record}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="wl-bar" style="width:${barW}px"></span>
+          <span>${d.how_often.toFixed(1)}%</span>
+        </div>
+      </td>
+      <td style="color:${inColor};font-weight:700">${inPct.toFixed(1)}%</td>
+      ${seedCols.map(s => {
+        const p = seeds[String(s)] || 0;
+        if (p < 0.1) return `<td class="dim">—</td>`;
+        return `<td style="${p > 15 ? 'font-weight:700;color:var(--ink)' : 'color:var(--dim)'}">${p.toFixed(1)}%</td>`;
+      }).join('')}
+    </tr>`;
+  }
+
+  html += '</tbody></table></div>';
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('wlModal').style.display = 'flex';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('wlModal')) {
+    document.getElementById('wlModal').style.display = 'none';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('wlModal').style.display = 'none';
+});
+</script>
+</body>
+</html>

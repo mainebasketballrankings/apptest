@@ -350,7 +350,11 @@ async function loadData() {
         name:       t.school_name,
         logo:       t.logo_url,
         class:      t.team_class,
-        region:     activeSport === 'lax' ? t.team_class : (t.team_region || t.team_class),
+        region:     activeSport === 'lax'
+              ? t.team_class
+              : (t.team_region && t.team_class && !t.team_region.includes(t.team_class)
+                 ? `${t.team_class} ${t.team_region}`
+                 : (t.team_region || t.team_class)),
         wins:       snap.wins || 0,
         losses:     snap.losses || 0,
         playoff:    (odds.playoff || 0) * 100,
@@ -437,8 +441,8 @@ function renderTable() {
 
   regional.forEach((s, i) => {
     const tier = s.bye >= 50 ? 'bye' : s.playoff >= 50 ? 'in' : s.playoff >= 20 ? 'bubble' : 'out';
-    const inLabel = s.bye >= 50 ? 'BYE' : s.playoff >= 50 ? 'IN' : s.out >= 80 ? 'OUT' : '???';
-    const inClass = s.bye >= 50 ? 'bye' : s.playoff >= 50 ? 'in' : s.out >= 80 ? 'out' : 'bubble';
+    const inLabel = s.bye >= 95 ? 'BYE' : s.playoff >= 95 ? 'IN' : s.out >= 95 ? 'OUT' : '???';
+    const inClass = s.bye >= 95 ? 'bye' : s.playoff >= 95 ? 'in' : s.out >= 95 ? 'out' : 'bubble';
     const maxSeedPct = Math.max(...s.seeds.slice(0, maxS));
 
     html += `<tr class="tier-${tier}" data-team="${encodeURIComponent(s.name)}" onclick="openWL(this)">
@@ -447,7 +451,7 @@ function renderTable() {
       <td><span class="in-badge ${inClass}">${inLabel}</span></td>
       <td class="avg">${s.avg_seed.toFixed(2)}</td>
       <td class="pct" style="color:#15803d;font-weight:600">${s.bye.toFixed(1)}%</td>
-      <td class="pct" style="color:#0369a1;font-weight:600">${s.in.toFixed(1)}%</td>
+      <td class="pct" style="color:#0369a1;font-weight:600">${s.playoff.toFixed(1)}%</td>
       <td class="pct" style="color:#b91c1c">${s.out.toFixed(1)}%</td>
       ${s.seeds.slice(0, maxS).map((p, si) => {
         if (p < 0.1) return `<td class="seed-pct"></td>`;

@@ -686,7 +686,7 @@ async function load() {
 
       oddsHtml = `
         <div class="odds-gate-wrap" id="oddsGateWrap">
-          <div class="odds-section" id="oddsSection">
+          <div class="odds-section odds-gate-blur" id="oddsSection">
             <div class="section-header">${oddsTitle}</div>
             <div class="odds-card">
               ${topHtml}
@@ -1008,25 +1008,15 @@ function goToTeam(id) {
 // Gate the tournament odds section — everything else is public
 var _teamPagePaid = false;
 function applyOddsGate() {
-  const wrap = document.getElementById('oddsGateWrap');
   const section = document.getElementById('oddsSection');
-  if (!wrap || !section) return;
-
-  // Remove any existing overlay
-  const existing = document.getElementById('oddsGateOverlay');
-  if (existing) existing.remove();
-
-  if (!_teamPagePaid) {
-    section.classList.add('odds-gate-blur');
-    const ov = document.createElement('div');
-    ov.id = 'oddsGateOverlay';
-    ov.className = 'odds-gate-overlay';
-    ov.innerHTML = `
-      <div class="odds-gate-msg">Tournament odds require a Pro subscription</div>
-      <a class="odds-gate-btn" href="https://www.mainebasketballrankings.com/#/portal/signup">Upgrade to Pro</a>`;
-    wrap.appendChild(ov);
-  } else {
+  const overlay = document.getElementById('oddsGateOverlay');
+  if (!section) return;
+  if (_teamPagePaid) {
     section.classList.remove('odds-gate-blur');
+    if (overlay) overlay.style.display = 'none';
+  } else {
+    section.classList.add('odds-gate-blur');
+    if (overlay) overlay.style.display = 'flex';
   }
 }
 

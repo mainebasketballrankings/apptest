@@ -225,6 +225,21 @@
     .tsr-item:hover { background:var(--bg); }
     .tsr-name { font-weight:700; font-size:14px; color:var(--black); }
     .tsr-sport { font-size:11px; color:var(--lgray); font-family:'Barlow Condensed',sans-serif; letter-spacing:0.04em; }
+
+    /* ── Tournament odds gate ── */
+    .odds-gate-wrap { position: relative; }
+    .odds-gate-blur { filter: blur(5px); pointer-events: none; user-select: none; }
+    .odds-gate-overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px; z-index: 10;
+      background: rgba(255,255,255,0.5);
+    }
+    .odds-gate-msg { font-size: 14px; font-weight: 600; color: var(--black); text-align: center; }
+    .odds-gate-btn {
+      background: #ee6730; border: none; border-radius: 6px; color: #fff;
+      cursor: pointer; font-family: 'Barlow', sans-serif; font-size: 13px;
+      font-weight: 700; padding: 10px 24px; text-decoration: none; display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -670,11 +685,13 @@ async function load() {
       }).join('');
 
       oddsHtml = `
-        <div class="odds-section">
-          <div class="section-header">${oddsTitle}</div>
-          <div class="odds-card">
-            ${topHtml}
-            ${seedHtml ? `<div class="seed-grid"><div class="seed-grid-lbl">Seed Distribution</div><div class="seed-rows">${seedHtml}</div></div>` : ''}
+        <div class="odds-gate-wrap" id="oddsGateWrap">
+          <div class="odds-section" id="oddsSection">
+            <div class="section-header">${oddsTitle}</div>
+            <div class="odds-card">
+              ${topHtml}
+              ${seedHtml ? `<div class="seed-grid"><div class="seed-grid-lbl">Seed Distribution</div><div class="seed-rows">${seedHtml}</div></div>` : ''}
+            </div>
           </div>
         </div>`;
     }
@@ -987,6 +1004,36 @@ function goToTeam(id) {
   searchInput.value = '';
   window.location.href = `team.html?team_id=${id}`;
 }
+
+// Gate the tournament odds section — everything else is public
+var _teamPagePaid = false;
+function applyOddsGate() {
+  const wrap = document.getElementById('oddsGateWrap');
+  const section = document.getElementById('oddsSection');
+  if (!wrap || !section) return;
+
+  // Remove any existing overlay
+  const existing = document.getElementById('oddsGateOverlay');
+  if (existing) existing.remove();
+
+  if (!_teamPagePaid) {
+    section.classList.add('odds-gate-blur');
+    const ov = document.createElement('div');
+    ov.id = 'oddsGateOverlay';
+    ov.className = 'odds-gate-overlay';
+    ov.innerHTML = `
+      <div class="odds-gate-msg">Tournament odds require a Pro subscription</div>
+      <a class="odds-gate-btn" href="https://www.mainebasketballrankings.com/#/portal/signup">Upgrade to Pro</a>`;
+    wrap.appendChild(ov);
+  } else {
+    section.classList.remove('odds-gate-blur');
+  }
+}
+
+window.mbrAuthCallback = function(user, isPaid) {
+  _teamPagePaid = !!isPaid;
+  applyOddsGate();
+};
 
 </script>
 

@@ -1,5 +1,5 @@
 // Maine Basketball Rankings Baseball Scorer — Service Worker
-const CACHE = 'mbr-scorer-v10';
+const CACHE = 'mbr-scorer-v11';
 const PRECACHE = [
   './baseball_scorer.html',
   './index.html',
@@ -23,7 +23,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch: cache-first for app shell, network-first for Supabase and live pages
+// Fetch: network-first for HTML pages, cache-first for static assets
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
@@ -31,8 +31,9 @@ self.addEventListener('fetch', e => {
   if(url.hostname.includes('supabase.co')) return;
   // Always go to network for Cloudinary (logos)
   if(url.hostname.includes('cloudinary.com')) return;
-  // Network-first for live.html and index.html (always needs latest)
-  if(url.pathname.includes('live.html') || url.pathname.endsWith('index.html') || url.pathname.endsWith('/') || url.pathname.includes('rankings.html') || url.pathname.includes('heals.html')){
+
+  // Network-first for ALL HTML navigations — never serve a stale page
+  if(e.request.mode === 'navigate' || url.pathname.endsWith('.html')){
     e.respondWith(
       fetch(e.request).then(res => {
         if(res.ok){
@@ -42,28 +43,22 @@ self.addEventListener('fetch', e => {
         return res;
       }).catch(async () => {
         const cached = await caches.match(e.request);
-        return cached || new Response('Offline', {status: 503});
+        return cached || caches.match('./index.html');
       })
     );
     return;
   }
 
-  // Cache-first for everything else (app shell, fonts, jspdf)
+  // Cache-first for static assets (fonts, jsPDF, etc.) — these never change
   e.respondWith(
     caches.match(e.request).then(cached => {
       if(cached) return cached;
       return fetch(e.request).then(res => {
-        // Cache successful GET responses
         if(e.request.method === 'GET' && res.ok){
           const clone = res.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
         return res;
-      }).catch(() => {
-        // Offline fallback for navigation requests
-        if(e.request.mode === 'navigate'){
-          return caches.match('./index.html') || caches.match('./baseball_scorer.html');
-        }
       });
     })
   );

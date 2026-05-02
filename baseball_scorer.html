@@ -286,7 +286,7 @@ input,select,button{font-family:inherit;}
     <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
     <div class="srow">
       <span class="slabel">Sport</span>
-      <select class="sselect" id="pickerSportSel" onchange="document.getElementById('sportSel').value=this.value;loadTodaysGames();onSportChange()">
+      <select class="sselect" id="pickerSportSel" onchange="document.getElementById('sportSel').value=this.value;G_game_id=null;loadTodaysGames();onSportChange()">
         <option value="baseball">Baseball</option>
         <option value="softball">Softball</option>
       </select>
@@ -439,6 +439,7 @@ input,select,button{font-family:inherit;}
     </div>
   </div>
   <div id="kBanner" style="display:none;background:var(--red);padding:4px 14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:3px;color:#fff;text-align:center"></div>
+  <div id="gameIdBar" style="padding:3px 14px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-align:center;display:none"></div>
 
   <!-- Pitch sequence dots -->
   <div class="pitch-seq-bar">
@@ -898,7 +899,7 @@ async function loadTodaysGames(){
     : '095c9841-7261-4cb1-824e-6304792b53d0';
   const today = (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
   const games = await sbFetch(
-    `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&or=(status.eq.scheduled,status.eq.active)` +
+    `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&status=in.(scheduled,active)` +
     `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
     `&order=game_date.asc`
   );
@@ -1216,39 +1217,10 @@ async function startGame(){
   G.mode=document.getElementById('modeSel').value;
   G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
-  // Auto-create game in Supabase if no game_id yet
-  if(!G_test_mode && !G_game_id && G_home_team_id && G_away_team_id){
-    try {
-      const sportVal = G.sport||'baseball';
-      const sportId = sportVal==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
-      const res = await fetch(`${SB_URL}/rest/v1/games`, {
-        method:'POST',
-        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' },
-        body: JSON.stringify({
-          home_team_id: G_home_team_id,
-          away_team_id: G_away_team_id,
-          sport_id: sportId,
-          season_year: 2026,
-          game_date: G.date || (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})(),
-          location: G.loc || null,
-          status: 'active',
-          home_score_live: 0,
-          away_score_live: 0,
-        })
-      });
-      if(res.ok){
-        const rows = await res.json();
-        G_game_id = rows[0]?.id || null;
-        console.log('Game created:', G_game_id);
-      } else {
-        const t = await res.text();
-        console.error('Game creation failed:', t);
-        showAlert('⚠️ Could not connect game to MBR Live. Stats will not be broadcast. Check your connection and try again.');
-      }
-    } catch(e){
-      console.error('Game creation error:', e);
-      showAlert('⚠️ Could not connect game to MBR Live. Stats will not be broadcast. Check your connection and try again.');
-    }
+  // Block start if no game selected (unless Test Mode)
+  if(!G_test_mode && !G_game_id){
+    showAlert('⚠️ No game selected. Please select a game from the schedule picker before starting.');
+    return;
   }
   // Reset all game state
   G.inning=1; G.half='top'; G.outs=0; G.balls=0; G.strikes=0;
@@ -2541,6 +2513,13 @@ function render(){
   document.getElementById('sbHomeRuns').textContent=G.runs.home;
   document.getElementById('sbAwayName').textContent=G.teams.away.name;
   document.getElementById('sbHomeName').textContent=G.teams.home.name;
+  // Game link indicator
+  const gbar=document.getElementById('gameIdBar');
+  if(gbar){
+    if(G_test_mode){ gbar.style.display='block'; gbar.style.background='#d97706'; gbar.style.color='#fff'; gbar.textContent='🧪 TEST MODE — no data will be saved'; }
+    else if(G_game_id){ gbar.style.display='block'; gbar.style.background='#dcfce7'; gbar.style.color='#15803d'; gbar.textContent=`✓ LINKED · ${G.teams.away.name} @ ${G.teams.home.name}`; }
+    else { gbar.style.display='block'; gbar.style.background='#fee2e2'; gbar.style.color='#dc2626'; gbar.textContent='⚠️ NO GAME LINKED — stats will not be saved'; }
+  }
 
   // Inning + half
   document.getElementById('sbInn').textContent=G.inning;

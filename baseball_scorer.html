@@ -261,7 +261,6 @@ input,select,button{font-family:inherit;}
 .bp-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;background:var(--dim);padding:2px 5px;border-radius:3px;flex-shrink:0;}
 .bp-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--text);line-height:1.2;}
 .bp-sub{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);}
-.bp-jersey{font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:900;line-height:1;color:var(--text);min-width:32px;text-align:center;flex-shrink:0;}
 
 /* Pitch sequence bar */
 .pitch-seq-bar{padding:4px 12px;background:var(--surface);border-bottom:1px solid var(--border);min-height:28px;display:flex;align-items:center;}
@@ -422,7 +421,6 @@ input,select,button{font-family:inherit;}
   <div class="bp-strip">
     <div class="bp-batter">
       <div class="bp-tag-pill">AB</div>
-      <div class="bp-jersey" id="abJersey">—</div>
       <div class="bp-info">
         <div class="bp-name" id="abName">—</div>
         <div class="bp-sub" id="abLine">0–0, 0 RBI</div>
@@ -431,7 +429,6 @@ input,select,button{font-family:inherit;}
     </div>
     <div class="bp-pitcher">
       <div class="bp-tag-pill bp-tag-p">P</div>
-      <div class="bp-jersey" id="pitJersey">—</div>
       <div class="bp-info">
         <div class="bp-name" id="pitName">—</div>
         <div class="bp-sub">
@@ -2041,7 +2038,8 @@ function pushRunnerAdvance(){
 }
 
 function openRunners(){
-  // Legacy alias — now uses unified RBI resolver
+  // Snapshot current run total so pushRunnerAdvance only credits delta
+  G._overlayRunsStart = {home: G.runs.home, away: G.runs.away};
   openRBIResolver(null,'runners');
 }
 
@@ -2314,15 +2312,7 @@ function doCaughtStealing(from, dest){
   r.cs=(r.cs||0)+1;
   addPBP(`${r.name} CS — caught stealing ${dest===2?'2nd':'3rd'}`);
   deselectRunner(); updateRunnerDiamond();
-  // CS is a baserunner out — do NOT advance the batter (at-bat continues)
-  const p=curPitcher();
-  if(p) getPS(p.side,p.idx).ip_outs++;
-  G.outs++;
-  if(G.outs>=3){
-    nextBatter(true); endHalf();
-  } else {
-    render();
-  }
+  addOut('CS'); render();
 }
 
 function runnerPickedOff(base){
@@ -2587,7 +2577,6 @@ function render(){
   if(pit){
     const ps=getPS(pit.side,pit.idx);
     const pnEl=document.getElementById('pitName'); if(pnEl) pnEl.textContent=pit.player.name||'Pitcher';
-    const pjEl=document.getElementById('pitJersey'); if(pjEl) pjEl.textContent=`#${pit.player.number||'—'}`;
     const ip=Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
     const cEl=document.getElementById('pitCount');
     if(cEl){ cEl.textContent=ps.pitches; cEl.className='pit-count';
@@ -2626,8 +2615,7 @@ function render(){
   const {player:bat}=curBatter();
   if(bat){
     const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
-    const ajEl=document.getElementById('abJersey'); if(ajEl) ajEl.textContent=`#${bat.number||'—'}`;
-    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`${bat.stats.h||0}–${bat.stats.ab||0}, ${bat.stats.rbi||0} RBI · ${bat.pos}`;
+    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`${bat.stats.h||0}–${bat.stats.ab||0}, ${bat.stats.rbi||0} RBI · #${bat.number||'—'} ${bat.pos}`;
     const slEl=document.getElementById('abStatLine');
     if(slEl){
       const s=bat.stats;

@@ -2683,10 +2683,17 @@ function buildBoxScore(){
       </tr>`;
     let tot={ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
     // Use slots for box score — shows full substitution history per batting order slot
+    // CRITICAL: for the current (active) player in each slot, read stats from the
+    // live lineup object, not the slot copy, so undo doesn't break stat display
     const slots = team.slots && team.slots.length ? team.slots : team.lineup.map(p=>[p]);
     slots.forEach((slot, slotIdx)=>{
       slot.forEach((p, depth)=>{
-        const s=p.stats;
+        // For the last (current) player in each slot, use the live lineup reference
+        const isCurrentPlayer = depth === slot.length - 1;
+        const livePlayer = isCurrentPlayer
+          ? (team.lineup.find(lp => lp.name === p.name) || p)
+          : p;
+        const s = livePlayer.stats;
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
         const isFirst = depth===0;
         const posDisplay = !isFirst ? (p.isPR ? 'PR' : p.isDefSub ? `DS-${p.pos}` : `PH-${p.subPos||p.pos}`) : p.pos;

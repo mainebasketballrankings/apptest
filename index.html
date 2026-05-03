@@ -1073,9 +1073,9 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .not('event_type', 'in', '(lineup_set,batter_up,voided)')
+        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
         .order('created_at', { ascending: false })
-        .limit(activeGames.length * 10);
+        .limit(activeGames.length * 5);
       if(evts){
         const lastEvt = {};  // for play description (skips inning_end)
         const stateEvt = {}; // for outs/bases/inning scorebug (uses latest including inning_end)
@@ -1822,9 +1822,9 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .not('event_type', 'in', '(lineup_set,batter_up,voided)')
+        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
         .order('created_at', { ascending: false })
-        .limit(activeGames.length * 10);
+        .limit(activeGames.length * 5);
       if (evts) {
         const lastEvt = {};
         const stateEvt = {};

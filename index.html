@@ -1760,9 +1760,7 @@
 
   async function patchLiveGames() {
     const todayStr = toISO(new Date());
-    if (toISO(currentDate) !== todayStr) return;
-
-    const ds = todayStr;
+    const ds = toISO(currentDate);
     // Fetch fresh game data for all active sports
     const results = await Promise.all(
       SPORT_PRIORITY.map(({ sport, season }) =>
@@ -1924,8 +1922,7 @@
 
   // Auto-refresh every 30s — lightweight patch only, no page rebuild
   setInterval(() => {
-    const todayStr = toISO(new Date());
-    if (toISO(currentDate) === todayStr) patchLiveGames();
+    patchLiveGames();
   }, 30000);
 
   // ── PPD ─────────────────────────────────────────────────────────────────

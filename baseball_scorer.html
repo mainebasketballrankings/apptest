@@ -258,7 +258,7 @@ input,select,button{font-family:inherit;}
 .bp-strip{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);background:var(--surface);}
 .bp-batter{display:flex;align-items:center;gap:10px;padding:6px 12px;border-right:1px solid var(--border);}
 .bp-pitcher{display:flex;align-items:center;gap:10px;padding:6px 12px;}
-.bp-jersey{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:900;line-height:1;color:var(--text);min-width:52px;text-align:center;flex-shrink:0;}
+.bp-jersey{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;line-height:1;color:var(--text);min-width:42px;text-align:center;flex-shrink:0;}
 .bp-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;background:var(--dim);padding:2px 5px;border-radius:3px;flex-shrink:0;}
 .bp-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
 .bp-sub{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);}
@@ -1883,7 +1883,7 @@ function openRBIResolver(result, mode){
     btns+=`<button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>`;
     return `<div class="rbi-row occ">
       <span class="rbi-base-lbl">${lbl}</span>
-      <span class="rbi-runner-name">${r.name}</span>
+      <span class="rbi-runner-name">${r.num?`#${r.num} `:''}${r.name}</span>
       <div class="rbi-btns">${btns}</div>
     </div>`;
   }).join('') || '<div style="color:var(--dim);font-size:13px;padding:8px">No runners on base</div>';
@@ -2490,7 +2490,7 @@ function updateField(){
   .forEach(({b,g,t,s})=>{
     const runner=G.bases[b];
     const gEl=document.getElementById(g); if(gEl) gEl.style.display=runner?'':'none';
-    const tEl=document.getElementById(t); if(tEl&&runner) tEl.textContent=(runner.name||'').split(' ').pop().slice(0,5);
+    const tEl=document.getElementById(t); if(tEl&&runner) tEl.textContent=runner.num?`#${runner.num}`:(runner.name||'').split(' ').pop().slice(0,5);
     const sEl=document.getElementById(s); if(sEl){ sEl.setAttribute('fill',runner?'#fef3c7':'white'); sEl.setAttribute('stroke',runner?'#f59e0b':'#ccc'); }
   });
 

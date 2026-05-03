@@ -2291,6 +2291,25 @@ function confirmErrorFielder(posNum, posName, fielderName){
 function doSteal(from, dest){
   saveSnapshot();
   const r=G.bases[from];
+  // If destination is occupied, force-advance that runner first
+  if(G.bases[dest]){
+    const bumped=G.bases[dest];
+    if(dest===2 && !G.bases[3]){
+      G.bases[3]=bumped;
+      addPBP(`${bumped.num?'#'+bumped.num+' ':''}${bumped.name} advances to 3rd (pushed by steal)`);
+    } else if(dest===2 && G.bases[3]){
+      // 3rd also occupied — runner on 3rd scores
+      const scoring=G.bases[3];
+      scoreRunner(scoring, battingSide());
+      addPBP(`${scoring.num?'#'+scoring.num+' ':''}${scoring.name} scores (pushed by steal)`);
+      G.bases[3]=bumped;
+      addPBP(`${bumped.num?'#'+bumped.num+' ':''}${bumped.name} advances to 3rd (pushed by steal)`);
+    } else if(dest===3){
+      // Runner on 3rd scores
+      scoreRunner(bumped, battingSide());
+      addPBP(`${bumped.num?'#'+bumped.num+' ':''}${bumped.name} scores (pushed by steal)`);
+    }
+  }
   G.bases[dest]=r; G.bases[from]=null;
   r.sb=(r.sb||0)+1;
   addPBP(`${r.name} SB — steals ${dest===2?'2nd':'3rd'}`);

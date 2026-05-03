@@ -2032,6 +2032,9 @@ function openRunners(){
   deselectRunner();
   updateRunnerDiamond();
   openOv('ovRunners');
+  // Auto-select the lead runner (highest occupied base) so scorer deals with them first
+  const leadBase = G.bases[3] ? 3 : G.bases[2] ? 2 : G.bases[1] ? 1 : null;
+  if(leadBase) setTimeout(()=>tapBase(leadBase), 50);
 }
 
 let selectedRunnerBase = null;

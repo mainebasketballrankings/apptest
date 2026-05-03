@@ -425,8 +425,10 @@ input,select,button{font-family:inherit;}
       <div class="bp-tag-pill">AB</div>
       <div class="bp-jersey" id="abJersey">—</div>
       <div class="bp-info">
-        <div class="bp-name" id="abName">—</div>
-        <div class="bp-sub" id="abLine">0–0, 0 RBI</div>
+        <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+          <div class="bp-name" id="abName">—</div>
+          <div class="bp-sub" id="abLine"></div>
+        </div>
         <div class="bp-stat-line" id="abStatLine"></div>
       </div>
     </div>
@@ -434,9 +436,9 @@ input,select,button{font-family:inherit;}
       <div class="bp-tag-pill bp-tag-p">P</div>
       <div class="bp-jersey" id="pitJersey">—</div>
       <div class="bp-info">
-        <div class="bp-name" id="pitName">—</div>
-        <div class="bp-sub">
-          <span id="pitCount" class="pit-count">0</span><span id="pitLimit" class="pit-limit"> pitches</span>
+        <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+          <div class="bp-name" id="pitName">—</div>
+          <div class="bp-sub"><span id="pitCount" class="pit-count">0</span><span id="pitLimit" class="pit-limit"> pitches</span></div>
         </div>
         <div class="bp-stat-line" id="pitStatLine"></div>
       </div>
@@ -2301,11 +2303,9 @@ function doSteal(from, dest){
   pushEvt('runner_advance', {runs:0, rbi:0, notes: JSON.stringify({sb:true, runner:r.name, runnerNum:r.num||r.number||'', from, to:dest})});
   deselectRunner(); updateRunnerDiamond();
   if(displaced){
-    // Put displaced runner back at their original base temporarily and open runners overlay
-    // so scorer can decide where they go (forced advance, score, etc.)
     G.bases[from]=displaced; // put displaced runner at the vacated base temporarily
     updateRunnerDiamond();
-    setTimeout(()=>{ showAlert(`Move ${displaced.num?'#'+displaced.num+' ':''}${displaced.name} — use Runners to place them.`); openRunners(); }, 200);
+    setTimeout(()=>openRunners(), 200);
   } else {
     render();
   }
@@ -2672,11 +2672,11 @@ function render(){
     const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
     const ajEl=document.getElementById('abJersey'); if(ajEl) ajEl.textContent=bat.number?`#${bat.number}`:'—';
     const alEl=document.getElementById('abLine');
-    if(alEl) alEl.textContent=bat.pos||'';
+    if(alEl){ const s=bat.stats; alEl.textContent=`${s.h||0}–${s.ab||0}`; }
     const slEl=document.getElementById('abStatLine');
     if(slEl){
       const s=bat.stats;
-      const parts=[`${s.h||0}–${s.ab||0}`, `${s.rbi||0} RBI`];
+      const parts=[`${s.rbi||0} RBI`];
       if(s.bb) parts.push(`${s.bb} BB`);
       if(s.k)  parts.push(`${s.k} K`);
       if(s.hr) parts.push(`${s.hr} HR`);

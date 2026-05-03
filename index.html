@@ -1111,14 +1111,22 @@
                 return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`;
               } catch(err){ return `Pitching change: ${e.pitcher_name}`; }
             })() : null;
-            // runner_advance: show batter — runner scores
-            const runnerAdvDesc = e.event_type === 'runner_advance' && e.runs ? (() => {
+            // runner_advance: show stolen base or runner scores
+            const runnerAdvDesc = e.event_type === 'runner_advance' ? (() => {
               try {
                 const info = JSON.parse(e.notes||'{}');
-                const scorer = info.scorers && info.scorers[0];
-                const scorerName = scorer ? scorer.name : (info.runner || '');
-                const runDesc = scorerName ? `${scorerName} scores` : 'runner scores';
-                return `<strong>${name}</strong> — ${runDesc} · ${e.runs} run${e.runs>1?'s':''}`;
+                if(info.sb) {
+                  const rName = info.runner || e.player_name || '';
+                  const dest = info.to === 2 ? '2nd' : info.to === 3 ? '3rd' : '';
+                  return `<strong>${rName}</strong> — Stolen base${dest ? ' (1st→'+dest+')' : ''}`;
+                }
+                if(e.runs) {
+                  const scorer = info.scorers && info.scorers[0];
+                  const scorerName = scorer ? scorer.name : (info.runner || '');
+                  const runDesc = scorerName ? `${scorerName} scores` : 'runner scores';
+                  return `<strong>${name}</strong> — ${runDesc} · ${e.runs} run${e.runs>1?'s':''}`;
+                }
+                return null;
               } catch(err){ return null; }
             })() : null;
             const scored = e.runs && e.event_type !== 'runner_advance' ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
@@ -1853,8 +1861,21 @@
             const pitchDesc = e.event_type === 'sub_pitcher' && e.pitcher_name ? (() => {
               try { const info = JSON.parse(e.notes||'{}'); return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`; } catch{ return `Pitching change: ${e.pitcher_name}`; }
             })() : null;
-            const runnerAdvDesc = e.event_type === 'runner_advance' && e.runs ? (() => {
-              try { const info = JSON.parse(e.notes||'{}'); const scorer = info.scorers && info.scorers[0]; const scorerName = scorer ? scorer.name : (info.runner || ''); return `<strong>${name}</strong> — ${scorerName ? scorerName + ' scores' : 'runner scores'} · ${e.runs} run${e.runs>1?'s':''}`; } catch{ return null; }
+            const runnerAdvDesc = e.event_type === 'runner_advance' ? (() => {
+              try {
+                const info = JSON.parse(e.notes||'{}');
+                if(info.sb) {
+                  const rName = info.runner || e.player_name || '';
+                  const dest = info.to === 2 ? '2nd' : info.to === 3 ? '3rd' : '';
+                  return `<strong>${rName}</strong> — Stolen base${dest ? ' (1st→'+dest+')' : ''}`;
+                }
+                if(e.runs) {
+                  const scorer = info.scorers && info.scorers[0];
+                  const scorerName = scorer ? scorer.name : (info.runner || '');
+                  return `<strong>${name}</strong> — ${scorerName ? scorerName + ' scores' : 'runner scores'} · ${e.runs} run${e.runs>1?'s':''}`;
+                }
+                return null;
+              } catch{ return null; }
             })() : null;
             const scored = e.runs && e.event_type !== 'runner_advance' ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
             const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';

@@ -2365,9 +2365,20 @@ function confirmSub(side,idx,fromBench){
       pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, incomingNum:player.number||'', outgoing:prevPitcher?.name||''})});
     } else {
       const prevPitcher = G.teams[side].lineup[G.pitchers[side]];
+      const vacatedPos = player.pos; // remember what position they played
+      player.pos = 'P';             // update to pitcher
       G.pitchers[side]=idx;
       addPBP(`Pitching change: <strong>${player.name||'P'+(idx+1)}</strong> replaces <strong>${prevPitcher?.name||'pitcher'}</strong>`);
       pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, incomingNum:player.number||'', outgoing:prevPitcher?.name||''})});
+      // Keep old pitcher on bench for possible re-entry / defensive assignment
+      if(prevPitcher) G.teams[side].bench.push({...prevPitcher, reentry:true});
+      closeOv('ovSub');
+      render();
+      // Prompt to fill the vacated position
+      setTimeout(()=>{
+        showAlert(`${player.name} is now pitching. Use Def. Sub to assign someone to ${vacatedPos}.`);
+      }, 300);
+      return;
     }
   } else if(subMode==='defense'){
     G.pendingDefSub={side,idx,fromBench,player};

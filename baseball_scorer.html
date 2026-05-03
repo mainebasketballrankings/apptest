@@ -2740,10 +2740,11 @@ function buildBoxScore(){
     const slots = team.slots && team.slots.length ? team.slots : team.lineup.map(p=>[p]);
     slots.forEach((slot, slotIdx)=>{
       slot.forEach((p, depth)=>{
-        // For the last (current) player in each slot, use the live lineup reference
         const isCurrentPlayer = depth === slot.length - 1;
-        const livePlayer = isCurrentPlayer
-          ? (team.lineup.find(lp => lp.name === p.name) || p)
+        // ALWAYS read stats from the live lineup object at this slot index
+        // This avoids stale references after undo/snapshot restore
+        const livePlayer = isCurrentPlayer && team.lineup[slotIdx]
+          ? team.lineup[slotIdx]
           : p;
         const s = livePlayer.stats;
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);

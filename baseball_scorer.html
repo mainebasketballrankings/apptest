@@ -567,7 +567,7 @@ input,select,button{font-family:inherit;}
 <div class="overlay" id="ovDP" style="display:none">
   <div class="ocard">
     <div id="dpPanel"></div>
-    <button class="ocancel" style="margin-top:8px;width:100%" onclick="closeOv('ovDP')">Cancel</button>
+    <button class="ocancel" style="margin-top:8px;width:100%" onclick="closeOv('ovDP');doUndo()">Cancel (Undo DP)</button>
   </div>
 </div>
 
@@ -1099,7 +1099,7 @@ function renderLU(side){
       <select class="lu-input" style="padding:5px 3px" onchange="G.teams['${side}'].lineup[${i}].pos=this.value"><option value="">Pos</option>
         ${POSITIONS.map(pos=>`<option value="${pos}" ${pos===p.pos?'selected':''}>${pos}</option>`).join('')}
       </select>
-      ${isSoftball ? `<button style="background:${p.flex?'#f59e0b':'none'};color:${p.flex?'#fff':'#aaa'};border:1px solid ${p.flex?'#f59e0b':'#ccc'};border-radius:4px;font-size:10px;font-weight:700;padding:3px 5px;cursor:pointer;white-space:nowrap" onclick="toggleFlex('${side}',${i})">${p.flex?'FLEX':'FLX?'}</button>` : ''}
+      <button style="background:${p.flex?'#f59e0b':'none'};color:${p.flex?'#fff':'#aaa'};border:1px solid ${p.flex?'#f59e0b':'#ccc'};border-radius:4px;font-size:10px;font-weight:700;padding:3px 5px;cursor:pointer;white-space:nowrap" onclick="toggleFlex('${side}',${i})" title="Mark player as does-not-bat">${p.flex?'DNB':'DNB?'}</button>
       <button class="lu-del" onclick="removePlayer('${side}',${i})">✕</button>
     </div>`).join('');
 }

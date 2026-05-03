@@ -507,7 +507,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn hi"     onclick="openSub('pitcher')">Change P</button>
     <button class="abtn"        onclick="openSub('batter')">Pinch Hit</button>
     <button class="abtn"        onclick="openSub('defense')">Def. Sub</button>
-    <button class="abtn blue"   onclick="openOv('ovRunners')">Runners</button>
+    <button class="abtn blue"   onclick="openRunners()">Runners</button>
     <button class="abtn blue"   onclick="doBalk()">Balk</button>
     <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
@@ -2026,7 +2026,9 @@ function pushRunnerAdvance(){
 function openRunners(){
   // Snapshot current run total so pushRunnerAdvance only credits delta
   G._overlayRunsStart = {home: G.runs.home, away: G.runs.away};
-  openRBIResolver(null,'runners');
+  deselectRunner();
+  updateRunnerDiamond();
+  openOv('ovRunners');
 }
 
 let selectedRunnerBase = null;
@@ -2067,33 +2069,39 @@ function deselectRunner(){
 
 function tapBase(dest){
   if(selectedRunnerBase!==null){
-    // A runner is selected — move them to dest
-    const from=selectedRunnerBase;
-    if(dest===0){
-      // Score
-      const r=G.bases[from];
-      const side=battingSide();
-      scoreRunner(r, side); G.bases[from]=null;
-      if(G.pendingRBIbatter){
-        G.pendingRBIbatter.stats.rbi = (G.pendingRBIbatter.stats.rbi||0) + 1;
-        addPBP(`<strong>${r.name}</strong> scores — RBI: ${G.pendingRBIbatter.name}`);
-        G.pendingRBIbatter = null;
-      } else {
-        addPBP(`<strong>${r.name}</strong> scores`);
+    // If tapping a different occupied base — switch selection instead of moving
+    if(dest !== selectedRunnerBase && dest !== 0 && G.bases[dest]){
+      deselectRunner();
+      // Fall through to select the new base below
+    } else {
+      // A runner is selected — move them to dest
+      const from=selectedRunnerBase;
+      if(dest===0){
+        // Score
+        const r=G.bases[from];
+        const side=battingSide();
+        scoreRunner(r, side); G.bases[from]=null;
+        if(G.pendingRBIbatter){
+          G.pendingRBIbatter.stats.rbi = (G.pendingRBIbatter.stats.rbi||0) + 1;
+          addPBP(`<strong>${r.name}</strong> scores — RBI: ${G.pendingRBIbatter.name}`);
+          G.pendingRBIbatter = null;
+        } else {
+          addPBP(`<strong>${r.name}</strong> scores`);
+        }
+        deselectRunner(); updateRunnerDiamond(); render(); return;
       }
+      if(from===dest){ deselectRunner(); return; }
+      if(G.bases[dest] && dest!==0){
+        // Occupied — offer steal/CS
+        showStealPrompt(from, dest); return;
+      }
+      // Move runner
+      const r=G.bases[from];
+      G.bases[dest]=r; G.bases[from]=null;
+      const advancing=dest>from;
+      addPBP(`${r.name} ${advancing?'advances to':'returns to'} ${dest===1?'1st':dest===2?'2nd':'3rd'}`);
       deselectRunner(); updateRunnerDiamond(); render(); return;
     }
-    if(from===dest){ deselectRunner(); return; }
-    if(G.bases[dest] && dest!==0){
-      // Occupied — offer steal/CS
-      showStealPrompt(from, dest); return;
-    }
-    // Move runner
-    const r=G.bases[from];
-    G.bases[dest]=r; G.bases[from]=null;
-    const advancing=dest>from;
-    addPBP(`${r.name} ${advancing?'advances to':'returns to'} ${dest===1?'1st':dest===2?'2nd':'3rd'}`);
-    deselectRunner(); updateRunnerDiamond(); render(); return;
   }
   // No runner selected yet — select this base if occupied
   if(G.bases[dest]){
@@ -2101,29 +2109,27 @@ function tapBase(dest){
     const box=document.getElementById(`rb${dest}box`);
     if(box) box.style.outline='3px solid var(--blue)';
     const inst=document.getElementById('runnerInstruct');
-    const rn=G.bases[dest]; if(inst) inst.textContent=`${rn.num?'#'+rn.num+' ':''}${rn.name} selected — tap destination base`;
+    const rn=G.bases[dest];
+    if(inst) inst.textContent=`${rn.num?'#'+rn.num+' ':''}${rn.name} selected — tap destination base`;
     // Show action panel
     const panel=document.getElementById('runnerActionPanel');
     const nameEl=document.getElementById('runnerActionName');
     const btns=document.getElementById('runnerActionBtns');
     if(panel) panel.style.display='';
-    const rsel=G.bases[dest]; if(nameEl) nameEl.textContent=`${rsel.num?'#'+rsel.num+' ':''}${rsel.name} on ${dest===1?'1st':dest===2?'2nd':'3rd'}`;
+    const rsel=G.bases[dest];
+    if(nameEl) nameEl.textContent=`${rsel.num?'#'+rsel.num+' ':''}${rsel.name} on ${dest===1?'1st':dest===2?'2nd':'3rd'}`;
     if(btns){
-      // Advance options + steal + out
       let html='';
-      // Normal advances
       for(let d=dest+1;d<=3;d++){
         const dl=d===2?'2nd':'3rd';
         html+=`<button class="ract adv" onclick="moveRunnerTo(${dest},${d})">→${dl}</button>`;
       }
       html+=`<button class="ract scr" onclick="moveRunnerTo(${dest},0)">Score</button>`;
-      // Stolen base options
       for(let d=dest+1;d<=3;d++){
         const dl=d===2?'2nd':'3rd';
         html+=`<button class="ract" style="border-color:var(--yellow-border);color:var(--yellow);background:var(--yellow-bg)" onclick="doSteal(${dest},${d})">SB→${dl}</button>`;
         html+=`<button class="ract" style="border-color:var(--red-border);color:var(--red);background:var(--red-bg)" onclick="doCaughtStealing(${dest},${d})">CS→${dl}</button>`;
       }
-      // Error advances — advance or score on a fielding error
       for(let d=dest+1;d<=3;d++){
         const dl=d===2?'2nd':'3rd';
         html+=`<button class="ract" style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="advanceOnError(${dest},${d})">E→${dl}</button>`;

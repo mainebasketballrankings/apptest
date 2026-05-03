@@ -1083,7 +1083,8 @@
           if(e.event_type === 'lineup_set') return; // skip for both state and play display
           if(!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
           const notesStr = typeof e.notes === 'string' ? e.notes : JSON.stringify(e.notes||'');
-          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)')) lastEvt[e.game_id] = e;
+          const isUninformativeRA = e.event_type === 'runner_advance' && !(typeof e.notes === 'object' ? e.notes?.sb : notesStr.includes('"sb":true')) && !e.runs;
+          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)') && !isUninformativeRA) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
@@ -1137,7 +1138,8 @@
             if(e.event_type === 'strikeout' && e.notes){
               try { const ni = JSON.parse(e.notes||'{}'); if(ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch(err){}
             }
-            const desc = pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`;
+            const desc = e.event_type === 'runner_advance' && !runnerAdvDesc ? null : (pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`);
+            if(!desc) { /* skip non-informative runner_advance */ }
             card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
           }
           // Update top bar left span with scorebug
@@ -1841,7 +1843,8 @@
         evts.forEach(e => {
           if (!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
           const notesStr = typeof e.notes === 'string' ? e.notes : JSON.stringify(e.notes||'');
-          if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)')) lastEvt[e.game_id] = e;
+          const isUninformativeRA = e.event_type === 'runner_advance' && !(typeof e.notes === 'object' ? e.notes?.sb : notesStr.includes('"sb":true')) && !e.runs;
+          if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)') && !isUninformativeRA) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
@@ -1889,7 +1892,8 @@
             if(e.event_type === 'strikeout' && e.notes){
               try { const ni = JSON.parse(e.notes||'{}'); if(ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch(err){}
             }
-            const desc = pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`;
+            const desc = e.event_type === 'runner_advance' && !runnerAdvDesc ? null : (pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`);
+            if(!desc) { /* skip non-informative runner_advance */ }
             cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
           }
           const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);

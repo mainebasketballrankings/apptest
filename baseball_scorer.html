@@ -256,11 +256,12 @@ input,select,button{font-family:inherit;}
 
 /* Batter/Pitcher strip */
 .bp-strip{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);background:var(--surface);}
-.bp-batter{display:flex;align-items:center;gap:8px;padding:7px 12px;border-right:1px solid var(--border);}
-.bp-pitcher{display:flex;align-items:center;gap:8px;padding:7px 12px;}
+.bp-batter{display:flex;align-items:center;gap:10px;padding:6px 12px;border-right:1px solid var(--border);}
+.bp-pitcher{display:flex;align-items:center;gap:10px;padding:6px 12px;}
+.bp-jersey{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:900;line-height:1;color:var(--text);min-width:52px;text-align:center;flex-shrink:0;}
 .bp-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;background:var(--dim);padding:2px 5px;border-radius:3px;flex-shrink:0;}
-.bp-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--text);line-height:1.2;}
-.bp-sub{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);}
+.bp-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
+.bp-sub{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);}
 
 /* Pitch sequence bar */
 .pitch-seq-bar{padding:4px 12px;background:var(--surface);border-bottom:1px solid var(--border);min-height:28px;display:flex;align-items:center;}
@@ -421,6 +422,7 @@ input,select,button{font-family:inherit;}
   <div class="bp-strip">
     <div class="bp-batter">
       <div class="bp-tag-pill">AB</div>
+      <div class="bp-jersey" id="abJersey">—</div>
       <div class="bp-info">
         <div class="bp-name" id="abName">—</div>
         <div class="bp-sub" id="abLine">0–0, 0 RBI</div>
@@ -429,6 +431,7 @@ input,select,button{font-family:inherit;}
     </div>
     <div class="bp-pitcher">
       <div class="bp-tag-pill bp-tag-p">P</div>
+      <div class="bp-jersey" id="pitJersey">—</div>
       <div class="bp-info">
         <div class="bp-name" id="pitName">—</div>
         <div class="bp-sub">
@@ -847,7 +850,7 @@ async function pushEvt(key, extras={}){
     period:       G.inning,
     clock_seconds: 0,
     inning:       G.inning,
-    half:         G.half,
+    half:         G.half === 'bottom' ? 'bot' : G.half,
     outs:         extras.outs_override !== undefined ? extras.outs_override : G.outs,
     balls:        G.balls,
     strikes:      G.strikes,
@@ -1506,6 +1509,7 @@ function endHalf(){
 }
 
 function confirmHalf(){
+  saveSnapshot();
   closeOv('ovHalfEnd');
   if(G.half==='top'){ G.half='bottom'; }
   else { G.half='top'; G.inning++; if(G.inning>G.linescore.length) G.linescore.push({away:null,home:null}); checkGameEnd(); }
@@ -2556,6 +2560,7 @@ function render(){
   if(pit){
     const ps=getPS(pit.side,pit.idx);
     const pnEl=document.getElementById('pitName'); if(pnEl) pnEl.textContent=pit.player.name||'Pitcher';
+    const pjEl=document.getElementById('pitJersey'); if(pjEl) pjEl.textContent=pit.player.number?`#${pit.player.number}`:'—';
     const ip=Math.floor(ps.ip_outs/3)+'.'+( ps.ip_outs%3);
     const cEl=document.getElementById('pitCount');
     if(cEl){ cEl.textContent=ps.pitches; cEl.className='pit-count';
@@ -2594,7 +2599,8 @@ function render(){
   const {player:bat}=curBatter();
   if(bat){
     const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
-    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`${bat.stats.h||0}–${bat.stats.ab||0}, ${bat.stats.rbi||0} RBI · #${bat.number||'—'} ${bat.pos}`;
+    const ajEl=document.getElementById('abJersey'); if(ajEl) ajEl.textContent=bat.number?`#${bat.number}`:'—';
+    const alEl=document.getElementById('abLine'); if(alEl) alEl.textContent=`${bat.stats.h||0}–${bat.stats.ab||0}, ${bat.stats.rbi||0} RBI · ${bat.pos}`;
     const slEl=document.getElementById('abStatLine');
     if(slEl){
       const s=bat.stats;

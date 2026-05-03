@@ -1375,8 +1375,9 @@ function doStrikeout(type){
   const sym=type==='K'?'ꓘ':'K';
   const kType = type==='K' ? 'Called strike' : 'Strikeout';
   const outCount = G.outs + 1;
+  const pitcherK = p ? getPS(p.side,p.idx).k : null;
   addPBP(`<strong>${b.player.name}</strong> ${sym} — ${outCount} out${outCount>1?'s':''}`);
-  pushEvt('strikeout', {outs_override: G.outs + 1});
+  pushEvt('strikeout', {outs_override: G.outs + 1, notes: pitcherK ? JSON.stringify({pitcherK, pitcherName: p ? G.teams[p.side].lineup[p.idx]?.name : null}) : null});
   addOut(`K`);
 }
 

@@ -1133,7 +1133,11 @@
             const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
             const isOut = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
             const outNum = isDP ? ` · 2 outs` : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
-            const desc = pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}`;
+            let kDesc = '';
+            if(e.event_type === 'strikeout' && e.notes){
+              try { const ni = JSON.parse(e.notes||'{}'); if(ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch(err){}
+            }
+            const desc = pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`;
             card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
           }
           // Update top bar left span with scorebug
@@ -1881,7 +1885,11 @@
             const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
             const isOut = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
             const outNum = isDP ? ' · 2 outs' : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
-            const desc = pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}`;
+            let kDesc = '';
+            if(e.event_type === 'strikeout' && e.notes){
+              try { const ni = JSON.parse(e.notes||'{}'); if(ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch(err){}
+            }
+            const desc = pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`;
             cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
           }
           const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);

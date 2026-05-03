@@ -1073,7 +1073,7 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .not('event_type', 'in', '("lineup_set","batter_up","voided")')
+        .not('event_type', 'in', '(lineup_set,batter_up,voided)')
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 10);
       if(evts){
@@ -1822,7 +1822,7 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .not('event_type', 'in', '("lineup_set","batter_up","voided")')
+        .not('event_type', 'in', '(lineup_set,batter_up,voided)')
         .order('created_at', { ascending: false })
         .limit(activeGames.length * 10);
       if (evts) {

@@ -1233,6 +1233,14 @@ async function startGame(){
   G.bases={1:null,2:null,3:null};
   G.runs={away:0,home:0}; G.hits={away:0,home:0}; G.errors={away:0,home:0};
   G.batIdx={away:0,home:0};
+  // Skip any DNB (flex) players at the start of each lineup
+  ['away','home'].forEach(s=>{
+    let safety=0;
+    while(G.teams[s].lineup[G.batIdx[s]]?.flex && safety < G.teams[s].lineup.length){
+      G.batIdx[s]=(G.batIdx[s]+1)%G.teams[s].lineup.length;
+      safety++;
+    }
+  });
   G.curPitches=[]; G.pbp=[]; G.pitStats={};
   G.errorThisHalf=false; G.phantomOuts=0;
   G.pendingHit=null; G.pendingRBIbatter=null; G.pendingScore=null;
@@ -2686,7 +2694,7 @@ function render(){
     const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
     const ajEl=document.getElementById('abJersey'); if(ajEl) ajEl.textContent=bat.number?`#${bat.number}`:'—';
     const alEl=document.getElementById('abLine');
-    if(alEl){ const s=bat.stats; alEl.textContent=`${s.h||0}–${s.ab||0}`; }
+    if(alEl){ const s=bat.stats; alEl.textContent=`${s.h||0}–${s.ab||0} · ${bat.pos||''}`; }
     const slEl=document.getElementById('abStatLine');
     if(slEl){
       const s=bat.stats;

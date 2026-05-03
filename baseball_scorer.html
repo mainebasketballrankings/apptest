@@ -2459,6 +2459,15 @@ function doUndo(){
     });
   }
   G.pbp = G.pbp.slice(0, snap.pbpLen);
+  // Clear any pending state that holds references to old player objects
+  G.pendingRBIbatter = null;
+  G.pendingHit = null;
+  G.pendingScore = null;
+  G.runDecisions = {};
+  G._rbiMode = null;
+  G._rbiResult = null;
+  G.pendingUnearnedCheck = null;
+  G.pendingUnearnedQueue = null;
   render();
 }
 

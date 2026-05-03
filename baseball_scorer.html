@@ -1184,12 +1184,12 @@ function renderBench(side){
   const el=document.getElementById(side+'Bench');
   if(!el) return;
   el.innerHTML=G.teams[side].bench.map((p,i)=>`
-    <div style="display:grid;grid-template-columns:36px 1fr 46px 24px;gap:4px;align-items:center;margin-bottom:6px;">
+    <div style="display:grid;grid-template-columns:36px 1fr 46px 24px;gap:4px;align-items:center;margin-bottom:6px;${p.reentry?'opacity:0.7':''}">
       <button onclick="addBenchToLineup('${side}',${i})" style="background:#ee6730;color:#fff;border:none;border-radius:4px;padding:3px 6px;font-size:11px;font-family:'Barlow',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap">+LU</button>
-      <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].bench[${i}].name=this.value"/>
+      <input class="lu-input" placeholder="Name" value="${p.name}" oninput="G.teams['${side}'].bench[${i}].name=this.value" style="${p.reentry?'color:var(--dim)':''}"/>
       <input class="lu-input" placeholder="#" value="${p.number}" oninput="G.teams['${side}'].bench[${i}].number=this.value"/>
       <button class="lu-del" onclick="removeBench('${side}',${i})">✕</button>
-    </div>`).join('');
+    </div>${p.reentry?`<div style="font-size:10px;color:var(--dim);margin:-4px 0 6px 40px;font-family:'Barlow Condensed',sans-serif">re-entry eligible</div>`:''}`).join('');
 }
 
 function removeBench(side,i){ G.teams[side].bench.splice(i,1); renderBench(side); updateCRDropdowns(side); }
@@ -1881,6 +1881,7 @@ function openRBIResolver(result, mode){
       btns+=`<button class="rbi-btn" id="rd${base}to${dest}" onclick="setRD(${base},'to${dest}')">&rarr;${dl}</button>`;
     }
     btns+=`<button class="rbi-btn" id="rd${base}score" onclick="setRD(${base},'score')">Score</button>`;
+    btns+=`<button class="rbi-btn" id="rd${base}out" onclick="setRD(${base},'out')" style="background:var(--red-bg);color:var(--red);border-color:var(--red-border)">Out</button>`;
     return `<div class="rbi-row occ">
       <span class="rbi-base-lbl">${lbl}</span>
       <span class="rbi-runner-name">${r.num?`#${r.num} `:''}${r.name}</span>
@@ -1899,9 +1900,9 @@ function openRBIResolver(result, mode){
 
 function setRD(base,action){
   G.runDecisions[base]=action;
-  ['stay','to2','to3','score'].forEach(a=>{
+  ['stay','to2','to3','score','out'].forEach(a=>{
     const el=document.getElementById(`rd${base}${a}`);
-    if(el) el.className='rbi-btn'+(a===action?(a==='score'?' active-scr':' active'):'');
+    if(el) el.className='rbi-btn'+(a===action?(a==='score'?' active-scr':a==='out'?' active-out':' active'):'');
   });
 }
 
@@ -1928,6 +1929,13 @@ function confirmRBI(){
       runsScored++;
       scoredRunners.push({name:runner.name, num:runner.num||runner.number||''});
     }
+    else if(dec==='out'){
+      // Runner thrown out — remove from bases, credit out to pitcher
+      const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
+      G.outs++;
+      addPBP(`${runner.num?`#${runner.num} `:''}${runner.name} — thrown out`);
+      // newBases[base] stays null (runner removed)
+    }
     else if(dec==='to2') newBases[2]=runner;
     else if(dec==='to3') newBases[3]=runner;
     else newBases[base]=runner;
@@ -1947,6 +1955,7 @@ function confirmRBI(){
     closeOv('ovRBI');
     const raNotes = scoredRunners.length ? JSON.stringify({scorers: scoredRunners}) : null;
     pushEvt('runner_advance', {runs: runsScored, rbi: runsScored, player_override: rbiPlayer || undefined, notes: raNotes});
+    if(G.outs>=3){ nextBatter(true); endHalf(); return; }
     if(G.pendingUnearnedCheck && G.pendingUnearnedCheck.length){
       G.pendingUnearnedQueue = G.pendingUnearnedCheck;
       G.pendingUnearnedCheck = null;
@@ -1992,6 +2001,7 @@ function confirmRBI(){
   G.pendingErrorNotation=null; G.pendingErrorFielder=null;
   G.runDecisions={}; G._rbiMode=null; G._rbiResult=null;
   closeOv('ovRBI');
+  if(G.outs>=3){ nextBatter(true); endHalf(); return; }
   nextBatter(); resetCount();
   if(G.pendingUnearnedCheck && G.pendingUnearnedCheck.length){
     G.pendingUnearnedQueue = G.pendingUnearnedCheck;
@@ -2344,6 +2354,8 @@ function confirmSub(side,idx,fromBench){
       player.pos = 'P';
       G.teams[side].lineup[prevPitcherIdx] = player;
       G.teams[side].bench.splice(idx,1);
+      // Keep replaced pitcher on bench for possible re-entry
+      if(prevPitcher) G.teams[side].bench.push({...prevPitcher, reentry:true});
       G.pitchers[side] = prevPitcherIdx;
       // Add to slot history for box score
       if(G.teams[side].slots && G.teams[side].slots[prevPitcherIdx]){
@@ -2373,6 +2385,8 @@ function confirmSub(side,idx,fromBench){
     // Add to slot history
     if(G.teams[bside].slots[batIdx]) G.teams[bside].slots[batIdx].push(player);
     if(fromBench) G.teams[bside].bench.splice(idx,1);
+    // Keep replaced player on bench for possible re-entry
+    if(replaced && replaced.name) G.teams[bside].bench.push({...replaced, reentry:true});
     addPBP(`PH: <strong>${player.name}</strong> for <strong>${replaced.name}</strong>`);
     pushEvt('sub_batter', {
       player_override: player,

@@ -743,6 +743,7 @@ const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
 let G_game_id = null; // set from schedule picker or URL param
+let G_evt_id_stack = []; // stack of pushed event IDs for undo void
 let G_test_mode = false; // when true, skip Supabase game creation
 let G_home_team_id = null;
 let G_away_team_id = null;
@@ -846,7 +847,11 @@ async function pushEvt(key, extras={}){
   // Fielding-side events: use fielding team's ID, not batting team's
   const isFieldingEvt = ['sub_pitcher','sub_defense'].includes(key);
   const evtSide = isFieldingEvt ? fieldingSide() : side;
+  const evtId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+  G_evt_id_stack.push(evtId);
+  if(G_evt_id_stack.length > 20) G_evt_id_stack.shift(); // keep last 20
   const row = {
+    id:           evtId,
     game_id:      G_game_id,
     team_id:      evtSide === 'home' ? G_home_team_id : G_away_team_id,
     event_type:   key,
@@ -2518,6 +2523,15 @@ function doUndo(){
     });
   }
   G.pbp = G.pbp.slice(0, snap.pbpLen);
+  // Void the last pushed event in Supabase so live.html ignores it
+  const voidId = G_evt_id_stack.pop();
+  if(voidId && G_game_id && !G_test_mode){
+    fetch(`${SB_URL}/rest/v1/game_events?id=eq.${voidId}`, {
+      method:'PATCH',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ event_type: 'voided' })
+    }).catch(e=>console.warn('void failed', e));
+  }
   // Clear any pending state that holds references to old player objects
   G.pendingRBIbatter = null;
   G.pendingHit = null;
@@ -2694,16 +2708,17 @@ function render(){
     const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
     const ajEl=document.getElementById('abJersey'); if(ajEl) ajEl.textContent=bat.number?`#${bat.number}`:'—';
     const alEl=document.getElementById('abLine');
-    if(alEl){ const s=bat.stats; alEl.textContent=`${s.h||0}–${s.ab||0} · ${bat.pos||''}`; }
+    if(alEl) alEl.textContent=bat.pos||'';
     const slEl=document.getElementById('abStatLine');
     if(slEl){
       const s=bat.stats;
-      const parts=[`${s.rbi||0} RBI`];
+      const parts=[`${s.h||0}–${s.ab||0}`, `${s.rbi||0} RBI`];
       if(s.bb) parts.push(`${s.bb} BB`);
       if(s.k)  parts.push(`${s.k} K`);
       if(s.hr) parts.push(`${s.hr} HR`);
       if(s.d)  parts.push(`${s.d} 2B`);
       if(s.t)  parts.push(`${s.t} 3B`);
+      if(s.sb) parts.push(`${s.sb} SB`);
       slEl.textContent=parts.join(' · ');
     }
   }

@@ -262,6 +262,7 @@ input,select,button{font-family:inherit;}
 .bp-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;background:var(--dim);padding:2px 5px;border-radius:3px;flex-shrink:0;}
 .bp-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--text);line-height:1.2;}
 .bp-sub{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);}
+.bp-stat-line{font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--text);margin-top:2px;}
 
 /* Pitch sequence bar */
 .pitch-seq-bar{padding:4px 12px;background:var(--surface);border-bottom:1px solid var(--border);min-height:28px;display:flex;align-items:center;}
@@ -2291,30 +2292,23 @@ function confirmErrorFielder(posNum, posName, fielderName){
 function doSteal(from, dest){
   saveSnapshot();
   const r=G.bases[from];
-  // If destination is occupied, force-advance that runner first
-  if(G.bases[dest]){
-    const bumped=G.bases[dest];
-    if(dest===2 && !G.bases[3]){
-      G.bases[3]=bumped;
-      addPBP(`${bumped.num?'#'+bumped.num+' ':''}${bumped.name} advances to 3rd (pushed by steal)`);
-    } else if(dest===2 && G.bases[3]){
-      // 3rd also occupied — runner on 3rd scores
-      const scoring=G.bases[3];
-      scoreRunner(scoring, battingSide());
-      addPBP(`${scoring.num?'#'+scoring.num+' ':''}${scoring.name} scores (pushed by steal)`);
-      G.bases[3]=bumped;
-      addPBP(`${bumped.num?'#'+bumped.num+' ':''}${bumped.name} advances to 3rd (pushed by steal)`);
-    } else if(dest===3){
-      // Runner on 3rd scores
-      scoreRunner(bumped, battingSide());
-      addPBP(`${bumped.num?'#'+bumped.num+' ':''}${bumped.name} scores (pushed by steal)`);
-    }
-  }
-  G.bases[dest]=r; G.bases[from]=null;
+  const displaced=G.bases[dest]||null; // runner already on destination base
+  // Move the stealing runner
+  G.bases[from]=null;
+  G.bases[dest]=r;
   r.sb=(r.sb||0)+1;
-  addPBP(`${r.name} SB — steals ${dest===2?'2nd':'3rd'}`);
+  addPBP(`${r.num?'#'+r.num+' ':''}${r.name} SB — steals ${dest===2?'2nd':'3rd'}`);
   pushEvt('runner_advance', {runs:0, rbi:0, notes: JSON.stringify({sb:true, runner:r.name, runnerNum:r.num||r.number||'', from, to:dest})});
-  deselectRunner(); updateRunnerDiamond(); render();
+  deselectRunner(); updateRunnerDiamond();
+  if(displaced){
+    // Put displaced runner back at their original base temporarily and open runners overlay
+    // so scorer can decide where they go (forced advance, score, etc.)
+    G.bases[dest-1 > 0 ? dest-1 : from]=displaced; // put back at prev base as starting point
+    updateRunnerDiamond();
+    setTimeout(()=>{ showAlert(`Move ${displaced.num?'#'+displaced.num+' ':''}${displaced.name} — use Runners to place them.`); openRunners(); }, 200);
+  } else {
+    render();
+  }
 }
 
 function doCaughtStealing(from, dest){
@@ -2678,7 +2672,9 @@ function render(){
     const abEl=document.getElementById('abName'); if(abEl) abEl.textContent=bat.name||'Batter';
     const ajEl=document.getElementById('abJersey'); if(ajEl) ajEl.textContent=bat.number?`#${bat.number}`:'—';
     const alEl=document.getElementById('abLine');
-    if(alEl){
+    if(alEl) alEl.textContent=bat.pos||'';
+    const slEl=document.getElementById('abStatLine');
+    if(slEl){
       const s=bat.stats;
       const parts=[`${s.h||0}–${s.ab||0}`, `${s.rbi||0} RBI`];
       if(s.bb) parts.push(`${s.bb} BB`);
@@ -2686,10 +2682,8 @@ function render(){
       if(s.hr) parts.push(`${s.hr} HR`);
       if(s.d)  parts.push(`${s.d} 2B`);
       if(s.t)  parts.push(`${s.t} 3B`);
-      alEl.textContent=parts.join(' · ');
+      slEl.textContent=parts.join(' · ');
     }
-    const slEl=document.getElementById('abStatLine');
-    if(slEl) slEl.textContent='';
   }
 
   // Pitch dots

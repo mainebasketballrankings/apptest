@@ -1604,7 +1604,10 @@ function bbUpdFeed(){
     const action = BB_KLBL[e.key] || e.key;
     if(e.key==='inning_end') return;
     if(e.key==='batter_up') return;
-    if(e.key==='runner_advance' && !e.runs) return; // silent unless run scored
+    if(e.key==='runner_advance' && !e.runs){
+      // Allow stolen base events through even with no runs
+      try { const n=JSON.parse(e.notes||'{}'); if(!n.sb) return; } catch(err){ return; }
+    }
     const halfLbl=e.half==='top'?'▲':'▼';
     // For runner_advance, show runner not batter
     // For sub_pitcher, show incoming pitcher not batter
@@ -1645,6 +1648,10 @@ function bbUpdFeed(){
     if(e.runs) desc += ` <span style="color:var(--green);font-weight:600">· ${e.runs} run${e.runs>1?'s':''}</span>`;
     if(e.rbi && !e.runs) desc += ` <span style="color:var(--ink3)">${e.rbi} RBI</span>`;
     if(isOutEvt && e.outs) desc += ` <span style="color:var(--ink3)">· ${e.outs} out${e.outs>1?'s':''}</span>`;
+    if(e.key==='strikeout' && e.pitcher && e.pitcherK){
+      const pitLast = e.pitcher.split(' ').pop();
+      desc += ` <span style="color:var(--ink3)">(${pitLast} ${e.pitcherK}K)</span>`;
+    }
     body.innerHTML=`<div class="fr-desc">${desc}</div><div class="fr-meta">${halfLbl}${e.inning}</div>`;
     const sc=document.createElement('div'); sc.className='fr-score';
     sc.style.color=e.side==='home'?'var(--home)':'var(--away)';
@@ -1977,7 +1984,7 @@ function bbOnEvent(e){
 
   } else if(['groundout','flyout','lineout','popup','strikeout'].includes(e.key)){
     if(batter) batter.ab++;
-    if(e.key==='strikeout'){ if(batter) batter.k++; if(pitcher) pitcher.k++; }
+    if(e.key==='strikeout'){ if(batter) batter.k++; if(pitcher) pitcher.k++; e.pitcherK = pitcher ? pitcher.k : null; }
     if(pitcher) pitcher.ip_outs++;
     if(e.x!=null) bbAddDot(e.x, e.y, 'out');
     // If this was the 3rd out, advance the half-inning (after pitch count below)

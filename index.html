@@ -1114,7 +1114,7 @@
             // runner_advance: show stolen base or runner scores
             const runnerAdvDesc = e.event_type === 'runner_advance' ? (() => {
               try {
-                const info = JSON.parse(e.notes||'{}');
+                const info = typeof e.notes === 'string' ? JSON.parse(e.notes||'{}') : (e.notes||{});
                 if(info.sb) {
                   const rName = info.runner || e.player_name || '';
                   const dest = info.to === 2 ? '2nd' : info.to === 3 ? '3rd' : '';
@@ -1867,7 +1867,7 @@
             })() : null;
             const runnerAdvDesc = e.event_type === 'runner_advance' ? (() => {
               try {
-                const info = JSON.parse(e.notes||'{}');
+                const info = typeof e.notes === 'string' ? JSON.parse(e.notes||'{}') : (e.notes||{});
                 if(info.sb) {
                   const rName = info.runner || e.player_name || '';
                   const dest = info.to === 2 ? '2nd' : info.to === 3 ? '3rd' : '';

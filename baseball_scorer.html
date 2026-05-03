@@ -2303,9 +2303,20 @@ function doSteal(from, dest){
   pushEvt('runner_advance', {runs:0, rbi:0, notes: JSON.stringify({sb:true, runner:r.name, runnerNum:r.num||r.number||'', from, to:dest})});
   deselectRunner(); updateRunnerDiamond();
   if(displaced){
-    G.bases[from]=displaced; // put displaced runner at the vacated base temporarily
-    updateRunnerDiamond();
-    setTimeout(()=>openRunners(), 200);
+    // Forced advance — runner on dest base moves forward one base
+    const fwdBase = dest + 1;
+    if(fwdBase <= 3 && !G.bases[fwdBase]){
+      // Simple case: next base is empty, forced advance
+      G.bases[fwdBase] = displaced;
+      addPBP(`${displaced.num?'#'+displaced.num+' ':''}${displaced.name} advances to ${fwdBase===2?'2nd':'3rd'} (forced)`);
+      updateRunnerDiamond();
+      setTimeout(()=>openRunners(), 200);
+    } else {
+      // Next base occupied or past 3rd — open runners overlay to resolve
+      G.bases[fwdBase <= 3 ? fwdBase : from] = displaced;
+      updateRunnerDiamond();
+      setTimeout(()=>openRunners(), 200);
+    }
   } else {
     render();
   }

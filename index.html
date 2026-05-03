@@ -1073,16 +1073,17 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
+        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up').neq('event_type', 'voided')
         .order('created_at', { ascending: false })
-        .limit(activeGames.length * 5);
+        .limit(activeGames.length * 10);
       if(evts){
         const lastEvt = {};  // for play description (skips inning_end)
         const stateEvt = {}; // for outs/bases/inning scorebug (uses latest including inning_end)
         evts.forEach(e => {
           if(e.event_type === 'lineup_set') return; // skip for both state and play display
           if(!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
-          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
+          const notesStr = typeof e.notes === 'string' ? e.notes : JSON.stringify(e.notes||'');
+          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)')) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];
@@ -1821,15 +1822,16 @@
       const { data: evts } = await sb.from('game_events')
         .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
         .in('game_id', activeGames.map(g => g.id))
-        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
+        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up').neq('event_type', 'voided')
         .order('created_at', { ascending: false })
-        .limit(activeGames.length * 5);
+        .limit(activeGames.length * 10);
       if (evts) {
         const lastEvt = {};
         const stateEvt = {};
         evts.forEach(e => {
           if (!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
-          if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !(e.notes && e.notes.includes('out (DP)'))) lastEvt[e.game_id] = e;
+          const notesStr = typeof e.notes === 'string' ? e.notes : JSON.stringify(e.notes||'');
+          if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)')) lastEvt[e.game_id] = e;
         });
         activeGames.forEach(g => {
           const e = lastEvt[g.id];

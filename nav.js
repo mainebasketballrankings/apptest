@@ -147,7 +147,7 @@ const MBRNav = (() => {
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
       const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
-      const isPaid = data?.tier === 'paid';
+      const isPaid = data?.tier === 'paid' || data?.tier === 'paid_more';
       renderAuth(session.user, isPaid);
       // Expose for pages that need to gate content
       if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
@@ -159,7 +159,7 @@ const MBRNav = (() => {
     client.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
-        const isPaid = data?.tier === 'paid';
+        const isPaid = data?.tier === 'paid' || data?.tier === 'paid_more';
         renderAuth(session.user, isPaid);
         if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
       } else if (event === 'SIGNED_OUT') {

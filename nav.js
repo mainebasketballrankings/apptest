@@ -72,11 +72,14 @@ const MBRNav = (() => {
 <div id="mbrModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:10px; padding:36px 32px; max-width:380px; width:90%; box-shadow:0 8px 40px rgba(0,0,0,0.18); position:relative;">
     <h2 style="font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Sign In</h2>
-    <p style="font-size:14px; color:#666; margin-bottom:20px;">Enter your email and we'll send you a magic link.</p>
+    <p id="mbrModalDesc" style="font-size:14px; color:#666; margin-bottom:20px;">Enter your email and we'll send you a sign-in code.</p>
     <input type="email" id="mbrEmailInput" placeholder="you@example.com"
       style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:6px; font-size:14px; margin-bottom:12px; font-family:'Barlow',sans-serif;" />
+    <input type="text" id="mbrCodeInput" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric"
+      style="display:none; width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:6px; font-size:22px; letter-spacing:8px; text-align:center; margin-bottom:12px; font-family:'Barlow Condensed',sans-serif; font-weight:700;" />
     <div id="mbrModalMsg" style="font-size:13px; color:#ee6730; margin-bottom:12px; min-height:18px;"></div>
-    <button id="mbrSendBtn" class="mbr-btn mbr-btn-signin" style="width:100%; padding:10px;">Send Magic Link</button>
+    <button id="mbrSendBtn" class="mbr-btn mbr-btn-signin" style="width:100%; padding:10px;">Send Code</button>
+    <button id="mbrVerifyBtn" class="mbr-btn mbr-btn-signin" style="display:none; width:100%; padding:10px;">Verify Code</button>
     <button id="mbrCancelBtn" style="width:100%; margin-top:10px; background:none; border:none; color:#999; font-size:13px; cursor:pointer; font-family:'Barlow',sans-serif;">Cancel</button>
   </div>
 </div>
@@ -147,7 +150,7 @@ const MBRNav = (() => {
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
       const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
-      const isPaid = data?.tier === 'paid' || data?.tier === 'paid_more';
+      const isPaid = data?.tier === 'paid';
       renderAuth(session.user, isPaid);
       // Expose for pages that need to gate content
       if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
@@ -159,7 +162,7 @@ const MBRNav = (() => {
     client.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
-        const isPaid = data?.tier === 'paid' || data?.tier === 'paid_more';
+        const isPaid = data?.tier === 'paid';
         renderAuth(session.user, isPaid);
         if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
       } else if (event === 'SIGNED_OUT') {
@@ -170,23 +173,68 @@ const MBRNav = (() => {
   }
 
   function wireModal() {
-    document.getElementById('mbrCancelBtn').addEventListener('click', closeModal);
+    let _otpEmail = '';
+
+    function resetModal() {
+      _otpEmail = '';
+      document.getElementById('mbrEmailInput').value = '';
+      document.getElementById('mbrEmailInput').style.display = '';
+      document.getElementById('mbrCodeInput').style.display = 'none';
+      document.getElementById('mbrCodeInput').value = '';
+      document.getElementById('mbrSendBtn').style.display = '';
+      document.getElementById('mbrSendBtn').disabled = false;
+      document.getElementById('mbrVerifyBtn').style.display = 'none';
+      document.getElementById('mbrModalMsg').textContent = '';
+      document.getElementById('mbrModalDesc').textContent = "Enter your email and we'll send you a sign-in code.";
+    }
+
+    document.getElementById('mbrCancelBtn').addEventListener('click', () => { resetModal(); closeModal(); });
     document.getElementById('mbrModal').addEventListener('click', (e) => {
-      if (e.target === document.getElementById('mbrModal')) closeModal();
+      if (e.target === document.getElementById('mbrModal')) { resetModal(); closeModal(); }
     });
+
+    // Step 1: send OTP code
     document.getElementById('mbrSendBtn').addEventListener('click', async () => {
       const email = document.getElementById('mbrEmailInput').value.trim();
       const msg = document.getElementById('mbrModalMsg');
       if (!email) { msg.style.color = '#c0392b'; msg.textContent = 'Please enter your email.'; return; }
       msg.style.color = '#555'; msg.textContent = 'Sending…';
-      const redirectTo = window.location.href.split('#')[0];
-      const { error } = await getSB().auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+      const { error } = await getSB().auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
       if (error) {
         msg.style.color = '#c0392b'; msg.textContent = 'Error: ' + error.message;
       } else {
-        msg.style.color = '#ee6730'; msg.textContent = '✓ Check your email for the magic link!';
-        document.getElementById('mbrSendBtn').disabled = true;
+        _otpEmail = email;
+        // Swap to code entry step
+        document.getElementById('mbrEmailInput').style.display = 'none';
+        document.getElementById('mbrSendBtn').style.display = 'none';
+        document.getElementById('mbrCodeInput').style.display = '';
+        document.getElementById('mbrVerifyBtn').style.display = '';
+        document.getElementById('mbrModalDesc').textContent = `Code sent to ${email}. Check your inbox.`;
+        msg.style.color = '#ee6730'; msg.textContent = '';
+        setTimeout(() => document.getElementById('mbrCodeInput').focus(), 100);
       }
+    });
+
+    // Step 2: verify code
+    document.getElementById('mbrVerifyBtn').addEventListener('click', async () => {
+      const token = document.getElementById('mbrCodeInput').value.trim();
+      const msg = document.getElementById('mbrModalMsg');
+      if (token.length !== 6) { msg.style.color = '#c0392b'; msg.textContent = 'Enter the 6-digit code from your email.'; return; }
+      msg.style.color = '#555'; msg.textContent = 'Verifying…';
+      document.getElementById('mbrVerifyBtn').disabled = true;
+      const { error } = await getSB().auth.verifyOtp({ email: _otpEmail, token, type: 'email' });
+      if (error) {
+        msg.style.color = '#c0392b'; msg.textContent = 'Invalid or expired code. Try again.';
+        document.getElementById('mbrVerifyBtn').disabled = false;
+      } else {
+        msg.style.color = '#ee6730'; msg.textContent = '✓ Signed in!';
+        setTimeout(() => { resetModal(); closeModal(); }, 800);
+      }
+    });
+
+    // Allow Enter key on code input
+    document.getElementById('mbrCodeInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('mbrVerifyBtn').click();
     });
   }
 

@@ -781,6 +781,10 @@ function matchPlayer(p, roster) {
   m = pool.find(ep => epNum(ep) === num);
   if (m) return m;
 
+  // Debug: log misses
+  console.log('NO MATCH:', p.name, 'num:', num, typeof p.number,
+    '| pool nums:', pool.map(ep => epNum(ep) + '(' + typeof ep.number + ')').join(', '));
+
   // 3. Last name only (fallback)
   return pool.find(ep => {
     const epLast = ep.name?.split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') || '';

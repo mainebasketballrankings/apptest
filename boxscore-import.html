@@ -794,19 +794,29 @@ function matchPlayer(p, roster) {
 
 // Find team_id in DB by matching box score team name
 async function resolveTeamId(boxScoreTeamName) {
-  // Try exact match first
+  const tn = boxScoreTeamName.toLowerCase();
+
+  // Must match sport — baseball or softball only, prefer same sport as selected team
+  const sportId = selectedTeam?.sport_id;
+
+  // Try exact match first, preferring same sport
   let team = allTeams.find(t =>
-    t.school_name.toLowerCase() === boxScoreTeamName.toLowerCase()
+    t.school_name.toLowerCase() === tn && t.sport_id === sportId
   );
+  if (!team) team = allTeams.find(t => t.school_name.toLowerCase() === tn);
+
   if (!team) {
-    // Fuzzy: box score name contains school name or vice versa
-    team = allTeams.find(t => {
-      const tn   = boxScoreTeamName.toLowerCase();
-      const sn   = t.school_name.toLowerCase();
+    // Fuzzy: prefer same sport_id when ambiguous
+    const candidates = allTeams.filter(t => {
+      const sn = t.school_name.toLowerCase();
       return tn.includes(sn) || sn.includes(tn) ||
         sn.split(' ').some(w => w.length > 3 && tn.includes(w));
     });
+    // Prefer same sport
+    team = candidates.find(t => t.sport_id === sportId) || candidates[0];
   }
+
+  console.log('resolveTeamId:', boxScoreTeamName, '->', team?.school_name, team?.sport_id);
   if (!team) return null;
 
   // Load their roster if not cached

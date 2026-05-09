@@ -764,17 +764,25 @@ ${pdfText}\``;
 // ── PLAYER MATCHING ───────────────────────────────────
 function matchPlayer(p, roster) {
   const pool = roster || existingPlayers;
-  // 1. Number + last name
-  let m = pool.find(ep =>
-    ep.number === p.number &&
-    ep.name?.toLowerCase().includes((p.last || '').toLowerCase())
-  );
+  const last = (p.last || '').toLowerCase().replace(/[^a-z]/g, '');
+  const num  = (p.number || '').toString().trim();
+
+  // 1. Number + last name contains
+  let m = pool.find(ep => {
+    const epLast = ep.name?.split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') || '';
+    return ep.number === num && epLast && last && epLast.includes(last);
+  });
   if (m) return m;
-  // 2. Last name only
-  return pool.find(ep =>
-    (p.last || '').length > 1 &&
-    ep.name?.toLowerCase().includes(p.last.toLowerCase())
-  ) || null;
+
+  // 2. Number alone (reliable within a team)
+  m = pool.find(ep => ep.number === num);
+  if (m) return m;
+
+  // 3. Last name only (fallback)
+  return pool.find(ep => {
+    const epLast = ep.name?.split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') || '';
+    return last.length > 1 && epLast.includes(last);
+  }) || null;
 }
 
 // Find team_id in DB by matching box score team name

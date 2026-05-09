@@ -1001,11 +1001,21 @@
 
   async function loadRanks(dateStr) {
     rankMap = {};
+    // Get most recent snapshot date first (1 row), then fetch only that date
+    const { data: dateData } = await sb
+      .from('rankings_snapshots')
+      .select('snapshot_date')
+      .eq('season_year', 2026)
+      .order('snapshot_date', { ascending: false })
+      .limit(1);
+    if (!dateData || !dateData.length) return;
+    const latestDate = dateData[0].snapshot_date;
     const { data } = await sb
       .from('rankings_snapshots')
       .select('team_id, rank_overall')
-      .order('snapshot_date', { ascending: false });
-    if (data) data.forEach(r => { if (!rankMap[r.team_id]) rankMap[r.team_id] = r.rank_overall; });
+      .eq('snapshot_date', latestDate)
+      .eq('season_year', 2026);
+    if (data) data.forEach(r => { rankMap[r.team_id] = r.rank_overall; });
   }
 
   async function fetchSportGames(ds, sport, season) {
@@ -1037,14 +1047,15 @@
     document.getElementById('gamesContainer').innerHTML =
       `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
 
-    await loadRanks(ds);
-
-    // Fetch all sports in parallel
-    const results = await Promise.all(
-      SPORT_PRIORITY.map(({ sport, season }) =>
-        fetchSportGames(ds, sport, season).then(games => ({ sport, season, games }))
+    // Fetch ranks + all sports in parallel
+    const [, results] = await Promise.all([
+      loadRanks(ds),
+      Promise.all(
+        SPORT_PRIORITY.map(({ sport, season }) =>
+          fetchSportGames(ds, sport, season).then(games => ({ sport, season, games }))
+        )
       )
-    );
+    ]);
 
     // Build allSportsGames, fetch notes for all games
     allSportsGames = {};

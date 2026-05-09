@@ -1,455 +1,364 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Box Score Import · MBR</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<style>
-  :root {
-    --orange: #ee6730;
-    --orange-dim: #c4521f;
-    --bg: #0f1117;
-    --surface: #181c25;
-    --surface2: #1f2433;
-    --border: #2a3040;
-    --text: #e8eaf0;
-    --text-dim: #8a95a8;
-    --green: #2ecc71;
-    --amber: #f0a500;
-    --red: #e74c3c;
-    --blue: #3b82f6;
-  }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Box Score Import — Maine Basketball Rankings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --orange: #ee6730;
+      --green:  #1a7a4a;
+      --red:    #c0392b;
+      --amber:  #b36a00;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+    body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--black); min-height: 100vh; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+    .page { max-width: 820px; margin: 0 auto; padding: 32px 20px 100px; }
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: var(--lgray); margin-bottom: 28px; line-height: 1.5; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Barlow', sans-serif;
-    font-size: 15px;
-    min-height: 100vh;
-  }
+    /* STEPS */
+    .step { background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; transition: opacity 0.2s; }
+    .step.locked { opacity: 0.4; pointer-events: none; }
+    .step-head {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+      font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--lgray); background: #fafafa;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+      border-radius: 10px 10px 0 0;
+    }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--border); color: var(--gray);
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 12px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: background 0.2s, color 0.2s;
+    }
+    .step.active .step-num  { background: var(--orange); color: #fff; }
+    .step.done   .step-num  { background: var(--green);  color: #fff; }
+    .step.active .step-head { color: var(--black); background: #fff; }
+    .step-body { padding: 18px; }
 
-  /* NAV */
-  nav {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 0 20px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .nav-logo { font-weight: 700; font-size: 17px; color: var(--orange); letter-spacing: .5px; text-decoration: none; }
-  .nav-title { font-weight: 600; font-size: 14px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
-  #authStatus { font-size: 13px; color: var(--text-dim); }
+    /* SCHOOL SEARCH */
+    .search-wrap { position: relative; }
+    .search-input {
+      width: 100%; border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-size: 15px; font-family: 'Barlow', sans-serif;
+      outline: none; transition: border-color 0.15s; background: var(--white);
+    }
+    .search-input:focus { border-color: var(--orange); }
+    .search-input.selected { border-color: var(--green); background: #f6fdf9; font-weight: 600; }
+    .dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 8px; max-height: 280px; overflow-y: auto;
+      z-index: 500; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+    }
+    .dropdown-item {
+      padding: 10px 14px; font-size: 14px; cursor: pointer;
+      border-bottom: 1px solid var(--border); transition: background 0.1s;
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:hover { background: #fff7f3; }
+    .dropdown-item .school-name { font-weight: 600; }
+    .sport-tag {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 11px;
+      color: var(--orange); font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+      background: #fff3ee; border: 1px solid #f5c8b8; border-radius: 3px; padding: 1px 5px;
+    }
+    .dropdown-empty { padding: 12px 14px; font-size: 13px; color: var(--lgray); font-style: italic; }
 
-  /* LAYOUT */
-  .container { max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
+    /* CONFIRMED */
+    .confirmed-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #f0faf5; border: 1px solid #b6dfcc;
+      border-radius: 6px; padding: 8px 14px;
+      font-size: 14px; font-weight: 600; color: var(--green);
+    }
+    .change-link { margin-left: 10px; font-size: 12px; color: var(--lgray); cursor: pointer; text-decoration: underline; }
 
-  h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
-  .subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 28px; }
+    /* SCHEDULE */
+    .schedule-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; }
+    table.sched-tbl { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 480px; }
+    table.sched-tbl thead tr { background: #f8f8f8; border-bottom: 2px solid var(--border); }
+    table.sched-tbl th {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+      color: var(--lgray); padding: 9px 12px; text-align: left; white-space: nowrap;
+    }
+    table.sched-tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    table.sched-tbl tr:last-child td { border-bottom: none; }
+    table.sched-tbl tr:hover td { background: #fafafa; }
+    .sched-opp { font-weight: 600; }
+    .sched-ha { font-size: 11px; color: var(--lgray); font-style: italic; margin-left: 4px; }
+    .score-w { color: var(--green); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; }
+    .score-l { color: var(--red);   font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; }
+    .score-n { color: var(--lgray); font-size: 12px; }
+    .tag-uploaded {
+      display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+      font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: .4px;
+      color: var(--green); background: #f0faf5; border: 1px solid #b6dfcc; padding: 3px 8px; border-radius: 20px;
+    }
+    .tag-pending { font-size: 11px; color: var(--lgray); font-style: italic; }
 
-  /* TEAM SELECTOR */
-  .team-selector {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 24px;
-  }
-  .team-selector label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 600; display: block; margin-bottom: 8px; }
-  .team-selector select {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'Barlow', sans-serif;
-    font-size: 15px;
-    padding: 10px 14px;
-    border-radius: 6px;
-    width: 100%;
-    max-width: 420px;
-    cursor: pointer;
-  }
-  .team-selector select:focus { outline: none; border-color: var(--orange); }
+    /* BUTTONS */
+    .btn {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 13px; letter-spacing: .5px; text-transform: uppercase;
+      border: none; border-radius: 6px; padding: 8px 18px;
+      cursor: pointer; transition: opacity .15s, background .15s;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-orange { background: var(--orange); color: #fff; }
+    .btn-orange:hover:not(:disabled) { opacity: .85; }
+    .btn-ghost { background: transparent; color: var(--gray); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--orange); color: var(--orange); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
 
-  /* SCHEDULE TABLE */
-  .schedule-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 32px;
-  }
-  .schedule-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .schedule-header h2 { font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; }
-  .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: .5px; }
-  .badge-orange { background: var(--orange); color: #fff; }
-  .badge-green { background: rgba(46,204,113,.15); color: var(--green); border: 1px solid rgba(46,204,113,.3); }
-  .badge-dim { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 200;
+      align-items: flex-start; justify-content: center;
+      padding: 32px 16px; overflow-y: auto;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 12px; width: 100%; max-width: 880px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.15);
+      animation: fadeUp .18s ease;
+    }
+    @keyframes fadeUp { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .modal-head {
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    }
+    .modal-head h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 800; }
+    .modal-meta { font-size: 12px; color: var(--lgray); margin-top: 2px; }
+    .modal-close { background: none; border: none; font-size: 24px; color: var(--lgray); cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+    .modal-close:hover { color: var(--black); }
+    .modal-body { padding: 22px; }
 
-  table { width: 100%; border-collapse: collapse; }
-  thead th {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .8px;
-    color: var(--text-dim);
-    padding: 10px 20px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface2);
-  }
-  tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
-  tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: var(--surface2); }
-  td { padding: 13px 20px; font-size: 14px; vertical-align: middle; }
-  .td-date { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; color: var(--text-dim); white-space: nowrap; }
-  .td-opp { font-weight: 600; }
-  .td-score { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 600; }
-  .score-w { color: var(--green); }
-  .score-l { color: var(--red); }
-  .td-action { text-align: right; }
+    /* DROP ZONE */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 52px 24px; text-align: center; cursor: pointer;
+      transition: all .2s; position: relative; background: #fafafa;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--orange); background: #fff7f3; }
+    .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-icon { font-size: 36px; margin-bottom: 10px; }
+    .drop-label { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+    .drop-sub { font-size: 13px; color: var(--lgray); }
 
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border-radius: 6px;
-    font-family: 'Barlow', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all .15s;
-    text-decoration: none;
-  }
-  .btn-orange { background: var(--orange); color: #fff; }
-  .btn-orange:hover { background: var(--orange-dim); }
-  .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-  .btn-ghost:hover { border-color: var(--orange); color: var(--orange); }
-  .btn-green { background: rgba(46,204,113,.15); color: var(--green); border: 1px solid rgba(46,204,113,.3); }
-  .btn-green:hover { background: rgba(46,204,113,.25); }
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
-  .btn:disabled { opacity: .4; cursor: not-allowed; }
+    /* PARSING */
+    .parse-state { text-align: center; padding: 52px 24px; display: none; }
+    .parse-state.active { display: block; }
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--orange); border-radius: 50%;
+      animation: spin 1s linear infinite; margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-  .status-uploaded { color: var(--green); font-size: 13px; display: flex; align-items: center; gap: 5px; }
-  .status-pending { color: var(--text-dim); font-size: 13px; }
+    /* PREVIEW */
+    .preview-section { display: none; }
+    .preview-section.active { display: block; }
 
-  /* MODAL */
-  .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.7);
-    z-index: 200;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 40px 16px;
-    overflow-y: auto;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 900px;
-    overflow: hidden;
-    animation: slideUp .2s ease;
-  }
-  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .game-info-bar {
+      display: flex; flex-wrap: wrap;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 18px;
+    }
+    .gi-item { flex: 1; min-width: 110px; padding: 11px 15px; border-right: 1px solid var(--border); }
+    .gi-item:last-child { border-right: none; }
+    .gi-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--lgray); margin-bottom: 3px; }
+    .gi-val { font-weight: 600; font-size: 14px; }
 
-  .modal-head {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .modal-head h2 { font-size: 17px; font-weight: 700; }
-  .modal-close { background: none; border: none; color: var(--text-dim); font-size: 22px; cursor: pointer; line-height: 1; padding: 4px; }
-  .modal-close:hover { color: var(--text); }
-  .modal-body { padding: 24px; }
+    .preview-tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 14px; }
+    .preview-tab {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px;
+      text-transform: uppercase; letter-spacing: .6px;
+      padding: 10px 20px; cursor: pointer; border: none; background: none;
+      color: var(--lgray); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .15s;
+    }
+    .preview-tab.active { color: var(--orange); border-bottom-color: var(--orange); }
 
-  /* DROP ZONE */
-  .drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: 10px;
-    padding: 48px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: all .2s;
-    position: relative;
-  }
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--orange);
-    background: rgba(238,103,48,.05);
-  }
-  .drop-zone input[type=file] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-  }
-  .drop-icon { font-size: 40px; margin-bottom: 12px; }
-  .drop-label { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-  .drop-sub { font-size: 13px; color: var(--text-dim); }
+    .prev-tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 16px; }
+    table.prev-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.prev-tbl th {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 10px;
+      text-transform: uppercase; letter-spacing: .6px; color: var(--lgray);
+      padding: 8px 9px; text-align: left; white-space: nowrap;
+      background: #f8f8f8; border-bottom: 1px solid var(--border);
+    }
+    table.prev-tbl td { padding: 6px 9px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    table.prev-tbl tr:last-child td { border-bottom: none; }
+    table.prev-tbl tr:hover td { background: #fafafa; }
 
-  /* PARSING STATE */
-  .parse-state {
-    display: none;
-    text-align: center;
-    padding: 40px 24px;
-  }
-  .parse-state.active { display: block; }
-  .spinner {
-    width: 40px; height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--orange);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 16px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+    .tag-new {
+      display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+      background: #fff8e6; color: var(--amber); border: 1px solid #f5d98a;
+      padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle;
+    }
+    .tag-match {
+      display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+      background: #f0faf5; color: var(--green); border: 1px solid #b6dfcc;
+      padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle;
+    }
+    .editable {
+      border: 1px solid transparent; border-radius: 3px; background: transparent;
+      color: var(--black); font-family: 'Barlow Condensed', sans-serif; font-size: 13px;
+      padding: 2px 5px; width: 100%; min-width: 34px; transition: border-color .12s;
+    }
+    .editable:focus { outline: none; border-color: var(--orange); background: #fff7f3; }
 
-  /* PREVIEW */
-  .preview-section { display: none; }
-  .preview-section.active { display: block; }
+    .preview-footer {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .preview-footer .spacer { flex: 1; }
+    .prev-summary { font-size: 13px; color: var(--lgray); }
+    .prev-summary strong { color: var(--black); }
+    .prev-summary .new-count { color: var(--amber); font-weight: 600; }
 
-  .preview-game-info {
-    background: var(--surface2);
-    border-radius: 8px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
-  }
-  .info-item label { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-dim); font-weight: 600; display: block; margin-bottom: 3px; }
-  .info-item span { font-size: 15px; font-weight: 600; }
+    /* ERROR */
+    .error-box { background: #fdf0f0; border: 1px solid #f5c6c6; border-radius: 6px; padding: 12px 16px; color: var(--red); font-size: 13px; margin-bottom: 14px; display: none; }
+    .error-box.active { display: block; }
+    .warn-box { background: #fffbf0; border: 1px solid #f5e4a0; border-radius: 6px; padding: 12px 16px; color: var(--amber); font-size: 13px; margin-bottom: 14px; display: none; }
+    .warn-box.active { display: block; }
 
-  .preview-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .preview-tab {
-    padding: 10px 18px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-dim);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: all .15s;
-    background: none;
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    font-family: 'Barlow', sans-serif;
-  }
-  .preview-tab.active { color: var(--orange); border-bottom-color: var(--orange); }
+    /* SUCCESS */
+    .success-state { display: none; text-align: center; padding: 52px 24px; }
+    .success-state.active { display: block; }
+    .success-icon { font-size: 48px; margin-bottom: 14px; }
+    .success-state h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 900; color: var(--green); margin-bottom: 6px; }
+    .success-state p { font-size: 14px; color: var(--gray); margin-bottom: 22px; }
+    .success-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
-  .preview-table-wrap { overflow-x: auto; margin-bottom: 20px; }
-  .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .preview-table th {
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
-    color: var(--text-dim); padding: 8px 10px; text-align: left;
-    border-bottom: 1px solid var(--border); white-space: nowrap;
-  }
-  .preview-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
-  .preview-table tr:last-child td { border-bottom: none; }
-  .preview-table tr.new-player td:first-child { position: relative; }
-  .new-tag {
-    display: inline-block;
-    font-size: 9px; font-weight: 700; text-transform: uppercase;
-    background: rgba(240,165,0,.15); color: var(--amber); border: 1px solid rgba(240,165,0,.3);
-    padding: 1px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle;
-  }
-  .match-tag {
-    display: inline-block;
-    font-size: 9px; font-weight: 700; text-transform: uppercase;
-    background: rgba(46,204,113,.1); color: var(--green); border: 1px solid rgba(46,204,113,.25);
-    padding: 1px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle;
-  }
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--black); color: #fff; padding: 10px 20px;
+      border-radius: 8px; font-size: 14px; font-weight: 600;
+      transition: transform .25s; z-index: 999; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.err  { background: var(--red); }
 
-  .editable {
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--text);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px;
-    padding: 3px 6px;
-    border-radius: 4px;
-    width: 100%;
-    min-width: 40px;
-    transition: border-color .15s;
-  }
-  .editable:focus { outline: none; border-color: var(--orange); background: var(--bg); }
-
-  .preview-actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    flex-wrap: wrap;
-  }
-  .preview-actions .spacer { flex: 1; }
-  .preview-summary { font-size: 13px; color: var(--text-dim); }
-  .preview-summary strong { color: var(--text); }
-
-  /* SUCCESS */
-  .success-state { display: none; text-align: center; padding: 48px 24px; }
-  .success-state.active { display: block; }
-  .success-icon { font-size: 56px; margin-bottom: 16px; }
-  .success-state h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-  .success-state p { color: var(--text-dim); font-size: 14px; }
-
-  /* ERROR */
-  .error-box {
-    background: rgba(231,76,60,.1);
-    border: 1px solid rgba(231,76,60,.3);
-    border-radius: 8px;
-    padding: 14px 18px;
-    color: #e74c3c;
-    font-size: 14px;
-    margin-bottom: 16px;
-    display: none;
-  }
-  .error-box.active { display: block; }
-
-  /* EMPTY / LOADING */
-  .empty { text-align: center; padding: 48px 24px; color: var(--text-dim); font-size: 14px; }
-  .loading-row td { color: var(--text-dim); text-align: center; padding: 32px; font-size: 14px; }
-
-  @media (max-width: 600px) {
-    .preview-game-info { gap: 16px; }
-    td { padding: 10px 14px; }
-    thead th { padding: 8px 14px; }
-  }
-</style>
+    .placeholder { padding: 28px; text-align: center; color: var(--lgray); font-size: 13px; }
+    .sched-summary { font-size: 12px; color: var(--lgray); padding: 10px 12px 4px; }
+  </style>
 </head>
 <body>
 
-<nav>
-  <a class="nav-logo" href="/">MBR</a>
-  <span class="nav-title">Box Score Import</span>
-  <span id="authStatus">Loading…</span>
-</nav>
+<div class="page">
+  <h1 class="page-title">Box Score Import</h1>
+  <p class="page-sub">Upload a GameChanger box score PDF to push batting and pitching stats to player profiles. Stats accumulate — each game adds to the season totals.</p>
 
-<div class="container">
-  <h1>Box Score Import</h1>
-  <p class="subtitle">Upload GameChanger box score PDFs to push stats to your team's player profiles.</p>
-
-  <div id="authGate" style="display:none">
-    <div class="empty">You need to be signed in to use this page. <a href="/login" style="color:var(--orange)">Sign in</a></div>
+  <!-- STEP 1 -->
+  <div class="step active" id="step1">
+    <div class="step-head"><div class="step-num">1</div>Find Your Team</div>
+    <div class="step-body">
+      <div class="search-wrap">
+        <input type="text" id="schoolSearch" class="search-input"
+          placeholder="Type school name (e.g. Camden Hills, Lincoln Academy…)"
+          autocomplete="off" />
+        <div class="dropdown" id="schoolDropdown" style="display:none"></div>
+      </div>
+      <div id="teamConfirmed" style="margin-top:12px;display:none"></div>
+    </div>
   </div>
 
-  <div id="mainContent" style="display:none">
-
-    <div class="team-selector">
-      <label>Your Team</label>
-      <select id="teamSelect">
-        <option value="">— select team —</option>
-      </select>
+  <!-- STEP 2 -->
+  <div class="step locked" id="step2">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <span id="step2Label">Pick a Game</span>
     </div>
-
-    <div class="schedule-wrap" id="scheduleWrap" style="display:none">
-      <div class="schedule-header">
-        <h2 id="scheduleTitle">Schedule</h2>
-        <span id="uploadedCount" class="badge badge-dim">0 uploaded</span>
+    <div class="step-body">
+      <div id="scheduleContainer">
+        <div class="placeholder">Select a team above to see the schedule.</div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Opponent</th>
-            <th>Result</th>
-            <th>Stats</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="scheduleBody">
-          <tr class="loading-row"><td colspan="5">Loading schedule…</td></tr>
-        </tbody>
-      </table>
     </div>
+  </div>
 
-  </div><!-- /mainContent -->
 </div>
 
-<!-- IMPORT MODAL -->
+<!-- MODAL -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-head">
-      <h2 id="modalTitle">Import Box Score</h2>
+      <div>
+        <h2 id="modalTitle">Import Box Score</h2>
+        <div class="modal-meta" id="modalMeta"></div>
+      </div>
       <button class="modal-close" id="modalClose">×</button>
     </div>
     <div class="modal-body">
 
+      <div class="warn-box"  id="warnBox"></div>
       <div class="error-box" id="errorBox"></div>
 
-      <!-- STEP 1: Upload -->
+      <!-- A: Upload -->
       <div id="stepUpload">
         <div class="drop-zone" id="dropZone">
-          <input type="file" id="fileInput" accept=".pdf">
+          <input type="file" id="fileInput" accept=".pdf" />
           <div class="drop-icon">📄</div>
           <div class="drop-label">Drop GameChanger PDF here</div>
           <div class="drop-sub">or click to browse · PDF files only</div>
         </div>
       </div>
 
-      <!-- STEP 2: Parsing -->
+      <!-- B: Parsing -->
       <div class="parse-state" id="stepParsing">
         <div class="spinner"></div>
-        <div style="font-size:15px; font-weight:600; margin-bottom:6px">Reading box score…</div>
-        <div style="font-size:13px; color:var(--text-dim)">Claude is extracting batting and pitching stats</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:4px">Reading box score…</div>
+        <div style="font-size:13px;color:var(--lgray)">Claude is extracting batting and pitching stats</div>
       </div>
 
-      <!-- STEP 3: Preview -->
+      <!-- C: Preview -->
       <div class="preview-section" id="stepPreview">
-        <div class="preview-game-info" id="gameInfoBar"></div>
-
+        <div class="game-info-bar" id="gameInfoBar"></div>
         <div class="preview-tabs">
           <button class="preview-tab active" data-tab="batting">Batting</button>
           <button class="preview-tab" data-tab="pitching">Pitching</button>
         </div>
-
-        <div class="preview-table-wrap">
-          <table class="preview-table" id="previewTable">
-            <thead id="previewHead"></thead>
-            <tbody id="previewBody"></tbody>
+        <div class="prev-tbl-wrap">
+          <table class="prev-tbl">
+            <thead id="prevHead"></thead>
+            <tbody id="prevBody"></tbody>
           </table>
         </div>
-
-        <div class="preview-actions">
-          <div class="preview-summary" id="previewSummary"></div>
+        <div class="preview-footer">
+          <div class="prev-summary" id="prevSummary"></div>
           <div class="spacer"></div>
-          <button class="btn btn-ghost" id="btnRestart">↩ Try Different File</button>
-          <button class="btn btn-orange" id="btnConfirm">✓ Push to Supabase</button>
+          <button class="btn btn-ghost" id="btnRestart">↩ Different File</button>
+          <button class="btn btn-orange" id="btnConfirm">✓ Push Stats</button>
         </div>
       </div>
 
-      <!-- STEP 4: Success -->
+      <!-- D: Success -->
       <div class="success-state" id="stepSuccess">
         <div class="success-icon">✅</div>
         <h3>Stats Imported!</h3>
-        <p id="successMsg">Player stats have been updated.</p>
-        <div style="margin-top:24px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-          <button class="btn btn-ghost" id="btnImportAnother">Import Another</button>
+        <p id="successMsg"></p>
+        <div class="success-btns">
+          <button class="btn btn-ghost" id="btnAnother">Import Another Game</button>
           <button class="btn btn-orange" id="btnDone">Done</button>
         </div>
       </div>
@@ -458,320 +367,386 @@
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
-const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SUPABASE_URL  = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDI0MzQ3NjMsImV4cCI6MjAxODAxMDc2M30.9YSIAFhpFOGBpNvFSUbfGRMlFMOBJ6lZtWLRBfj-4yA';
-
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-let currentUser = null;
-let currentTeamId = null;
-let currentTeamName = '';
-let currentGame = null;
-let parsedData = null;
-let activeTab = 'batting';
-let existingPlayers = []; // players already in DB for this team
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// ── AUTH ──────────────────────────────────────────────
+const SPORT_LABELS = { 'c87a4d6c': 'Baseball', '095c9841': 'Softball' };
+const SPRING_SPORT_IDS = Object.keys(SPORT_LABELS);
+
+// ── STATE ─────────────────────────────────────────────
+let allTeams        = [];
+let selectedTeam    = null;
+let existingPlayers = [];
+let currentGame     = null;
+let parsedData      = null;
+let activeTab       = 'batting';
+
+// ── BOOT ──────────────────────────────────────────────
 async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) {
-    document.getElementById('authStatus').textContent = 'Not signed in';
-    document.getElementById('authGate').style.display = '';
-    return;
-  }
-  currentUser = session.user;
-  document.getElementById('authStatus').textContent = session.user.email;
-  document.getElementById('mainContent').style.display = '';
-  await loadTeams();
-}
-
-// ── TEAMS ─────────────────────────────────────────────
-async function loadTeams() {
-  // Try to find teams the coach is associated with
-  // Fall back to all teams if no coach<>team mapping exists yet
-  const { data: teams, error } = await sb
-    .from('teams')
+  const { data, error } = await sb.from('teams')
     .select('id, school_name, gender, sport_id')
-    .in('sport_id', ['c87a4d6c', '095c9841']) // baseball + softball for now
+    .in('sport_id', SPRING_SPORT_IDS)
     .order('school_name');
+  if (!error && data) allTeams = data;
+}
 
-  if (error || !teams?.length) {
-    document.getElementById('teamSelect').innerHTML = '<option value="">No teams found</option>';
+// ── SCHOOL SEARCH ─────────────────────────────────────
+const schoolInput    = document.getElementById('schoolSearch');
+const schoolDropdown = document.getElementById('schoolDropdown');
+
+schoolInput.addEventListener('input', () => {
+  const q = schoolInput.value.trim().toLowerCase();
+  if (q.length < 2) { schoolDropdown.style.display = 'none'; return; }
+
+  const bySchool = {};
+  allTeams.forEach(t => {
+    if (!t.school_name.toLowerCase().includes(q)) return;
+    if (!bySchool[t.school_name]) bySchool[t.school_name] = [];
+    bySchool[t.school_name].push(t);
+  });
+
+  const schools = Object.entries(bySchool).slice(0, 12);
+  if (!schools.length) {
+    schoolDropdown.innerHTML = '<div class="dropdown-empty">No teams found</div>';
+    schoolDropdown.style.display = '';
     return;
   }
 
-  const sel = document.getElementById('teamSelect');
-  sel.innerHTML = '<option value="">— select team —</option>';
-  teams.forEach(t => {
-    const sport = t.sport_id === 'c87a4d6c' ? 'Baseball' : 'Softball';
-    const gender = t.gender === 'boys' ? "Boys'" : t.gender === 'girls' ? "Girls'" : '';
-    const opt = document.createElement('option');
-    opt.value = t.id;
-    opt.textContent = `${t.school_name} – ${gender} ${sport}`;
-    opt.dataset.name = t.school_name;
-    sel.appendChild(opt);
-  });
+  schoolDropdown.innerHTML = schools.map(([name, teams]) => {
+    const tags = teams.map(t => {
+      const sport  = SPORT_LABELS[t.sport_id] || '';
+      const gender = t.gender === 'girls' ? "Girls' " : t.gender === 'boys' ? "Boys' " : '';
+      return `<span class="sport-tag">${gender}${sport}</span>`;
+    }).join('');
+    return `<div class="dropdown-item" data-school="${esc(name)}">
+      <span class="school-name">${name}</span>${tags}
+    </div>`;
+  }).join('');
+  schoolDropdown.style.display = '';
 
-  sel.addEventListener('change', () => {
-    const opt = sel.options[sel.selectedIndex];
-    currentTeamId = sel.value || null;
-    currentTeamName = opt?.dataset?.name || '';
-    if (currentTeamId) loadSchedule();
-    else document.getElementById('scheduleWrap').style.display = 'none';
+  schoolDropdown.querySelectorAll('.dropdown-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const school = item.dataset.school;
+      const teams  = allTeams.filter(t => t.school_name === school);
+      if (teams.length === 1) {
+        selectTeam(teams[0]);
+      } else {
+        // Sub-picker for multiple sports at same school
+        schoolDropdown.innerHTML = teams.map(t => {
+          const sport  = SPORT_LABELS[t.sport_id] || t.sport_id;
+          const gender = t.gender === 'girls' ? "Girls'" : t.gender === 'boys' ? "Boys'" : '';
+          return `<div class="dropdown-item" data-team-id="${t.id}">
+            <span class="school-name">${school}</span>
+            <span class="sport-tag">${gender} ${sport}</span>
+          </div>`;
+        }).join('');
+        schoolDropdown.querySelectorAll('.dropdown-item').forEach(sub => {
+          sub.addEventListener('click', () => {
+            const team = teams.find(t => t.id === sub.dataset.teamId);
+            if (team) selectTeam(team);
+          });
+        });
+      }
+    });
   });
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) schoolDropdown.style.display = 'none';
+});
+
+function selectTeam(team) {
+  selectedTeam = team;
+  schoolDropdown.style.display = 'none';
+  schoolInput.value = '';
+  schoolInput.classList.add('selected');
+
+  const sport  = SPORT_LABELS[team.sport_id] || '';
+  const gender = team.gender === 'girls' ? "Girls'" : team.gender === 'boys' ? "Boys'" : '';
+  const label  = `${team.school_name} — ${gender} ${sport}`;
+
+  const conf = document.getElementById('teamConfirmed');
+  conf.style.display = '';
+  conf.innerHTML = `<span class="confirmed-badge">✓ ${label}</span>
+    <span class="change-link" onclick="resetTeam()">Change</span>`;
+
+  markStep(1, 'done');
+  unlockStep(2);
+  document.getElementById('step2Label').textContent = label + ' Schedule';
+  loadSchedule(team);
 }
 
-// ── SCHEDULE ──────────────────────────────────────────
-async function loadSchedule() {
-  document.getElementById('scheduleWrap').style.display = '';
-  document.getElementById('scheduleTitle').textContent = currentTeamName + ' Schedule';
-  document.getElementById('scheduleBody').innerHTML = '<tr class="loading-row"><td colspan="5">Loading…</td></tr>';
+function resetTeam() {
+  selectedTeam = null;
+  schoolInput.value = '';
+  schoolInput.classList.remove('selected');
+  document.getElementById('teamConfirmed').style.display = 'none';
+  markStep(1, 'active');
+  markStep(2, 'locked');
+  document.getElementById('scheduleContainer').innerHTML =
+    '<div class="placeholder">Select a team above to see the schedule.</div>';
+}
+
+// ── SCHEDULE ─────────────────────────────────────────
+async function loadSchedule(team) {
+  document.getElementById('scheduleContainer').innerHTML =
+    '<div class="placeholder">Loading schedule…</div>';
 
   const { data: games, error } = await sb
     .from('games')
-    .select(`
-      id, game_date, status, home_score, away_score, stats_uploaded,
+    .select(`id, game_date, status, home_score, away_score, stats_uploaded,
       home_team:home_team_id(id, school_name),
-      away_team:away_team_id(id, school_name)
-    `)
-    .or(`home_team_id.eq.${currentTeamId},away_team_id.eq.${currentTeamId}`)
+      away_team:away_team_id(id, school_name)`)
+    .or(`home_team_id.eq.${team.id},away_team_id.eq.${team.id}`)
     .eq('season_year', 2026)
     .order('game_date');
 
   if (error) {
-    document.getElementById('scheduleBody').innerHTML = `<tr class="loading-row"><td colspan="5">Error loading schedule</td></tr>`;
+    document.getElementById('scheduleContainer').innerHTML =
+      '<div class="placeholder">Error loading schedule.</div>';
     return;
   }
-
-  existingPlayers = await loadExistingPlayers();
-
-  const tbody = document.getElementById('scheduleBody');
-  let uploadedCount = 0;
-
   if (!games?.length) {
-    tbody.innerHTML = '<tr class="loading-row"><td colspan="5">No games found for this team</td></tr>';
-    updateUploadedBadge(0, 0);
+    document.getElementById('scheduleContainer').innerHTML =
+      '<div class="placeholder">No games found for this team.</div>';
     return;
   }
 
-  tbody.innerHTML = '';
-  games.forEach(g => {
-    const isHome = g.home_team?.id === currentTeamId;
-    const opponent = isHome ? g.away_team?.school_name : g.home_team?.school_name;
-    const myScore = isHome ? g.home_score : g.away_score;
+  existingPlayers = await loadExistingPlayers(team.id);
+
+  let uploadedCount = 0;
+  const finalGames  = games.filter(g => g.status === 'final');
+
+  const rows = games.map(g => {
+    const isHome   = g.home_team?.id === team.id;
+    const opp      = isHome ? g.away_team?.school_name : g.home_team?.school_name;
+    const myScore  = isHome ? g.home_score : g.away_score;
     const oppScore = isHome ? g.away_score : g.home_score;
-    const isFinal = g.status === 'final';
+    const isFinal  = g.status === 'final';
     const uploaded = !!g.stats_uploaded;
     if (uploaded) uploadedCount++;
 
-    const dateStr = g.game_date ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '—';
+    const dateStr = g.game_date
+      ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' })
+      : '—';
 
-    let resultHtml = '<span style="color:var(--text-dim)">—</span>';
+    let resultHtml = '<span class="score-n">—</span>';
     if (isFinal && myScore !== null && oppScore !== null) {
-      const win = myScore > oppScore;
-      const cls = win ? 'score-w' : 'score-l';
-      const letter = win ? 'W' : 'L';
-      resultHtml = `<span class="${cls} td-score">${letter} ${myScore}–${oppScore}</span>`;
+      const w = myScore > oppScore;
+      resultHtml = `<span class="${w ? 'score-w' : 'score-l'}">${w ? 'W' : 'L'} ${myScore}–${oppScore}</span>`;
     } else if (g.status === 'scheduled') {
-      resultHtml = '<span style="color:var(--text-dim);font-size:13px">Scheduled</span>';
+      resultHtml = '<span class="score-n">Scheduled</span>';
     }
 
-    let statsHtml, actionHtml;
-    if (uploaded) {
-      statsHtml = '<span class="status-uploaded">✓ Uploaded</span>';
-      actionHtml = `<button class="btn btn-ghost btn-sm" onclick="openModal(${JSON.stringify(g).replace(/"/g, '&quot;')})">Re-import</button>`;
-    } else if (isFinal) {
-      statsHtml = '<span class="status-pending">Pending</span>';
-      actionHtml = `<button class="btn btn-orange btn-sm" onclick="openModal(${JSON.stringify(g).replace(/"/g, '&quot;')})">Upload PDF</button>`;
-    } else {
-      statsHtml = '<span style="color:var(--text-dim);font-size:13px">—</span>';
-      actionHtml = '';
-    }
+    const statsCell = uploaded
+      ? '<span class="tag-uploaded">✓ Uploaded</span>'
+      : isFinal ? '<span class="tag-pending">Pending</span>' : '<span class="score-n">—</span>';
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="td-date">${dateStr}</td>
-      <td class="td-opp">${opponent || 'TBD'} <span style="color:var(--text-dim);font-size:12px">${isHome ? 'vs' : '@'}</span></td>
+    // Serialize safely for inline handler
+    const gSafe = encodeGame(g);
+    const actionCell = isFinal
+      ? `<button class="btn btn-sm ${uploaded ? 'btn-ghost' : 'btn-orange'}"
+           onclick="openModal(decodeGame('${gSafe}'))">
+           ${uploaded ? 'Re-import' : 'Upload PDF'}
+         </button>`
+      : '';
+
+    return `<tr>
+      <td style="color:var(--lgray);font-size:12px;white-space:nowrap">${dateStr}</td>
+      <td class="sched-opp">${opp || 'TBD'}<span class="sched-ha">${isHome ? 'vs' : '@'}</span></td>
       <td>${resultHtml}</td>
-      <td>${statsHtml}</td>
-      <td class="td-action">${actionHtml}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+      <td>${statsCell}</td>
+      <td style="text-align:right">${actionCell}</td>
+    </tr>`;
+  }).join('');
 
-  updateUploadedBadge(uploadedCount, games.filter(g => g.status === 'final').length);
+  const summary = finalGames.length
+    ? `<div class="sched-summary">${uploadedCount} of ${finalGames.length} completed games have stats imported.</div>`
+    : '';
+
+  document.getElementById('scheduleContainer').innerHTML = `
+    ${summary}
+    <div class="schedule-wrap">
+      <table class="sched-tbl">
+        <thead><tr>
+          <th>Date</th><th>Opponent</th><th>Result</th><th>Stats</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
-function updateUploadedBadge(uploaded, total) {
-  const badge = document.getElementById('uploadedCount');
-  badge.textContent = `${uploaded} / ${total} uploaded`;
-  badge.className = 'badge ' + (uploaded === total && total > 0 ? 'badge-green' : 'badge-dim');
+// Safe game serialization for inline onclick (avoids quote issues)
+function encodeGame(g) {
+  return btoa(encodeURIComponent(JSON.stringify(g)));
+}
+function decodeGame(s) {
+  return JSON.parse(decodeURIComponent(atob(s)));
 }
 
-async function loadExistingPlayers() {
-  if (!currentTeamId) return [];
-  const { data } = await sb.from('players').select('id, name, number, season_year').eq('team_id', currentTeamId).eq('season_year', 2026);
+async function loadExistingPlayers(teamId) {
+  const { data } = await sb.from('players')
+    .select('id, name, number, season_year')
+    .eq('team_id', teamId)
+    .eq('season_year', 2026);
   return data || [];
 }
 
 // ── MODAL ─────────────────────────────────────────────
 function openModal(game) {
   currentGame = game;
-  resetModal();
-  const isHome = game.home_team?.id === currentTeamId;
-  const opponent = isHome ? game.away_team?.school_name : game.home_team?.school_name;
-  const dateStr = game.game_date ? new Date(game.game_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : '';
-  document.getElementById('modalTitle').textContent = `vs ${opponent} · ${dateStr}`;
+  resetModalState();
+
+  const isHome   = game.home_team?.id === selectedTeam?.id;
+  const opp      = isHome ? game.away_team?.school_name : game.home_team?.school_name;
+  const myScore  = isHome ? game.home_score : game.away_score;
+  const oppScore = isHome ? game.away_score : game.home_score;
+  const dateStr  = game.game_date
+    ? new Date(game.game_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+    : '';
+
+  document.getElementById('modalTitle').textContent = `vs ${opp}`;
+  document.getElementById('modalMeta').textContent  =
+    `${dateStr}${myScore !== null ? ' · ' + myScore + '–' + oppScore : ''}`;
+
+  if (game.stats_uploaded) {
+    const wb = document.getElementById('warnBox');
+    wb.textContent = '⚠ Stats were already imported for this game. Re-importing will remove the previous import for this game first, then re-push — no double-counting.';
+    wb.classList.add('active');
+  }
+
   document.getElementById('modalOverlay').classList.add('open');
 }
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
   currentGame = null;
-  parsedData = null;
+  parsedData  = null;
 }
 
-function resetModal() {
+function resetModalState() {
   showStep('upload');
   document.getElementById('fileInput').value = '';
   document.getElementById('errorBox').className = 'error-box';
-  document.getElementById('errorBox').textContent = '';
+  document.getElementById('warnBox').className  = 'warn-box';
 }
 
-function showStep(step) {
-  ['upload','parsing','preview','success'].forEach(s => {
-    document.getElementById('stepUpload').style.display = s === 'upload' ? '' : 'none';
-    document.getElementById('stepParsing').className = s === 'parsing' ? 'parse-state active' : 'parse-state';
-    document.getElementById('stepPreview').className = s === 'preview' ? 'preview-section active' : 'preview-section';
-    document.getElementById('stepSuccess').className = s === 'success' ? 'success-state active' : 'success-state';
-  });
+function showStep(s) {
+  document.getElementById('stepUpload').style.display  = s === 'upload'  ? '' : 'none';
+  document.getElementById('stepParsing').className     = s === 'parsing'  ? 'parse-state active' : 'parse-state';
+  document.getElementById('stepPreview').className     = s === 'preview'  ? 'preview-section active' : 'preview-section';
+  document.getElementById('stepSuccess').className     = s === 'success'  ? 'success-state active' : 'success-state';
 }
 
-// ── PDF TEXT EXTRACTION ───────────────────────────────
+// ── PDF EXTRACTION ────────────────────────────────────
 async function extractPdfText(file) {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   let text = '';
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    text += content.items.map(item => item.str).join(' ') + '\n';
+    const cont = await page.getTextContent();
+    text += cont.items.map(it => it.str).join(' ') + '\n';
   }
   return text;
 }
 
-// ── CLAUDE PARSE ──────────────────────────────────────
+// ── CLAUDE PARSE ─────────────────────────────────────
 async function parsePdfWithClaude(pdfText) {
-  const prompt = `You are parsing a GameChanger baseball/softball box score. Extract ALL batting and pitching stats for BOTH teams.
+  const prompt = `Parse this GameChanger baseball/softball box score. Return ONLY valid JSON, no markdown.
 
-Return ONLY valid JSON with this exact structure:
 {
   "game": {
-    "home_team": "team name",
-    "away_team": "team name",
+    "home_team": "exact team name",
+    "away_team": "exact team name",
     "home_score": number,
     "away_score": number,
-    "date": "YYYY-MM-DD or descriptive date",
+    "date": "as shown",
     "sport": "baseball" or "softball"
   },
-  "batting": [
-    {
-      "team": "team name",
-      "name": "full name as shown",
-      "last": "last name",
-      "number": "jersey number as string",
-      "position": "position abbreviation",
-      "ab": number,
-      "runs": number,
-      "hits": number,
-      "rbi": number,
-      "bb": number,
-      "k_bat": number,
-      "doubles": 0,
-      "triples": 0,
-      "hr": 0,
-      "sb": 0
-    }
-  ],
-  "pitching": [
-    {
-      "team": "team name",
-      "name": "full name as shown",
-      "last": "last name",
-      "number": "jersey number as string",
-      "ip_outs": number,
-      "p_h": number,
-      "p_er": number,
-      "p_bb": number,
-      "k": number,
-      "w": true or false or null,
-      "l": true or false or null,
-      "s": false
-    }
-  ]
+  "batting": [{
+    "team": "team name",
+    "name": "First Last",
+    "last": "Last",
+    "number": "digits only",
+    "position": "SS/P/C/1B/2B/3B/LF/CF/RF/DH/etc",
+    "ab": 0, "runs": 0, "hits": 0, "rbi": 0, "bb": 0, "k_bat": 0,
+    "doubles": 0, "triples": 0, "hr": 0, "sb": 0
+  }],
+  "pitching": [{
+    "team": "team name",
+    "name": "First Last",
+    "last": "Last",
+    "number": "digits only",
+    "ip_outs": 0, "p_h": 0, "p_er": 0, "p_bb": 0, "k": 0,
+    "w": false, "l": false, "s": false
+  }]
 }
 
-NOTES:
-- ip_outs: convert IP to outs. 4.0 IP = 12, 3.1 IP = 10, 3.2 IP = 11, 2.0 IP = 6, etc.
-- doubles/triples/hr/sb: parse from the "2B:", "3B:", "SB:" notes at the bottom. If a player's name appears under 2B, set doubles=1 (or count repeats). Many of these will be 0.
-- For pitching W/L: check "W:" and "L:" lines. true means this pitcher got the decision.
-- Totals rows should be EXCLUDED.
-- Include ALL individual players, not just starters.
-- "number" should be just the digits, no # symbol.
+RULES:
+- ip_outs: 4.0IP=12, 3.2IP=11, 3.1IP=10, 3.0IP=9, 2.0IP=6, 1.0IP=3, 0.2IP=2, 0.1IP=1
+- doubles/triples/hr/sb: parse from "2B:", "3B:", "HR:", "SB:" note lines. Count name occurrences.
+- W/L: check "W:" and "L:" lines at bottom of pitching section. Set true for the winner/loser.
+- Include ALL players including subs and courtesy runners. Exclude Totals rows.
+- number = digits only, no # symbol.
+- Focus on team: ${selectedTeam?.school_name || 'unknown'}
 
-Box score text:
+Box score:
 ${pdfText}`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000,
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
 
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || 'Claude API error');
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API ${resp.status}`);
+  }
 
-  const text = data.content.find(b => b.type === 'text')?.text || '';
-  const clean = text.replace(/```json\n?|```/g, '').trim();
-  return JSON.parse(clean);
+  const data = await resp.json();
+  const raw  = data.content?.find(b => b.type === 'text')?.text || '';
+  return JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
 }
 
 // ── PLAYER MATCHING ───────────────────────────────────
-function matchPlayer(parsedPlayer) {
-  // Match by jersey number first, then fall back to last name
-  const byNum = existingPlayers.find(p =>
-    p.number === parsedPlayer.number && p.name?.toLowerCase().includes(parsedPlayer.last?.toLowerCase())
+function matchPlayer(p) {
+  // 1. Number + last name
+  let m = existingPlayers.find(ep =>
+    ep.number === p.number &&
+    ep.name?.toLowerCase().includes((p.last || '').toLowerCase())
   );
-  if (byNum) return byNum;
-
-  const byLast = existingPlayers.find(p =>
-    p.name?.toLowerCase().includes(parsedPlayer.last?.toLowerCase())
-  );
-  return byLast || null;
+  if (m) return m;
+  // 2. Last name only
+  return existingPlayers.find(ep =>
+    (p.last || '').length > 1 &&
+    ep.name?.toLowerCase().includes(p.last.toLowerCase())
+  ) || null;
 }
 
-// ── PREVIEW RENDER ────────────────────────────────────
+// ── PREVIEW ──────────────────────────────────────────
 function renderPreview(parsed) {
   parsedData = parsed;
-
-  // Game info bar
   const g = parsed.game;
+
   document.getElementById('gameInfoBar').innerHTML = `
-    <div class="info-item"><label>Home</label><span>${g.home_team}</span></div>
-    <div class="info-item"><label>Away</label><span>${g.away_team}</span></div>
-    <div class="info-item"><label>Score</label><span>${g.home_score} – ${g.away_score}</span></div>
-    <div class="info-item"><label>Sport</label><span style="text-transform:capitalize">${g.sport}</span></div>
-  `;
+    <div class="gi-item"><div class="gi-label">Home</div><div class="gi-val">${esc(g.home_team)}</div></div>
+    <div class="gi-item"><div class="gi-label">Away</div><div class="gi-val">${esc(g.away_team)}</div></div>
+    <div class="gi-item"><div class="gi-label">Score</div><div class="gi-val">${g.home_score} – ${g.away_score}</div></div>
+    <div class="gi-item"><div class="gi-label">Sport</div><div class="gi-val" style="text-transform:capitalize">${esc(g.sport)}</div></div>`;
 
-  renderTab('batting');
-
-  // Tab switching
   document.querySelectorAll('.preview-tab').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.preview-tab').forEach(b => b.classList.remove('active'));
@@ -781,293 +756,356 @@ function renderPreview(parsed) {
     };
   });
 
-  // Summary
-  const newCount = parsed.batting.filter(p => !matchPlayer(p)).length;
-  const matchCount = parsed.batting.filter(p => matchPlayer(p)).length;
-  document.getElementById('previewSummary').innerHTML =
-    `<strong>${matchCount}</strong> matched · <strong style="color:var(--amber)">${newCount}</strong> new players will be created`;
+  activeTab = 'batting';
+  document.querySelectorAll('.preview-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === 'batting'));
+  renderTab('batting');
+
+  const myRows    = (parsed.batting || []).filter(p => teamMatches(p.team));
+  const newCount  = myRows.filter(p => !matchPlayer(p)).length;
+  const matchCount= myRows.filter(p =>  matchPlayer(p)).length;
+  document.getElementById('prevSummary').innerHTML =
+    `Your team: <strong>${matchCount}</strong> matched · <span class="new-count">${newCount} new</span> will be created`;
 
   showStep('preview');
 }
 
 function renderTab(tab) {
-  const rows = parsedData[tab];
+  const rows  = parsedData[tab] || [];
   const isBat = tab === 'batting';
 
-  const head = document.getElementById('previewHead');
-  const body = document.getElementById('previewBody');
+  document.getElementById('prevHead').innerHTML = isBat
+    ? `<tr><th>#</th><th>Name</th><th>Pos</th><th>Team</th><th></th>
+       <th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th>
+       <th>2B</th><th>3B</th><th>HR</th><th>SB</th></tr>`
+    : `<tr><th>#</th><th>Name</th><th>Team</th><th></th>
+       <th>IP</th><th>H</th><th>ER</th><th>BB</th><th>K</th><th>W</th><th>L</th></tr>`;
 
-  if (isBat) {
-    head.innerHTML = `<tr>
-      <th>#</th><th>Name</th><th>Pos</th><th>Team</th><th>Status</th>
-      <th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th>
-      <th>2B</th><th>3B</th><th>HR</th><th>SB</th>
-    </tr>`;
-  } else {
-    head.innerHTML = `<tr>
-      <th>#</th><th>Name</th><th>Team</th><th>Status</th>
-      <th>IP</th><th>H</th><th>ER</th><th>BB</th><th>K</th><th>W</th><th>L</th>
-    </tr>`;
-  }
-
+  const body = document.getElementById('prevBody');
   body.innerHTML = '';
+
   rows.forEach((p, i) => {
     const match = matchPlayer(p);
-    const isNew = !match;
-    const statusHtml = isNew
-      ? '<span class="new-tag">New</span>'
-      : '<span class="match-tag">Match</span>';
-
+    const tag   = match
+      ? '<span class="tag-match">Match</span>'
+      : '<span class="tag-new">New</span>';
     const tr = document.createElement('tr');
-    tr.className = isNew ? 'new-player' : '';
-    tr.dataset.index = i;
-    tr.dataset.tab = tab;
 
-    const ipDisplay = p.ip_outs !== undefined
-      ? `${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}`
-      : '';
+    const f = (field, w) =>
+      `<td><input class="editable" style="width:${w}px" value="${esc(p[field]??0)}"
+         data-field="${field}" data-idx="${i}" data-tab="${tab}"></td>`;
 
     if (isBat) {
+      const ipDisp = '';
       tr.innerHTML = `
-        <td><input class="editable" style="width:44px" value="${esc(p.number)}" data-field="number" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="min-width:110px" value="${esc(p.name)}" data-field="name" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:44px" value="${esc(p.position)}" data-field="position" data-idx="${i}" data-tab="batting"></td>
-        <td style="font-size:12px;color:var(--text-dim)">${esc(p.team)}</td>
-        <td>${statusHtml}</td>
-        <td><input class="editable" style="width:40px" value="${p.ab??0}" data-field="ab" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.runs??0}" data-field="runs" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.hits??0}" data-field="hits" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.rbi??0}" data-field="rbi" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.bb??0}" data-field="bb" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.k_bat??0}" data-field="k_bat" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.doubles??0}" data-field="doubles" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.triples??0}" data-field="triples" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.hr??0}" data-field="hr" data-idx="${i}" data-tab="batting"></td>
-        <td><input class="editable" style="width:40px" value="${p.sb??0}" data-field="sb" data-idx="${i}" data-tab="batting"></td>
-      `;
+        <td><input class="editable" style="width:36px" value="${esc(p.number)}" data-field="number" data-idx="${i}" data-tab="batting"></td>
+        <td><input class="editable" style="min-width:96px" value="${esc(p.name)}" data-field="name" data-idx="${i}" data-tab="batting"></td>
+        <td><input class="editable" style="width:36px" value="${esc(p.position)}" data-field="position" data-idx="${i}" data-tab="batting"></td>
+        <td style="font-size:11px;color:var(--lgray);white-space:nowrap;max-width:100px;overflow:hidden">${esc(p.team)}</td>
+        <td>${tag}</td>
+        ${f('ab',32)}${f('runs',32)}${f('hits',32)}${f('rbi',32)}${f('bb',32)}${f('k_bat',32)}
+        ${f('doubles',32)}${f('triples',32)}${f('hr',32)}${f('sb',32)}`;
     } else {
+      const ipDisp = p.ip_outs !== undefined
+        ? `${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` : '';
       tr.innerHTML = `
-        <td><input class="editable" style="width:44px" value="${esc(p.number)}" data-field="number" data-idx="${i}" data-tab="pitching"></td>
-        <td><input class="editable" style="min-width:110px" value="${esc(p.name)}" data-field="name" data-idx="${i}" data-tab="pitching"></td>
-        <td style="font-size:12px;color:var(--text-dim)">${esc(p.team)}</td>
-        <td>${statusHtml}</td>
-        <td><input class="editable" style="width:48px" value="${ipDisplay}" data-field="ip_display" data-idx="${i}" data-tab="pitching"></td>
-        <td><input class="editable" style="width:40px" value="${p.p_h??0}" data-field="p_h" data-idx="${i}" data-tab="pitching"></td>
-        <td><input class="editable" style="width:40px" value="${p.p_er??0}" data-field="p_er" data-idx="${i}" data-tab="pitching"></td>
-        <td><input class="editable" style="width:40px" value="${p.p_bb??0}" data-field="p_bb" data-idx="${i}" data-tab="pitching"></td>
-        <td><input class="editable" style="width:40px" value="${p.k??0}" data-field="k" data-idx="${i}" data-tab="pitching"></td>
-        <td><input class="editable" style="width:40px" value="${p.w===true?'1':''}" data-field="w" data-idx="${i}" data-tab="pitching" placeholder="—"></td>
-        <td><input class="editable" style="width:40px" value="${p.l===true?'1':''}" data-field="l" data-idx="${i}" data-tab="pitching" placeholder="—"></td>
-      `;
+        <td><input class="editable" style="width:36px" value="${esc(p.number)}" data-field="number" data-idx="${i}" data-tab="pitching"></td>
+        <td><input class="editable" style="min-width:96px" value="${esc(p.name)}" data-field="name" data-idx="${i}" data-tab="pitching"></td>
+        <td style="font-size:11px;color:var(--lgray);white-space:nowrap;max-width:100px;overflow:hidden">${esc(p.team)}</td>
+        <td>${tag}</td>
+        <td><input class="editable" style="width:40px" value="${ipDisp}" data-field="ip_display" data-idx="${i}" data-tab="pitching"></td>
+        ${f('p_h',32)}${f('p_er',32)}${f('p_bb',32)}${f('k',32)}
+        <td><input class="editable" style="width:32px" value="${p.w?'1':''}" placeholder="—" data-field="w" data-idx="${i}" data-tab="pitching"></td>
+        <td><input class="editable" style="width:32px" value="${p.l?'1':''}" placeholder="—" data-field="l" data-idx="${i}" data-tab="pitching"></td>`;
     }
 
+    tr.querySelectorAll('.editable').forEach(inp => inp.addEventListener('change', () => syncEdit(inp)));
     body.appendChild(tr);
   });
-
-  // Live-edit sync back to parsedData
-  body.querySelectorAll('.editable').forEach(input => {
-    input.addEventListener('change', () => {
-      const idx = parseInt(input.dataset.idx);
-      const field = input.dataset.field;
-      const tab = input.dataset.tab;
-      const val = input.value.trim();
-
-      if (field === 'ip_display') {
-        // Convert "X.Y" back to outs
-        const parts = val.split('.');
-        const whole = parseInt(parts[0])||0;
-        const partial = parseInt(parts[1])||0;
-        parsedData[tab][idx]['ip_outs'] = whole*3 + partial;
-      } else if (['ab','runs','hits','rbi','bb','k_bat','doubles','triples','hr','sb','p_h','p_er','p_bb','k'].includes(field)) {
-        parsedData[tab][idx][field] = parseInt(val)||0;
-      } else if (field === 'w' || field === 'l') {
-        parsedData[tab][idx][field] = val === '1' || val.toLowerCase() === 'w' || val.toLowerCase() === 'l' ? true : false;
-      } else {
-        parsedData[tab][idx][field] = val;
-        if (field === 'name') {
-          // Re-derive last name
-          const parts = val.split(' ');
-          parsedData[tab][idx]['last'] = parts[parts.length-1];
-        }
-      }
-    });
-  });
 }
 
-function esc(str) {
-  return (str || '').toString().replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function syncEdit(inp) {
+  const idx   = parseInt(inp.dataset.idx);
+  const field = inp.dataset.field;
+  const tab   = inp.dataset.tab;
+  const val   = inp.value.trim();
+  const NUM   = ['ab','runs','hits','rbi','bb','k_bat','doubles','triples','hr','sb','p_h','p_er','p_bb','k'];
+
+  if (field === 'ip_display') {
+    const pts = val.split('.');
+    parsedData[tab][idx].ip_outs = (parseInt(pts[0])||0)*3 + (parseInt(pts[1])||0);
+  } else if (NUM.includes(field)) {
+    parsedData[tab][idx][field] = parseInt(val) || 0;
+  } else if (field === 'w' || field === 'l') {
+    parsedData[tab][idx][field] = val === '1';
+  } else {
+    parsedData[tab][idx][field] = val;
+    if (field === 'name') {
+      const pts = val.split(' ');
+      parsedData[tab][idx].last = pts[pts.length-1];
+    }
+  }
 }
 
-// ── CONFIRM PUSH ──────────────────────────────────────
+// ── PUSH ─────────────────────────────────────────────
 async function pushToSupabase() {
   const btn = document.getElementById('btnConfirm');
-  btn.disabled = true;
-  btn.textContent = 'Pushing…';
+  btn.disabled = true; btn.textContent = 'Pushing…';
 
   try {
-    let pushed = 0;
-    let created = 0;
+    // Re-import: subtract previous game stats first
+    if (currentGame?.stats_uploaded && currentGame?.id) {
+      await reversePreviousImport(currentGame.id);
+    }
 
-    // Process batting rows where team matches current team
-    const myBatting = parsedData.batting.filter(p => teamMatches(p.team));
-    const myPitching = parsedData.pitching.filter(p => teamMatches(p.team));
+    const myBatting  = (parsedData.batting  || []).filter(p => teamMatches(p.team));
+    const myPitching = (parsedData.pitching || []).filter(p => teamMatches(p.team));
 
-    // Upsert each batting row
+    let pushed = 0, created = 0;
+
     for (const p of myBatting) {
-      const match = matchPlayer(p);
-      let playerId;
+      const pid = await ensurePlayer(p);
+      if (!pid) continue;
+      const isNew = !existingPlayers.find(ep => ep.id === pid && ep._preexisted);
 
-      if (match) {
-        playerId = match.id;
-      } else {
-        // Create new player
-        const { data: newP, error: newErr } = await sb.from('players').insert({
-          team_id: currentTeamId,
-          name: p.name,
-          number: p.number,
-          position: p.position,
-          season_year: 2026,
-          sport_id: 'c87a4d6c' // TODO: derive from team
-        }).select('id').single();
-        if (newErr) throw new Error(`Failed to create player ${p.name}: ${newErr.message}`);
-        playerId = newP.id;
-        existingPlayers.push({ id: playerId, name: p.name, number: p.number, season_year: 2026 });
-        created++;
-      }
+      const { data: cur } = await sb.from('players')
+        .select('ab,hits,hr,rbi,sb,bb,k_bat,doubles,triples,runs,games')
+        .eq('id', pid).single();
+      const b = cur || {};
 
-      // Accumulate stats via upsert on id
-      const { data: existing } = await sb.from('players').select('ab,hits,hr,rbi,sb,bb,k_bat,doubles,triples,runs,games').eq('id', playerId).single();
-      const base = existing || {};
+      const newAb   = (b.ab||0)   + (p.ab||0);
+      const newHits = (b.hits||0) + (p.hits||0);
+      const ba      = newAb > 0 ? parseFloat((newHits/newAb).toFixed(3)) : null;
 
-      const newAb = (base.ab||0) + (p.ab||0);
-      const newHits = (base.hits||0) + (p.hits||0);
-      const ba = newAb > 0 ? (newHits/newAb).toFixed(3).replace(/^0/,'') : null;
+      await sb.from('players').update({
+        ab:      newAb,
+        hits:    newHits,
+        hr:      (b.hr||0)      + (p.hr||0),
+        rbi:     (b.rbi||0)     + (p.rbi||0),
+        sb:      (b.sb||0)      + (p.sb||0),
+        bb:      (b.bb||0)      + (p.bb||0),
+        k_bat:   (b.k_bat||0)   + (p.k_bat||0),
+        doubles: (b.doubles||0) + (p.doubles||0),
+        triples: (b.triples||0) + (p.triples||0),
+        runs:    (b.runs||0)    + (p.runs||0),
+        games:   (b.games||0)   + 1,
+        ba,
+      }).eq('id', pid);
 
-      const { error: upsertErr } = await sb.from('players').update({
-        ab: newAb,
-        hits: newHits,
-        hr: (base.hr||0) + (p.hr||0),
-        rbi: (base.rbi||0) + (p.rbi||0),
-        sb: (base.sb||0) + (p.sb||0),
-        bb: (base.bb||0) + (p.bb||0),
-        k_bat: (base.k_bat||0) + (p.k_bat||0),
-        doubles: (base.doubles||0) + (p.doubles||0),
-        triples: (base.triples||0) + (p.triples||0),
-        runs: (base.runs||0) + (p.runs||0),
-        games: (base.games||0) + 1,
-        ba
-      }).eq('id', playerId);
+      // Record this game's contribution for future reversal
+      await sb.from('game_stat_imports').upsert({
+        game_id:   currentGame.id,
+        player_id: pid,
+        stat_type: 'batting',
+        stats: JSON.stringify({
+          ab: p.ab||0, hits: p.hits||0, hr: p.hr||0, rbi: p.rbi||0,
+          sb: p.sb||0, bb: p.bb||0, k_bat: p.k_bat||0,
+          doubles: p.doubles||0, triples: p.triples||0, runs: p.runs||0, games: 1
+        })
+      }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
 
-      if (upsertErr) throw new Error(`Failed to update ${p.name}: ${upsertErr.message}`);
       pushed++;
     }
 
-    // Pitching
     for (const p of myPitching) {
       const match = matchPlayer(p);
-      if (!match) continue; // skip if not on roster (pitchers should already exist from batting)
+      if (!match) continue;
 
-      const { data: existing } = await sb.from('players').select('ip_outs,p_h,p_er,p_bb,k,w,l').eq('id', match.id).single();
-      const base = existing || {};
+      const { data: cur } = await sb.from('players')
+        .select('ip_outs,p_h,p_er,p_bb,k,w,l')
+        .eq('id', match.id).single();
+      const b = cur || {};
 
-      const newIpOuts = (base.ip_outs||0) + (p.ip_outs||0);
-      const newEr = (base.p_er||0) + (p.p_er||0);
-      const newIp = newIpOuts/3;
-      const era = newIp > 0 ? ((newEr * 9) / newIp).toFixed(2) : null;
+      const newIpOuts = (b.ip_outs||0) + (p.ip_outs||0);
+      const newEr     = (b.p_er||0)    + (p.p_er||0);
+      const ip        = newIpOuts / 3;
+      const era       = ip > 0 ? parseFloat(((newEr * 9) / ip).toFixed(2)) : null;
 
-      const { error } = await sb.from('players').update({
+      await sb.from('players').update({
         ip_outs: newIpOuts,
-        p_h: (base.p_h||0) + (p.p_h||0),
-        p_er: newEr,
-        p_bb: (base.p_bb||0) + (p.p_bb||0),
-        k: (base.k||0) + (p.k||0),
+        p_h:     (b.p_h||0)  + (p.p_h||0),
+        p_er:    newEr,
+        p_bb:    (b.p_bb||0) + (p.p_bb||0),
+        k:       (b.k||0)    + (p.k||0),
         era,
-        w: p.w ? (base.w||0) + 1 : (base.w||0),
-        l: p.l ? (base.l||0) + 1 : (base.l||0),
+        w: p.w ? (b.w||0)+1 : (b.w||0),
+        l: p.l ? (b.l||0)+1 : (b.l||0),
       }).eq('id', match.id);
 
-      if (error) throw new Error(`Failed to update pitcher ${p.name}: ${error.message}`);
+      await sb.from('game_stat_imports').upsert({
+        game_id:   currentGame.id,
+        player_id: match.id,
+        stat_type: 'pitching',
+        stats: JSON.stringify({
+          ip_outs: p.ip_outs||0, p_h: p.p_h||0, p_er: p.p_er||0,
+          p_bb: p.p_bb||0, k: p.k||0, w: p.w?1:0, l: p.l?1:0
+        })
+      }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
     }
 
-    // Mark game as stats_uploaded
+    // Mark game uploaded
     if (currentGame?.id) {
       await sb.from('games').update({ stats_uploaded: true }).eq('id', currentGame.id);
     }
 
     document.getElementById('successMsg').textContent =
-      `${pushed} player${pushed!==1?'s':''} updated · ${created} new player${created!==1?'s':''} created.`;
+      `${pushed} player${pushed!==1?'s':''} updated.`;
     showStep('success');
-    loadSchedule(); // refresh
+    if (selectedTeam) loadSchedule(selectedTeam);
 
   } catch (err) {
     showError(err.message);
     btn.disabled = false;
-    btn.textContent = '✓ Push to Supabase';
+    btn.textContent = '✓ Push Stats';
   }
 }
 
-function teamMatches(teamName) {
-  if (!teamName || !currentTeamName) return false;
-  return teamName.toLowerCase().includes(currentTeamName.toLowerCase()) ||
-         currentTeamName.toLowerCase().includes(teamName.toLowerCase().split(' ')[0]);
+// Reverses a previous import by subtracting stored deltas
+async function reversePreviousImport(gameId) {
+  const { data: imports, error } = await sb
+    .from('game_stat_imports')
+    .select('player_id, stat_type, stats')
+    .eq('game_id', gameId);
+
+  if (error || !imports?.length) return; // table may not exist yet — safe to skip
+
+  for (const imp of imports) {
+    const delta = JSON.parse(imp.stats || '{}');
+    if (imp.stat_type === 'batting') {
+      const { data: cur } = await sb.from('players')
+        .select('ab,hits,hr,rbi,sb,bb,k_bat,doubles,triples,runs,games')
+        .eq('id', imp.player_id).single();
+      const b = cur || {};
+      const newAb   = Math.max(0, (b.ab||0)   - (delta.ab||0));
+      const newHits = Math.max(0, (b.hits||0) - (delta.hits||0));
+      await sb.from('players').update({
+        ab:      newAb,
+        hits:    newHits,
+        hr:      Math.max(0, (b.hr||0)      - (delta.hr||0)),
+        rbi:     Math.max(0, (b.rbi||0)     - (delta.rbi||0)),
+        sb:      Math.max(0, (b.sb||0)      - (delta.sb||0)),
+        bb:      Math.max(0, (b.bb||0)      - (delta.bb||0)),
+        k_bat:   Math.max(0, (b.k_bat||0)   - (delta.k_bat||0)),
+        doubles: Math.max(0, (b.doubles||0) - (delta.doubles||0)),
+        triples: Math.max(0, (b.triples||0) - (delta.triples||0)),
+        runs:    Math.max(0, (b.runs||0)    - (delta.runs||0)),
+        games:   Math.max(0, (b.games||0)   - 1),
+        ba: newAb > 0 ? parseFloat((newHits/newAb).toFixed(3)) : null,
+      }).eq('id', imp.player_id);
+    } else if (imp.stat_type === 'pitching') {
+      const { data: cur } = await sb.from('players')
+        .select('ip_outs,p_h,p_er,p_bb,k,w,l')
+        .eq('id', imp.player_id).single();
+      const b = cur || {};
+      const newIpOuts = Math.max(0, (b.ip_outs||0) - (delta.ip_outs||0));
+      const newEr     = Math.max(0, (b.p_er||0)    - (delta.p_er||0));
+      const ip        = newIpOuts / 3;
+      await sb.from('players').update({
+        ip_outs: newIpOuts,
+        p_h:     Math.max(0, (b.p_h||0)  - (delta.p_h||0)),
+        p_er:    newEr,
+        p_bb:    Math.max(0, (b.p_bb||0) - (delta.p_bb||0)),
+        k:       Math.max(0, (b.k||0)    - (delta.k||0)),
+        era:     ip > 0 ? parseFloat(((newEr*9)/ip).toFixed(2)) : null,
+        w:       Math.max(0, (b.w||0) - (delta.w||0)),
+        l:       Math.max(0, (b.l||0) - (delta.l||0)),
+      }).eq('id', imp.player_id);
+    }
+    // Delete the old import record
+    await sb.from('game_stat_imports')
+      .delete()
+      .eq('game_id', gameId)
+      .eq('player_id', imp.player_id)
+      .eq('stat_type', imp.stat_type);
+  }
 }
 
-function showError(msg) {
-  const box = document.getElementById('errorBox');
-  box.textContent = '⚠ ' + msg;
-  box.className = 'error-box active';
+async function ensurePlayer(p) {
+  const match = matchPlayer(p);
+  if (match) { match._preexisted = true; return match.id; }
+
+  const { data, error } = await sb.from('players').insert({
+    team_id:     selectedTeam.id,
+    sport_id:    selectedTeam.sport_id,
+    season_year: 2026,
+    name:        p.name,
+    number:      p.number,
+    position:    p.position || null,
+  }).select('id').single();
+
+  if (error) { console.error('Create player:', error); return null; }
+  existingPlayers.push({ id: data.id, name: p.name, number: p.number, season_year: 2026 });
+  return data.id;
+}
+
+function teamMatches(teamName) {
+  if (!teamName || !selectedTeam) return false;
+  const tn   = teamName.toLowerCase();
+  const mine = selectedTeam.school_name.toLowerCase();
+  // Match if either contains the other, or first word of box score name matches
+  return tn.includes(mine) || mine.includes(tn) || mine.split(' ').some(w => w.length > 3 && tn.includes(w));
 }
 
 // ── FILE HANDLING ─────────────────────────────────────
 async function handleFile(file) {
-  if (!file || file.type !== 'application/pdf') {
-    showError('Please select a PDF file.');
-    return;
-  }
-
-  showStep('parsing');
+  if (!file || file.type !== 'application/pdf') { showError('Please select a PDF file.'); return; }
   document.getElementById('errorBox').className = 'error-box';
-
+  showStep('parsing');
   try {
     const text = await extractPdfText(file);
-    if (text.trim().length < 100) throw new Error('Could not extract text from PDF. Is it a scanned image?');
-
+    if (text.trim().length < 80) throw new Error('Could not extract text — is this a scanned image PDF?');
     const parsed = await parsePdfWithClaude(text);
     renderPreview(parsed);
-
   } catch (err) {
     showStep('upload');
     showError('Parse failed: ' + err.message);
   }
 }
 
-// ── EVENT LISTENERS ───────────────────────────────────
+// ── HELPERS ───────────────────────────────────────────
+function showError(msg) {
+  const b = document.getElementById('errorBox');
+  b.textContent = '⚠ ' + msg;
+  b.className = 'error-box active';
+}
+function esc(s) {
+  return (s??'').toString().replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function markStep(n, state) {
+  const el = document.getElementById(`step${n}`);
+  el.classList.remove('active','done','locked');
+  el.classList.add(state);
+}
+function unlockStep(n) {
+  const el = document.getElementById(`step${n}`);
+  el.classList.remove('locked');
+  el.classList.add('active');
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── EVENTS ────────────────────────────────────────────
 document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('modalOverlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
 });
-
-const dropZone = document.getElementById('dropZone');
+const dropZone  = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
-
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) handleFile(file);
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
-
 document.getElementById('btnConfirm').addEventListener('click', pushToSupabase);
-document.getElementById('btnRestart').addEventListener('click', () => { showStep('upload'); });
-document.getElementById('btnImportAnother').addEventListener('click', () => { showStep('upload'); });
+document.getElementById('btnRestart').addEventListener('click', () => showStep('upload'));
+document.getElementById('btnAnother').addEventListener('click', () => showStep('upload'));
 document.getElementById('btnDone').addEventListener('click', closeModal);
 
-// ── BOOT ──────────────────────────────────────────────
 init();
 </script>
+
+<script src="nav.js"></script>
+<script>if (typeof MBRNav !== 'undefined') MBRNav.init({ active: '' });</script>
 </body>
 </html>

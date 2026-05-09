@@ -199,7 +199,7 @@ const MBRNav = (() => {
       const msg = document.getElementById('mbrModalMsg');
       if (!email) { msg.style.color = '#c0392b'; msg.textContent = 'Please enter your email.'; return; }
       msg.style.color = '#555'; msg.textContent = 'Sending…';
-      const { error } = await getSB().auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+      const { error } = await getSB().auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
       if (error) {
         msg.style.color = '#c0392b'; msg.textContent = 'Error: ' + error.message;
       } else {

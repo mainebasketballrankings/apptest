@@ -288,10 +288,12 @@ async function init() {
   const aSnap = aSnapArr?.[0] || {};
 
   // Use rank locked at push time if available, else fall back to snapshot
-  const hRank = g.home_rank ?? hSnap.rank_overall ?? null;
-  const aRank = g.away_rank ?? aSnap.rank_overall ?? null;
-  const hRankLabel = g.home_rank != null ? `#\${g.home_rank}` : hSnap.rank_overall ? `#\${hSnap.rank_overall} (current)` : null;
-  const aRankLabel = g.away_rank != null ? `#\${g.away_rank}` : aSnap.rank_overall ? `#\${aSnap.rank_overall} (current)` : null;
+  const hRankNum = g.home_rank != null ? g.home_rank : (hSnap.rank_overall || null);
+  const aRankNum = g.away_rank != null ? g.away_rank : (aSnap.rank_overall || null);
+  const hRankSuffix = g.home_rank != null ? '' : ' (current)';
+  const aRankSuffix = g.away_rank != null ? '' : ' (current)';
+  const hRankLabel = hRankNum ? ('#' + hRankNum + hRankSuffix) : null;
+  const aRankLabel = aRankNum ? ('#' + aRankNum + aRankSuffix) : null;
 
   const hScore  = g.home_score;
   const aScore  = g.away_score;
@@ -458,7 +460,7 @@ async function init() {
   window._atName = at.school_name;
 
   // Load season records for both teams
-  loadTeamContext(g, ht, at, hSnap, aSnap);
+  loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel);
 }
 
 // ── LINESCORE ────────────────────────────────────────
@@ -604,7 +606,7 @@ function teamIs(teamName, schoolName) {
 }
 
 // ── SEASON CONTEXT ───────────────────────────────────
-async function loadTeamContext(g, ht, at, hSnap, aSnap) {
+async function loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel) {
   // Load both teams' games to compute record at time of this game
   const [hGames, aGames] = await Promise.all([
     api(`games?or=(home_team_id.eq.${g.home_team_id},away_team_id.eq.${g.home_team_id})&sport_id=eq.${g.sport_id}&season_year=eq.2026&status=eq.final&select=id,game_date,home_team_id,home_score,away_score&order=game_date.asc`),

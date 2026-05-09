@@ -457,23 +457,25 @@ schoolInput.addEventListener('input', () => {
 
   schoolDropdown.querySelectorAll('.dropdown-item').forEach(item => {
     item.addEventListener('click', () => {
-      const school = item.dataset.school;
-      const teams  = allTeams.filter(t => t.school_name === school);
-      if (teams.length === 1) {
-        selectTeam(teams[0]);
+      const school      = item.dataset.school;
+      const springTeams = allTeams.filter(t =>
+        t.school_name === school && SPRING_SPORT_IDS.includes(t.sport_id)
+      );
+      if (springTeams.length === 1) {
+        selectTeam(springTeams[0]);
       } else {
-        // Sub-picker for multiple sports at same school
-        schoolDropdown.innerHTML = teams.map(t => {
+        // Show sub-picker — store teams in a closure-safe way
+        schoolDropdown.innerHTML = springTeams.map((t, i) => {
           const sport  = SPORT_LABELS[t.sport_id] || t.sport_id;
           const gender = t.gender === 'girls' ? "Girls'" : t.gender === 'boys' ? "Boys'" : '';
-          return `<div class="dropdown-item" data-team-id="${t.id}">
+          return `<div class="dropdown-item" data-spring-idx="${i}">
             <span class="school-name">${school}</span>
             <span class="sport-tag">${gender} ${sport}</span>
           </div>`;
         }).join('');
         schoolDropdown.querySelectorAll('.dropdown-item').forEach(sub => {
           sub.addEventListener('click', () => {
-            const team = teams.find(t => t.id === sub.dataset.teamId);
+            const team = springTeams[parseInt(sub.dataset.springIdx)];
             if (team) selectTeam(team);
           });
         });

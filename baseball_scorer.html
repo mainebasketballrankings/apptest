@@ -798,8 +798,11 @@ const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
 let G_game_id = null; // set from schedule picker or URL param
-let G_evt_id_stack = []; // stack of pushed event IDs for undo void
-let G_test_mode = false; // when true, skip Supabase game creation
+// Undo event group stack: each entry is an array of event IDs pushed since the last saveSnapshot.
+// doUndo deletes ALL IDs in the top group, so multi-event actions (hit + runner_advance, DP groundout + runner out, etc.) are fully cleaned up.
+let G_evt_id_stack = []; // array of arrays: [ [id1, id2], [id3], ... ]
+let G_evt_current_group = []; // IDs accumulating for the action in progress
+let G_test_mode = false; // when true, skip Supabase writes
 let G_home_team_id = null;
 let G_away_team_id = null;
 
@@ -903,8 +906,7 @@ async function pushEvt(key, extras={}){
   const isFieldingEvt = ['sub_pitcher','sub_defense'].includes(key);
   const evtSide = isFieldingEvt ? fieldingSide() : side;
   const evtId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-  G_evt_id_stack.push(evtId);
-  if(G_evt_id_stack.length > 20) G_evt_id_stack.shift(); // keep last 20
+  G_evt_current_group.push(evtId); // collected into group; committed to stack by saveSnapshot()
   const row = {
     id:           evtId,
     game_id:      G_game_id,
@@ -2620,6 +2622,15 @@ let undoStack = [];
 const MAX_UNDO = 20;
 
 function saveSnapshot(){
+  // Seal any IDs accumulated since the last saveSnapshot into the group stack.
+  // These are the events that will be deleted if the user undoes this action.
+  // We do this BEFORE saving state so the group corresponds to the PREVIOUS action,
+  // not the one we're about to take (which hasn't pushed any events yet).
+  if(G_evt_current_group.length){
+    G_evt_id_stack.push([...G_evt_current_group]);
+    if(G_evt_id_stack.length > MAX_UNDO) G_evt_id_stack.shift();
+    G_evt_current_group = [];
+  }
   const snap = {
     inning:G.inning, half:G.half, outs:G.outs, balls:G.balls, strikes:G.strikes,
     bases:JSON.parse(JSON.stringify(G.bases)),
@@ -2665,10 +2676,16 @@ function doUndo(){
   }
   G.pbp = G.pbp.slice(0, snap.pbpLen);
   if(snap.paLogLen !== undefined) G.paLog = (G.paLog||[]).slice(0, snap.paLogLen);
-  // DELETE the last pushed event from Supabase so it never pollutes box score / feed
-  const voidId = G_evt_id_stack.pop();
-  if(voidId && G_game_id && !G_test_mode){
-    fetch(`${SB_URL}/rest/v1/game_events?id=eq.${voidId}`, {
+  // DELETE all events pushed since the last saveSnapshot — covers multi-event actions
+  // (e.g. hit + runner_advance, DP groundout + runner out, etc.)
+  // Also discard anything in the in-flight current group (mid-action undo)
+  const groupToDelete = G_evt_id_stack.pop() || [];
+  const allToDelete = [...groupToDelete, ...G_evt_current_group];
+  G_evt_current_group = [];
+  if(allToDelete.length && G_game_id && !G_test_mode){
+    // PostgREST supports ?id=in.(id1,id2,...) for multi-row delete
+    const idList = allToDelete.join(',');
+    fetch(`${SB_URL}/rest/v1/game_events?id=in.(${idList})`, {
       method:'DELETE',
       headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' }
     }).catch(e=>console.warn('undo delete failed', e));

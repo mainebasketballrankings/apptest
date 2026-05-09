@@ -759,7 +759,7 @@ async function load() {
         <td class="sc ${won?'w':lost?'l':''}">
           <span class="rbadge ${res==='W'?'W':res==='L'?'L':''}">${res}</span> ${scoreTxt}
           ${fin && isSpring ? (g.stats_uploaded
-            ? `<span class="stats-pill uploaded" title="Box score stats imported">📊</span>`
+            ? `<a class="stats-pill uploaded" href="game.html?game_id=${g.id}" title="View box score">📊</a>`
             : `<a class="stats-pill pending" href="boxscore-import.html" title="Import box score stats">+ Stats</a>`
           ) : ''}
         </td>

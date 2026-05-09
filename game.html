@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game — Maine Basketball Rankings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+      --orange: #ee6730;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--black); min-height: 100vh; }
+    .page { max-width: 980px; margin: 0 auto; padding: 28px 16px 80px; }
+
+    /* ── MATCHUP HEADER ── */
+    .matchup-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; margin-bottom: 16px;
+    }
+    .matchup-top {
+      background: var(--black); color: #fff;
+      padding: 12px 20px; display: flex; align-items: center;
+      justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    }
+    .matchup-sport {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;
+      color: #aaa;
+    }
+    .matchup-date {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 13px; color: #ccc;
+    }
+    .matchup-venue { font-size: 12px; color: #888; }
+
+    .matchup-teams {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      align-items: center; padding: 24px 20px; gap: 16px;
+    }
+    .team-side { display: flex; flex-direction: column; gap: 6px; }
+    .team-side.away { text-align: right; align-items: flex-end; }
+    .team-side.home { text-align: left; align-items: flex-start; }
+    .team-logo-md {
+      width: 56px; height: 56px; border-radius: 50%;
+      object-fit: contain; background: var(--bg); border: 1px solid var(--border);
+    }
+    .team-logo-fallback-md {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--green); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px;
+    }
+    .team-name-md {
+      font-family: 'Barlow', sans-serif; font-weight: 600;
+      font-size: 18px; line-height: 1.2;
+    }
+    .team-name-md a { color: var(--black); text-decoration: none; }
+    .team-name-md a:hover { color: var(--green); }
+    .team-record { font-size: 12px; color: var(--lgray); }
+    .team-rank { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; color: var(--gray); background: var(--bg); border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; }
+
+    .score-center { text-align: center; }
+    .score-final {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-size: 52px; line-height: 1; letter-spacing: -1px;
+    }
+    .score-away { color: var(--black); }
+    .score-home { color: var(--black); }
+    .score-sep { color: var(--lgray); font-weight: 400; margin: 0 4px; }
+    .score-winner { color: var(--green); }
+    .score-loser  { color: var(--lgray); }
+    .score-status {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 12px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--lgray); margin-top: 4px;
+    }
+
+    /* LINESCORE */
+    .linescore-wrap {
+      border-top: 1px solid var(--border); overflow-x: auto; padding: 0;
+    }
+    table.linescore {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+      min-width: 400px;
+    }
+    .linescore th, .linescore td {
+      padding: 8px 10px; text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .linescore th:last-child, .linescore td:last-child { border-right: none; }
+    .linescore thead tr { background: #f8f8f8; border-bottom: 1px solid var(--border); }
+    .linescore th { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--lgray); }
+    .linescore td.team-col { text-align: left; font-weight: 600; font-size: 13px; min-width: 120px; }
+    .linescore td.total { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; }
+    .linescore td.total.win { color: var(--green); }
+    .linescore tbody tr:last-child td { border-bottom: none; }
+    .linescore tbody tr { border-bottom: 1px solid var(--border); }
+
+    /* CONTEXT STRIP */
+    .context-strip {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+      border-top: 1px solid var(--border);
+    }
+    .ctx-item { padding: 12px 16px; border-right: 1px solid var(--border); text-align: center; }
+    .ctx-item:last-child { border-right: none; }
+    .ctx-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--lgray); margin-bottom: 3px; }
+    .ctx-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: var(--black); }
+    .ctx-val.grn { color: var(--green); }
+    .ctx-val.org { color: var(--orange); }
+    .ctx-val.red { color: var(--red); }
+    .ctx-sub { font-size: 11px; color: var(--lgray); margin-top: 1px; }
+
+    /* WIN PROB BAR */
+    .prob-bar-wrap { padding: 14px 20px; border-top: 1px solid var(--border); }
+    .prob-bar-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--lgray); margin-bottom: 5px; }
+    .prob-bar-labels .team-lbl { font-weight: 600; color: var(--black); }
+    .prob-bar-track { height: 8px; background: var(--red); border-radius: 4px; overflow: hidden; position: relative; }
+    .prob-bar-fill  { height: 100%; background: var(--green); border-radius: 4px 0 0 4px; transition: width .4s; }
+    .prob-pct { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; }
+
+    /* SECTION */
+    .section { background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+    .section-head {
+      padding: 12px 18px; border-bottom: 1px solid var(--border);
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+      font-size: 13px; text-transform: uppercase; letter-spacing: .8px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fafafa;
+    }
+    .section-tabs { display: flex; gap: 0; }
+    .sec-tab {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+      padding: 6px 14px; border: 1px solid var(--border); background: var(--white);
+      color: var(--lgray); cursor: pointer; transition: all .15s;
+      border-right: none;
+    }
+    .sec-tab:first-child { border-radius: 6px 0 0 6px; }
+    .sec-tab:last-child  { border-radius: 0 6px 6px 0; border-right: 1px solid var(--border); }
+    .sec-tab.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+    /* BOX SCORE TABLE */
+    .box-wrap { overflow-x: auto; }
+    table.box {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+      min-width: 560px;
+    }
+    .box th {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .6px;
+      color: var(--lgray); padding: 8px 10px; text-align: right;
+      border-bottom: 1px solid var(--border); background: #f8f8f8;
+      white-space: nowrap;
+    }
+    .box th.left { text-align: left; }
+    .box td { padding: 7px 10px; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; vertical-align: middle; }
+    .box td.left { text-align: left; }
+    .box tbody tr:last-child td { border-bottom: none; }
+    .box tbody tr:hover td { background: #fafafa; }
+    .box .player-name { font-weight: 600; font-size: 13px; }
+    .box .pos-tag { font-size: 11px; color: var(--lgray); margin-left: 4px; }
+    .box .team-divider td {
+      background: #f8f8f8; font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--gray); padding: 5px 10px;
+      text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .box .highlight { color: var(--green); font-weight: 600; }
+    .box .w-tag { display: inline-block; background: var(--green); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 2px; margin-left: 3px; vertical-align: middle; font-family: 'Barlow Condensed', sans-serif; letter-spacing: .3px; }
+    .box .l-tag { display: inline-block; background: var(--red); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 2px; margin-left: 3px; vertical-align: middle; font-family: 'Barlow Condensed', sans-serif; letter-spacing: .3px; }
+
+    .no-boxscore { padding: 40px 20px; text-align: center; color: var(--lgray); font-size: 14px; }
+    .no-boxscore strong { display: block; font-size: 17px; color: var(--gray); margin-bottom: 6px; }
+    .no-boxscore a { color: var(--orange); font-weight: 600; text-decoration: none; }
+
+    /* TEAM CONTEXT CARDS */
+    .team-context-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
+    .tc-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .tc-head { background: var(--black); color: #fff; padding: 10px 14px; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+    .tc-head img { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; background: #fff; }
+    .tc-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .tc-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .tc-row .lbl { color: var(--lgray); }
+    .tc-row .val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; }
+    .tc-row .val.grn { color: var(--green); }
+    .tc-row .val.red { color: var(--red); }
+
+    .loading { text-align: center; padding: 60px 20px; color: var(--lgray); font-family: 'Barlow Condensed', sans-serif; font-size: 18px; letter-spacing: .5px; }
+    .err { text-align: center; padding: 60px 20px; color: var(--red); font-size: 15px; }
+
+    @media (max-width: 600px) {
+      .matchup-teams { grid-template-columns: 1fr; gap: 12px; }
+      .score-center { order: -1; }
+      .team-side.away { align-items: flex-start; text-align: left; }
+      .team-context-grid { grid-template-columns: 1fr; }
+      .context-strip { grid-template-columns: repeat(2, 1fr); }
+      .score-final { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="mbr-header"></div>
+
+<div class="page">
+  <div id="root"><div class="loading">Loading game…</div></div>
+</div>
+
+<script>
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+const SPORT_LABELS = {
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0': 'Baseball',
+  '095c9841-7261-4cb1-824e-6304792b53d0': 'Softball',
+  'b31ab283-b28e-4ba8-9684-b1cf30cea219': 'Basketball',
+  'ff80a695-0e78-4432-98f2-141b2b571e0e': 'Soccer',
+  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d': 'Lacrosse',
+  '1054869a-20d4-465f-8ca9-4bc4d2bafe1b': 'Field Hockey',
+  'fa905ca5-f416-409b-81ac-777179ee5576': 'Football',
+  'e26b0fcc-...'                          : 'Volleyball',
+};
+
+function api(path) {
+  return fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+  }).then(r => r.json());
+}
+
+function fdt(d) {
+  if (!d) return '';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' });
+}
+
+function f1(n) { return n != null ? (+n).toFixed(1) : '—'; }
+function f3(n) { return n != null ? (+n).toFixed(3).replace(/^0/, '') : '—'; }
+function pct(n) { return n != null ? (+(n*100)).toFixed(1) + '%' : '—'; }
+
+function logoEl(url, name, sz = 40) {
+  const ini = (name || '?')[0].toUpperCase();
+  if (url) return `<img src="${url}" alt="${name}" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:contain;background:#f0f0f0;border:1px solid #e2e2e2">`;
+  return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#1a7a4a;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:${Math.floor(sz*0.4)}px">${ini}</div>`;
+}
+
+// ── MAIN ──────────────────────────────────────────────
+async function init() {
+  const params = new URLSearchParams(location.search);
+  const gameId = params.get('game_id');
+  if (!gameId) {
+    document.getElementById('root').innerHTML = '<div class="err">No game_id specified.</div>';
+    return;
+  }
+
+  // Load game + both teams + snapshots
+  const [gameArr, snaps] = await Promise.all([
+    api(`games?id=eq.${gameId}&select=*,home_team:home_team_id(*),away_team:away_team_id(*)&limit=1`),
+    api(`rankings_snapshots?season_year=eq.2026&select=team_id,heal_points,rank_overall,dirigo&limit=2000`)
+  ]);
+
+  if (!gameArr?.length) {
+    document.getElementById('root').innerHTML = '<div class="err">Game not found.</div>';
+    return;
+  }
+
+  const g       = gameArr[0];
+  const ht      = g.home_team || {};
+  const at      = g.away_team || {};
+  const isFinal = g.status === 'final';
+  const sport   = SPORT_LABELS[g.sport_id] || 'Game';
+  const snapMap = {};
+  (snaps || []).forEach(s => snapMap[s.team_id] = s);
+  const hSnap   = snapMap[g.home_team_id] || {};
+  const aSnap   = snapMap[g.away_team_id] || {};
+
+  const hScore  = g.home_score;
+  const aScore  = g.away_score;
+  const hWon    = isFinal && hScore > aScore;
+  const aWon    = isFinal && aScore > hScore;
+
+  // Win prob (pre-game prediction)
+  const wp = g.win_prob; // home team win prob
+
+  // Heal points contribution for this game (if available)
+  const healContrib = g.heal_contrib ?? null;
+
+  // Build linescore from box_score_json if present
+  const bsj = g.box_score_json;
+
+  // ── RENDER ───────────────────────────────────────────
+  document.title = `${at.school_name} @ ${ht.school_name} — MBR`;
+
+  document.getElementById('root').innerHTML = `
+
+    <!-- MATCHUP CARD -->
+    <div class="matchup-card">
+      <div class="matchup-top">
+        <span class="matchup-sport">${sport}</span>
+        <span class="matchup-date">${fdt(g.game_date)}</span>
+        ${g.venue ? `<span class="matchup-venue">📍 ${g.venue}</span>` : ''}
+      </div>
+
+      <div class="matchup-teams">
+        <!-- Away -->
+        <div class="team-side away">
+          ${logoEl(at.logo_url, at.school_name, 56)}
+          <div class="team-name-md"><a href="team.html?team_id=${g.away_team_id}">${at.school_name || 'Away'}</a></div>
+          ${aSnap.rank_overall ? `<span class="team-rank">#${aSnap.rank_overall} Overall</span>` : ''}
+          <span class="team-record" id="away-record"></span>
+        </div>
+
+        <!-- Score -->
+        <div class="score-center">
+          ${isFinal ? `
+            <div class="score-final">
+              <span class="${aWon ? 'score-winner' : 'score-loser'}">${aScore ?? '—'}</span>
+              <span class="score-sep">–</span>
+              <span class="${hWon ? 'score-winner' : 'score-loser'}">${hScore ?? '—'}</span>
+            </div>
+            <div class="score-status">Final</div>
+          ` : `
+            <div class="score-final" style="font-size:28px;color:var(--lgray)">
+              ${g.status === 'scheduled' ? 'Scheduled' : 'Live'}
+            </div>
+          `}
+        </div>
+
+        <!-- Home -->
+        <div class="team-side home">
+          ${logoEl(ht.logo_url, ht.school_name, 56)}
+          <div class="team-name-md"><a href="team.html?team_id=${g.home_team_id}">${ht.school_name || 'Home'}</a></div>
+          ${hSnap.rank_overall ? `<span class="team-rank">#${hSnap.rank_overall} Overall</span>` : ''}
+          <span class="team-record" id="home-record"></span>
+        </div>
+      </div>
+
+      <!-- LINESCORE -->
+      ${bsj ? renderLinescore(bsj, ht.school_name, at.school_name, hScore, aScore) : ''}
+
+      <!-- WIN PROB BAR -->
+      ${wp != null ? `
+        <div class="prob-bar-wrap">
+          <div class="prob-bar-labels">
+            <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct">${pct(1-wp)}</span></span>
+            <span style="color:var(--lgray);font-size:11px">Pre-game win probability</span>
+            <span><span class="prob-pct">${pct(wp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
+          </div>
+          <div class="prob-bar-track">
+            <div class="prob-bar-fill" style="width:${(wp*100).toFixed(1)}%"></div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- CONTEXT STRIP -->
+      <div class="context-strip">
+        ${hSnap.dirigo != null ? `
+          <div class="ctx-item">
+            <div class="ctx-label">DIRIGO — ${ht.school_name}</div>
+            <div class="ctx-val grn">${(+hSnap.dirigo).toFixed(2)}</div>
+          </div>` : ''}
+        ${aSnap.dirigo != null ? `
+          <div class="ctx-item">
+            <div class="ctx-label">DIRIGO — ${at.school_name}</div>
+            <div class="ctx-val grn">${(+aSnap.dirigo).toFixed(2)}</div>
+          </div>` : ''}
+        ${isFinal && hScore != null ? `
+          <div class="ctx-item">
+            <div class="ctx-label">Run Differential</div>
+            <div class="ctx-val ${hScore>aScore?'grn':'red'}">${hScore>aScore?'+':''}${hScore-aScore}</div>
+          </div>` : ''}
+        ${g.stax_index != null ? `
+          <div class="ctx-item">
+            <div class="ctx-label">Stax Index</div>
+            <div class="ctx-val org">${(+g.stax_index).toFixed(1)}</div>
+            <div class="ctx-sub">Game importance</div>
+          </div>` : ''}
+      </div>
+    </div>
+
+    <!-- BOX SCORE -->
+    <div class="section">
+      <div class="section-head">
+        Box Score
+        ${!bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
+        ${bsj ? `<div class="section-tabs">
+          <button class="sec-tab active" onclick="showBoxTab('batting',this)">Batting</button>
+          <button class="sec-tab" onclick="showBoxTab('pitching',this)">Pitching</button>
+        </div>` : ''}
+      </div>
+      <div class="box-wrap" id="boxContent">
+        ${bsj ? renderBatting(bsj, ht.school_name, at.school_name) : `
+          <div class="no-boxscore">
+            <strong>No box score imported yet</strong>
+            <a href="boxscore-import.html">Import stats from a PDF box score →</a>
+          </div>`}
+      </div>
+    </div>
+
+    <!-- TEAM CONTEXT -->
+    <div class="section" id="teamContextSection">
+      <div class="section-head">Season Context</div>
+      <div class="team-context-grid" id="teamContext">
+        <div class="loading" style="padding:24px;grid-column:1/-1">Loading…</div>
+      </div>
+    </div>
+
+  `;
+
+  // Store for tab switching
+  window._bsj  = bsj;
+  window._htName = ht.school_name;
+  window._atName = at.school_name;
+
+  // Load season records for both teams
+  loadTeamContext(g, ht, at, hSnap, aSnap);
+}
+
+// ── LINESCORE ────────────────────────────────────────
+function renderLinescore(bsj, homeName, awayName, hTotal, aTotal) {
+  // GC box scores don't always include inning-by-inning — skip if not present
+  if (!bsj?.linescore) return '';
+  const ls = bsj.linescore;
+  const innings = ls.innings || [];
+  if (!innings.length) return '';
+
+  const awayRow = innings.map(i => `<td>${i.away ?? '—'}</td>`).join('');
+  const homeRow = innings.map(i => `<td>${i.home ?? '—'}</td>`).join('');
+  const heads   = innings.map((_, i) => `<th>${i+1}</th>`).join('');
+
+  return `<div class="linescore-wrap">
+    <table class="linescore">
+      <thead><tr>
+        <th class="team-col" style="text-align:left">Team</th>
+        ${heads}
+        <th>R</th><th>H</th><th>E</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td class="team-col">${awayName}</td>
+          ${awayRow}
+          <td class="total ${aTotal > hTotal ? 'win' : ''}">${aTotal ?? '—'}</td>
+          <td class="total">${ls.away_hits ?? '—'}</td>
+          <td class="total">${ls.away_errors ?? '—'}</td>
+        </tr>
+        <tr>
+          <td class="team-col">${homeName}</td>
+          ${homeRow}
+          <td class="total ${hTotal > aTotal ? 'win' : ''}">${hTotal ?? '—'}</td>
+          <td class="total">${ls.home_hits ?? '—'}</td>
+          <td class="total">${ls.home_errors ?? '—'}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ── BOX SCORE TABLES ─────────────────────────────────
+function renderBatting(bsj, homeName, awayName) {
+  const rows = bsj.batting || [];
+  if (!rows.length) return '<div class="no-boxscore"><strong>No batting data</strong></div>';
+
+  const homeRows = rows.filter(p => teamIs(p.team, homeName));
+  const awayRows = rows.filter(p => teamIs(p.team, awayName));
+
+  function playerRows(players) {
+    return players.map(p => {
+      const ba = p.ab > 0 ? f3(p.hits / p.ab) : '—';
+      return `<tr>
+        <td class="left player-name">${p.name || ''}${p.position ? `<span class="pos-tag">${p.position}</span>` : ''}</td>
+        <td>${p.ab ?? 0}</td>
+        <td class="${p.runs > 0 ? 'highlight' : ''}">${p.runs ?? 0}</td>
+        <td class="${p.hits > 0 ? 'highlight' : ''}">${p.hits ?? 0}</td>
+        <td class="${p.rbi > 0 ? 'highlight' : ''}">${p.rbi ?? 0}</td>
+        <td>${p.bb ?? 0}</td>
+        <td>${p.k_bat ?? 0}</td>
+        <td>${p.doubles ?? 0}</td>
+        <td>${p.triples ?? 0}</td>
+        <td>${p.hr ?? 0}</td>
+        <td>${p.sb ?? 0}</td>
+        <td>${ba}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const thead = `<thead><tr>
+    <th class="left">Player</th>
+    <th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th>
+    <th>2B</th><th>3B</th><th>HR</th><th>SB</th><th>AVG</th>
+  </tr></thead>`;
+
+  return `<table class="box" id="battingTable">
+    ${thead}
+    <tbody>
+      <tr class="team-divider"><td colspan="12">${awayName} (Away)</td></tr>
+      ${playerRows(awayRows)}
+      <tr class="team-divider"><td colspan="12">${homeName} (Home)</td></tr>
+      ${playerRows(homeRows)}
+    </tbody>
+  </table>`;
+}
+
+function renderPitching(bsj, homeName, awayName) {
+  const rows = bsj.pitching || [];
+  if (!rows.length) return '<div class="no-boxscore"><strong>No pitching data</strong></div>';
+
+  const homeRows = rows.filter(p => teamIs(p.team, homeName));
+  const awayRows = rows.filter(p => teamIs(p.team, awayName));
+
+  function playerRows(players) {
+    return players.map(p => {
+      const ip = p.ip_outs != null ? `${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` : '—';
+      const era = p.ip_outs > 0 ? f1((p.p_er * 27) / p.ip_outs) : '—';
+      const dec = p.w ? `<span class="w-tag">W</span>` : p.l ? `<span class="l-tag">L</span>` : '';
+      return `<tr>
+        <td class="left player-name">${p.name || ''}${dec}</td>
+        <td>${ip}</td>
+        <td>${p.p_h ?? 0}</td>
+        <td class="${p.p_er > 0 ? '' : 'highlight'}">${p.p_er ?? 0}</td>
+        <td>${p.p_bb ?? 0}</td>
+        <td class="${p.k > 5 ? 'highlight' : ''}">${p.k ?? 0}</td>
+        <td>${era}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const thead = `<thead><tr>
+    <th class="left">Pitcher</th>
+    <th>IP</th><th>H</th><th>ER</th><th>BB</th><th>K</th><th>ERA</th>
+  </tr></thead>`;
+
+  return `<table class="box" id="pitchingTable">
+    ${thead}
+    <tbody>
+      <tr class="team-divider"><td colspan="7">${awayName} (Away)</td></tr>
+      ${playerRows(awayRows)}
+      <tr class="team-divider"><td colspan="7">${homeName} (Home)</td></tr>
+      ${playerRows(homeRows)}
+    </tbody>
+  </table>`;
+}
+
+function showBoxTab(tab, btn) {
+  document.querySelectorAll('.sec-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const bsj = window._bsj;
+  if (!bsj) return;
+  document.getElementById('boxContent').innerHTML = tab === 'batting'
+    ? renderBatting(bsj, window._htName, window._atName)
+    : renderPitching(bsj, window._htName, window._atName);
+}
+
+function teamIs(teamName, schoolName) {
+  if (!teamName || !schoolName) return false;
+  const tn = teamName.toLowerCase();
+  const sn = schoolName.toLowerCase();
+  return tn.includes(sn) || sn.includes(tn) ||
+    sn.split(' ').some(w => w.length > 3 && tn.includes(w));
+}
+
+// ── SEASON CONTEXT ───────────────────────────────────
+async function loadTeamContext(g, ht, at, hSnap, aSnap) {
+  // Load both teams' games to compute record at time of this game
+  const [hGames, aGames] = await Promise.all([
+    api(`games?or=(home_team_id.eq.${g.home_team_id},away_team_id.eq.${g.home_team_id})&sport_id=eq.${g.sport_id}&season_year=eq.2026&status=eq.final&select=id,game_date,home_team_id,home_score,away_score&order=game_date.asc`),
+    api(`games?or=(home_team_id.eq.${g.away_team_id},away_team_id.eq.${g.away_team_id})&sport_id=eq.${g.sport_id}&season_year=eq.2026&status=eq.final&select=id,game_date,home_team_id,home_score,away_score&order=game_date.asc`)
+  ]);
+
+  function recordAtDate(games, teamId, beforeDate) {
+    let w = 0, l = 0;
+    (games || []).forEach(gm => {
+      if (gm.game_date > beforeDate) return;
+      const ih = gm.home_team_id === teamId;
+      const ms = ih ? gm.home_score : gm.away_score;
+      const os = ih ? gm.away_score : gm.home_score;
+      if (ms > os) w++; else l++;
+    });
+    return { w, l };
+  }
+
+  const hRec = recordAtDate(hGames, g.home_team_id, g.game_date);
+  const aRec = recordAtDate(aGames, g.away_team_id, g.game_date);
+
+  // Full season record
+  const hFull = recordAtDate(hGames, g.home_team_id, '9999-99-99');
+  const aFull = recordAtDate(aGames, g.away_team_id, '9999-99-99');
+
+  document.getElementById('teamContext').innerHTML = `
+    <div class="tc-card">
+      <div class="tc-head">
+        ${logoEl(at.logo_url, at.school_name, 28)}
+        ${at.school_name}
+      </div>
+      <div class="tc-body">
+        <div class="tc-row">
+          <span class="lbl">Record entering game</span>
+          <span class="val">${aRec.w}–${aRec.l}</span>
+        </div>
+        <div class="tc-row">
+          <span class="lbl">Season record</span>
+          <span class="val">${aFull.w}–${aFull.l}</span>
+        </div>
+        ${aSnap.rank_overall ? `<div class="tc-row">
+          <span class="lbl">State rank</span>
+          <span class="val grn">#${aSnap.rank_overall}</span>
+        </div>` : ''}
+        ${aSnap.dirigo != null ? `<div class="tc-row">
+          <span class="lbl">DIRIGO</span>
+          <span class="val grn">${(+aSnap.dirigo).toFixed(2)}</span>
+        </div>` : ''}
+      </div>
+    </div>
+    <div class="tc-card">
+      <div class="tc-head">
+        ${logoEl(ht.logo_url, ht.school_name, 28)}
+        ${ht.school_name}
+      </div>
+      <div class="tc-body">
+        <div class="tc-row">
+          <span class="lbl">Record entering game</span>
+          <span class="val">${hRec.w}–${hRec.l}</span>
+        </div>
+        <div class="tc-row">
+          <span class="lbl">Season record</span>
+          <span class="val">${hFull.w}–${hFull.l}</span>
+        </div>
+        ${hSnap.rank_overall ? `<div class="tc-row">
+          <span class="lbl">State rank</span>
+          <span class="val grn">#${hSnap.rank_overall}</span>
+        </div>` : ''}
+        ${hSnap.dirigo != null ? `<div class="tc-row">
+          <span class="lbl">DIRIGO</span>
+          <span class="val grn">${(+hSnap.dirigo).toFixed(2)}</span>
+        </div>` : ''}
+      </div>
+    </div>`;
+}
+
+init();
+</script>
+
+<script src="nav.js"></script>
+<script>if (typeof MBRNav !== 'undefined') MBRNav.init({ active: '' });</script>
+</body>
+</html>

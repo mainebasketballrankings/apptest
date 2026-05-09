@@ -287,6 +287,12 @@ async function init() {
   const hSnap = hSnapArr?.[0] || {};
   const aSnap = aSnapArr?.[0] || {};
 
+  // Use rank locked at push time if available, else fall back to snapshot
+  const hRank = g.home_rank ?? hSnap.rank_overall ?? null;
+  const aRank = g.away_rank ?? aSnap.rank_overall ?? null;
+  const hRankLabel = g.home_rank != null ? `#\${g.home_rank}` : hSnap.rank_overall ? `#\${hSnap.rank_overall} (current)` : null;
+  const aRankLabel = g.away_rank != null ? `#\${g.away_rank}` : aSnap.rank_overall ? `#\${aSnap.rank_overall} (current)` : null;
+
   const hScore  = g.home_score;
   const aScore  = g.away_score;
   const hWon    = isFinal && hScore > aScore;
@@ -332,7 +338,7 @@ async function init() {
         <div class="team-side away">
           ${logoEl(at.logo_url, at.school_name, 56)}
           <div class="team-name-md"><a href="team.html?team_id=${g.away_team_id}">${at.school_name || 'Away'}</a></div>
-          ${aSnap.rank_overall ? `<span class="team-rank" title="Current rank">#${aSnap.rank_overall} Now</span>` : ''}
+          ${aRankLabel ? `<span class="team-rank">${aRankLabel}</span>` : ''}
           <span class="team-record" id="away-record"></span>
         </div>
 
@@ -356,7 +362,7 @@ async function init() {
         <div class="team-side home">
           ${logoEl(ht.logo_url, ht.school_name, 56)}
           <div class="team-name-md"><a href="team.html?team_id=${g.home_team_id}">${ht.school_name || 'Home'}</a></div>
-          ${hSnap.rank_overall ? `<span class="team-rank" title="Current rank">#${hSnap.rank_overall} Now</span>` : ''}
+          ${hRankLabel ? `<span class="team-rank">${hRankLabel}</span>` : ''}
           <span class="team-record" id="home-record"></span>
         </div>
       </div>
@@ -639,9 +645,9 @@ async function loadTeamContext(g, ht, at, hSnap, aSnap) {
           <span class="lbl">Season record</span>
           <span class="val">${aFull.w}–${aFull.l}</span>
         </div>
-        ${aSnap.rank_overall ? `<div class="tc-row">
-          <span class="lbl">State rank (current)</span>
-          <span class="val grn">#${aSnap.rank_overall}</span>
+        ${aRankLabel ? `<div class="tc-row">
+          <span class="lbl">State rank${g.away_rank != null ? '' : ' (current)'}</span>
+          <span class="val grn">${aRankLabel}</span>
         </div>` : ''}
         ${aSnap.dirigo != null ? `<div class="tc-row">
           <span class="lbl">DIRIGO</span>
@@ -663,9 +669,9 @@ async function loadTeamContext(g, ht, at, hSnap, aSnap) {
           <span class="lbl">Season record</span>
           <span class="val">${hFull.w}–${hFull.l}</span>
         </div>
-        ${hSnap.rank_overall ? `<div class="tc-row">
-          <span class="lbl">State rank (current)</span>
-          <span class="val grn">#${hSnap.rank_overall}</span>
+        ${hRankLabel ? `<div class="tc-row">
+          <span class="lbl">State rank${g.home_rank != null ? '' : ' (current)'}</span>
+          <span class="val grn">${hRankLabel}</span>
         </div>` : ''}
         ${hSnap.dirigo != null ? `<div class="tc-row">
           <span class="lbl">DIRIGO</span>

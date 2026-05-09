@@ -316,7 +316,7 @@ async function init() {
       <div class="matchup-top">
         <span class="matchup-sport">${sport}</span>
         <span class="matchup-date">${fdt(g.game_date)}</span>
-        ${g.venue ? `<span class="matchup-venue">📍 ${g.venue}</span>` : ''}
+        ${(g.venue || g.location) ? `<span class="matchup-venue">📍 ${g.venue || g.location}</span>` : ''}
       </div>
 
       <div class="matchup-teams">
@@ -365,18 +365,18 @@ async function init() {
               <span style="color:var(--lgray);font-size:11px">Pre-game prediction</span>
               <span><span class="prob-pct" style="color:${favHome?'var(--green)':'var(--lgray)'}">${pct(wp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track" style="margin-bottom:${isFinal?'12px':'0'}">
-              <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:${favAway?'var(--green)':'var(--red)'}"></div>
+            <div class="prob-bar-track" style="margin-bottom:${isFinal?'12px':'0'};background:var(--green)">
+              <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:var(--red)"></div>
             </div>
           ` : ''}
-          ${isFinal && hScore != null ? `
+          ${isFinal ? `
             <div class="prob-bar-labels" style="margin-bottom:4px">
               <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aWon?'var(--green)':'var(--lgray)'}">${aScore}</span></span>
-              <span style="color:var(--lgray);font-size:11px">Final score${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ UPSET</strong>' : ''}</span>
+              <span style="color:var(--lgray);font-size:11px">Result${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ Upset</strong>' : ''}</span>
               <span><span class="prob-pct" style="color:${hWon?'var(--green)':'var(--lgray)'}">${hScore}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track">
-              <div class="prob-bar-fill" style="width:${aBarPct}%;background:${aWon?'var(--green)':'var(--red)'}"></div>
+            <div class="prob-bar-track" style="background:${hWon?'var(--green)':'var(--red)'}">
+              <div class="prob-bar-fill" style="width:${aWon?'100':'0'}%;background:${aWon?'var(--green)':'var(--red)'}"></div>
             </div>
           ` : ''}
         </div>
@@ -402,7 +402,7 @@ async function init() {
           </div>` : ''}
         ${g.stax_index != null ? `
           <div class="ctx-item">
-            <div class="ctx-label">Stax Index</div>
+            <div class="ctx-label">⚡ Stax Index</div>
             <div class="ctx-val org">${(+g.stax_index).toFixed(1)}</div>
             <div class="ctx-sub">Game importance</div>
           </div>` : ''}

@@ -456,7 +456,7 @@ schoolInput.addEventListener('input', () => {
   schoolDropdown.style.display = '';
 
   schoolDropdown.querySelectorAll('.dropdown-item').forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('mousedown', e => { e.preventDefault();
       const school      = item.dataset.school;
       const springTeams = allTeams.filter(t =>
         t.school_name === school && SPRING_SPORT_IDS.includes(t.sport_id)
@@ -474,7 +474,7 @@ schoolInput.addEventListener('input', () => {
           </div>`;
         }).join('');
         schoolDropdown.querySelectorAll('.dropdown-item').forEach(sub => {
-          sub.addEventListener('click', () => {
+          sub.addEventListener('mousedown', e => { e.preventDefault();
             const team = springTeams[parseInt(sub.dataset.springIdx)];
             if (team) selectTeam(team);
           });

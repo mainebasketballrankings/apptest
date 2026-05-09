@@ -3453,12 +3453,16 @@ function logPA(playerName, sym, rbi){
   if(!G.paLog) G.paLog=[];
   G.paLog.push({name:playerName, sym, rbi:rbi||0, inn:G.inning, half:G.half});
 }
-// Build PA history string for current batter: "K · 1B · 2B(RBI)"
+// Build PA history string for current batter: "▲1 K · ▼2 1B · ▲3 2B (RBI)"
 function getBatterPALine(playerName){
   if(!G.paLog||!playerName) return '';
   const pas = G.paLog.filter(e=>e.name===playerName);
   if(!pas.length) return '';
-  return pas.map(e=>`${e.sym}${e.rbi>0?`(${e.rbi>1?e.rbi:''}RBI)`:''}` ).join(' · ');
+  return pas.map(e=>{
+    const halfSym = e.half==='top'?'▲':'▼';
+    const rbiStr = e.rbi>0 ? ' (' + (e.rbi>1?e.rbi:'') + 'RBI)' : '';
+    return halfSym + e.inn + ' ' + e.sym + rbiStr;
+  }).join(' · ');
 }
 
 function showAlert(msg){ setTimeout(()=>alert(msg),50); }

@@ -312,7 +312,7 @@ document.getElementById('sportTabs').addEventListener('click', e => {
     ? (document.querySelector('.gender-tab.active')?.dataset.gender || 'Boys')
     : SPORT_GENDER[activeSport];
   activeRegion = null;
-  if (isPaid) loadData();
+  loadData();
 });
 
 document.getElementById('genderTabs').addEventListener('click', e => {
@@ -322,12 +322,12 @@ document.getElementById('genderTabs').addEventListener('click', e => {
   btn.classList.add('active');
   activeGender = btn.dataset.gender;
   activeRegion = null;
-  if (isPaid) loadData();
+  loadData();
 });
 
 document.getElementById('seasonSel').addEventListener('change', e => {
   activeSeason = parseInt(e.target.value);
-  if (isPaid) loadData();
+  loadData();
 });
 
 // ── Load ──────────────────────────────────────────────────────────────────
@@ -352,15 +352,15 @@ async function loadData() {
 
   const teamIds = teams.map(t => t.id);
 
-  // Get latest snapshot date first, then fetch only that date
+  // Get latest snapshot date for this sport, then fetch only that date
   const latestDateResp = await sbFetch(
     `rankings_snapshots?team_id=in.(${teamIds.slice(0,10).join(',')})&season_year=eq.${activeSeason}` +
     `&select=snapshot_date&order=snapshot_date.desc&limit=1`
   );
-  const latestDate = latestDateResp[0]?.snapshot_date;
-  const snaps = latestDate ? await sbFetch(
+  const latestSnapDate = latestDateResp[0]?.snapshot_date;
+  const snaps = latestSnapDate ? await sbFetch(
     `rankings_snapshots?team_id=in.(${teamIds.join(',')})&season_year=eq.${activeSeason}` +
-    `&snapshot_date=eq.${latestDate}` +
+    `&snapshot_date=eq.${latestSnapDate}` +
     `&select=team_id,wins,losses,tournament_odds,wl_distribution,snapshot_date` +
     `&limit=500`
   ) : [];

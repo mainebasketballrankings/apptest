@@ -390,11 +390,22 @@ let activeTab       = 'batting';
 
 // ── BOOT ──────────────────────────────────────────────
 async function init() {
+  // Load all teams, filter client-side by sport
   const { data, error } = await sb.from('teams')
     .select('id, school_name, gender, sport_id')
-    .in('sport_id', SPRING_SPORT_IDS)
     .order('school_name');
-  if (!error && data) allTeams = data;
+
+  if (error) {
+    console.error('Teams load error:', error);
+    return;
+  }
+
+  console.log('All teams loaded:', data?.length, 'rows');
+  console.log('Sample sport_ids:', [...new Set(data?.map(t => t.sport_id))].slice(0, 10));
+
+  // Filter to baseball + softball only
+  allTeams = (data || []).filter(t => SPRING_SPORT_IDS.includes(t.sport_id));
+  console.log('Spring teams after filter:', allTeams.length);
 }
 
 // ── SCHOOL SEARCH ─────────────────────────────────────

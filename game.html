@@ -263,9 +263,8 @@ async function init() {
   }
 
   // Load game + both teams + snapshots
-  const [gameArr, snaps] = await Promise.all([
+  const [gameArr] = await Promise.all([
     api(`games?id=eq.${gameId}&select=*,home_team:home_team_id(*),away_team:away_team_id(*)&limit=1`),
-    api(`rankings_snapshots?season_year=eq.2026&select=team_id,heal_points,rank_overall,dirigo&limit=2000`)
   ]);
 
   if (!gameArr?.length) {
@@ -278,10 +277,15 @@ async function init() {
   const at      = g.away_team || {};
   const isFinal = g.status === 'final';
   const sport   = SPORT_LABELS[g.sport_id] || 'Game';
-  const snapMap = {};
-  (snaps || []).forEach(s => snapMap[s.team_id] = s);
-  const hSnap   = snapMap[g.home_team_id] || {};
-  const aSnap   = snapMap[g.away_team_id] || {};
+
+  // Get snapshot closest to (but not after) game date for each team
+  const snapDate = g.game_date || new Date().toISOString().slice(0,10);
+  const [hSnapArr, aSnapArr] = await Promise.all([
+    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.2026&snapshot_date=lte.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.2026&snapshot_date=lte.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo&limit=1`),
+  ]);
+  const hSnap = hSnapArr?.[0] || {};
+  const aSnap = aSnapArr?.[0] || {};
 
   const hScore  = g.home_score;
   const aScore  = g.away_score;
@@ -293,6 +297,10 @@ async function init() {
 
   // Build linescore from box_score_json if present
   const bsj = g.box_score_json;
+
+  // Team colors — neutral defaults until primary_color is in DB
+  const aColor = at.primary_color || '#2563a8'; // away = blue
+  const hColor = ht.primary_color || '#6b3fa0'; // home = purple
 
   // Pre-compute upset/favorite for template use
   const favHome    = wp != null && wp >= 0.5;
@@ -361,22 +369,22 @@ async function init() {
         <div class="prob-bar-wrap">
           ${wp != null ? `
             <div class="prob-bar-labels" style="margin-bottom:4px">
-              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${favAway?'var(--green)':'var(--lgray)'}">${pct(1-wp)}</span></span>
+              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aColor}">${pct(1-wp)}</span></span>
               <span style="color:var(--lgray);font-size:11px">Pre-game prediction</span>
-              <span><span class="prob-pct" style="color:${favHome?'var(--green)':'var(--lgray)'}">${pct(wp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
+              <span><span class="prob-pct" style="color:${hColor}">${pct(wp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track" style="margin-bottom:${isFinal?'12px':'0'};background:var(--green)">
-              <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:var(--red)"></div>
+            <div class="prob-bar-track" style="margin-bottom:${isFinal?'12px':'0'};background:${hColor}">
+              <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:${aColor}"></div>
             </div>
           ` : ''}
           ${isFinal ? `
             <div class="prob-bar-labels" style="margin-bottom:4px">
-              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aWon?'var(--green)':'var(--lgray)'}">${aScore}</span></span>
+              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aColor};${aWon?'font-weight:800':''}">${aScore}</span></span>
               <span style="color:var(--lgray);font-size:11px">Result${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ Upset</strong>' : ''}</span>
-              <span><span class="prob-pct" style="color:${hWon?'var(--green)':'var(--lgray)'}">${hScore}</span> <span class="team-lbl">${ht.school_name}</span></span>
+              <span><span class="prob-pct" style="color:${hColor};${hWon?'font-weight:800':''}">${hScore}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track" style="background:${hWon?'var(--green)':'var(--red)'}">
-              <div class="prob-bar-fill" style="width:${aWon?'100':'0'}%;background:${aWon?'var(--green)':'var(--red)'}"></div>
+            <div class="prob-bar-track" style="background:${hColor}">
+              <div class="prob-bar-fill" style="width:${aWon?'100':'0'}%;background:${aColor}"></div>
             </div>
           ` : ''}
         </div>

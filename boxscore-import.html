@@ -413,12 +413,8 @@ async function init() {
     return;
   }
 
-  console.log('All teams loaded:', data?.length, 'rows');
-  console.log('Sample sport_ids:', [...new Set(data?.map(t => t.sport_id))].slice(0, 10));
-
   // Keep all teams — sport pill shown in dropdown, filtered in search display
   allTeams = data || [];
-  console.log('Teams ready:', allTeams.length);
 }
 
 // ── SCHOOL SEARCH ─────────────────────────────────────
@@ -781,9 +777,7 @@ function matchPlayer(p, roster) {
   m = pool.find(ep => epNum(ep) === num);
   if (m) return m;
 
-  // Debug: log misses
-  console.log('NO MATCH:', p.name, 'num:', num, typeof p.number,
-    '| pool nums:', pool.map(ep => epNum(ep) + '(' + typeof ep.number + ')').join(', '));
+
 
   // 3. Last name only (fallback)
   return pool.find(ep => {
@@ -815,8 +809,6 @@ async function resolveTeamId(boxScoreTeamName) {
     // Prefer same sport
     team = candidates.find(t => t.sport_id === sportId) || candidates[0];
   }
-
-  console.log('resolveTeamId:', boxScoreTeamName, '->', team?.school_name, team?.sport_id);
   if (!team) return null;
 
   // Load their roster if not cached

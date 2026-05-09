@@ -278,20 +278,24 @@ async function init() {
   const isFinal = g.status === 'final';
   const sport   = SPORT_LABELS[g.sport_id] || 'Game';
 
-  // Get snapshot closest to (but not after) game date for each team
+  // Get snapshot closest to game date, fall back to latest if none before game date
   const snapDate = g.game_date || new Date().toISOString().slice(0,10);
-  const [hSnapArr, aSnapArr] = await Promise.all([
-    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.2026&snapshot_date=lte.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo&limit=1`),
-    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.2026&snapshot_date=lte.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo&limit=1`),
+  const [hSnapArr, aSnapArr, hSnapLatArr, aSnapLatArr] = await Promise.all([
+    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.2026&snapshot_date=lte.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.2026&snapshot_date=lte.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.2026&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.2026&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
   ]);
-  const hSnap = hSnapArr?.[0] || {};
-  const aSnap = aSnapArr?.[0] || {};
+  const hSnap = hSnapArr?.[0] || hSnapLatArr?.[0] || {};
+  const aSnap = aSnapArr?.[0] || aSnapLatArr?.[0] || {};
+  const hSnapIsGameDate = !!(hSnapArr?.[0]);
+  const aSnapIsGameDate = !!(aSnapArr?.[0]);
 
   // Use rank locked at push time if available, else fall back to snapshot
   const hRankNum = g.home_rank != null ? g.home_rank : (hSnap.rank_overall || null);
   const aRankNum = g.away_rank != null ? g.away_rank : (aSnap.rank_overall || null);
-  const hRankSuffix = g.home_rank != null ? '' : ' (current)';
-  const aRankSuffix = g.away_rank != null ? '' : ' (current)';
+  const hRankSuffix = g.home_rank != null ? '' : (hSnapIsGameDate ? ' ~game date' : ' (current)');
+  const aRankSuffix = g.away_rank != null ? '' : (aSnapIsGameDate ? ' ~game date' : ' (current)');
   const hRankLabel = hRankNum ? ('#' + hRankNum + hRankSuffix) : null;
   const aRankLabel = aRankNum ? ('#' + aRankNum + aRankSuffix) : null;
 

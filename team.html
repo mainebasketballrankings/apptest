@@ -71,6 +71,10 @@
     .inline-val.red { color: var(--red); }
     .meta-sep { color: var(--border); }
     .team-record-big { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 24px; color: var(--green); }
+    .stats-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; text-decoration: none; display: inline-block; }
+    .stats-pill.uploaded { background: #f0faf5; color: #1a7a4a; border: 1px solid #b6dfcc; }
+    .stats-pill.pending  { background: #fff3ee; color: #ee6730; border: 1px solid #f5c8b8; cursor: pointer; }
+    .stats-pill.pending:hover { background: #ee6730; color: #fff; }
 
     /* STAT CARDS */
     .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 16px; }
@@ -387,6 +391,8 @@ async function load() {
 
     // Derive sport slug and regEnd from team.sport_id
     const sport   = Object.keys(SPORT_IDS).find(k => SPORT_IDS[k] === team.sport_id) || 'basketball';
+    const SPRING_SPORT_IDS = ['c87a4d6c-a471-47e1-b6a0-d1643d942bf0','095c9841-7261-4cb1-824e-6304792b53d0'];
+    const isSpring = SPRING_SPORT_IDS.includes(team.sport_id);
     const regEnd  = SPORT_REG_END[sport];
     const [pfLbl, paLbl] = SPORT_SCORE_LABELS[sport] || ['Avg PF', 'Avg PA'];
     const seasonYear = 2026;
@@ -396,7 +402,7 @@ async function load() {
       .then(r => r[0]?.snapshot_date || null);
 
     const [games, classData, allSnaps] = await Promise.all([
-      sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=game_date.asc&select=*`),
+      sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=game_date.asc&select=*,stats_uploaded`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       latestSnapDate
         ? sb(`rankings_snapshots?snapshot_date=eq.${latestSnapDate}&season_year=eq.${seasonYear}&select=team_id,heal_points,rank_overall,rank_class&limit=500`)
@@ -752,6 +758,10 @@ async function load() {
         </td>
         <td class="sc ${won?'w':lost?'l':''}">
           <span class="rbadge ${res==='W'?'W':res==='L'?'L':''}">${res}</span> ${scoreTxt}
+          ${fin && isSpring ? (g.stats_uploaded
+            ? `<span class="stats-pill uploaded" title="Box score stats imported">📊</span>`
+            : `<a class="stats-pill pending" href="boxscore-import.html" title="Import box score stats">+ Stats</a>`
+          ) : ''}
         </td>
         <td class="dc ${df>0?'p':df<0?'n':''} hsm">${df!==null?(df>0?'+':'')+df:''}</td>
         <td class="hsm">

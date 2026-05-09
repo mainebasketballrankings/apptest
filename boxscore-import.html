@@ -393,12 +393,13 @@ const SPRING_SPORT_IDS = [
 ];
 
 // ── STATE ─────────────────────────────────────────────
-let allTeams        = [];
-let selectedTeam    = null;
-let existingPlayers = [];
-let currentGame     = null;
-let parsedData      = null;
-let activeTab       = 'batting';
+let allTeams         = [];
+let selectedTeam     = null;
+let existingPlayers  = [];   // players for selected team
+let teamPlayersCache  = {};  // {team_id: [players]} for all teams in a game
+let currentGame      = null;
+let parsedData       = null;
+let activeTab        = 'batting';
 
 // ── BOOT ──────────────────────────────────────────────
 async function init() {
@@ -749,18 +750,47 @@ ${pdfText}`;
 }
 
 // ── PLAYER MATCHING ───────────────────────────────────
-function matchPlayer(p) {
+function matchPlayer(p, roster) {
+  const pool = roster || existingPlayers;
   // 1. Number + last name
-  let m = existingPlayers.find(ep =>
+  let m = pool.find(ep =>
     ep.number === p.number &&
     ep.name?.toLowerCase().includes((p.last || '').toLowerCase())
   );
   if (m) return m;
   // 2. Last name only
-  return existingPlayers.find(ep =>
+  return pool.find(ep =>
     (p.last || '').length > 1 &&
     ep.name?.toLowerCase().includes(p.last.toLowerCase())
   ) || null;
+}
+
+// Find team_id in DB by matching box score team name
+async function resolveTeamId(boxScoreTeamName) {
+  // Try exact match first
+  let team = allTeams.find(t =>
+    t.school_name.toLowerCase() === boxScoreTeamName.toLowerCase()
+  );
+  if (!team) {
+    // Fuzzy: box score name contains school name or vice versa
+    team = allTeams.find(t => {
+      const tn   = boxScoreTeamName.toLowerCase();
+      const sn   = t.school_name.toLowerCase();
+      return tn.includes(sn) || sn.includes(tn) ||
+        sn.split(' ').some(w => w.length > 3 && tn.includes(w));
+    });
+  }
+  if (!team) return null;
+
+  // Load their roster if not cached
+  if (!teamPlayersCache[team.id]) {
+    const { data } = await sb.from('players')
+      .select('id, name, number, season_year')
+      .eq('team_id', team.id)
+      .eq('season_year', 2026);
+    teamPlayersCache[team.id] = data || [];
+  }
+  return { teamId: team.id, sportId: team.sport_id, roster: teamPlayersCache[team.id] };
 }
 
 // ── PREVIEW ──────────────────────────────────────────
@@ -788,11 +818,9 @@ function renderPreview(parsed) {
     b.classList.toggle('active', b.dataset.tab === 'batting'));
   renderTab('batting');
 
-  const myRows    = (parsed.batting || []).filter(p => teamMatches(p.team));
-  const newCount  = myRows.filter(p => !matchPlayer(p)).length;
-  const matchCount= myRows.filter(p =>  matchPlayer(p)).length;
+  const allRows   = parsed.batting || [];
   document.getElementById('prevSummary').innerHTML =
-    `Your team: <strong>${matchCount}</strong> matched · <span class="new-count">${newCount} new</span> will be created`;
+    `<strong>${allRows.length}</strong> players across both teams · confirm to push all`;
 
   showStep('preview');
 }
@@ -875,25 +903,99 @@ function syncEdit(inp) {
 }
 
 // ── PUSH ─────────────────────────────────────────────
-async function pushToSupabase() {
+
+// Check for existing import and show conflict UI if found
+async function checkConflictThenPush() {
+  const btn = document.getElementById('btnConfirm');
+  btn.disabled = true; btn.textContent = 'Checking…';
+
+  try {
+    if (currentGame?.stats_uploaded && currentGame?.id) {
+      const { data: existing } = await sb.from('game_stat_imports')
+        .select('player_id, stat_type, stats')
+        .eq('game_id', currentGame.id);
+
+      if (existing?.length) {
+        // Build a summary diff to show the user
+        const prevTotal = existing.filter(r => r.stat_type === 'batting')
+          .reduce((sum, r) => {
+            const s = JSON.parse(r.stats || '{}');
+            return { ab: sum.ab + (s.ab||0), hits: sum.hits + (s.hits||0), rbi: sum.rbi + (s.rbi||0) };
+          }, { ab: 0, hits: 0, rbi: 0 });
+
+        const newBat = (parsedData.batting || []);
+        const newTotal = newBat.reduce((sum, p) => ({
+          ab: sum.ab + (p.ab||0), hits: sum.hits + (p.hits||0), rbi: sum.rbi + (p.rbi||0)
+        }), { ab: 0, hits: 0, rbi: 0 });
+
+        // Check if they're identical
+        const same = prevTotal.ab === newTotal.ab && prevTotal.hits === newTotal.hits && prevTotal.rbi === newTotal.rbi;
+
+        if (same) {
+          // Identical — just confirm and skip
+          showConflictBanner('identical', prevTotal, newTotal);
+        } else {
+          showConflictBanner('different', prevTotal, newTotal);
+        }
+        btn.disabled = false; btn.textContent = '✓ Push Stats';
+        return;
+      }
+    }
+    await pushToSupabase();
+  } catch(err) {
+    showError(err.message);
+    btn.disabled = false; btn.textContent = '✓ Push Stats';
+  }
+}
+
+function showConflictBanner(type, prev, next) {
+  const wb = document.getElementById('warnBox');
+  if (type === 'identical') {
+    wb.innerHTML = `⚠ This game was already imported with identical stats. <button class="btn btn-sm btn-orange" style="margin-left:8px" onclick="pushToSupabase(true)">Re-import Anyway</button>`;
+  } else {
+    wb.innerHTML = `
+      ⚠ This game was already imported with different stats.<br>
+      <div style="display:flex;gap:24px;margin:10px 0;font-size:13px">
+        <div><strong>Previous import:</strong> ${prev.ab} AB · ${prev.hits} H · ${prev.rbi} RBI</div>
+        <div><strong>This file:</strong> ${next.ab} AB · ${next.hits} H · ${next.rbi} RBI</div>
+      </div>
+      <button class="btn btn-sm btn-ghost" onclick="pushToSupabase(false)">Keep Previous</button>
+      <button class="btn btn-sm btn-orange" style="margin-left:8px" onclick="pushToSupabase(true)">Replace with This File</button>`;
+  }
+  wb.classList.add('active');
+}
+
+async function pushToSupabase(forceReplace = false) {
   const btn = document.getElementById('btnConfirm');
   btn.disabled = true; btn.textContent = 'Pushing…';
 
   try {
-    // Re-import: subtract previous game stats first
-    if (currentGame?.stats_uploaded && currentGame?.id) {
+    // Reverse previous import if replacing
+    if (forceReplace && currentGame?.id) {
       await reversePreviousImport(currentGame.id);
+    } else if (currentGame?.stats_uploaded && !forceReplace && currentGame?.id) {
+      // Keep previous — just close
+      showStep('success');
+      document.getElementById('successMsg').textContent = 'Previous import kept — no changes made.';
+      return;
     }
 
-    const myBatting  = (parsedData.batting  || []).filter(p => teamMatches(p.team));
-    const myPitching = (parsedData.pitching || []).filter(p => teamMatches(p.team));
+    // Resolve both teams from box score names
+    const homeInfo = await resolveTeamId(parsedData.game.home_team);
+    const awayInfo = await resolveTeamId(parsedData.game.away_team);
 
     let pushed = 0, created = 0;
 
-    for (const p of myBatting) {
-      const pid = await ensurePlayer(p);
+    // Push ALL batting rows (both teams)
+    for (const p of (parsedData.batting || [])) {
+      // Figure out which team this player belongs to
+      const isHome = parsedData.game.home_team === p.team ||
+        (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
+      const teamInfo = isHome ? homeInfo : awayInfo;
+      if (!teamInfo) continue; // can't resolve team — skip
+
+      const pid = await ensurePlayer(p, teamInfo.teamId, teamInfo.sportId, teamInfo.roster);
       if (!pid) continue;
-      const isNew = !existingPlayers.find(ep => ep.id === pid && ep._preexisted);
 
       const { data: cur } = await sb.from('players')
         .select('ab,hits,hr,rbi,sb,bb,k_bat,doubles,triples,runs,games')
@@ -905,8 +1007,7 @@ async function pushToSupabase() {
       const ba      = newAb > 0 ? parseFloat((newHits/newAb).toFixed(3)) : null;
 
       await sb.from('players').update({
-        ab:      newAb,
-        hits:    newHits,
+        ab:      newAb, hits: newHits,
         hr:      (b.hr||0)      + (p.hr||0),
         rbi:     (b.rbi||0)     + (p.rbi||0),
         sb:      (b.sb||0)      + (p.sb||0),
@@ -919,11 +1020,8 @@ async function pushToSupabase() {
         ba,
       }).eq('id', pid);
 
-      // Record this game's contribution for future reversal
       await sb.from('game_stat_imports').upsert({
-        game_id:   currentGame.id,
-        player_id: pid,
-        stat_type: 'batting',
+        game_id: currentGame.id, player_id: pid, stat_type: 'batting',
         stats: JSON.stringify({
           ab: p.ab||0, hits: p.hits||0, hr: p.hr||0, rbi: p.rbi||0,
           sb: p.sb||0, bb: p.bb||0, k_bat: p.k_bat||0,
@@ -934,35 +1032,38 @@ async function pushToSupabase() {
       pushed++;
     }
 
-    for (const p of myPitching) {
-      const match = matchPlayer(p);
+    // Push ALL pitching rows (both teams)
+    for (const p of (parsedData.pitching || [])) {
+      const isHome = parsedData.game.home_team === p.team ||
+        (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
+      const teamInfo = isHome ? homeInfo : awayInfo;
+      if (!teamInfo) continue;
+
+      const match = matchPlayer(p, teamInfo.roster);
       if (!match) continue;
 
       const { data: cur } = await sb.from('players')
-        .select('ip_outs,p_h,p_er,p_bb,k,w,l')
-        .eq('id', match.id).single();
+        .select('ip_outs,p_h,p_er,p_bb,k,w,l').eq('id', match.id).single();
       const b = cur || {};
 
       const newIpOuts = (b.ip_outs||0) + (p.ip_outs||0);
       const newEr     = (b.p_er||0)    + (p.p_er||0);
       const ip        = newIpOuts / 3;
-      const era       = ip > 0 ? parseFloat(((newEr * 9) / ip).toFixed(2)) : null;
+      const era       = ip > 0 ? parseFloat(((newEr*9)/ip).toFixed(2)) : null;
 
       await sb.from('players').update({
         ip_outs: newIpOuts,
-        p_h:     (b.p_h||0)  + (p.p_h||0),
-        p_er:    newEr,
-        p_bb:    (b.p_bb||0) + (p.p_bb||0),
-        k:       (b.k||0)    + (p.k||0),
+        p_h:  (b.p_h||0)  + (p.p_h||0),
+        p_er: newEr,
+        p_bb: (b.p_bb||0) + (p.p_bb||0),
+        k:    (b.k||0)    + (p.k||0),
         era,
         w: p.w ? (b.w||0)+1 : (b.w||0),
         l: p.l ? (b.l||0)+1 : (b.l||0),
       }).eq('id', match.id);
 
       await sb.from('game_stat_imports').upsert({
-        game_id:   currentGame.id,
-        player_id: match.id,
-        stat_type: 'pitching',
+        game_id: currentGame.id, player_id: match.id, stat_type: 'pitching',
         stats: JSON.stringify({
           ip_outs: p.ip_outs||0, p_h: p.p_h||0, p_er: p.p_er||0,
           p_bb: p.p_bb||0, k: p.k||0, w: p.w?1:0, l: p.l?1:0
@@ -970,20 +1071,18 @@ async function pushToSupabase() {
       }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
     }
 
-    // Mark game uploaded
     if (currentGame?.id) {
       await sb.from('games').update({ stats_uploaded: true }).eq('id', currentGame.id);
     }
 
     document.getElementById('successMsg').textContent =
-      `${pushed} player${pushed!==1?'s':''} updated.`;
+      `${pushed} players updated across both teams.`;
     showStep('success');
     if (selectedTeam) loadSchedule(selectedTeam);
 
   } catch (err) {
     showError(err.message);
-    btn.disabled = false;
-    btn.textContent = '✓ Push Stats';
+    btn.disabled = false; btn.textContent = '✓ Push Stats';
   }
 }
 
@@ -1047,13 +1146,13 @@ async function reversePreviousImport(gameId) {
   }
 }
 
-async function ensurePlayer(p) {
-  const match = matchPlayer(p);
-  if (match) { match._preexisted = true; return match.id; }
+async function ensurePlayer(p, teamId, sportId, roster) {
+  const match = matchPlayer(p, roster);
+  if (match) return match.id;
 
   const { data, error } = await sb.from('players').insert({
-    team_id:     selectedTeam.id,
-    sport_id:    selectedTeam.sport_id,
+    team_id:     teamId,
+    sport_id:    sportId,
     season_year: 2026,
     name:        p.name,
     number:      p.number,
@@ -1061,16 +1160,10 @@ async function ensurePlayer(p) {
   }).select('id').single();
 
   if (error) { console.error('Create player:', error); return null; }
-  existingPlayers.push({ id: data.id, name: p.name, number: p.number, season_year: 2026 });
+  const newP = { id: data.id, name: p.name, number: p.number, season_year: 2026 };
+  roster.push(newP);
+  if (teamPlayersCache[teamId]) teamPlayersCache[teamId].push(newP);
   return data.id;
-}
-
-function teamMatches(teamName) {
-  if (!teamName || !selectedTeam) return false;
-  const tn   = teamName.toLowerCase();
-  const mine = selectedTeam.school_name.toLowerCase();
-  // Match if either contains the other, or first word of box score name matches
-  return tn.includes(mine) || mine.includes(tn) || mine.split(' ').some(w => w.length > 3 && tn.includes(w));
 }
 
 // ── FILE HANDLING ─────────────────────────────────────
@@ -1124,7 +1217,7 @@ dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('drag-over');
   if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
-document.getElementById('btnConfirm').addEventListener('click', pushToSupabase);
+document.getElementById('btnConfirm').addEventListener('click', checkConflictThenPush);
 document.getElementById('btnRestart').addEventListener('click', () => showStep('upload'));
 document.getElementById('btnAnother').addEventListener('click', () => showStep('upload'));
 document.getElementById('btnDone').addEventListener('click', closeModal);

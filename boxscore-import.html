@@ -370,18 +370,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// Use the shared Supabase client from nav.js (window.__mbrSB) to avoid
-// duplicate GoTrueClient and stale-key issues. Init runs after nav.js loads.
-let sb;
-function getSB() {
-  if (sb) return sb;
-  if (window.__mbrSB) { sb = window.__mbrSB; return sb; }
-  // Fallback — should not be needed if nav.js is present
-  const SUPABASE_URL  = 'https://vtwupenqieesoktonbzg.supabase.co';
-  const SUPABASE_ANON = window.__mbrSBKey || '';
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  return sb;
-}
+const SUPABASE_URL  = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -399,8 +390,6 @@ let activeTab       = 'batting';
 
 // ── BOOT ──────────────────────────────────────────────
 async function init() {
-  // window.__mbrSB set by nav.js before this call
-  sb = getSB();
   // Load all teams, filter client-side by sport
   const { data, error } = await sb.from('teams')
     .select('id, school_name, gender, sport_id')
@@ -1124,13 +1113,10 @@ document.getElementById('btnRestart').addEventListener('click', () => showStep('
 document.getElementById('btnAnother').addEventListener('click', () => showStep('upload'));
 document.getElementById('btnDone').addEventListener('click', closeModal);
 
-// init() called after nav.js sets up window.__mbrSB
+init();
 </script>
 
 <script src="nav.js"></script>
-<script>
-  if (typeof MBRNav !== 'undefined') MBRNav.init({ active: '' });
-  init();
-</script>
+<script>if (typeof MBRNav !== 'undefined') MBRNav.init({ active: '' });</script>
 </body>
 </html>

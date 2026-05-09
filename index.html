@@ -1001,21 +1001,24 @@
 
   async function loadRanks(dateStr) {
     rankMap = {};
-    // Get most recent snapshot date first (1 row), then fetch only that date
-    const { data: dateData } = await sb
-      .from('rankings_snapshots')
-      .select('snapshot_date')
-      .eq('season_year', 2026)
-      .order('snapshot_date', { ascending: false })
-      .limit(1);
-    if (!dateData || !dateData.length) return;
-    const latestDate = dateData[0].snapshot_date;
-    const { data } = await sb
-      .from('rankings_snapshots')
-      .select('team_id, rank_overall')
-      .eq('snapshot_date', latestDate)
-      .eq('season_year', 2026);
-    if (data) data.forEach(r => { rankMap[r.team_id] = r.rank_overall; });
+    try {
+      const { data: dateData, error: e1 } = await sb
+        .from('rankings_snapshots')
+        .select('snapshot_date')
+        .eq('season_year', 2026)
+        .order('snapshot_date', { ascending: false })
+        .limit(1);
+      if (e1) { console.warn('loadRanks date probe error:', e1); return; }
+      if (!dateData || !dateData.length) return;
+      const latestDate = dateData[0].snapshot_date;
+      const { data, error: e2 } = await sb
+        .from('rankings_snapshots')
+        .select('team_id, rank_overall')
+        .eq('snapshot_date', latestDate)
+        .eq('season_year', 2026);
+      if (e2) { console.warn('loadRanks fetch error:', e2); return; }
+      if (data) data.forEach(r => { rankMap[r.team_id] = r.rank_overall; });
+    } catch(e) { console.warn('loadRanks threw:', e); }
   }
 
   async function fetchSportGames(ds, sport, season) {
@@ -1049,7 +1052,7 @@
 
     // Fetch ranks + all sports in parallel
     const [, results] = await Promise.all([
-      loadRanks(ds),
+      loadRanks(ds).catch(e => console.warn('loadRanks failed:', e)),
       Promise.all(
         SPORT_PRIORITY.map(({ sport, season }) =>
           fetchSportGames(ds, sport, season).then(games => ({ sport, season, games }))

@@ -767,15 +767,18 @@ function matchPlayer(p, roster) {
   const last = (p.last || '').toLowerCase().replace(/[^a-z]/g, '');
   const num  = (p.number || '').toString().trim();
 
+  // Normalize roster number to string for comparison
+  const epNum = ep => (ep.number || '').toString().trim();
+
   // 1. Number + last name contains
   let m = pool.find(ep => {
     const epLast = ep.name?.split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') || '';
-    return ep.number === num && epLast && last && epLast.includes(last);
+    return epNum(ep) === num && epLast && last && epLast.includes(last);
   });
   if (m) return m;
 
   // 2. Number alone (reliable within a team)
-  m = pool.find(ep => ep.number === num);
+  m = pool.find(ep => epNum(ep) === num);
   if (m) return m;
 
   // 3. Last name only (fallback)

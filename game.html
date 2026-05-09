@@ -379,12 +379,12 @@ async function init() {
           ` : ''}
           ${isFinal ? `
             <div class="prob-bar-labels" style="margin-bottom:4px">
-              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aColor};${aWon?'font-weight:800':''}">${aScore}</span></span>
-              <span style="color:var(--lgray);font-size:11px">Result${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ Upset</strong>' : ''}</span>
-              <span><span class="prob-pct" style="color:${hColor};${hWon?'font-weight:800':''}">${hScore}</span> <span class="team-lbl">${ht.school_name}</span></span>
+              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aColor};${aWon?'font-weight:800':'opacity:0.5'}">${aWon?'100%':'0%'}</span></span>
+              <span style="color:var(--lgray);font-size:11px">Win%${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ Upset</strong>' : ''}</span>
+              <span><span class="prob-pct" style="color:${hColor};${hWon?'font-weight:800':'opacity:0.5'}">${hWon?'100%':'0%'}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track" style="background:${hColor}">
-              <div class="prob-bar-fill" style="width:${aWon?'100':'0'}%;background:${aColor}"></div>
+            <div class="prob-bar-track" style="background:#e8e8e8">
+              <div class="prob-bar-fill" style="width:${aWon?'100':'0'}%;background:${aWon?aColor:hColor}"></div>
             </div>
           ` : ''}
         </div>
@@ -401,7 +401,7 @@ async function init() {
           <div class="ctx-item">
             <div class="ctx-label">Pre-game favorite</div>
             <div class="ctx-val" style="font-size:13px;font-weight:700;line-height:1.3">${favoredTeam}</div>
-            <div class="ctx-sub">${pct(favoredPct)} win prob</div>
+            <div class="ctx-sub">${g.spread != null ? (g.spread > 0 ? '+' : '') + (+g.spread).toFixed(1) : pct(favoredPct) + ' win prob'}</div>
           </div>` : ''}
         ${isFinal && wp != null ? `
           <div class="ctx-item">

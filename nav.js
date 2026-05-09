@@ -37,7 +37,11 @@ const MBRNav = (() => {
   let _modalOpen = false;
 
   function getSB() {
-    if (!sb) sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    if (!sb) {
+      // Reuse any existing client created by the page to avoid double GoTrueClient
+      sb = window.__mbrSB || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      window.__mbrSB = sb;
+    }
     return sb;
   }
 

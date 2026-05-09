@@ -1116,7 +1116,15 @@ async function pushToSupabase(forceReplace = false) {
     }
 
     if (currentGame?.id) {
-      await sb.from('games').update({ stats_uploaded: true }).eq('id', currentGame.id);
+      // Store full parsed box score for game page reconstruction
+      await sb.from('games').update({
+        stats_uploaded: true,
+        box_score_json: {
+          game:     parsedData.game,
+          batting:  parsedData.batting,
+          pitching: parsedData.pitching,
+        }
+      }).eq('id', currentGame.id);
     }
 
     document.getElementById('successMsg').textContent =

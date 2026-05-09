@@ -687,46 +687,57 @@ async function extractPdfText(file) {
 
 // ── CLAUDE PARSE ─────────────────────────────────────
 async function parsePdfWithClaude(pdfText) {
-  const prompt = `Parse this GameChanger baseball/softball box score. Return ONLY valid JSON, no markdown.
+  const prompt = `You are parsing a baseball/softball box score. The box score contains stats for TWO teams. You MUST return ALL players from BOTH teams in the batting and pitching arrays.
+
+Return ONLY valid JSON, no markdown, no explanation:
 
 {
   "game": {
-    "home_team": "exact team name",
-    "away_team": "exact team name",
+    "home_team": "exact team name as shown",
+    "away_team": "exact team name as shown",
     "home_score": number,
     "away_score": number,
     "date": "as shown",
     "sport": "baseball" or "softball"
   },
-  "batting": [{
-    "team": "team name",
-    "name": "First Last",
-    "last": "Last",
-    "number": "digits only",
-    "position": "SS/P/C/1B/2B/3B/LF/CF/RF/DH/etc",
-    "ab": 0, "runs": 0, "hits": 0, "rbi": 0, "bb": 0, "k_bat": 0,
-    "doubles": 0, "triples": 0, "hr": 0, "sb": 0
-  }],
-  "pitching": [{
-    "team": "team name",
-    "name": "First Last",
-    "last": "Last",
-    "number": "digits only",
-    "ip_outs": 0, "p_h": 0, "p_er": 0, "p_bb": 0, "k": 0,
-    "w": false, "l": false, "s": false
-  }]
+  "batting": [
+    INCLUDE EVERY PLAYER FROM BOTH TEAMS HERE.
+    Each player object:
+    {
+      "team": "their team name exactly as shown in the box score",
+      "name": "First Last",
+      "last": "Last",
+      "number": "digits only",
+      "position": "SS/P/C/1B/2B/3B/LF/CF/RF/DH/etc",
+      "ab": 0, "runs": 0, "hits": 0, "rbi": 0, "bb": 0, "k_bat": 0,
+      "doubles": 0, "triples": 0, "hr": 0, "sb": 0
+    }
+  ],
+  "pitching": [
+    INCLUDE EVERY PITCHER FROM BOTH TEAMS HERE.
+    {
+      "team": "their team name",
+      "name": "First Last",
+      "last": "Last",
+      "number": "digits only",
+      "ip_outs": 0, "p_h": 0, "p_er": 0, "p_bb": 0, "k": 0,
+      "w": false, "l": false, "s": false
+    }
+  ]
 }
 
-RULES:
-- ip_outs: 4.0IP=12, 3.2IP=11, 3.1IP=10, 3.0IP=9, 2.0IP=6, 1.0IP=3, 0.2IP=2, 0.1IP=1
-- doubles/triples/hr/sb: parse from "2B:", "3B:", "HR:", "SB:" note lines. Count name occurrences.
-- W/L: check "W:" and "L:" lines at bottom of pitching section. Set true for the winner/loser.
-- Include ALL players including subs and courtesy runners. Exclude Totals rows.
-- number = digits only, no # symbol.
-- Focus on team: ${selectedTeam?.school_name || 'unknown'}
+CRITICAL RULES:
+- batting array MUST contain players from BOTH teams — home team players AND away team players
+- pitching array MUST contain pitchers from BOTH teams
+- ip_outs: 4.0IP=12, 3.2IP=11, 3.1IP=10, 3.0IP=9, 2.0IP=6, 1.2IP=5, 1.1IP=4, 1.0IP=3, 0.2IP=2, 0.1IP=1
+- doubles/triples/hr/sb: count from "2B:", "3B:", "HR:", "SB:" note lines at the bottom. Name appearing once = 1, twice = 2.
+- W/L: check "W:" and "L:" lines. Set true only for the pitcher who got the decision.
+- Exclude Totals rows. Include ALL individual players, subs, courtesy runners.
+- "number" = digits only, no # symbol.
+- "team" field must exactly match the team name used in "home_team" or "away_team" above.
 
-Box score:
-${pdfText}`;
+Box score text:
+${pdfText}\``;
 
   const resp = await fetch('https://vtwupenqieesoktonbzg.supabase.co/functions/v1/claude-proxy', {
     method: 'POST',

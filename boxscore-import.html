@@ -730,6 +730,7 @@ ${pdfText}`;
 
   const resp = await fetch('https://vtwupenqieesoktonbzg.supabase.co/functions/v1/claude-proxy', {
     method: 'POST',
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json',
       'Authorization': `Bearer ${SUPABASE_ANON}` },
     body: JSON.stringify({
@@ -818,9 +819,10 @@ function renderPreview(parsed) {
     b.classList.toggle('active', b.dataset.tab === 'batting'));
   renderTab('batting');
 
-  const allRows   = parsed.batting || [];
+  const allBat = parsed.batting || [];
+  const teams  = [...new Set(allBat.map(p => p.team))];
   document.getElementById('prevSummary').innerHTML =
-    `<strong>${allRows.length}</strong> players across both teams · confirm to push all`;
+    `<strong>${allBat.length}</strong> players across <strong>${teams.length}</strong> teams · confirm to push all`;
 
   showStep('preview');
 }

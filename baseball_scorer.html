@@ -430,6 +430,7 @@ input,select,button{font-family:inherit;}
           <div class="bp-sub" id="abLine"></div>
         </div>
         <div class="bp-stat-line" id="abStatLine"></div>
+        <div id="abPALine" style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);letter-spacing:.3px;min-height:14px;margin-top:1px"></div>
       </div>
     </div>
     <div class="bp-pitcher">
@@ -690,6 +691,60 @@ input,select,button{font-family:inherit;}
     <div class="sub-list" id="subList"></div>
     <div class="oactions">
       <button class="ocancel" onclick="closeOv('ovSub')">Cancel</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="ocancel" style="flex:1;font-size:11px;padding:8px 4px" id="addMidGameBtn" onclick="openAddMidGame()">+ Add Player</button>
+      <button class="ocancel" style="flex:1;font-size:11px;padding:8px 4px" id="setCRBtn" onclick="openSetCR()">Set CR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mid-game add player modal -->
+<div class="overlay" id="ovAddMidGame" style="display:none">
+  <div class="ocard">
+    <div class="otitle">Add Player Mid-Game</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:10px" id="addMidGameTeamLabel"></div>
+    <div class="srow"><span class="slabel">Name</span><input class="sinput" id="midGameName" placeholder="Player name"/></div>
+    <div class="srow"><span class="slabel">Jersey #</span><input class="sinput" id="midGameNum" placeholder="#" style="max-width:80px"/></div>
+    <div class="srow"><span class="slabel">Position</span>
+      <select class="sselect" id="midGamePos">
+        <option value="">—</option>
+        <option>P</option><option>C</option><option>1B</option><option>2B</option>
+        <option>3B</option><option>SS</option><option>LF</option><option>CF</option>
+        <option>RF</option><option>DH</option>
+      </select>
+    </div>
+    <div class="srow">
+      <span class="slabel">Add to</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+        <input type="radio" name="midGameDest" value="lineup" checked id="midGameDestLU"> Batting order (next slot)
+      </label>
+    </div>
+    <div class="srow">
+      <span class="slabel"></span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+        <input type="radio" name="midGameDest" value="bench" id="midGameDestBench"> Bench only
+      </label>
+    </div>
+    <div class="oactions">
+      <button class="oconfirm" onclick="confirmAddMidGame()">Add Player</button>
+      <button class="ocancel" style="margin-top:8px;width:100%" onclick="closeOv('ovAddMidGame');openSub(subMode)">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mid-game Set CR modal -->
+<div class="overlay" id="ovSetCR" style="display:none">
+  <div class="ocard">
+    <div class="otitle">Set Courtesy Runner</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:10px" id="setCRTeamLabel"></div>
+    <div class="srow"><span class="slabel">CR for P</span>
+      <select class="sselect" id="setCRforP"><option value="">None</option></select></div>
+    <div class="srow"><span class="slabel">CR for C</span>
+      <select class="sselect" id="setCRforC"><option value="">None</option></select></div>
+    <div class="oactions">
+      <button class="oconfirm" onclick="confirmSetCR()">Save</button>
+      <button class="ocancel" style="margin-top:8px;width:100%" onclick="closeOv('ovSetCR');openSub(subMode)">Back</button>
     </div>
   </div>
 </div>
@@ -1246,7 +1301,7 @@ async function startGame(){
       safety++;
     }
   });
-  G.curPitches=[]; G.pbp=[]; G.pitStats={};
+  G.curPitches=[]; G.pbp=[]; G.pitStats={}; G.paLog=[];
   G.errorThisHalf=false; G.phantomOuts=0;
   G.pendingHit=null; G.pendingRBIbatter=null; G.pendingScore=null;
   G.pendingUnearnedCheck=null; G.pendingUnearnedQueue=null;
@@ -1377,6 +1432,7 @@ function doStrikeout(type){
   const outCount = G.outs + 1;
   const pitcherK = p ? getPS(p.side,p.idx).k : null;
   addPBP(`<strong>${b.player.name}</strong> ${sym} — ${outCount} out${outCount>1?'s':''}`);
+  logPA(b.player.name, type==='K'?'ꓘ':'K', 0);
   pushEvt('strikeout', {outs_override: G.outs + 1, notes: pitcherK ? JSON.stringify({pitcherK, pitcherName: p ? G.teams[p.side].lineup[p.idx]?.name : null}) : null});
   addOut(`K`);
 }
@@ -1389,6 +1445,7 @@ function doIBB(){
   const runner={name:b.player.name,num:b.player.number};
   forceAdvance(runner);
   addPBP(`<strong>${b.player.name}</strong> IBB — intentional walk`);
+  logPA(b.player.name, 'IBB', 0);
   pushEvt('walk', {});
   nextBatter(); resetCount(); render();
 }
@@ -1406,6 +1463,7 @@ function doWalk(type, skipSnapshot=false){
   applyCR(battingSide(), 1, b.player);
   if(basesLoaded) b.player.stats.rbi = (b.player.stats.rbi||0) + 1;
   addPBP(`<strong>${b.player.name}</strong> ${type} — reaches 1B${basesLoaded?' · 1 RBI':''}`);
+  logPA(b.player.name, type==='HBP'?'HBP':'BB', basesLoaded?1:0);
   pushEvt(type==='BB'?'walk':'hbp', basesLoaded ? {runs:1, rbi:1} : {});
   nextBatter(); resetCount(); render();
 }
@@ -1438,6 +1496,7 @@ function doDroppedThird(){
   forceAdvance(runner);
   applyCR(battingSide(), 1, b.player);
   addPBP('<strong>'+b.player.name+'</strong> K (dropped 3rd strike) — reaches 1B');
+  logPA(b.player.name, 'K', 0);
   pushEvt('strikeout', {notes:'dropped 3rd strike'});
   closeOv('ovInPlay');
   nextBatter(); resetCount();
@@ -1753,6 +1812,8 @@ function confirmOut(type){
                     type==='IFF'?'Infield fly':'Out';
   const outCount = G.outs + 1; // outs after this play
   addPBP(`<strong>${b.player.name}</strong> ${outAction} (${notation}) — ${outCount} out${outCount>1?'s':''}`);
+  const paSym = isSacBunt?'SAC':isSacFly?'SF':type==='GO'?'GO':type==='FO'?'FO':type==='LO'?'LO':'OUT';
+  logPA(b.player.name, paSym, 0);
   closeOv('ovInPlay');
   G.curPitches.push('X');
   chargePitch();
@@ -1781,6 +1842,7 @@ function confirmDP(type){ saveSnapshot();
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation} (DP)`);
+  logPA(b.player.name, 'GO', 0);
   pushEvt('groundout', {notes: `${notation} (DP)`, outs_override: G.outs + 1});
   // Record batter out
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
@@ -1800,6 +1862,7 @@ function confirmTP(type){ saveSnapshot();
   closeOv('ovInPlay');
   G.curPitches.push('X');
   addPBP(`<strong>${b.player.name}</strong> — ${notation} (TP)`);
+  logPA(b.player.name, 'GO', 0);
   pushEvt('groundout', {outs_override: 3});
   const p=curPitcher();
   if(p){ getPS(p.side,p.idx).ip_outs+=3; }
@@ -1868,6 +1931,7 @@ function doHR(){
   G.curPitches.push('X');
   chargePitch();
   addPBP(`<strong>${b.player.name}</strong> HOME RUN 🎉 (${runs} run${runs>1?'s':''})`);
+  logPA(b.player.name, 'HR', runs);
   pushEvt('hr', {runs, rbi:runs});
   nextBatter(); resetCount();
   // If error this half, queue all runs for earned/unearned prompt
@@ -2011,6 +2075,7 @@ function confirmRBI(){
     : result;
   const hitLabel = {'1B':'singles','2B':'doubles','3B':'triples'}[result] || notation;
   addPBP(`<strong>${b.player.name}</strong> ${isHit ? hitLabel : notation}${totalRBI>0?' · '+totalRBI+' RBI':''}`);
+  logPA(b.player.name, result==='1B'?'1B':result==='2B'?'2B':result==='3B'?'3B':result==='E'?'E':result==='FC'?'FC':result, totalRBI);
   const evtKey = result==='1B'?'single':result==='2B'?'double':result==='3B'?'triple':
                  result==='E'?'error':result==='FC'?'fielders_choice':'single';
   const totalRuns = autoRBI + manualRBI;
@@ -2463,6 +2528,11 @@ function confirmSub(side,idx,fromBench){
     if(fromBench) G.teams[bside].bench.splice(idx,1);
     // Keep replaced player on bench for possible re-entry
     if(replaced && replaced.name) G.teams[bside].bench.push({...replaced, reentry:true});
+    // If the PH was a designated CR, clear that CR slot — they've now batted and are no longer available as runner
+    if(G.cr[bside]){
+      if(G.cr[bside].p === player.name) G.cr[bside].p = null;
+      if(G.cr[bside].c === player.name) G.cr[bside].c = null;
+    }
     addPBP(`PH: <strong>${player.name}</strong> for <strong>${replaced.name}</strong>`);
     pushEvt('sub_batter', {
       player_override: player,
@@ -2471,6 +2541,75 @@ function confirmSub(side,idx,fromBench){
   }
   closeOv('ovSub');
   render();
+}
+
+// ─── Mid-game Add Player ────────────────────────────────────────
+let _midGameSide = null;
+function openAddMidGame(){
+  const side = (subMode==='pitcher'||subMode==='defense') ? fieldingSide() : battingSide();
+  _midGameSide = side;
+  document.getElementById('addMidGameTeamLabel').textContent = G.teams[side].name;
+  document.getElementById('midGameName').value = '';
+  document.getElementById('midGameNum').value = '';
+  document.getElementById('midGamePos').value = '';
+  document.getElementById('midGameDestLU').checked = true;
+  closeOv('ovSub');
+  openOv('ovAddMidGame');
+}
+function confirmAddMidGame(){
+  const side = _midGameSide;
+  if(!side) return;
+  const name = document.getElementById('midGameName').value.trim();
+  const num  = document.getElementById('midGameNum').value.trim();
+  const pos  = document.getElementById('midGamePos').value;
+  if(!name){ showAlert('Enter a name'); return; }
+  const player = { name, number:num, pos, order: G.teams[side].lineup.length+1,
+    flex:false, stats:{ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0,sb:0,sf:0,sac:0,hbp:0} };
+  const dest = document.querySelector('input[name="midGameDest"]:checked')?.value || 'bench';
+  if(dest === 'lineup'){
+    G.teams[side].lineup.push(player);
+    if(!G.teams[side].slots) G.teams[side].slots = [];
+    G.teams[side].slots.push([player]);
+    showAlert(`${name} added to lineup (slot ${G.teams[side].lineup.length})`);
+  } else {
+    G.teams[side].bench.push(player);
+    showAlert(`${name} added to bench`);
+  }
+  updateCRDropdowns(side);
+  closeOv('ovAddMidGame');
+  // Re-open the sub overlay they came from
+  openSub(subMode);
+}
+
+// ─── Mid-game Set CR ────────────────────────────────────────────
+function openSetCR(){
+  const side = battingSide(); // CR always applies to batting team
+  _midGameSide = side;
+  document.getElementById('setCRTeamLabel').textContent = G.teams[side].name;
+  // Populate dropdowns with all available players (lineup + bench, not P/C themselves)
+  const lineup = G.teams[side].lineup;
+  const pitcher = lineup.find(p => p.pos === 'P');
+  const catcher = lineup.find(p => p.pos === 'C');
+  const candidates = [
+    ...lineup.filter(p => p.pos !== 'P' && p.pos !== 'C'),
+    ...G.teams[side].bench
+  ];
+  const opts = `<option value="">None</option>` + candidates.map(p=>`<option value="${p.name}">${p.name}${p.number?' #'+p.number:''}</option>`).join('');
+  document.getElementById('setCRforP').innerHTML = opts;
+  document.getElementById('setCRforC').innerHTML = opts;
+  // Pre-select current values
+  if(G.cr[side]?.p) document.getElementById('setCRforP').value = G.cr[side].p;
+  if(G.cr[side]?.c) document.getElementById('setCRforC').value = G.cr[side].c;
+  closeOv('ovSub');
+  openOv('ovSetCR');
+}
+function confirmSetCR(){
+  const side = _midGameSide || battingSide();
+  if(!G.cr[side]) G.cr[side] = {};
+  G.cr[side].p = document.getElementById('setCRforP').value || null;
+  G.cr[side].c = document.getElementById('setCRforC').value || null;
+  closeOv('ovSetCR');
+  showAlert(`CR updated for ${G.teams[side].name}`);
 }
 
 // ═══════════════════════════════════════════════
@@ -2491,6 +2630,7 @@ function saveSnapshot(){
     batIdx:JSON.parse(JSON.stringify(G.batIdx)),
     curPitches:[...G.curPitches],
     pbpLen:G.pbp.length,
+    paLogLen: (G.paLog||[]).length,
     pitStats: JSON.parse(JSON.stringify(G.pitStats)),
     pitchers: JSON.parse(JSON.stringify(G.pitchers)),
     // Full lineup/bench/slots snapshot
@@ -2524,14 +2664,14 @@ function doUndo(){
     });
   }
   G.pbp = G.pbp.slice(0, snap.pbpLen);
-  // Void the last pushed event in Supabase so live.html ignores it
+  if(snap.paLogLen !== undefined) G.paLog = (G.paLog||[]).slice(0, snap.paLogLen);
+  // DELETE the last pushed event from Supabase so it never pollutes box score / feed
   const voidId = G_evt_id_stack.pop();
   if(voidId && G_game_id && !G_test_mode){
     fetch(`${SB_URL}/rest/v1/game_events?id=eq.${voidId}`, {
-      method:'PATCH',
-      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body: JSON.stringify({ event_type: 'voided' })
-    }).catch(e=>console.warn('void failed', e));
+      method:'DELETE',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' }
+    }).catch(e=>console.warn('undo delete failed', e));
   }
   // Clear any pending state that holds references to old player objects
   G.pendingRBIbatter = null;
@@ -2722,6 +2862,9 @@ function render(){
       if(s.sb) parts.push(`${s.sb} SB`);
       slEl.textContent=parts.join(' · ');
     }
+    // PA history line for broadcaster
+    const paEl=document.getElementById('abPALine');
+    if(paEl) paEl.textContent=getBatterPALine(bat.name)||'';
   }
 
   // Pitch dots
@@ -3303,6 +3446,20 @@ function closeOv(id){
 }
 
 function addPBP(text){ G.pbp.push({inn:G.inning,half:G.half==='top'?'▲':'▼',text}); }
+
+// PA log for broadcaster batter strip: symbol per plate appearance
+// sym: '1B','2B','3B','HR','BB','IBB','HBP','K','Ks','GO','FO','LO','E','FC','SAC','SF'
+function logPA(playerName, sym, rbi){
+  if(!G.paLog) G.paLog=[];
+  G.paLog.push({name:playerName, sym, rbi:rbi||0, inn:G.inning, half:G.half});
+}
+// Build PA history string for current batter: "K · 1B · 2B(RBI)"
+function getBatterPALine(playerName){
+  if(!G.paLog||!playerName) return '';
+  const pas = G.paLog.filter(e=>e.name===playerName);
+  if(!pas.length) return '';
+  return pas.map(e=>`${e.sym}${e.rbi>0?`(${e.rbi>1?e.rbi:''}RBI)`:''}` ).join(' · ');
+}
 
 function showAlert(msg){ setTimeout(()=>alert(msg),50); }
 

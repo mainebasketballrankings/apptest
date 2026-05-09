@@ -855,10 +855,17 @@ function renderPreview(parsed) {
     b.classList.toggle('active', b.dataset.tab === 'batting'));
   renderTab('batting');
 
-  const allBat = parsed.batting || [];
-  const teams  = [...new Set(allBat.map(p => p.team))];
+  const allBat   = parsed.batting || [];
+  const teams    = [...new Set(allBat.map(p => p.team))];
+  const newCount = allBat.filter(p => {
+    const isH = parsed.game.home_team === p.team ||
+      (parsed._homeInfo && parsed.game.home_team.toLowerCase().includes((p.team||'').toLowerCase().split(' ')[0]));
+    const roster = isH ? parsed._homeInfo?.roster : parsed._awayInfo?.roster;
+    return !matchPlayer(p, roster);
+  }).length;
   document.getElementById('prevSummary').innerHTML =
-    `<strong>${allBat.length}</strong> players across <strong>${teams.length}</strong> teams · confirm to push all`;
+    `<strong>${allBat.length}</strong> players across <strong>${teams.length}</strong> teams`
+    + (newCount ? ` · <span class="new-count">${newCount} new</span> will be created` : ' · all matched');
 
   showStep('preview');
 }
@@ -878,7 +885,14 @@ function renderTab(tab) {
   body.innerHTML = '';
 
   rows.forEach((p, i) => {
-    const match = matchPlayer(p);
+    // Resolve correct team roster for this player
+    const isHomePlayer = parsedData.game.home_team === p.team ||
+      (parsedData._homeInfo && parsedData.game.home_team.toLowerCase()
+        .includes((p.team || '').toLowerCase().split(' ')[0]));
+    const roster = isHomePlayer
+      ? parsedData._homeInfo?.roster
+      : parsedData._awayInfo?.roster;
+    const match = matchPlayer(p, roster);
     const tag   = match
       ? '<span class="tag-match">Match</span>'
       : '<span class="tag-new">New</span>';
@@ -1213,6 +1227,12 @@ async function handleFile(file) {
     const text = await extractPdfText(file);
     if (text.trim().length < 80) throw new Error('Could not extract text — is this a scanned image PDF?');
     const parsed = await parsePdfWithClaude(text);
+    // Pre-load both team rosters so preview matching works
+    const homeInfo = await resolveTeamId(parsed.game.home_team);
+    const awayInfo = await resolveTeamId(parsed.game.away_team);
+    // Store on parsedData for use in renderTab and push
+    parsed._homeInfo = homeInfo;
+    parsed._awayInfo = awayInfo;
     renderPreview(parsed);
   } catch (err) {
     showStep('upload');

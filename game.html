@@ -288,14 +288,23 @@ async function init() {
   const hWon    = isFinal && hScore > aScore;
   const aWon    = isFinal && aScore > hScore;
 
-  // Win prob (pre-game prediction)
-  const wp = g.win_prob; // home team win prob
-
-  // Heal points contribution for this game (if available)
-  const healContrib = g.heal_contrib ?? null;
+  // Win prob (pre-game prediction) — stored as home team win prob
+  const wp = g.win_prob;
 
   // Build linescore from box_score_json if present
   const bsj = g.box_score_json;
+
+  // Pre-compute upset/favorite for template use
+  const favHome    = wp != null && wp >= 0.5;
+  const favAway    = wp != null && wp < 0.5;
+  const isUpset    = isFinal && wp != null && ((aWon && wp > 0.5) || (hWon && wp < 0.5));
+  const favoredTeam = wp != null ? (wp > 0.5 ? ht.school_name : at.school_name) : null;
+  const favoredPct  = wp != null ? Math.max(wp, 1-wp) : null;
+  const margin      = isFinal && hScore != null ? Math.abs(hScore - aScore) : null;
+  const winnerName  = hWon ? ht.school_name : aWon ? at.school_name : null;
+  // Score bar: away pct of total runs
+  const tot = (hScore||0) + (aScore||0) || 1;
+  const aBarPct = isFinal ? ((aScore/tot)*100).toFixed(1) : 50;
 
   // ── RENDER ───────────────────────────────────────────
   document.title = `${at.school_name} @ ${ht.school_name} — MBR`;
@@ -347,36 +356,49 @@ async function init() {
       <!-- LINESCORE -->
       ${bsj ? renderLinescore(bsj, ht.school_name, at.school_name, hScore, aScore) : ''}
 
-      <!-- WIN PROB BAR -->
-      ${wp != null ? `
+      <!-- WIN PROB + RESULT BARS -->
+      ${wp != null || isFinal ? `
         <div class="prob-bar-wrap">
-          <div class="prob-bar-labels">
-            <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct">${pct(1-wp)}</span></span>
-            <span style="color:var(--lgray);font-size:11px">Pre-game win probability</span>
-            <span><span class="prob-pct">${pct(wp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
-          </div>
-          <div class="prob-bar-track">
-            <div class="prob-bar-fill" style="width:${(wp*100).toFixed(1)}%"></div>
-          </div>
+          ${wp != null ? `
+            <div class="prob-bar-labels" style="margin-bottom:4px">
+              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${favAway?'var(--green)':'var(--lgray)'}">${pct(1-wp)}</span></span>
+              <span style="color:var(--lgray);font-size:11px">Pre-game prediction</span>
+              <span><span class="prob-pct" style="color:${favHome?'var(--green)':'var(--lgray)'}">${pct(wp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
+            </div>
+            <div class="prob-bar-track" style="margin-bottom:${isFinal?'12px':'0'}">
+              <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:${favAway?'var(--green)':'var(--red)'}"></div>
+            </div>
+          ` : ''}
+          ${isFinal && hScore != null ? `
+            <div class="prob-bar-labels" style="margin-bottom:4px">
+              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aWon?'var(--green)':'var(--lgray)'}">${aScore}</span></span>
+              <span style="color:var(--lgray);font-size:11px">Final score${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ UPSET</strong>' : ''}</span>
+              <span><span class="prob-pct" style="color:${hWon?'var(--green)':'var(--lgray)'}">${hScore}</span> <span class="team-lbl">${ht.school_name}</span></span>
+            </div>
+            <div class="prob-bar-track">
+              <div class="prob-bar-fill" style="width:${aBarPct}%;background:${aWon?'var(--green)':'var(--red)'}"></div>
+            </div>
+          ` : ''}
         </div>
       ` : ''}
 
       <!-- CONTEXT STRIP -->
       <div class="context-strip">
-        ${hSnap.dirigo != null ? `
+        ${margin != null ? `
           <div class="ctx-item">
-            <div class="ctx-label">DIRIGO — ${ht.school_name}</div>
-            <div class="ctx-val grn">${(+hSnap.dirigo).toFixed(2)}</div>
+            <div class="ctx-label">${winnerName} won by</div>
+            <div class="ctx-val grn">${margin}</div>
           </div>` : ''}
-        ${aSnap.dirigo != null ? `
+        ${favoredTeam != null ? `
           <div class="ctx-item">
-            <div class="ctx-label">DIRIGO — ${at.school_name}</div>
-            <div class="ctx-val grn">${(+aSnap.dirigo).toFixed(2)}</div>
+            <div class="ctx-label">Pre-game favorite</div>
+            <div class="ctx-val" style="font-size:13px;font-weight:700;line-height:1.3">${favoredTeam}</div>
+            <div class="ctx-sub">${pct(favoredPct)} win prob</div>
           </div>` : ''}
-        ${isFinal && hScore != null ? `
+        ${isFinal && wp != null ? `
           <div class="ctx-item">
-            <div class="ctx-label">Run Differential</div>
-            <div class="ctx-val ${hScore>aScore?'grn':'red'}">${hScore>aScore?'+':''}${hScore-aScore}</div>
+            <div class="ctx-label">Result</div>
+            <div class="ctx-val ${isUpset ? 'org' : 'grn'}">${isUpset ? '⚡ Upset' : 'Expected'}</div>
           </div>` : ''}
         ${g.stax_index != null ? `
           <div class="ctx-item">

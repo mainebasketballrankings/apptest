@@ -296,6 +296,9 @@ window.mbrAuthCallback = function(user, paid) {
   loadData();
 };
 
+// Load data immediately without waiting for auth (gate applied separately)
+loadData();
+
 // ── Tabs ──────────────────────────────────────────────────────────────────
 document.getElementById('sportTabs').addEventListener('click', e => {
   const pill = e.target.closest('.sport-tab');
@@ -349,11 +352,18 @@ async function loadData() {
 
   const teamIds = teams.map(t => t.id);
 
-  const snaps = await sbFetch(
-    `rankings_snapshots?team_id=in.(${teamIds.join(',')})&season_year=eq.${activeSeason}` +
-    `&select=team_id,wins,losses,tournament_odds,wl_distribution,snapshot_date` +
-    `&order=snapshot_date.desc&limit=3000`
+  // Get latest snapshot date first, then fetch only that date
+  const latestDateResp = await sbFetch(
+    `rankings_snapshots?team_id=in.(${teamIds.slice(0,10).join(',')})&season_year=eq.${activeSeason}` +
+    `&select=snapshot_date&order=snapshot_date.desc&limit=1`
   );
+  const latestDate = latestDateResp[0]?.snapshot_date;
+  const snaps = latestDate ? await sbFetch(
+    `rankings_snapshots?team_id=in.(${teamIds.join(',')})&season_year=eq.${activeSeason}` +
+    `&snapshot_date=eq.${latestDate}` +
+    `&select=team_id,wins,losses,tournament_odds,wl_distribution,snapshot_date` +
+    `&limit=500`
+  ) : [];
 
   console.log('[tourney] snaps loaded:', snaps.length, Array.isArray(snaps) ? '' : snaps);
   // Most recent snapshot per team

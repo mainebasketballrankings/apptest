@@ -525,6 +525,7 @@ async function loadSchedule(team) {
   const { data: games, error } = await sb
     .from('games')
     .select(`id, game_date, status, home_score, away_score, stats_uploaded,
+      home_team_id,away_team_id,
       home_team:home_team_id(id, school_name),
       away_team:away_team_id(id, school_name)`)
     .or(`home_team_id.eq.${team.id},away_team_id.eq.${team.id}`)
@@ -1042,8 +1043,10 @@ async function pushToSupabase(forceReplace = false) {
 
     // Resolve both teams from box score names
     // Use known team IDs from game record
-    const homeInfo = parsedData._homeInfo || await loadTeamInfo(currentGame.home_team_id);
-    const awayInfo = parsedData._awayInfo || await loadTeamInfo(currentGame.away_team_id);
+    const _homeId = currentGame.home_team_id || currentGame.home_team?.id;
+    const _awayId = currentGame.away_team_id || currentGame.away_team?.id;
+    const homeInfo = parsedData._homeInfo || await loadTeamInfo(_homeId);
+    const awayInfo = parsedData._awayInfo || await loadTeamInfo(_awayId);
 
     let pushed = 0, created = 0;
 
@@ -1245,12 +1248,14 @@ async function handleFile(file) {
     if (text.trim().length < 80) throw new Error('Could not extract text — is this a scanned image PDF?');
     const parsed = await parsePdfWithClaude(text);
     // Use game's known team IDs directly — no fuzzy matching needed
-    const homeInfo = await loadTeamInfo(currentGame.home_team_id);
-    const awayInfo = await loadTeamInfo(currentGame.away_team_id);
+    const homeId = currentGame.home_team_id || currentGame.home_team?.id;
+    const awayId = currentGame.away_team_id || currentGame.away_team?.id;
+    const homeInfo = await loadTeamInfo(homeId);
+    const awayInfo = await loadTeamInfo(awayId);
     parsed._homeInfo = homeInfo;
     parsed._awayInfo = awayInfo;
-    console.log('game home_team_id:', currentGame.home_team_id, '-> roster size:', homeInfo?.roster?.length);
-    console.log('game away_team_id:', currentGame.away_team_id, '-> roster size:', awayInfo?.roster?.length);
+    console.log('game home_team_id:', homeId, '-> roster size:', homeInfo?.roster?.length);
+    console.log('game away_team_id:', awayId, '-> roster size:', awayInfo?.roster?.length);
     console.log('parsed home_team:', parsed.game.home_team, 'parsed away_team:', parsed.game.away_team);
     renderPreview(parsed);
   } catch (err) {

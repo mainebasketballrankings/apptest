@@ -698,7 +698,7 @@ async function loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel) 
   function recordAtDate(games, teamId, beforeDate) {
     let w = 0, l = 0;
     (games || []).forEach(gm => {
-      if (gm.game_date > beforeDate) return;
+      if (gm.game_date >= beforeDate) return;
       const ih = gm.home_team_id === teamId;
       const ms = ih ? gm.home_score : gm.away_score;
       const os = ih ? gm.away_score : gm.home_score;

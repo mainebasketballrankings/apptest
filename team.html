@@ -417,19 +417,8 @@ async function load() {
         : Promise.resolve([])
     ]);
 
-    // Compute stat ranks from allSnaps
-    function statRank(field, teamId, higherIsBetter = true) {
-      if (!allSnaps?.length) return null;
-      const sorted = [...allSnaps]
-        .filter(s => s[field] != null)
-        .sort((a, b) => higherIsBetter ? b[field] - a[field] : a[field] - b[field]);
-      const idx = sorted.findIndex(s => s.team_id === teamId);
-      return idx >= 0 ? idx + 1 : null;
-    }
-    const rankSOS     = statRank('sos',         tid, true);
-    const rankAvgPF   = statRank('avg_pf',      tid, true);
-    const rankAvgPA   = statRank('avg_pa',       tid, false); // lower is better
-    const rankPctPerf = statRank('pct_perfect',  tid, true);
+    // Rank computation — deferred until after genderTeamIds is loaded
+    // (ranks computed below after genderTeams fetch)
 
     // Paginated fetch helper
     // Fetch roster players for this team
@@ -450,6 +439,19 @@ async function load() {
     // Get all same-gender team IDs for this sport — needed to filter games correctly
     const genderTeams = await sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`);
     const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
+
+    // Compute stat ranks filtered to same sport+gender
+    function statRank(field, teamId, higherIsBetter = true) {
+      if (!allSnaps?.length) return null;
+      const filtered = allSnaps.filter(s => s[field] != null && genderTeamIds.has(s.team_id));
+      const sorted = [...filtered].sort((a, b) => higherIsBetter ? b[field] - a[field] : a[field] - b[field]);
+      const idx = sorted.findIndex(s => s.team_id === teamId);
+      return idx >= 0 ? idx + 1 : null;
+    }
+    const rankSOS     = statRank('sos',        tid, true);
+    const rankAvgPF   = statRank('avg_pf',     tid, true);
+    const rankAvgPA   = statRank('avg_pa',     tid, false);
+    const rankPctPerf = statRank('pct_perfect',tid, true);
 
     const [allSportFinalGames, allSportScheduled] = await Promise.all([
       fetchAll(`games?sport_id=eq.${team.sport_id}&is_tournament=eq.false&status=eq.final&season_year=eq.${seasonYear}&game_date=lte.${regEnd}&select=id,home_team_id,away_team_id,home_score,away_score,status,home_team:home_team_id(id,team_class,team_classifications(classes(name))),away_team:away_team_id(id,team_class,team_classifications(classes(name)))`),

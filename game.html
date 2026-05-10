@@ -515,6 +515,10 @@ async function init() {
 
   // Load season records for both teams
   loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel);
+  if (bsj) loadBoxScoreRosters(g).then(() => {
+    // Re-render box score with full names
+    showBoxTab(activeTab || 'batting', document.querySelector('.sec-tab.active'));
+  });
 }
 
 // ── LINESCORE ────────────────────────────────────────
@@ -557,6 +561,28 @@ function renderLinescore(bsj, homeName, awayName, hTotal, aTotal) {
 }
 
 // ── BOX SCORE TABLES ─────────────────────────────────
+// Roster maps loaded async for name resolution
+let _homeRoster = [], _awayRoster = [];
+
+async function loadBoxScoreRosters(g) {
+  const [hr, ar] = await Promise.all([
+    api(`players?team_id=eq.${g.home_team_id}&season_year=eq.2026&select=name,number`),
+    api(`players?team_id=eq.${g.away_team_id}&season_year=eq.2026&select=name,number`),
+  ]);
+  _homeRoster = hr || [];
+  _awayRoster = ar || [];
+}
+
+function resolvedName(p, isHome) {
+  const roster = isHome ? _homeRoster : _awayRoster;
+  const num = (p.number || '').toString().trim();
+  const last = (p.last || p.name?.split(' ').pop() || '').toLowerCase();
+  // Match by number first, then last name
+  const match = roster.find(r => r.number?.toString().trim() === num) ||
+                roster.find(r => r.name?.toLowerCase().includes(last));
+  return match?.name || p.name || '';
+}
+
 function renderBatting(bsj, homeName, awayName) {
   const rows = bsj.batting || [];
   if (!rows.length) return '<div class="no-boxscore"><strong>No batting data</strong></div>';
@@ -564,11 +590,11 @@ function renderBatting(bsj, homeName, awayName) {
   const homeRows = rows.filter(p => teamIs(p.team, homeName));
   const awayRows = rows.filter(p => teamIs(p.team, awayName));
 
-  function playerRows(players) {
+  function playerRows(players, isHome) {
     return players.map(p => {
       const ba = p.ab > 0 ? f3(p.hits / p.ab) : '—';
       return `<tr>
-        <td class="left player-name">${p.name || ''}${p.position ? `<span class="pos-tag">${p.position}</span>` : ''}</td>
+        <td class="left player-name">${resolvedName(p, isHome)}${p.position ? `<span class="pos-tag">${p.position}</span>` : ''}</td>
         <td>${p.ab ?? 0}</td>
         <td class="${p.runs > 0 ? 'highlight' : ''}">${p.runs ?? 0}</td>
         <td class="${p.hits > 0 ? 'highlight' : ''}">${p.hits ?? 0}</td>
@@ -594,9 +620,9 @@ function renderBatting(bsj, homeName, awayName) {
     ${thead}
     <tbody>
       <tr class="team-divider"><td colspan="12">${awayName} (Away)</td></tr>
-      ${playerRows(awayRows)}
+      ${playerRows(awayRows, false)}
       <tr class="team-divider"><td colspan="12">${homeName} (Home)</td></tr>
-      ${playerRows(homeRows)}
+      ${playerRows(homeRows, true)}
     </tbody>
   </table>`;
 }
@@ -608,13 +634,13 @@ function renderPitching(bsj, homeName, awayName) {
   const homeRows = rows.filter(p => teamIs(p.team, homeName));
   const awayRows = rows.filter(p => teamIs(p.team, awayName));
 
-  function playerRows(players) {
+  function playerRows(players, isHome) {
     return players.map(p => {
       const ip = p.ip_outs != null ? `${Math.floor(p.ip_outs/3)}.${p.ip_outs%3}` : '—';
       const era = p.ip_outs > 0 ? f1((p.p_er * 27) / p.ip_outs) : '—';
       const dec = p.w ? `<span class="w-tag">W</span>` : p.l ? `<span class="l-tag">L</span>` : '';
       return `<tr>
-        <td class="left player-name">${p.name || ''}${dec}</td>
+        <td class="left player-name">${resolvedName(p, isHome)}${dec}</td>
         <td>${ip}</td>
         <td>${p.p_h ?? 0}</td>
         <td class="${p.p_er > 0 ? '' : 'highlight'}">${p.p_er ?? 0}</td>
@@ -634,16 +660,18 @@ function renderPitching(bsj, homeName, awayName) {
     ${thead}
     <tbody>
       <tr class="team-divider"><td colspan="7">${awayName} (Away)</td></tr>
-      ${playerRows(awayRows)}
+      ${playerRows(awayRows, false)}
       <tr class="team-divider"><td colspan="7">${homeName} (Home)</td></tr>
-      ${playerRows(homeRows)}
+      ${playerRows(homeRows, true)}
     </tbody>
   </table>`;
 }
 
+let activeTab = 'batting';
 function showBoxTab(tab, btn) {
+  activeTab = tab;
   document.querySelectorAll('.sec-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   const bsj = window._bsj;
   if (!bsj) return;
   document.getElementById('boxContent').innerHTML = tab === 'batting'

@@ -200,12 +200,42 @@
     .err { text-align: center; padding: 60px 20px; color: var(--red); font-size: 15px; }
 
     @media (max-width: 600px) {
-      .matchup-teams { grid-template-columns: 1fr; gap: 12px; }
-      .score-center { order: -1; }
-      .team-side.away { align-items: flex-start; text-align: left; }
+      .page { padding: 12px 12px 60px; }
+
+      /* Matchup: score on top, then away, then home stacked */
+      .matchup-teams {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 0;
+      }
+      .score-center { order: -1; margin-bottom: 16px; }
+      .score-final { font-size: 48px; }
+      .team-side { flex-direction: row; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+      .team-side:last-child { border-bottom: none; }
+      .team-side.away { text-align: left; align-items: center; }
+      .team-logo-md { width: 44px; height: 44px; flex-shrink: 0; }
+      .team-logo-fallback-md { width: 44px; height: 44px; flex-shrink: 0; }
+      .team-name-md { font-size: 16px; }
+      .team-rank { font-size: 11px; }
+
+      /* Bars */
+      .prob-bar-wrap { padding: 12px 14px; }
+      .prob-bar-labels { font-size: 11px; }
+      .team-lbl { font-size: 11px; }
+      .prob-pct { font-size: 12px; }
+
+      /* Context strip: 2 cols */
+      .context-strip { grid-template-columns: 1fr 1fr; }
+      .ctx-item { padding: 10px 12px; }
+      .ctx-val { font-size: 15px; }
+      .ctx-label { font-size: 9px; }
+
+      /* Season context: stack */
       .team-context-grid { grid-template-columns: 1fr; }
-      .context-strip { grid-template-columns: repeat(2, 1fr); }
-      .score-final { font-size: 36px; }
+
+      /* Box score */
+      .section-head { padding: 10px 14px; font-size: 12px; }
+      .matchup-top { padding: 10px 14px; gap: 6px; font-size: 11px; }
     }
   </style>
 </head>

@@ -595,7 +595,7 @@
       const diffColor = diffVal === null ? '' : diffVal >= 0 ? 'color:#1a7a4a' : 'color:#c0392b';
       const rankDisp = activeClass === 'all'
         ? (r.rank_overall || i+1)
-        : (r.rank_class || i+1);
+        : i+1;  // always use position in sorted list
 
       const logoEl = t.logo_url
         ? `<img class="td-logo" src="${t.logo_url}" alt="${t.school_name}"
@@ -701,8 +701,8 @@
       document.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeClass = btn.dataset.class;
-      sortCol = activeClass === 'all' ? 'rank_overall' : 'rank_class';
-      sortAsc = true;
+      sortCol = 'dirigo';   // always sort by DIRIGO regardless of class filter
+      sortAsc = false;
       renderTable();
     });
   });

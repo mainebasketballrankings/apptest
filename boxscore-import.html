@@ -1249,6 +1249,9 @@ async function handleFile(file) {
     const awayInfo = await loadTeamInfo(currentGame.away_team_id);
     parsed._homeInfo = homeInfo;
     parsed._awayInfo = awayInfo;
+    console.log('game home_team_id:', currentGame.home_team_id, '-> roster size:', homeInfo?.roster?.length);
+    console.log('game away_team_id:', currentGame.away_team_id, '-> roster size:', awayInfo?.roster?.length);
+    console.log('parsed home_team:', parsed.game.home_team, 'parsed away_team:', parsed.game.away_team);
     renderPreview(parsed);
   } catch (err) {
     showStep('upload');

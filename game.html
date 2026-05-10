@@ -343,8 +343,8 @@ async function init() {
   // Use rank locked at push time if available, else fall back to snapshot
   const hRankNum = g.home_rank != null ? g.home_rank : (hSnap.rank_overall || null);
   const aRankNum = g.away_rank != null ? g.away_rank : (aSnap.rank_overall || null);
-  const hRankSuffix = g.home_rank != null ? '' : (hSnapIsGameDate ? ' ~game date' : ' (current)');
-  const aRankSuffix = g.away_rank != null ? '' : (aSnapIsGameDate ? ' ~game date' : ' (current)');
+  const hRankSuffix = ' pre-game';
+  const aRankSuffix = ' pre-game';
   const hRankLabel = hRankNum ? ('#' + hRankNum + hRankSuffix) : null;
   const aRankLabel = aRankNum ? ('#' + aRankNum + aRankSuffix) : null;
 
@@ -701,7 +701,7 @@ async function loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel) 
           <span class="val">${aFull.w}–${aFull.l}</span>
         </div>
         ${aRankLabel ? `<div class="tc-row">
-          <span class="lbl">State rank${g.away_rank != null ? '' : ' (current)'}</span>
+          <span class="lbl">State rank (pre-game)</span>
           <span class="val grn">${aRankLabel}</span>
         </div>` : ''}
         ${aSnap.dirigo != null ? `<div class="tc-row">
@@ -725,7 +725,7 @@ async function loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel) 
           <span class="val">${hFull.w}–${hFull.l}</span>
         </div>
         ${hRankLabel ? `<div class="tc-row">
-          <span class="lbl">State rank${g.home_rank != null ? '' : ' (current)'}</span>
+          <span class="lbl">State rank (pre-game)</span>
           <span class="val grn">${hRankLabel}</span>
         </div>` : ''}
         ${hSnap.dirigo != null ? `<div class="tc-row">

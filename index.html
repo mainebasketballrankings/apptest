@@ -1522,11 +1522,16 @@
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`;
 
     // Score cells
+    const gamePageUrl = `game.html?game_id=${g.id}`;
     const hScEl = has
-      ? `<div class="team-score ${isFinal ? (hWin?'winner':'loser') : ''}">${hSc}</div>`
+      ? (isFinal
+          ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${hSc}</a>`
+          : `<div class="team-score">${hSc}</div>`)
       : `<div class="team-score empty">–</div>`;
     const aScEl = has
-      ? `<div class="team-score ${isFinal ? (aWin?'winner':'loser') : ''}">${aSc}</div>`
+      ? (isFinal
+          ? `<a class="team-score ${aWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${aSc}</a>`
+          : `<div class="team-score">${aSc}</div>`)
       : `<div class="team-score empty">–</div>`;
 
     // Footer
@@ -1539,9 +1544,9 @@
     // State-aware footer meta
     let footerMeta;
     if (isFinal) {
-      footerMeta = notes
-        ? `<div class="card-meta" style="color:var(--black)">${notes}</div>`
-        : `<div class="card-meta" style="color:var(--lgray)">—</div>`;
+      const notesContent = notes || '—';
+      const notesStyle = notes ? 'color:var(--black)' : 'color:var(--lgray)';
+      footerMeta = `<a class="card-meta" href="${gamePageUrl}" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
     } else if (isLive) {
       footerMeta = `<div class="card-meta" style="color:var(--lgray)">In progress</div>`;
     } else {

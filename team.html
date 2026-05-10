@@ -80,6 +80,14 @@
     .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 16px; }
     .stat-card { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; text-align: center; }
     .stat-card .lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; color: var(--lgray); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+    .stat-rank {
+      display: block;
+      font-size: 11px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600;
+      color: var(--lgray);
+      margin-top: 2px;
+    }
     .stat-card .val { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 24px; color: var(--black); line-height: 1; }
     .stat-card .val.grn { color: var(--green); }
 
@@ -405,9 +413,23 @@ async function load() {
       sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=game_date.asc&select=*,stats_uploaded`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       latestSnapDate
-        ? sb(`rankings_snapshots?snapshot_date=eq.${latestSnapDate}&season_year=eq.${seasonYear}&select=team_id,heal_points,rank_overall,rank_class&limit=500`)
+        ? sb(`rankings_snapshots?snapshot_date=eq.${latestSnapDate}&season_year=eq.${seasonYear}&select=team_id,heal_points,rank_overall,rank_class,sos,avg_pf,avg_pa,pct_perfect&limit=500`)
         : Promise.resolve([])
     ]);
+
+    // Compute stat ranks from allSnaps
+    function statRank(field, teamId, higherIsBetter = true) {
+      if (!allSnaps?.length) return null;
+      const sorted = [...allSnaps]
+        .filter(s => s[field] != null)
+        .sort((a, b) => higherIsBetter ? b[field] - a[field] : a[field] - b[field]);
+      const idx = sorted.findIndex(s => s.team_id === teamId);
+      return idx >= 0 ? idx + 1 : null;
+    }
+    const rankSOS     = statRank('sos',         tid, true);
+    const rankAvgPF   = statRank('avg_pf',      tid, true);
+    const rankAvgPA   = statRank('avg_pa',       tid, false); // lower is better
+    const rankPctPerf = statRank('pct_perfect',  tid, true);
 
     // Paginated fetch helper
     // Fetch roster players for this team
@@ -581,10 +603,10 @@ async function load() {
     const cards = `
       <div class="stat-cards">
         <div class="stat-card"><div class="lbl">DIRIGO</div><div class="val grn">${stats ? f2(stats.heal_points) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">SOS</div><div class="val">${stats ? f2(stats.sos) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">${pfLbl}</div><div class="val">${stats ? f2(stats.avg_pf) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">${paLbl}</div><div class="val">${stats ? f2(stats.avg_pa) : '—'}</div></div>
-        <div class="stat-card"><div class="lbl">%Perfect</div><div class="val">${stats ? fpc(stats.pct_perfect) : '—'}</div></div>
+        <div class="stat-card"><div class="lbl">SOS</div><div class="val">${stats ? f2(stats.sos) : '—'}${rankSOS ? `<span class="stat-rank">(#${rankSOS})</span>` : ''}</div></div>
+        <div class="stat-card"><div class="lbl">${pfLbl}</div><div class="val">${stats ? f2(stats.avg_pf) : '—'}${rankAvgPF ? `<span class="stat-rank">(#${rankAvgPF})</span>` : ''}</div></div>
+        <div class="stat-card"><div class="lbl">${paLbl}</div><div class="val">${stats ? f2(stats.avg_pa) : '—'}${rankAvgPA ? `<span class="stat-rank">(#${rankAvgPA})</span>` : ''}</div></div>
+        <div class="stat-card"><div class="lbl">%Perfect</div><div class="val">${stats ? fpc(stats.pct_perfect) : '—'}${rankPctPerf ? `<span class="stat-rank">(#${rankPctPerf})</span>` : ''}</div></div>
       </div>`;
 
     // Tournament odds

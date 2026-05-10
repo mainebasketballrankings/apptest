@@ -354,7 +354,8 @@ async function init() {
   const aWon    = isFinal && aScore > hScore;
 
   // Win prob (pre-game prediction) — stored as home team win prob
-  const wp = g.win_prob;
+  const wp  = g.win_prob;          // pre-game home win prob
+  const awp = g.actual_win_prob;   // post-game home win prob (col T)
 
   // Build linescore from box_score_json if present
   const bsj = g.box_score_json;
@@ -438,14 +439,14 @@ async function init() {
               <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:${aColor}"></div>
             </div>
           ` : ''}
-          ${isFinal ? `
+          ${isFinal && awp != null ? `
             <div class="prob-bar-labels" style="margin-bottom:4px">
-              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aColor};${aWon?'font-weight:800':'opacity:0.5'}">${aWon?'100%':'0%'}</span></span>
-              <span style="color:var(--lgray);font-size:11px">Win%${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ Upset</strong>' : ''}</span>
-              <span><span class="prob-pct" style="color:${hColor};${hWon?'font-weight:800':'opacity:0.5'}">${hWon?'100%':'0%'}</span> <span class="team-lbl">${ht.school_name}</span></span>
+              <span><span class="team-lbl">${at.school_name}</span> <span class="prob-pct" style="color:${aColor};${aWon?'font-weight:800':''}">${pct(1-awp)}</span></span>
+              <span style="color:var(--lgray);font-size:11px">Actual Win%${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ Upset</strong>' : ''}</span>
+              <span><span class="prob-pct" style="color:${hColor};${hWon?'font-weight:800':''}">${pct(awp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track" style="background:#e8e8e8">
-              <div class="prob-bar-fill" style="width:${aWon?'100':'0'}%;background:${aWon?aColor:hColor}"></div>
+            <div class="prob-bar-track" style="background:${hColor}">
+              <div class="prob-bar-fill" style="width:${((1-awp)*100).toFixed(1)}%;background:${aColor}"></div>
             </div>
           ` : ''}
         </div>

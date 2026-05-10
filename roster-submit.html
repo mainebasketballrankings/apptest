@@ -704,7 +704,7 @@
       return;
     }
 
-    let inserted = 0, errors = 0;
+    let inserted = 0, updated = 0, merged = 0, errors = 0;
 
     for (const r of parsedRows) {
       const row = {
@@ -719,23 +719,43 @@
         pronunciation: r.pronunciation || null,
       };
 
-      const { data: existing } = await sb.from('players')
-        .select('id')
-        .eq('team_id', row.team_id)
-        .eq('name', row.name)
-        .eq('season_year', row.season_year)
-        .maybeSingle();
+      // 1. Match by number first — catches stat stubs from box score import
+      let existing = null;
+      if (row.number) {
+        const { data: byNum } = await sb.from('players')
+          .select('id, name')
+          .eq('team_id', row.team_id)
+          .eq('number', row.number)
+          .eq('season_year', row.season_year)
+          .maybeSingle();
+        if (byNum) existing = byNum;
+      }
+
+      // 2. Fall back to name match
+      if (!existing) {
+        const { data: byName } = await sb.from('players')
+          .select('id, name')
+          .eq('team_id', row.team_id)
+          .eq('name', row.name)
+          .eq('season_year', row.season_year)
+          .maybeSingle();
+        if (byName) existing = byName;
+      }
 
       let error;
       if (existing) {
+        const wasMerge = existing.name !== row.name; // stub had different name
         ({ error } = await sb.from('players')
-          .update({ number: row.number, grade: row.grade, position: row.position,
-                    height: row.height, pronunciation: row.pronunciation })
+          .update({ name: row.name, number: row.number, grade: row.grade,
+                    position: row.position, height: row.height,
+                    pronunciation: row.pronunciation })
           .eq('id', existing.id));
+        if (!error) wasMerge ? merged++ : updated++;
       } else {
         ({ error } = await sb.from('players').insert(row));
+        if (!error) inserted++;
       }
-      error ? errors++ : inserted++;
+      if (error) errors++;
     }
 
     btn.textContent = 'Submit Roster';
@@ -750,8 +770,9 @@
     const sportLabel = SPORT_DISPLAY.find(s => s.slug === selectedSport)?.label || selectedSport;
     document.getElementById('successMsg').style.display = 'block';
     document.getElementById('successDetail').textContent =
-      `${inserted} player${inserted !== 1 ? 's' : ''} submitted for ${selectedSchool} ${selectedGender} ${sportLabel}. Thanks!` +
-      (errors ? ` (${errors} row${errors !== 1 ? 's' : ''} had errors — contact us if anything looks off.)` : '');
+      `${inserted} added · ${updated} updated · ${merged} merged from box score imports.` +
+      (errors ? ` (${errors} errors — contact us if anything looks off.)` : '') +
+      ` Thanks, ${selectedSchool}!`;
   });
 
   // ── HELPERS ─────────────────────────────────────────────────────────────

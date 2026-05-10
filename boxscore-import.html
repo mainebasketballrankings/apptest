@@ -786,7 +786,22 @@ function matchPlayer(p, roster) {
   }) || null;
 }
 
-// Find team_id in DB by matching box score team name
+// Load team info directly by team_id — no fuzzy matching
+async function loadTeamInfo(teamId) {
+  if (!teamId) return null;
+  const team = allTeams.find(t => t.id === teamId);
+  if (!team) return null;
+  if (!teamPlayersCache[teamId]) {
+    const { data } = await sb.from('players')
+      .select('id, name, number, season_year')
+      .eq('team_id', teamId)
+      .eq('season_year', 2026);
+    teamPlayersCache[teamId] = data || [];
+  }
+  return { teamId: team.id, sportId: team.sport_id, roster: teamPlayersCache[teamId] };
+}
+
+// Find team_id in DB by matching box score team name (fallback for push)
 async function resolveTeamId(boxScoreTeamName) {
   const tn = boxScoreTeamName.toLowerCase();
 
@@ -1025,8 +1040,9 @@ async function pushToSupabase(forceReplace = false) {
     }
 
     // Resolve both teams from box score names
-    const homeInfo = await resolveTeamId(parsedData.game.home_team);
-    const awayInfo = await resolveTeamId(parsedData.game.away_team);
+    // Use known team IDs from game record
+    const homeInfo = parsedData._homeInfo || await loadTeamInfo(currentGame.home_team_id);
+    const awayInfo = parsedData._awayInfo || await loadTeamInfo(currentGame.away_team_id);
 
     let pushed = 0, created = 0;
 
@@ -1227,10 +1243,9 @@ async function handleFile(file) {
     const text = await extractPdfText(file);
     if (text.trim().length < 80) throw new Error('Could not extract text — is this a scanned image PDF?');
     const parsed = await parsePdfWithClaude(text);
-    // Pre-load both team rosters so preview matching works
-    const homeInfo = await resolveTeamId(parsed.game.home_team);
-    const awayInfo = await resolveTeamId(parsed.game.away_team);
-    // Store on parsedData for use in renderTab and push
+    // Use game's known team IDs directly — no fuzzy matching needed
+    const homeInfo = await loadTeamInfo(currentGame.home_team_id);
+    const awayInfo = await loadTeamInfo(currentGame.away_team_id);
     parsed._homeInfo = homeInfo;
     parsed._awayInfo = awayInfo;
     renderPreview(parsed);

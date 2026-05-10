@@ -625,6 +625,7 @@ async function loadExistingPlayers(teamId) {
 // ── MODAL ─────────────────────────────────────────────
 function openModal(game) {
   currentGame = game;
+  teamPlayersCache = {};  // clear cache so rosters reload fresh for this game
   resetModalState();
 
   const isHome   = game.home_team?.id === selectedTeam?.id;

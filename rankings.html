@@ -452,11 +452,21 @@
 
     const sportId = SPORT_IDS[activeSport];
 
-    // Single query: get latest snapshot date + all data for this sport in one shot
-    // Filter by sport_id on the team join, order by snapshot_date desc, grab top N rows
-    // to find the latest date, then filter client-side to that date.
-    // This avoids the team-ID pre-fetch and the date-probe round-trips.
-    const { data: raw, error } = await sb
+    // Step 1: get team IDs for this sport (server-side filter — avoids row-limit cross-sport collision)
+    const { data: teamIdData } = await sb
+      .from('teams')
+      .select('id')
+      .eq('sport_id', sportId);
+
+    const sportTeamIds = (teamIdData || []).map(t => t.id);
+    if (!sportTeamIds.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
+      return;
+    }
+
+    // Step 2: get latest snapshot date + full data in one query, server-side filtered to this sport
+    const { data, error } = await sb
       .from('rankings_snapshots')
       .select(`
         id, rank_overall, rank_class, rank_region, snapshot_date,
@@ -472,31 +482,29 @@
         )
       `)
       .eq('season_year', activeSeason)
+      .in('team_id', sportTeamIds)
       .order('snapshot_date', { ascending: false })
       .limit(2000);
 
-    if (error || !raw) {
+    if (error || !data) {
       document.getElementById('tableWrap').innerHTML =
         `<div class="empty"><h3>Error</h3><p>${error?.message}</p></div>`;
       return;
     }
 
-    // Filter to this sport and find the most recent snapshot date for it
-    const sportRows = raw.filter(r => r.team?.sport_id === sportId);
-
-    if (!sportRows.length) {
+    if (!data.length) {
       document.getElementById('tableWrap').innerHTML =
         '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
       return;
     }
 
-    const latestDate = sportRows[0].snapshot_date;
-    const data = sportRows.filter(r => r.snapshot_date === latestDate && r.team != null);
+    // All rows are for this sport — find the latest date and filter to it
+    const latestDate = data[0].snapshot_date;
+    const filtered = data.filter(r => r.snapshot_date === latestDate && r.team != null);
 
-    // Cache it
-    _rankCache[cacheKey] = { data, latestDate };
+    _rankCache[cacheKey] = { data: filtered, latestDate };
 
-    allData = data;
+    allData = filtered;
     document.getElementById('updatedNote').textContent =
       'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     renderTable();

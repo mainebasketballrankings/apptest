@@ -381,7 +381,8 @@
 <script>
   const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  window.__mbrSB = window.__mbrSB || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const sb = window.__mbrSB;
 
   const SPORT_IDS = {
     'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',
@@ -430,49 +431,35 @@
     SN: 'S North', SS: 'S South',
   };
 
+  // Cache: { 'sport|season': { data, latestDate } } — avoids re-fetching on tab revisit
+  const _rankCache = {};
+
   async function loadRankings() {
+    const cacheKey = `${activeSport}|${activeSeason}`;
+
+    // Serve from cache if available
+    if (_rankCache[cacheKey]) {
+      const { data, latestDate } = _rankCache[cacheKey];
+      allData = data;
+      document.getElementById('updatedNote').textContent =
+        'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      renderTable();
+      return;
+    }
+
     document.getElementById('tableWrap').innerHTML =
       '<div class="loading"><div class="spinner"></div><span>Loading rankings…</span></div>';
 
     const sportId = SPORT_IDS[activeSport];
 
-    // Get all team IDs for this sport so we can filter snapshots server-side
-    const { data: teamIdData } = await sb
-      .from('teams')
-      .select('id')
-      .eq('sport_id', sportId);
-    const sportTeamIds = (teamIdData || []).map(t => t.id);
-
-    if (!sportTeamIds.length) {
-      document.getElementById('tableWrap').innerHTML =
-        '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
-      return;
-    }
-
-    // Get most recent snapshot date filtered by sport team IDs directly
-    const { data: dateData } = await sb
-      .from('rankings_snapshots')
-      .select('snapshot_date')
-      .eq('season_year', activeSeason)
-      .in('team_id', sportTeamIds)
-      .order('snapshot_date', { ascending: false })
-      .limit(1);
-
-    if (!dateData || !dateData.length) {
-      document.getElementById('tableWrap').innerHTML =
-        '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
-      return;
-    }
-
-    const latestDate = dateData[0].snapshot_date;
-    document.getElementById('updatedNote').textContent =
-      'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-    // Load all teams for that date+sport with team info
-    const { data, error } = await sb
+    // Single query: get latest snapshot date + all data for this sport in one shot
+    // Filter by sport_id on the team join, order by snapshot_date desc, grab top N rows
+    // to find the latest date, then filter client-side to that date.
+    // This avoids the team-ID pre-fetch and the date-probe round-trips.
+    const { data: raw, error } = await sb
       .from('rankings_snapshots')
       .select(`
-        id, rank_overall, rank_class, rank_region,
+        id, rank_overall, rank_class, rank_region, snapshot_date,
         pi, heal_points, dirigo, mheals_18, wins, losses, avg_pf, avg_pa, sos,
         pct_perfect, signature_win, ats_record, win_pct,
         tournament_odds,
@@ -484,17 +471,34 @@
           )
         )
       `)
-      .eq('snapshot_date', latestDate)
       .eq('season_year', activeSeason)
-      .in('team_id', sportTeamIds);
+      .order('snapshot_date', { ascending: false })
+      .limit(2000);
 
-    if (error || !data) {
+    if (error || !raw) {
       document.getElementById('tableWrap').innerHTML =
         `<div class="empty"><h3>Error</h3><p>${error?.message}</p></div>`;
       return;
     }
 
-    allData = data.filter(r => r.team != null);
+    // Filter to this sport and find the most recent snapshot date for it
+    const sportRows = raw.filter(r => r.team?.sport_id === sportId);
+
+    if (!sportRows.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
+      return;
+    }
+
+    const latestDate = sportRows[0].snapshot_date;
+    const data = sportRows.filter(r => r.snapshot_date === latestDate && r.team != null);
+
+    // Cache it
+    _rankCache[cacheKey] = { data, latestDate };
+
+    allData = data;
+    document.getElementById('updatedNote').textContent =
+      'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     renderTable();
   }
 
@@ -599,6 +603,7 @@
 
       const logoEl = t.logo_url
         ? `<img class="td-logo" src="${t.logo_url}" alt="${t.school_name}"
+               loading="lazy" decoding="async"
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
           + `<div class="td-logo-init" style="display:none">${t.school_name[0]}</div>`
         : `<div class="td-logo-init">${t.school_name[0]}</div>`;
@@ -633,21 +638,21 @@
 
     html += '</tbody></table>';
     document.getElementById('tableWrap').innerHTML = html;
-
-    // Sort click handlers
-    document.getElementById('tableWrap').querySelectorAll('th[data-col]').forEach(th => {
-      if (!th.dataset.col) return;
-      th.addEventListener('click', () => {
-        if (sortCol === th.dataset.col) {
-          sortAsc = !sortAsc;
-        } else {
-          sortCol = th.dataset.col;
-          sortAsc = ['school_name'].includes(sortCol);
-        }
-        renderTable();
-      });
-    });
+    // sort listeners handled by delegation below
   }
+
+  // ── DELEGATED SORT LISTENER (set up once) ───────────────────────────────
+  document.getElementById('tableWrap').addEventListener('click', e => {
+    const th = e.target.closest('th[data-col]');
+    if (!th || !th.dataset.col) return;
+    if (sortCol === th.dataset.col) {
+      sortAsc = !sortAsc;
+    } else {
+      sortCol = th.dataset.col;
+      sortAsc = ['school_name'].includes(sortCol);
+    }
+    renderTable();
+  });
 
   // Gender tabs
   // Season dropdown handler

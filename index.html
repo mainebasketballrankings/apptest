@@ -922,6 +922,19 @@
   window.__mbrSB = window.__mbrSB || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const sb = window.__mbrSB;
 
+  // Cached short-date formatter — avoids repeated option-object allocation inside card()
+  const _shortDateFmt = new Intl.DateTimeFormat('en-US', { month:'numeric', day:'numeric' });
+  function fmtShortDate(dateStr) {
+    return _shortDateFmt.format(new Date(dateStr + 'T12:00:00'));
+  }
+
+  // Single canonical sport label map (replaces SPORT_DISPLAY_NAME, SPORT_LABEL_MAP, SPORT_LABEL)
+  const SPORT_LABEL = {
+    basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
+    lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
+    football: 'Football', volleyball: 'Volleyball'
+  };
+
   const SPORT_IDS = {
     'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',
     'baseball':     'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
@@ -973,27 +986,27 @@
     activeFilter = 'all';
   }
 
-  let currentDate        = new Date();
-  let allGames           = [];   // games for current single-sport view (legacy, kept for submit)
-  let allSportsGames     = {};   // { sportKey: { games, notesMap } }
-  let activeFilter       = 'all';
-  let activeSport        = 'all'; // 'all' = show all sports, or a sport key to filter
-  let activeSeason       = 2026;
-  let rankMap            = {};
+  // ── STATE ────────────────────────────────────────────────────────────────
+  let currentDate    = new Date();
+  let allGames       = [];        // active sport's games (kept for submit handler)
+  let allSportsGames = {};        // { sport: { games, notesMap } } — cached per date
+  let activeFilter   = 'all';
+  let activeSport    = 'all';
+  let activeSeason   = 2026;
+  let rankMap        = {};
+  let _ranksLoaded   = false;     // ranks load once per session
 
+  // ── DATE / TIME HELPERS ──────────────────────────────────────────────────
   function toISO(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
-
   function fmtHeading(d) {
     return toISO(d) === toISO(new Date()) ? "Today's Games"
       : d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
   }
-
   function fmtSub(d) {
     return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
   }
-
   function fmtTime(t) {
     if (!t) return '';
     const [h, m] = t.split(':');
@@ -1001,28 +1014,28 @@
     return `${hr > 12 ? hr-12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
   }
 
-  async function loadRanks(dateStr) {
+  // ── RANKS ────────────────────────────────────────────────────────────────
+  // Single query — grabs all ranked teams from most recent snapshot in one round-trip.
+  // Cached for the session; ranks don't change while someone's on the scoreboard.
+  async function loadRanks() {
+    if (_ranksLoaded) return;
     rankMap = {};
     try {
-      const { data: dateData, error: e1 } = await sb
+      const { data, error } = await sb
         .from('rankings_snapshots')
-        .select('snapshot_date')
+        .select('team_id, rank_overall, snapshot_date')
         .eq('season_year', 2026)
         .order('snapshot_date', { ascending: false })
-        .limit(1);
-      if (e1) { console.warn('loadRanks date probe error:', e1); return; }
-      if (!dateData || !dateData.length) return;
-      const latestDate = dateData[0].snapshot_date;
-      const { data, error: e2 } = await sb
-        .from('rankings_snapshots')
-        .select('team_id, rank_overall')
-        .eq('snapshot_date', latestDate)
-        .eq('season_year', 2026);
-      if (e2) { console.warn('loadRanks fetch error:', e2); return; }
-      if (data) data.forEach(r => { rankMap[r.team_id] = r.rank_overall; });
+        .limit(200);
+      if (error) { console.warn('loadRanks error:', error); return; }
+      if (!data?.length) return;
+      const latestDate = data[0].snapshot_date;
+      data.forEach(r => { if (r.snapshot_date === latestDate) rankMap[r.team_id] = r.rank_overall; });
+      _ranksLoaded = true;
     } catch(e) { console.warn('loadRanks threw:', e); }
   }
 
+  // ── GAME FETCH ───────────────────────────────────────────────────────────
   async function fetchSportGames(ds, sport, season) {
     const { data, error } = await sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index,
@@ -1041,168 +1054,183 @@
   }
 
   function buildNotesMap(games) {
-    const notesMap = {};
-    games.forEach(g => { if (g.notes) notesMap[g.id] = g.notes; });
-    return notesMap;
+    const m = {};
+    games.forEach(g => { if (g.notes) m[g.id] = g.notes; });
+    return m;
   }
 
-  async function loadGames(date) {
+  // ── LOAD GAMES ───────────────────────────────────────────────────────────
+  // dateChanged=true  → clear cache, re-fetch for the new date
+  // dateChanged=false → sport tab switch; use cache if available, fetch only if missing
+  async function loadGames(date, dateChanged = true) {
     const ds = toISO(date);
     document.getElementById('dateHeading').textContent = fmtHeading(date);
-    document.getElementById('gamesContainer').innerHTML =
-      `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
 
-    // Fetch ranks + all sports in parallel
-    const [, results] = await Promise.all([
-      loadRanks(ds).catch(e => console.warn('loadRanks failed:', e)),
-      Promise.all(
-        SPORT_PRIORITY.map(({ sport, season }) =>
-          fetchSportGames(ds, sport, season).then(games => ({ sport, season, games }))
+    if (dateChanged) {
+      allSportsGames = {};
+      document.getElementById('gamesContainer').innerHTML =
+        `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
+    }
+
+    // Ranks: once per session
+    loadRanks().catch(e => console.warn('loadRanks failed:', e));
+
+    // Which sports need fetching?
+    const sportsToFetch = activeSport === 'all'
+      ? SPORT_PRIORITY
+      : [SPORT_PRIORITY.find(s => s.sport === activeSport)].filter(Boolean);
+
+    const needsFetch = sportsToFetch.filter(({ sport }) => !allSportsGames[sport]);
+
+    if (needsFetch.length) {
+      if (!dateChanged) {
+        document.getElementById('gamesContainer').innerHTML =
+          `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
+      }
+      const fetched = await Promise.all(
+        needsFetch.map(({ sport, season }) =>
+          fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
         )
-      )
-    ]);
+      );
+      fetched.forEach(({ sport, games }) => {
+        allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
+      });
+    }
 
-    // Build allSportsGames, fetch notes for all games
-    allSportsGames = {};
-    const sportsWithGames = results.filter(r => r.games.length > 0);
-
-    await Promise.all(sportsWithGames.map(async ({ sport, season, games }) => {
-      const notesMap = buildNotesMap(games);
-      allSportsGames[sport] = { games, notesMap, season };
-    }));
-
-    // Keep allGames pointing to active sport for submit handler compatibility
+    // Keep allGames in sync for submit handler
     if (activeSport !== 'all' && allSportsGames[activeSport]) {
       allGames = allSportsGames[activeSport].games;
     } else {
-      allGames = sportsWithGames.flatMap(r => r.games);
+      allGames = SPORT_PRIORITY.flatMap(({ sport }) => allSportsGames[sport]?.games || []);
     }
 
-    // Build sport tabs from sports that have games
-    buildSportTabs(sportsWithGames.map(r => r.sport));
+    const sportsWithGames = SPORT_PRIORITY.map(s => s.sport).filter(s => allSportsGames[s]?.games?.length);
+    buildSportTabs(sportsWithGames);
     buildFilterButtons();
     renderAllGames();
-    // Fetch last play for any active games and show in footer
-    const activeGames = sportsWithGames.flatMap(r => r.games).filter(g => g.status === 'active');
-    if(activeGames.length){
-      const ids = activeGames.map(g => `"${g.id}"`).join(',');
-      const { data: evts } = await sb.from('game_events')
-        .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
-        .in('game_id', activeGames.map(g => g.id))
-        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
-        .order('created_at', { ascending: false })
-        .limit(activeGames.length * 5);
-      if(evts){
-        const lastEvt = {};  // for play description (skips inning_end)
-        const stateEvt = {}; // for outs/bases/inning scorebug (uses latest including inning_end)
-        evts.forEach(e => {
-          if(e.event_type === 'lineup_set') return; // skip for both state and play display
-          if(!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
-          const notesStr = typeof e.notes === 'string' ? e.notes : JSON.stringify(e.notes||'');
-          const isUninformativeRA = e.event_type === 'runner_advance' && !(typeof e.notes === 'object' ? e.notes?.sb : notesStr.includes('"sb":true')) && !e.runs;
-          if(!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)') && !isUninformativeRA) lastEvt[e.game_id] = e;
-        });
-        activeGames.forEach(g => {
-          const e = lastEvt[g.id];
-          const se = stateEvt[g.id] || e;
-          if(!e && !se) return;
-          // Update footer with last play
-          const card = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
-          if(card && e){
-            const EVT_LABEL = {
-              single:'singles', double:'doubles', triple:'triples', hr:'homers',
-              groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops up',
-              strikeout:'strikes out', walk:'walks', hbp:'hit by pitch',
-              error:'reaches on error', fielders_choice:'fielder\'s choice',
-              sac_bunt:'sac bunt', sac_fly:'sac fly', sub_pitcher:'pitching change',
-              sub_batter:'pinch hit', sub_defense:'defensive sub',
-            };
-            const half = e.half === 'top' ? '▲' : '▼';
-            const inn = e.inning || '';
-            const isDP = e.notes && e.notes.includes('(DP)');
-            const evtLabel = isDP ? 'grounds into double play' : (EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' '));
-            const name = e.event_type === 'sub_pitcher' ? '' : (e.player_name || '');
-            const pitchDesc = e.event_type === 'sub_pitcher' && e.pitcher_name ? (() => {
-              try {
-                const info = JSON.parse(e.notes||'{}');
-                return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`;
-              } catch(err){ return `Pitching change: ${e.pitcher_name}`; }
-            })() : null;
-            // runner_advance: show stolen base or runner scores
-            const runnerAdvDesc = e.event_type === 'runner_advance' ? (() => {
-              try {
-                const info = typeof e.notes === 'string' ? JSON.parse(e.notes||'{}') : (e.notes||{});
-                if(info.sb) {
-                  const rName = info.runner || e.player_name || '';
-                  const dest = info.to === 2 ? '2nd' : info.to === 3 ? '3rd' : '';
-                  return `<strong>${rName}</strong> — Stolen base${dest ? ' (1st→'+dest+')' : ''}`;
-                }
-                if(e.runs) {
-                  const scorer = info.scorers && info.scorers[0];
-                  const scorerName = scorer ? scorer.name : (info.runner || '');
-                  const runDesc = scorerName ? `${scorerName} scores` : 'runner scores';
-                  return `<strong>${name}</strong> — ${runDesc} · ${e.runs} run${e.runs>1?'s':''}`;
-                }
-                return null;
-              } catch(err){ return null; }
-            })() : null;
-            const scored = e.runs && e.event_type !== 'runner_advance' ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
-            const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
-            const isOut = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
-            const outNum = isDP ? ` · 2 outs` : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
-            let kDesc = '';
-            if(e.event_type === 'strikeout' && e.notes){
-              try { const ni = JSON.parse(e.notes||'{}'); if(ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch(err){}
-            }
-            const desc = e.event_type === 'runner_advance' && !runnerAdvDesc ? null : (pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`);
-            if(!desc) { /* skip non-informative runner_advance */ }
-            card.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
-          }
-          // Update top bar left span with scorebug
-          const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
-          if(topLeft && se){
-            // If latest event is inning_end, advance to next half for display
-            let dispHalf = se.half;
-            let dispInn = se.inning || 1;
-            let dispBases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
-            let dispOuts = se.outs || 0;
-            // If 3 outs recorded, advance to next half for display
-            if(dispOuts >= 3 || se.event_type === 'inning_end'){
-              dispBases = [false,false,false];
-              dispOuts = 0;
-              if(dispHalf === 'top'){ dispHalf = 'bot'; }
-              else { dispHalf = 'top'; dispInn = dispInn + 1; }
-            }
-            const half = dispHalf === 'top' ? '▲' : '▼';
-            const inn = dispInn;
-            const bd = (on) => `<span style="width:6px;height:6px;border-radius:1px;transform:rotate(45deg);background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
-            const od = (on) => `<span style="width:5px;height:5px;border-radius:50%;background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
-            const baseGrid = `<span style="display:grid;grid-template-columns:8px 8px 8px;grid-template-rows:8px 8px;gap:1px;flex-shrink:0">
-              <span></span>${bd(dispBases[1])}<span></span>
-              ${bd(dispBases[2])}<span></span>${bd(dispBases[0])}
-            </span>`;
-            const outCol = `<span style="display:flex;flex-direction:column;gap:2px;justify-content:center;flex-shrink:0">${od(dispOuts>0)}${od(dispOuts>1)}</span>`;
-            topLeft.style.display = 'flex';
-            topLeft.style.alignItems = 'center';
-            topLeft.style.gap = '5px';
-            topLeft.innerHTML = `<span style="font-weight:700">${half}${inn}</span>${baseGrid}${outCol}`;
-          }
-        });
-      }
+
+    const activeGames = allGames.filter(g => g.status === 'active');
+    if (activeGames.length) await fetchLiveEvents(activeGames);
+  }
+
+  // ── SHARED EVENT DESCRIPTION ─────────────────────────────────────────────
+  const EVT_LABEL = {
+    single:'singles', double:'doubles', triple:'triples', hr:'homers',
+    groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops up',
+    strikeout:'strikes out', walk:'walks', hbp:'hit by pitch',
+    error:'reaches on error', fielders_choice:"fielder's choice",
+    sac_bunt:'sac bunt', sac_fly:'sac fly', sub_pitcher:'pitching change',
+    sub_batter:'pinch hit', sub_defense:'defensive sub',
+  };
+
+  function describeEvent(e) {
+    const isDP     = e.notes && e.notes.includes('(DP)');
+    const evtLabel = isDP ? 'grounds into double play' : (EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' '));
+    const name     = e.event_type === 'sub_pitcher' ? '' : (e.player_name || '');
+
+    if (e.event_type === 'sub_pitcher' && e.pitcher_name) {
+      try {
+        const info = JSON.parse(e.notes||'{}');
+        return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`;
+      } catch { return `Pitching change: ${e.pitcher_name}`; }
     }
+
+    if (e.event_type === 'runner_advance') {
+      try {
+        const info = typeof e.notes === 'string' ? JSON.parse(e.notes||'{}') : (e.notes||{});
+        if (info.sb) {
+          const rName = info.runner || e.player_name || '';
+          const dest  = info.to === 2 ? '2nd' : info.to === 3 ? '3rd' : '';
+          return `<strong>${rName}</strong> — Stolen base${dest ? ' (1st→'+dest+')' : ''}`;
+        }
+        if (e.runs) {
+          const scorer     = info.scorers?.[0];
+          const scorerName = scorer ? scorer.name : (info.runner || '');
+          return `<strong>${name}</strong> — ${scorerName ? scorerName + ' scores' : 'runner scores'} · ${e.runs} run${e.runs>1?'s':''}`;
+        }
+        return null;
+      } catch { return null; }
+    }
+
+    const scored = e.runs ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
+    const rbi    = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
+    const isOut  = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
+    const outNum = isDP ? ' · 2 outs' : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
+    let kDesc = '';
+    if (e.event_type === 'strikeout' && e.notes) {
+      try { const ni = JSON.parse(e.notes||'{}'); if (ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch {}
+    }
+    return `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`;
+  }
+
+  function renderScoreBug(topLeftEl, se) {
+    let { half: dispHalf, inning: dispInn = 1, outs: dispOuts = 0 } = se;
+    let dispBases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
+    if (dispOuts >= 3 || se.event_type === 'inning_end') {
+      dispBases = [false,false,false]; dispOuts = 0;
+      if (dispHalf === 'top') { dispHalf = 'bot'; }
+      else { dispHalf = 'top'; dispInn++; }
+    }
+    const h  = dispHalf === 'top' ? '▲' : '▼';
+    const bd = on => `<span style="width:6px;height:6px;border-radius:1px;transform:rotate(45deg);background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
+    const od = on => `<span style="width:5px;height:5px;border-radius:50%;background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
+    const baseGrid = `<span style="display:grid;grid-template-columns:8px 8px 8px;grid-template-rows:8px 8px;gap:1px;flex-shrink:0"><span></span>${bd(dispBases[1])}<span></span>${bd(dispBases[2])}<span></span>${bd(dispBases[0])}</span>`;
+    const outCol   = `<span style="display:flex;flex-direction:column;gap:2px;justify-content:center;flex-shrink:0">${od(dispOuts>0)}${od(dispOuts>1)}</span>`;
+    topLeftEl.style.cssText = 'display:flex;align-items:center;gap:5px';
+    topLeftEl.innerHTML = `<span style="font-weight:700">${h}${dispInn}</span>${baseGrid}${outCol}`;
+  }
+
+  // ── LIVE EVENTS (shared by loadGames + patchLiveGames) ───────────────────
+  async function fetchLiveEvents(activeGames) {
+    const { data: evts } = await sb.from('game_events')
+      .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
+      .in('game_id', activeGames.map(g => g.id))
+      .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
+      .order('created_at', { ascending: false })
+      .limit(activeGames.length * 5);
+    if (!evts) return;
+
+    const lastEvt  = {};
+    const stateEvt = {};
+    evts.forEach(e => {
+      if (!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
+      const notesStr = typeof e.notes === 'string' ? e.notes : JSON.stringify(e.notes||'');
+      const isUninformativeRA = e.event_type === 'runner_advance'
+        && !(typeof e.notes === 'object' ? e.notes?.sb : notesStr.includes('"sb":true'))
+        && !e.runs;
+      if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up'
+          && !notesStr.includes('out (DP)') && !isUninformativeRA) {
+        lastEvt[e.game_id] = e;
+      }
+    });
+
+    activeGames.forEach(g => {
+      const e  = lastEvt[g.id];
+      const se = stateEvt[g.id] || e;
+      if (!e && !se) return;
+      if (e) {
+        const cardMetaEl = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
+        if (cardMetaEl) {
+          const desc = describeEvent(e);
+          if (desc) {
+            const half = e.half === 'top' ? '▲' : '▼';
+            cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${e.inning||''}</span> ${desc}`;
+          }
+        }
+      }
+      if (se) {
+        const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
+        if (topLeft) renderScoreBug(topLeft, se);
+      }
+    });
   }
 
   function buildSportTabs(sportsWithGames) {
     const tabsEl = document.getElementById('sportTabs');
-    const SPORT_LABEL_MAP = {
-      basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
-      lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
-      football: 'Football', volleyball: 'Volleyball'
-    };
     // Always show All tab + only sports with games
     const tabs = ['all', ...SPORT_PRIORITY.map(s => s.sport).filter(s => sportsWithGames.includes(s))];
     tabsEl.innerHTML = tabs.map(sport => {
-      const label = sport === 'all' ? 'All' : SPORT_LABEL_MAP[sport] || sport;
+      const label = sport === 'all' ? 'All' : SPORT_LABEL[sport] || sport;
       const season = sport === 'all' ? '' : ` data-season="${SPORT_PRIORITY.find(s => s.sport === sport)?.season || 2026}"`;
       const isActive = activeSport === sport;
       return `<button class="sport-tab${isActive ? ' active' : ''}" data-sport="${sport}"${season}>${label}</button>`;
@@ -1228,11 +1256,7 @@
     });
   }
 
-  const SPORT_DISPLAY_NAME = {
-    basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
-    lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
-    football: 'Football', volleyball: 'Volleyball'
-  };
+  const SPORT_DISPLAY_NAME = SPORT_LABEL; // legacy alias — use SPORT_LABEL directly
 
   function renderAllGames() {
     const container = document.getElementById('gamesContainer');
@@ -1278,75 +1302,90 @@
     }
 
     container.innerHTML = html;
-    attachCardListeners(container);
+    // delegation handles all card interactions
   }
 
-  function attachCardListeners(root) {
-    root.querySelectorAll('.card-body').forEach(body => {
-      body.addEventListener('click', (e) => {
-        if (e.target.closest('a, button')) return;
-        const gameId = body.closest('.game-card')?.dataset.gameId;
-        if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
-      });
-    });
+  // ── DELEGATED CARD LISTENERS (set up once at page load) ──────────────────
+  const _gc = document.getElementById('gamesContainer');
 
-    root.querySelectorAll('.submit-btn-inline').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const panel = document.getElementById('panel-' + btn.dataset.id);
-        if (!panel) return;
-        const open  = panel.classList.toggle('open');
-        btn.textContent = open ? 'Cancel' : (btn.dataset.id ? 'Update' : 'Submit Score');
-      });
-    });
+  // Card body click → open matchup page
+  _gc.addEventListener('click', e => {
+    const body = e.target.closest('.card-body');
+    if (!body || e.target.closest('a, button')) return;
+    const gameId = body.closest('.game-card')?.dataset.gameId;
+    if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
+  });
 
-    root.querySelectorAll('.score-form').forEach(f => {
-      f.addEventListener('submit', handleSubmit);
-      const sport = f.dataset.sport;
+  // Submit button → toggle score panel
+  _gc.addEventListener('click', e => {
+    const btn = e.target.closest('.submit-btn-inline');
+    if (!btn) return;
+    const panel = document.getElementById('panel-' + btn.dataset.id);
+    if (!panel) return;
+    const open = panel.classList.toggle('open');
+    btn.textContent = open ? 'Cancel' : 'Update';
+  });
 
-      const periodSel = f.querySelector('select[name="period"]');
-      const timeInput = f.querySelector('input[name="clock_time"]');
-      if (periodSel && timeInput) {
-        const noTimePeriods = ['Halftime', 'End Q4', 'Final', ''];
-        periodSel.addEventListener('change', () => {
-          timeInput.style.display = noTimePeriods.includes(periodSel.value) ? 'none' : '';
-        });
-      }
+  // Score form submit
+  _gc.addEventListener('submit', e => {
+    if (!e.target.matches('.score-form')) return;
+    handleSubmit(e);
+  });
 
-      const pills = f.querySelectorAll('.si-pill[data-half]');
-      if (pills.length) {
-        let activeHalf = '';
-        pills.forEach(pill => {
-          pill.addEventListener('click', () => {
-            pills.forEach(p => p.classList.remove('active'));
-            if (activeHalf === pill.dataset.half) {
-              activeHalf = '';
-            } else {
-              pill.classList.add('active');
-              activeHalf = pill.dataset.half;
-            }
-            syncBaseballPeriod(f, activeHalf);
-          });
-        });
-        const inningSel = f.querySelector('select[name="inning"]');
-        if (inningSel) {
-          inningSel.addEventListener('change', () => syncBaseballPeriod(f, activeHalf));
-        }
-      }
+  // Period select → show/hide clock input
+  _gc.addEventListener('change', e => {
+    const sel = e.target;
+    if (!sel.matches('select[name="period"]')) return;
+    const form = sel.closest('.score-form');
+    if (!form) return;
+    const timeInput = form.querySelector('input[name="clock_time"]');
+    if (!timeInput) return;
+    const noTimePeriods = ['Halftime', 'End Q4', 'Final', ''];
+    timeInput.style.display = noTimePeriods.includes(sel.value) ? 'none' : '';
+  });
 
-      const vbGame = f.querySelector('select[name="vb_game"]');
-      if (vbGame) {
-        const syncVb = () => {
-          const g = vbGame.value;
-          const hp = f.querySelector('input[name="vb_home_pts"]')?.value.trim();
-          const ap = f.querySelector('input[name="vb_away_pts"]')?.value.trim();
-          let val = g || '';
-          if (g && g !== 'Final' && hp !== '' && ap !== '') val += ` (${hp}–${ap})`;
-          if (f.querySelector('input[name="period"]')) f.querySelector('input[name="period"]').value = val;
-        };
-        vbGame.addEventListener('change', syncVb);
-        f.querySelectorAll('input[name="vb_home_pts"], input[name="vb_away_pts"]').forEach(i => i.addEventListener('input', syncVb));
-      }
-    });
+  // Baseball inning select → sync hidden period field
+  _gc.addEventListener('change', e => {
+    const sel = e.target;
+    if (!sel.matches('select[name="inning"]')) return;
+    const form = sel.closest('.score-form');
+    if (form) syncBaseballPeriod(form, form._activeHalf || '');
+  });
+
+  // Baseball top/bot pills → toggle activeHalf, sync period
+  _gc.addEventListener('click', e => {
+    const pill = e.target.closest('.si-pill[data-half]');
+    if (!pill) return;
+    const form = pill.closest('.score-form');
+    if (!form) return;
+    const pills = form.querySelectorAll('.si-pill[data-half]');
+    pills.forEach(p => p.classList.remove('active'));
+    if (form._activeHalf === pill.dataset.half) {
+      form._activeHalf = '';
+    } else {
+      pill.classList.add('active');
+      form._activeHalf = pill.dataset.half;
+    }
+    syncBaseballPeriod(form, form._activeHalf);
+  });
+
+  // Volleyball selects/inputs → sync hidden period field
+  _gc.addEventListener('change', e => {
+    if (e.target.matches('select[name="vb_game"]')) syncVbPeriod(e.target.closest('.score-form'));
+  });
+  _gc.addEventListener('input', e => {
+    if (e.target.matches('input[name="vb_home_pts"], input[name="vb_away_pts"]')) syncVbPeriod(e.target.closest('.score-form'));
+  });
+
+  function syncVbPeriod(form) {
+    if (!form) return;
+    const g  = form.querySelector('select[name="vb_game"]')?.value || '';
+    const hp = form.querySelector('input[name="vb_home_pts"]')?.value.trim() || '';
+    const ap = form.querySelector('input[name="vb_away_pts"]')?.value.trim() || '';
+    let val  = g;
+    if (g && g !== 'Final' && hp !== '' && ap !== '') val += ` (${hp}–${ap})`;
+    const hidden = form.querySelector('input[name="period"]');
+    if (hidden) hidden.value = val;
   }
 
   function section(label, games, notesMap, sport) {
@@ -1357,6 +1396,7 @@
   function logoEl(team) {
     if (team.logo_url) {
       return `<img class="team-logo" src="${team.logo_url}" alt="${team.school_name}"
+                loading="lazy" decoding="async"
                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
               <div class="logo-initial" style="display:none">${team.school_name[0]}</div>`;
     }
@@ -1536,7 +1576,7 @@
 
     // Footer
     const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
-    const dateShort = new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month:'numeric', day:'numeric' });
+    const dateShort = fmtShortDate(g.game_date);
     const streamUrl = g.stream_url || home.stream_url || null;
     const eventEl = g.event ? `<span style="color:var(--green);font-weight:700">${g.event} · </span>` : '';
     const notes = notesMap[g.id];
@@ -1741,12 +1781,14 @@
     activeSport  = e.target.dataset.sport;
     activeSeason = parseInt(e.target.dataset.season) || 2026;
     activeFilter = 'all';
-    // Update allGames for submit handler
     if (activeSport !== 'all' && allSportsGames[activeSport]) {
+      // Already cached — just re-render, no fetch needed
       allGames = allSportsGames[activeSport].games;
+      buildFilterButtons();
+      renderAllGames();
+    } else {
+      loadGames(currentDate, false);
     }
-    buildFilterButtons();
-    renderAllGames();
   });
 
   document.getElementById('filters').addEventListener('click', e => {
@@ -1769,19 +1811,6 @@
     { sport: 'volleyball',   season: 2026 },
   ];
 
-  async function detectDefaultSport() {
-    const ds = toISO(currentDate);
-    for (const { sport, season } of SPORT_PRIORITY) {
-      const { data } = await sb.from('games')
-        .select('id')
-        .eq('game_date', ds)
-        .eq('sport_id', SPORT_IDS[sport])
-        .eq('season_year', season)
-        .limit(1);
-      if (data && data.length > 0) return { sport, season };
-    }
-    return { sport: 'basketball', season: 2026 };
-  }
 
   syncDatePicker();
 
@@ -1794,29 +1823,35 @@
   // Never rebuilds the page, so scroll position and open forms are preserved.
 
   async function patchLiveGames() {
-    const todayStr = toISO(new Date());
     const ds = toISO(currentDate);
-    // Fetch fresh game data for all active sports
+    // Only re-fetch sports already in cache (i.e. visible on this date)
+    const cachedSports = SPORT_PRIORITY.filter(({ sport }) => allSportsGames[sport]);
+    if (!cachedSports.length) return;
+
     const results = await Promise.all(
-      SPORT_PRIORITY.map(({ sport, season }) =>
+      cachedSports.map(({ sport, season }) =>
         fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
       )
     );
-    const freshGames = results.flatMap(r => r.games);
 
+    // Update cache with fresh data
+    results.forEach(({ sport, games }) => {
+      allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
+    });
+
+    const freshGames = results.flatMap(r => r.games);
     const newlyFinal = [];
+
     freshGames.forEach(g => {
       const cardEl = document.querySelector(`[data-game-id="${g.id}"]`);
       if (!cardEl) return;
 
-      const wasLive  = cardEl.classList.contains('live');
-      const isFinal  = g.status === 'final';
-      const isLive   = g.status === 'active';
-
+      const wasLive = cardEl.classList.contains('live');
+      const isFinal = g.status === 'final';
+      const isLive  = g.status === 'active';
       const hSc = isFinal ? g.home_score : (isLive ? g.home_score_live : null);
       const aSc = isFinal ? g.away_score : (isLive ? g.away_score_live : null);
 
-      // Patch scores
       if (hSc !== null && aSc !== null) {
         const rows = cardEl.querySelectorAll('.team-row');
         if (rows.length === 2) {
@@ -1826,118 +1861,26 @@
           if (homeScoreEl) { homeScoreEl.textContent = hSc; homeScoreEl.className = `team-score${isFinal ? (hSc > aSc ? ' winner' : ' loser') : ''}`; }
         }
       }
-
-      // Patch top bar status / clock
       if (g.game_clock) {
         const topLeft = cardEl.querySelector('.card-top > span:first-child');
         if (topLeft && isLive && !topLeft.querySelector('span[style*="grid"]')) {
           topLeft.innerHTML = `<span class="live-dot"></span>${g.game_clock}`;
         }
       }
-
-      // Collect newly-final cards for async re-render after loop
       if (isFinal && wasLive) newlyFinal.push(g);
     });
 
-    // Re-render cards that just flipped to final (async-safe, outside forEach)
     for (const g of newlyFinal) {
       const cardEl = document.querySelector(`[data-game-id="${g.id}"]`);
       if (!cardEl) continue;
-      const sport = cardEl.closest('[data-sport-section]')?.dataset.sportSection || activeSport;
+      const sport    = cardEl.closest('[data-sport-section]')?.dataset.sportSection || activeSport;
       const notesMap = buildNotesMap([g]);
       cardEl.outerHTML = card(g, notesMap, sport);
-      attachCardListeners(document.querySelector(`[data-game-id="${g.id}"]`));
+      // no attachCardListeners needed — delegation handles it
     }
 
-    // Patch game_events for active games
     const activeGames = freshGames.filter(g => g.status === 'active');
-    if (activeGames.length) {
-      const { data: evts } = await sb.from('game_events')
-        .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
-        .in('game_id', activeGames.map(g => g.id))
-        .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
-        .order('created_at', { ascending: false })
-        .limit(activeGames.length * 5);
-      if (evts) {
-        const lastEvt = {};
-        const stateEvt = {};
-        evts.forEach(e => {
-          if (!stateEvt[e.game_id]) stateEvt[e.game_id] = e;
-          const notesStr = typeof e.notes === 'string' ? e.notes : JSON.stringify(e.notes||'');
-          const isUninformativeRA = e.event_type === 'runner_advance' && !(typeof e.notes === 'object' ? e.notes?.sb : notesStr.includes('"sb":true')) && !e.runs;
-          if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up' && !notesStr.includes('out (DP)') && !isUninformativeRA) lastEvt[e.game_id] = e;
-        });
-        activeGames.forEach(g => {
-          const e = lastEvt[g.id];
-          const se = stateEvt[g.id] || e;
-          if (!e && !se) return;
-          const cardMetaEl = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
-          if (cardMetaEl && e) {
-            const EVT_LABEL = {
-              single:'singles', double:'doubles', triple:'triples', hr:'homers',
-              groundout:'grounds out', flyout:'flies out', lineout:'lines out', popup:'pops up',
-              strikeout:'strikes out', walk:'walks', hbp:'hit by pitch',
-              error:'reaches on error', fielders_choice:'fielder\'s choice',
-              sac_bunt:'sac bunt', sac_fly:'sac fly', sub_pitcher:'pitching change',
-              sub_batter:'pinch hit', sub_defense:'defensive sub',
-            };
-            const half = e.half === 'top' ? '▲' : '▼';
-            const inn = e.inning || '';
-            const isDP = e.notes && e.notes.includes('(DP)');
-            const evtLabel = isDP ? 'grounds into double play' : (EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' '));
-            const name = e.event_type === 'sub_pitcher' ? '' : (e.player_name || '');
-            const pitchDesc = e.event_type === 'sub_pitcher' && e.pitcher_name ? (() => {
-              try { const info = JSON.parse(e.notes||'{}'); return info.outgoing ? `Pitching change: ${info.incoming} replaces ${info.outgoing}` : `Pitching change: ${e.pitcher_name}`; } catch{ return `Pitching change: ${e.pitcher_name}`; }
-            })() : null;
-            const runnerAdvDesc = e.event_type === 'runner_advance' ? (() => {
-              try {
-                const info = typeof e.notes === 'string' ? JSON.parse(e.notes||'{}') : (e.notes||{});
-                if(info.sb) {
-                  const rName = info.runner || e.player_name || '';
-                  const dest = info.to === 2 ? '2nd' : info.to === 3 ? '3rd' : '';
-                  return `<strong>${rName}</strong> — Stolen base${dest ? ' (1st→'+dest+')' : ''}`;
-                }
-                if(e.runs) {
-                  const scorer = info.scorers && info.scorers[0];
-                  const scorerName = scorer ? scorer.name : (info.runner || '');
-                  return `<strong>${name}</strong> — ${scorerName ? scorerName + ' scores' : 'runner scores'} · ${e.runs} run${e.runs>1?'s':''}`;
-                }
-                return null;
-              } catch{ return null; }
-            })() : null;
-            const scored = e.runs && e.event_type !== 'runner_advance' ? ` · ${e.runs} run${e.runs>1?'s':''}` : '';
-            const rbi = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
-            const isOut = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
-            const outNum = isDP ? ' · 2 outs' : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
-            let kDesc = '';
-            if(e.event_type === 'strikeout' && e.notes){
-              try { const ni = JSON.parse(e.notes||'{}'); if(ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch(err){}
-            }
-            const desc = e.event_type === 'runner_advance' && !runnerAdvDesc ? null : (pitchDesc || runnerAdvDesc || `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`);
-            if(!desc) { /* skip non-informative runner_advance */ }
-            cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${inn}</span> ${desc}`;
-          }
-          const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
-          if (topLeft && se) {
-            let dispHalf = se.half, dispInn = se.inning || 1;
-            let dispBases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
-            let dispOuts = se.outs || 0;
-            if (dispOuts >= 3 || se.event_type === 'inning_end') {
-              dispBases = [false,false,false]; dispOuts = 0;
-              dispHalf = dispHalf === 'top' ? 'bot' : 'top';
-              if (dispHalf === 'top') dispInn++;
-            }
-            const h = dispHalf === 'top' ? '▲' : '▼';
-            const bd = (on) => `<span style="width:6px;height:6px;border-radius:1px;transform:rotate(45deg);background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
-            const od = (on) => `<span style="width:5px;height:5px;border-radius:50%;background:${on?'var(--green)':'transparent'};border:1.5px solid ${on?'var(--green)':'rgba(34,168,99,0.45)'};flex-shrink:0"></span>`;
-            const baseGrid = `<span style="display:grid;grid-template-columns:8px 8px 8px;grid-template-rows:8px 8px;gap:1px;flex-shrink:0"><span></span>${bd(dispBases[1])}<span></span>${bd(dispBases[2])}<span></span>${bd(dispBases[0])}</span>`;
-            const outCol = `<span style="display:flex;flex-direction:column;gap:2px;justify-content:center;flex-shrink:0">${od(dispOuts>0)}${od(dispOuts>1)}</span>`;
-            topLeft.style.cssText = 'display:flex;align-items:center;gap:5px';
-            topLeft.innerHTML = `<span style="font-weight:700">${h}${dispInn}</span>${baseGrid}${outCol}`;
-          }
-        });
-      }
-    }
+    if (activeGames.length) await fetchLiveEvents(activeGames);
   }
 
   // Patch a single card's scores in place after a submit (no status change yet)
@@ -1968,16 +1911,12 @@
     const updated = { ...gameObj, status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock, notes };
     const sport = activeSport !== 'all' ? activeSport : 'baseball';
     const notesMap = buildNotesMap([updated]);
-    const newHtml = card(updated, notesMap, sport);
-    cardEl.outerHTML = newHtml;
-    attachCardListeners(document.querySelector(`[data-game-id="${id}"]`));
+    cardEl.outerHTML = card(updated, notesMap, sport);
+    // no attachCardListeners needed — delegation handles it
   }
   // ── END LIVE PATCH ────────────────────────────────────────────────────────
 
-  // Auto-refresh every 30s — lightweight patch only, no page rebuild
-  setInterval(() => {
-    patchLiveGames();
-  }, 30000);
+  setInterval(patchLiveGames, 30000);
 
   // ── PPD ─────────────────────────────────────────────────────────────────
   document.getElementById('gamesContainer').addEventListener('click', e => {
@@ -2027,11 +1966,6 @@
   // ── END PPD ──────────────────────────────────────────────────────────────
 
   // ── EXPORT ──────────────────────────────────────────────────────────────
-  const SPORT_LABEL = {
-    basketball: 'Basketball', baseball: 'Baseball', softball: 'Softball',
-    lacrosse: 'Lacrosse', soccer: 'Soccer', 'field-hockey': 'Field Hockey',
-    football: 'Football', volleyball: 'Volleyball'
-  };
 
   function getScore(g, side) {
     const live  = side === 'home' ? g.home_score_live : g.away_score_live;

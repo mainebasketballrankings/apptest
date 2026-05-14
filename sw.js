@@ -1,11 +1,11 @@
-// Maine Basketball Rankings Baseball Scorer — Service Worker
-const CACHE = 'mbr-scorer-v13';
+// Maine Basketball Rankings — Service Worker
+const CACHE = 'mbr-scorer-v14';
 const PRECACHE = [
   './baseball_scorer.html',
   './index.html',
   './boxscore-import.html',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap',
+  // Google Fonts CSS intentionally excluded — dynamic, browser handles it well natively
 ];
 
 // Install: cache core assets
@@ -24,22 +24,45 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch: network-first for HTML pages, cache-first for static assets
+// Fetch strategy:
+//   Supabase / Anthropic → always network (live data)
+//   Cloudinary           → cache-first, 24h TTL (logos don't change)
+//   HTML navigations     → network-first with cache fallback
+//   Everything else      → cache-first (fonts, jsPDF, static assets)
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Always go to network for Supabase (live data + inserts)
-  if(url.hostname.includes('supabase.co')) return;
-  // Always go to network for Cloudinary (logos)
-  if(url.hostname.includes('cloudinary.com')) return;
-  // Always go to network for Anthropic proxy calls
-  if(url.hostname.includes('anthropic.com')) return;
+  // Always network for live data and API calls
+  if (url.hostname.includes('supabase.co')) return;
+  if (url.hostname.includes('anthropic.com')) return;
 
-  // Network-first for ALL HTML navigations — never serve a stale page
-  if(e.request.mode === 'navigate' || url.pathname.endsWith('.html')){
+  // Cloudinary: cache-first with 24h TTL
+  if (url.hostname.includes('cloudinary.com')) {
+    e.respondWith(
+      caches.open(CACHE).then(async cache => {
+        const cached = await cache.match(e.request);
+        if (cached) {
+          const age = Date.now() - new Date(cached.headers.get('date') || 0).getTime();
+          if (age < 86_400_000) return cached; // under 24h — serve from cache
+        }
+        // Expired or missing — fetch and re-cache
+        try {
+          const res = await fetch(e.request);
+          if (res.ok) cache.put(e.request, res.clone());
+          return res;
+        } catch {
+          return cached || new Response('', { status: 503 });
+        }
+      })
+    );
+    return;
+  }
+
+  // Network-first for HTML navigations
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
     e.respondWith(
       fetch(e.request).then(res => {
-        if(res.ok){
+        if (res.ok) {
           const clone = res.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
@@ -52,12 +75,12 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Cache-first for static assets (fonts, jsPDF, etc.) — these never change
+  // Cache-first for static assets (jsPDF, fonts, etc.)
   e.respondWith(
     caches.match(e.request).then(cached => {
-      if(cached) return cached;
+      if (cached) return cached;
       return fetch(e.request).then(res => {
-        if(e.request.method === 'GET' && res.ok){
+        if (e.request.method === 'GET' && res.ok) {
           const clone = res.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }

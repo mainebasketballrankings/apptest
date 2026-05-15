@@ -1001,7 +1001,6 @@
   let activeSport    = 'all';
   let activeSeason   = 2026;
   let rankMap        = {};
-  let _ranksLoaded   = false;     // ranks load once per session
 
   // ── DATE / TIME HELPERS ──────────────────────────────────────────────────
   function toISO(d) {
@@ -1022,23 +1021,25 @@
   }
 
   // ── RANKS ────────────────────────────────────────────────────────────────
-  // Single query — grabs all ranked teams from most recent snapshot in one round-trip.
-  // Cached for the session; ranks don't change while someone's on the scoreboard.
+  // ── RANKS ────────────────────────────────────────────────────────────────
+  // Re-fetched on every date change. Different sports have different snapshot
+  // dates so we can't filter by a single latestDate — instead take first
+  // occurrence of each team_id (ordered desc = most recent rank per team).
   async function loadRanks() {
-    if (_ranksLoaded) return;
     rankMap = {};
     try {
       const { data, error } = await sb
         .from('rankings_snapshots')
         .select('team_id, rank_overall, snapshot_date')
         .eq('season_year', 2026)
+        .not('rank_overall', 'is', null)
         .order('snapshot_date', { ascending: false })
-        .limit(200);
+        .limit(2000);
       if (error) { console.warn('loadRanks error:', error); return; }
       if (!data?.length) return;
-      const latestDate = data[0].snapshot_date;
-      data.forEach(r => { if (r.snapshot_date === latestDate) rankMap[r.team_id] = r.rank_overall; });
-      _ranksLoaded = true;
+      data.forEach(r => {
+        if (!(r.team_id in rankMap)) rankMap[r.team_id] = r.rank_overall;
+      });
     } catch(e) { console.warn('loadRanks threw:', e); }
   }
 
@@ -1079,9 +1080,6 @@
         `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
     }
 
-    // Ranks: once per session
-    loadRanks().catch(e => console.warn('loadRanks failed:', e));
-
     // Which sports need fetching?
     const sportsToFetch = activeSport === 'all'
       ? SPORT_PRIORITY
@@ -1094,14 +1092,21 @@
         document.getElementById('gamesContainer').innerHTML =
           `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
       }
-      const fetched = await Promise.all(
-        needsFetch.map(({ sport, season }) =>
-          fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
-        )
-      );
+      // Run ranks + game fetches in parallel — both must finish before rendering
+      const [fetched] = await Promise.all([
+        Promise.all(
+          needsFetch.map(({ sport, season }) =>
+            fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
+          )
+        ),
+        loadRanks().catch(e => console.warn('loadRanks failed:', e))
+      ]);
       fetched.forEach(({ sport, games }) => {
         allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
       });
+    } else {
+      // Games already cached — still need fresh ranks for this date
+      await loadRanks().catch(e => console.warn('loadRanks failed:', e));
     }
 
     // Keep allGames in sync for submit handler

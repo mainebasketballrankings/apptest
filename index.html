@@ -1072,9 +1072,6 @@
         `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
     }
 
-    // Ranks: once per session — must complete before renderAllGames
-    await loadRanks().catch(e => console.warn('loadRanks failed:', e));
-
     // Which sports need fetching?
     const sportsToFetch = activeSport === 'all'
       ? SPORT_PRIORITY
@@ -1087,14 +1084,21 @@
         document.getElementById('gamesContainer').innerHTML =
           `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
       }
-      const fetched = await Promise.all(
-        needsFetch.map(({ sport, season }) =>
-          fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
-        )
-      );
+      // Run ranks + game fetches in parallel — both must finish before rendering
+      const [fetched] = await Promise.all([
+        Promise.all(
+          needsFetch.map(({ sport, season }) =>
+            fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
+          )
+        ),
+        loadRanks().catch(e => console.warn('loadRanks failed:', e))
+      ]);
       fetched.forEach(({ sport, games }) => {
         allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
       });
+    } else {
+      // Games already cached — just make sure ranks are loaded
+      await loadRanks().catch(e => console.warn('loadRanks failed:', e));
     }
 
     // Keep allGames in sync for submit handler

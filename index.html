@@ -1072,8 +1072,8 @@
         `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
     }
 
-    // Ranks: once per session
-    loadRanks().catch(e => console.warn('loadRanks failed:', e));
+    // Ranks: once per session — must complete before renderAllGames
+    await loadRanks().catch(e => console.warn('loadRanks failed:', e));
 
     // Which sports need fetching?
     const sportsToFetch = activeSport === 'all'

@@ -1555,7 +1555,9 @@
       const nd = g.new_date;
       if (nd) {
         const d = new Date(nd + 'T12:00:00');
-        ppdLabel = 'PPD · ' + d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+        let label = 'PPD · ' + d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+        if (g.game_time) label += ' · ' + fmtTime(g.game_time);
+        ppdLabel = label;
       } else {
         ppdLabel = 'PPD';
       }

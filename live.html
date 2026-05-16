@@ -1757,7 +1757,7 @@ function bbOnEvent(e){
     batter = {name:e.plast, num:e.pnum||'', pos:'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0};
     BB.batters[s].push(batter);
   }
-  if(!pitcher && e.pitcher){
+  if(!pitcher && e.pitcher && e.key !== 'sub_defense'){
     pitcher = {name:e.pitcher, num:'', ip_outs:0,h:0,r:0,er:0,bb:0,k:0,pitches:0};
     BB.pitchers[opp].push(pitcher);
   }
@@ -1909,15 +1909,14 @@ function bbOnEvent(e){
     try {
       const info = JSON.parse(e.notes||'{}');
       if(info.name && info.pos){
-        // Update fielding map
-        BB.defense[opp][info.pos] = {name:info.name, num:info.num||''};
-        // Replace outgoing player IN their batting order slot (not append)
+        // Update fielding map — s is the fielding team making the sub
+        BB.defense[s][info.pos] = {name:info.name, num:info.num||''};
+        // Replace outgoing player IN their batting order slot
         const outgoing = info.outgoing||'';
         const batSlot = outgoing
-          ? BB.batters[opp].find(p => nameEq(p.name, outgoing))
-          : BB.batters[opp].find(p => p.pos === info.pos);
+          ? BB.batters[s].find(p => nameEq(p.name, outgoing))
+          : BB.batters[s].find(p => p.pos === info.pos);
         if(batSlot){
-          // Push outgoing player into slot history before replacing
           if(!batSlot.subs) batSlot.subs = [];
           batSlot.subs.push({
             name: batSlot.name, num: batSlot.num||'', pos: batSlot.pos||'',
@@ -1927,10 +1926,9 @@ function bbOnEvent(e){
           batSlot.name = info.name;
           batSlot.num  = info.num||'';
           batSlot.pos  = info.pos;
-          // Reset stats for new player
           batSlot.ab=0; batSlot.r=0; batSlot.h=0; batSlot.hr=0;
           batSlot.rbi=0; batSlot.bb=0; batSlot.k=0; batSlot.sb=0;
-          batSlot.subs = batSlot.subs; // keep reference
+          batSlot.subs = batSlot.subs;
         }
         const desc = outgoing ? `${info.name} replaces ${outgoing}` : `${info.name} (${info.pos})`;
         toast(`Def sub: ${desc}`);

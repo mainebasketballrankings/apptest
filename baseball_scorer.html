@@ -1816,6 +1816,25 @@ async function pushPlayerStats(){
 function confirmEndGame(){
   if(_gameFinalized) return; // guard against double-tap
   _gameFinalized = true;
+
+  // ── DIAGNOSTICS — capture stat snapshot at end-game ──
+  const snapLines = ['away','home'].map(side => {
+    const lineup = G.teams[side].lineup;
+    const teamName = G.teams[side].name || side;
+    const lines = lineup.filter(p => p.name).map(p =>
+      `${p.name}: ${p.stats.ab}AB ${p.stats.h}H ${p.stats.r}R ${p.stats.rbi}RBI`
+    ).join('<br>');
+    return `<strong>${teamName}</strong><br>${lines||'(empty)'}`;
+  }).join('<hr style="margin:6px 0">');
+  const diagHtml = `<div id="endgameDiag" style="position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#fff;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;z-index:9999;font-family:monospace">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <strong style="color:#f59e0b">⚠ Stat Snapshot at Finalize</strong>
+      <button onclick="document.getElementById('endgameDiag').remove()" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px">✕</button>
+    </div>
+    ${snapLines}
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', diagHtml);
+  // ── END DIAGNOSTICS ───────────────────────────────────────────────────────
   // Read W/L/Save decisions and stamp on pitStats
   ['away','home'].forEach(side => {
     const sel = document.getElementById('egPitcher_' + side);
@@ -2978,7 +2997,12 @@ function render(){
 // OVERLAYS
 // ═══════════════════════════════════════════════
 function openBoxScore(){
-  document.getElementById('boxScoreContent').innerHTML=buildBoxScore();
+  const totalAB = ['away','home'].reduce((sum, side) =>
+    sum + G.teams[side].lineup.reduce((s, p) => s + (p.stats.ab||0), 0), 0);
+  const warning = totalAB === 0
+    ? `<div style="background:#ef4444;color:#fff;padding:8px 12px;border-radius:6px;margin-bottom:8px;font-size:12px;font-weight:600">⚠ All AB are zero — stats may be lost. Check the stat snapshot panel.</div>`
+    : '';
+  document.getElementById('boxScoreContent').innerHTML = warning + buildBoxScore();
   openOv('ovBoxScore');
 }
 function buildBoxScore(){

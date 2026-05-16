@@ -271,6 +271,9 @@ const SPORT_ORDER = [
 let currentDate = new Date();
 currentDate.setHours(12, 0, 0, 0);
 
+let _loadVersion  = 0;  // version guard — prevents stale date navigation from rendering
+let _cachedSession = null; // cache session after first check — avoids re-check on every nav
+
 function toISO(d) {
   return d.toISOString().slice(0, 10);
 }
@@ -394,9 +397,15 @@ function gameCard(g, snaps) {
 }
 
 async function loadSpreads() {
-  // Auth check
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) {
+  const myVersion = ++_loadVersion;
+
+  // Auth check — use cached session after first successful check
+  if (!_cachedSession) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (myVersion !== _loadVersion) return;
+    _cachedSession = session;
+  }
+  if (!_cachedSession) {
     document.getElementById('app').innerHTML = `
       <div style="text-align:center;padding:60px 20px;color:var(--gray);">
         <div style="font-size:15px;margin-bottom:16px;">Sign in to view spreads.</div>
@@ -430,10 +439,12 @@ async function loadSpreads() {
     .order('stax_index', { ascending: false });
 
   if (error || !games?.length) {
+    if (myVersion !== _loadVersion) return;
     document.getElementById('app').innerHTML =
       `<div class="empty">No games with picks on this date.</div>`;
     return;
   }
+  if (myVersion !== _loadVersion) return;
 
   // Fetch latest snapshots for ranks
   const teamIds = [...new Set(games.flatMap(g => [g.home_team?.id, g.away_team?.id]).filter(Boolean))];
@@ -443,6 +454,8 @@ async function loadSpreads() {
     .in('team_id', teamIds)
     .order('snapshot_date', { ascending: false })
     .limit(teamIds.length * 3);
+
+  if (myVersion !== _loadVersion) return;
 
   // Dedupe snaps to latest per team
   const snapMap = {};

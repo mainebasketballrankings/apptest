@@ -255,6 +255,8 @@ let allSnaps     = [];
 let regions      = [];
 let isPaid       = false;
 let currentRegional = [];
+let _loadVersion = 0;           // version guard — prevents stale tab switches from rendering
+let _regionListenerAttached = false; // prevents stacking click listeners on regionRow
 
 function sbFetch(path) {
   return fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -293,7 +295,7 @@ function applyGate(paid) {
 
 window.mbrAuthCallback = function(user, paid) {
   applyGate(paid);
-  loadData();
+  // loadData() already fired immediately below — no need to re-run on auth
 };
 
 // Load data immediately without waiting for auth (gate applied separately)
@@ -332,6 +334,7 @@ document.getElementById('seasonSel').addEventListener('change', e => {
 
 // ── Load ──────────────────────────────────────────────────────────────────
 async function loadData() {
+  const myVersion = ++_loadVersion;
   document.getElementById('tblWrap').innerHTML = '<div class="state-msg"><span class="spinner"></span>Loading…</div>';
   document.getElementById('regionRow').innerHTML = '';
   document.getElementById('simBadge').textContent = '';
@@ -339,12 +342,11 @@ async function loadData() {
   const gender  = SPORT_GENDER[activeSport] || activeGender;
   const sportId = SPORT_IDS[activeSport];
 
-  console.log('[tourney] loading', activeSport, gender, sportId);
   const teams = await sbFetch(
     `teams?sport_id=eq.${sportId}&gender=eq.${gender}&active=eq.true` +
     `&select=id,school_name,team_class,team_region,logo_url&limit=500`
   );
-  console.log('[tourney] teams loaded:', teams.length, Array.isArray(teams) ? '' : teams);
+  if (myVersion !== _loadVersion) return;
   if (!teams.length) {
     document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No teams found.</div>';
     return;
@@ -352,20 +354,32 @@ async function loadData() {
 
   const teamIds = teams.map(t => t.id);
 
-  // Get latest snapshot date for this sport, then fetch only that date
+  // Fix 4: Use a single team_id to find the latest snapshot date — all teams in a push
+  // share the same snapshot_date, so any one valid team gives the correct date for all.
+  // This is safer than slice(0,10) (which could miss if early teams have no snapshot yet).
   const latestDateResp = await sbFetch(
-    `rankings_snapshots?team_id=in.(${teamIds.slice(0,10).join(',')})&season_year=eq.${activeSeason}` +
+    `rankings_snapshots?team_id=in.(${teamIds.slice(0,1).join(',')})&season_year=eq.${activeSeason}` +
     `&select=snapshot_date&order=snapshot_date.desc&limit=1`
   );
-  const latestSnapDate = latestDateResp[0]?.snapshot_date;
+  if (myVersion !== _loadVersion) return;
+
+  // If first team has no snapshot, try a broader sample of 5 before giving up
+  let latestSnapDate = latestDateResp[0]?.snapshot_date;
+  if (!latestSnapDate && teamIds.length > 1) {
+    const fallback = await sbFetch(
+      `rankings_snapshots?team_id=in.(${teamIds.slice(0, 5).join(',')})&season_year=eq.${activeSeason}` +
+      `&select=snapshot_date&order=snapshot_date.desc&limit=1`
+    );
+    if (myVersion !== _loadVersion) return;
+    latestSnapDate = fallback[0]?.snapshot_date;
+  }
   const snaps = latestSnapDate ? await sbFetch(
     `rankings_snapshots?team_id=in.(${teamIds.join(',')})&season_year=eq.${activeSeason}` +
     `&snapshot_date=eq.${latestSnapDate}` +
     `&select=team_id,wins,losses,tournament_odds,wl_distribution,snapshot_date` +
     `&limit=500`
   ) : [];
-
-  console.log('[tourney] snaps loaded:', snaps.length, Array.isArray(snaps) ? '' : snaps);
+  if (myVersion !== _loadVersion) return;
   // Most recent snapshot per team
   const snapMap = {};
   for (const s of snaps) {
@@ -405,10 +419,13 @@ async function loadData() {
     });
 
   if (!allSnaps.length) {
+    if (myVersion !== _loadVersion) return;
     document.getElementById('tblWrap').innerHTML =
       '<div class="state-msg">No simulation data found. Run simulate_spring.py --push first.</div>';
     return;
   }
+
+  if (myVersion !== _loadVersion) return;
 
   // Build sorted region list: class letter first, then North before South
   regions = [...new Set(allSnaps.map(s => s.region).filter(Boolean))].sort((a, b) => {
@@ -440,14 +457,18 @@ function renderRegionTabs() {
   row.innerHTML = regions.map(r =>
     `<button class="region-btn" data-region="${r}">${r}</button>`
   ).join('');
-  row.addEventListener('click', e => {
-    const btn = e.target.closest('.region-btn');
-    if (!btn) return;
-    document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeRegion = btn.dataset.region;
-    renderTable();
-  });
+  // Attach delegated listener once — survives innerHTML replacement
+  if (!_regionListenerAttached) {
+    _regionListenerAttached = true;
+    row.addEventListener('click', e => {
+      const btn = e.target.closest('.region-btn');
+      if (!btn) return;
+      document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeRegion = btn.dataset.region;
+      renderTable();
+    });
+  }
 }
 
 function renderTable() {

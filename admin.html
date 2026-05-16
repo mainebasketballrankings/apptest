@@ -481,7 +481,9 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
   const ADMIN_PASSWORD = 'mbr2026';
 
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // Declared at script level so Late Scores functions outside this block can access it
+  window._adminSB = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const sb = window._adminSB;
 
   let currentTab = 'pending';
   let allSubs = [];
@@ -725,6 +727,8 @@ async function loadLateScores() {
 
   if (lateLoaded) return;
   document.getElementById('late-scores-list').innerHTML = '<div style="padding:20px;color:#888">Loading...</div>';
+
+  const sb = window._adminSB;
 
   // Logic: flag any final game where the score was entered AFTER midnight on the game date.
   // Catches scores entered the next day or later — i.e. ones you didn't have when

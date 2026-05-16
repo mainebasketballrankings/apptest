@@ -805,6 +805,9 @@ let G_evt_current_group = []; // IDs accumulating for the action in progress
 let G_test_mode = false; // when true, skip Supabase writes
 let G_home_team_id = null;
 let G_away_team_id = null;
+// Request version guard — prevents stale game-list fetches from rendering after a newer one
+let _gameListVersion = 0;
+let _gameListAbort = null; // AbortController for in-flight game list fetch
 
 async function sbFetch(path){
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -858,8 +861,11 @@ async function flushQueue(){
 
 // Flush whenever we come back online
 window.addEventListener('online', () => { flushQueue(); });
+// Also flush when tab becomes visible again (events may have queued while hidden)
+document.addEventListener('visibilitychange', () => { if(!document.hidden && navigator.onLine) flushQueue(); });
 // Also try flushing every 30s in case online event doesn't fire
-setInterval(() => { if(navigator.onLine) flushQueue(); }, 30000);
+// Skip flush if tab is hidden — no point hammering Supabase from background tabs
+setInterval(() => { if(navigator.onLine && !document.hidden) flushQueue(); }, 30000);
 
 async function sbInsert(table, row){
   if(G_test_mode) return; // test mode — no Supabase writes
@@ -962,15 +968,35 @@ async function loadGameById(gameId){
 }
 
 async function loadTodaysGames(){
+  // Cancel any in-flight fetch from a prior call (e.g. rapid sport switching)
+  if(_gameListAbort) _gameListAbort.abort();
+  _gameListAbort = new AbortController();
+  const myVersion = ++_gameListVersion;
+
   const sportId = document.getElementById('sportSel').value === 'baseball'
     ? 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0'
     : '095c9841-7261-4cb1-824e-6304792b53d0';
   const today = (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
-  const games = await sbFetch(
-    `games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&status=in.(scheduled,active)` +
-    `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
-    `&order=game_date.asc`
-  );
+
+  let games;
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&status=in.(scheduled,active)` +
+      `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
+      `&order=game_date.asc`,
+      { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
+        signal: _gameListAbort.signal }
+    );
+    games = await r.json();
+  } catch(e) {
+    if(e.name === 'AbortError') return; // superseded by a newer call — discard silently
+    console.warn('loadTodaysGames fetch failed', e);
+    return;
+  }
+
+  // Discard if a newer call already finished
+  if(myVersion !== _gameListVersion) return;
+
   const list = document.getElementById('gamePickerList');
   if(!games.length){
     list.innerHTML = '<div style="font-size:13px;color:var(--dim);padding:8px 0">No scheduled games found for today.</div>';
@@ -2299,6 +2325,17 @@ function confirmPR(base, name, number){
   const benchIdx = G.teams[bside].bench.findIndex(p=>p.name===name);
   if(benchIdx >= 0) G.teams[bside].bench.splice(benchIdx,1);
   addPBP(`PR: <strong>${name}</strong> for <strong>${replaced?.name}</strong>`);
+  // Push substitution event to Supabase
+  pushEvt('sub_batter', {
+    notes: JSON.stringify({
+      type: 'PR',
+      in: name,
+      inNum: number,
+      out: replaced?.name,
+      base
+    })
+  });
+  saveSnapshot();
   openRBIResolver(null,'runners'); render();
 }
 
@@ -2412,6 +2449,7 @@ function doCaughtStealing(from, dest){
   G.bases[from]=null;
   r.cs=(r.cs||0)+1;
   addPBP(`${r.name} CS — caught stealing ${dest===2?'2nd':'3rd'}`);
+  pushEvt('runner_advance', {runs:0, rbi:0, notes: JSON.stringify({cs:true, runner:r.name, runnerNum:r.num||r.number||'', from, to:dest})});
   deselectRunner(); updateRunnerDiamond();
   // Credit out to pitcher
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
@@ -2430,6 +2468,7 @@ function runnerPickedOff(base){
   const r=G.bases[base];
   G.bases[base]=null;
   addPBP(`${r.name} — picked off / out`);
+  pushEvt('runner_advance', {runs:0, rbi:0, notes: JSON.stringify({po:true, runner:r.name, runnerNum:r.num||r.number||'', base})});
   deselectRunner(); updateRunnerDiamond();
   const p=curPitcher(); if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;

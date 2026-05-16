@@ -490,33 +490,10 @@
   let teamsMap = {};
 
   // --- LOGIN ---
-  const pwInput = document.getElementById('pw-input');
-  const pwBtn   = document.getElementById('pw-btn');
-
-  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
-  pwBtn.addEventListener('click', tryLogin);
-
-  function tryLogin() {
-    if (pwInput.value === ADMIN_PASSWORD) {
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('admin-app').style.display = 'block';
-      init();
-    } else {
-      document.getElementById('login-error').style.display = 'block';
-      pwInput.value = '';
-      pwInput.focus();
-    }
-  }
-  // Auto-login — no password needed
+  // No password gate — just initialize directly
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('admin-app').style.display = 'block';
-  window.addEventListener('DOMContentLoaded', init);
-
-  document.getElementById('logout-btn').addEventListener('click', () => {
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('admin-app').style.display = 'none';
-    pwInput.value = '';
-  });
+  init();
 
   // --- TABS ---
   document.querySelectorAll('.tab').forEach(t => {

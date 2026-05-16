@@ -405,20 +405,20 @@ async function load() {
     const [pfLbl, paLbl] = SPORT_SCORE_LABELS[sport] || ['Avg PF', 'Avg PA'];
     const seasonYear = 2026;
 
-    // Get latest snapshot date for this team to scope the rank map fetch
-    const latestSnapDate = await sb(`rankings_snapshots?team_id=eq.${tid}&season_year=eq.${seasonYear}&order=snapshot_date.desc&select=snapshot_date&limit=1`)
-      .then(r => r[0]?.snapshot_date || null);
+    // snapshot_date already available from snap[0] (fetched above with select=*)
+    const latestSnapDate = stats?.snapshot_date || null;
 
-    const [games, classData, allSnaps] = await Promise.all([
+    const [games, classData, allSnaps, genderTeams] = await Promise.all([
       sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=game_date.asc&select=*,stats_uploaded`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       latestSnapDate
         ? sb(`rankings_snapshots?snapshot_date=eq.${latestSnapDate}&season_year=eq.${seasonYear}&select=team_id,heal_points,rank_overall,rank_class,sos,avg_pf,avg_pa,pct_perfect&limit=500`)
-        : Promise.resolve([])
+        : Promise.resolve([]),
+      sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`)
     ]);
+    const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
 
     // Rank computation — deferred until after genderTeamIds is loaded
-    // (ranks computed below after genderTeams fetch)
 
     // Paginated fetch helper
     // Fetch roster players for this team
@@ -436,9 +436,7 @@ async function load() {
       return results;
     }
 
-    // Get all same-gender team IDs for this sport — needed to filter games correctly
-    const genderTeams = await sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`);
-    const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
+
 
     // Compute stat ranks filtered to same sport+gender
     function statRank(field, teamId, higherIsBetter = true) {
@@ -478,11 +476,22 @@ async function load() {
 
     // Collect all unique team IDs from gender-filtered final games for class lookup
     const allSportTeamIds = [...new Set(genderFinalGames.flatMap(g => [g.home_team_id, g.away_team_id]))];
-    const allSportIdList = allSportTeamIds.join(',');
+
+    // Fetch allSportTeams in chunks of 100 to avoid URL length limits (~250 UUIDs × 37 chars ≈ 9KB)
+    async function fetchTeamChunks(ids, selectStr) {
+      const chunkSize = 100;
+      const results = [];
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize);
+        const rows = await sb(`teams?id=in.(${chunk.join(',')})&select=${selectStr}`);
+        results.push(...(rows || []));
+      }
+      return results;
+    }
 
     const [oppTeams, allSportTeams, siblings] = await Promise.all([
       oppIds.length ? sb(`teams?id=in.(${idList})&select=id,school_name,logo_url,gender,team_class`) : [],
-      allSportTeamIds.length ? sb(`teams?id=in.(${allSportIdList})&select=id,team_class,team_region,team_classifications(classes(name))`) : [],
+      allSportTeamIds.length ? fetchTeamChunks(allSportTeamIds, 'id,team_class,team_region,team_classifications(classes(name))') : [],
       sb(`teams?school_name=eq.${encodeURIComponent(team.school_name)}&gender=eq.${team.gender==='Boys'?'Girls':'Boys'}&sport_id=eq.${team.sport_id}&select=id,school_name,gender&limit=1`)
     ]);
 
@@ -723,7 +732,7 @@ async function load() {
 
       oddsHtml = `
         <div class="odds-gate-wrap" id="oddsGateWrap">
-          <div class="odds-section odds-gate-blur" id="oddsSection">
+          <div class="odds-section" id="oddsSection">
             <div class="section-header">${oddsTitle}</div>
             <div class="odds-card">
               ${topHtml}
@@ -823,7 +832,6 @@ async function load() {
     let rosterHtml = '';
     try {
       const players = await playersPromise;
-      console.log('Players fetched:', players?.length, players);
       if (players && players.length) {
         // Sort numerically — number column is stored as text so DB sort is lexicographic
         players.sort((a, b) => (parseInt(a.number) || 99) - (parseInt(b.number) || 99));
@@ -945,7 +953,10 @@ async function load() {
             </div>`;
         }
       }
-    } catch(e) { console.warn('roster fetch error', e); }
+    } catch(e) {
+      console.warn('roster fetch error', e);
+      rosterHtml = `<div class="section-wrap"><div class="section-header">Roster</div><div style="padding:16px;color:var(--gray);font-size:14px;">Roster unavailable — try refreshing.</div></div>`;
+    }
     if (!rosterHtml) {
       rosterHtml = `
         <div class="roster-section">
@@ -1056,11 +1067,15 @@ function goToTeam(id) {
 }
 
 // Gate the tournament odds section — everything else is public
+// Default: visible. Auth callback adds blur if user is free tier.
+// This avoids a flash of blurred content for paid users while auth resolves.
 var _teamPagePaid = false;
+var _authResolved = false;
 function applyOddsGate() {
   const section = document.getElementById('oddsSection');
   const overlay = document.getElementById('oddsGateOverlay');
   if (!section) return;
+  if (!_authResolved) return; // don't gate until we know auth state
   if (_teamPagePaid) {
     section.classList.remove('odds-gate-blur');
     if (overlay) overlay.style.display = 'none';
@@ -1072,6 +1087,7 @@ function applyOddsGate() {
 
 window.mbrAuthCallback = function(user, isPaid) {
   _teamPagePaid = !!isPaid;
+  _authResolved = true;
   applyOddsGate();
 };
 

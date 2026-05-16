@@ -190,9 +190,12 @@ const SPORT_IDS = {
 const SPORT_KEY_BY_ID = Object.fromEntries(Object.entries(SPORT_IDS).map(([k,v])=>[v,k]));
 
 var _isPaid = false;
+var _authResolved = false;
+var _loadVersion = 0; // version guard for loadMatchup race on rapid game switching
 
 function applyGate(isPaid) {
   if (isPaid !== undefined) _isPaid = isPaid;
+  if (!_authResolved) return; // don't gate until we know auth state — prevents flash for paid users
   const wrap = document.getElementById('gateWrap');
   const content = document.getElementById('content');
   document.getElementById('gateOverlay')?.remove();
@@ -213,6 +216,7 @@ function applyGate(isPaid) {
 }
 
 window.mbrAuthCallback = function(user, isPaid) {
+  _authResolved = true;
   applyGate(isPaid);
   const gameId = new URLSearchParams(window.location.search).get('game_id');
   // Always load today's game switcher
@@ -250,6 +254,7 @@ function rankBracket(stateRanks, classRanks, regionRanks, teamId, cls, reg) {
 // ── Load ─────────────────────────────────────────────────────────────────────
 
 async function loadMatchup() {
+  const myVersion = ++_loadVersion;
   const el     = document.getElementById('content');
   const gameId = new URLSearchParams(window.location.search).get('game_id');
   if (!gameId) { el.innerHTML = '<div class="state-msg">No game specified.</div>'; return; }
@@ -267,38 +272,52 @@ async function loadMatchup() {
   `).eq('id', gameId).single();
 
   if (gErr || !game) { el.innerHTML = '<div class="state-msg">Game not found.</div>'; return; }
+  if (myVersion !== _loadVersion) return; // superseded by newer game selection
 
   const home = game.home_team, away = game.away_team;
   const sportKey = SPORT_KEY_BY_ID[game.sport_id] || 'basketball';
 
-  // 2. Fetch ALL snapshots for this sport+season+gender (for ranking)
-  let allSnaps = [], offset = 0;
-  while (true) {
+  // 2. Fetch snapshots for this sport+season only — get sport team IDs first to avoid cross-sport overfetch
+  // Step 2a: get all team IDs for this sport
+  const { data: sportTeamRows } = await sb.from('teams')
+    .select('id')
+    .eq('sport_id', game.sport_id);
+  if (myVersion !== _loadVersion) return;
+
+  const sportTeamIds = (sportTeamRows || []).map(t => t.id);
+
+  // Step 2b: fetch snapshots in chunks of 200 to stay within URL limits
+  let allSnaps = [];
+  const snapChunkSize = 200;
+  for (let i = 0; i < sportTeamIds.length; i += snapChunkSize) {
+    if (myVersion !== _loadVersion) return;
+    const chunk = sportTeamIds.slice(i, i + snapChunkSize);
     const { data: batch } = await sb.from('rankings_snapshots')
       .select(`team_id, avg_pf, avg_pa, sos, pct_perfect, vs_top_25, vs_top_50,
                win_pct, heal_points, dirigo, mheals_18, ats_record, wins, losses, rank_overall, snapshot_date,
                team:team_id(sport_id, gender, team_class, team_region, team_classifications(classes(name), regions(abbreviation)))`)
       .eq('season_year', game.season_year)
+      .in('team_id', chunk)
       .order('snapshot_date', { ascending: false })
-      .range(offset, offset + 999);
-    if (!batch || !batch.length) break;
-    allSnaps.push(...batch);
-    if (batch.length < 1000) break;
-    offset += 1000;
+      .limit(chunk.length * 8);
+    if (batch) allSnaps.push(...batch);
   }
+  if (myVersion !== _loadVersion) return;
 
-  // Keep only latest snap per team, filter to this sport+gender
+  // Keep only latest snap per team
   const latestMap = {};
   for (const s of allSnaps) {
     if (!latestMap[s.team_id]) latestMap[s.team_id] = s;
   }
-  // Fetch team_classifications for all teams in this sport+gender
-  const allTeamIds = Object.keys(latestMap);
-  const clsMap = {}; // team_id -> { cls, reg }
-  if (allTeamIds.length) {
+
+  // Fix 2: Only fetch team_classifications for the two teams in this game
+  // (class/region data for all other teams comes from the team join in snapshots)
+  const clsMap = {};
+  const twoTeamIds = [home.id, away.id].filter(Boolean);
+  if (twoTeamIds.length) {
     const { data: clsData } = await sb.from('team_classifications')
       .select('team_id, classes(name), regions(name, abbreviation)')
-      .in('team_id', allTeamIds);
+      .in('team_id', twoTeamIds);
     if (clsData) for (const row of clsData) {
       clsMap[row.team_id] = {
         cls: row.classes?.name || null,
@@ -307,6 +326,7 @@ async function loadMatchup() {
       };
     }
   }
+  if (myVersion !== _loadVersion) return;
 
 
   function snapCls(s) { return s.team?.team_class || clsMap[s.team_id]?.cls || null; }
@@ -374,6 +394,8 @@ async function loadMatchup() {
 
   const hRest = restDays(hLastDate);
   const aRest = restDays(aLastDate);
+
+  if (myVersion !== _loadVersion) return; // final check before writing to DOM
 
   el.innerHTML = buildMatchup({
     game, home, away, hSnap, aSnap,

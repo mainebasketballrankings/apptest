@@ -896,6 +896,7 @@ function updFeed(){
 }
 
 function toast(html){
+  if(BB._replaying) return; // don't spam toasts when replaying existing events on load
   const el=document.getElementById('toast');
   el.innerHTML=html; el.className='show';
   clearTimeout(toastTmr); toastTmr=setTimeout(()=>el.className='',3500);
@@ -1223,8 +1224,12 @@ async function connectGame(gameId){
   );
   const existing = await eRes.json();
   let _lastEventTime = null;
+  const _seenEventIds = new Set(); // Fix 3: prevent duplicate event processing on reconnect races
 
   const _trackEvent = (row, isReplay=false) => {
+    // Fix 3: skip events already processed (WS + catch-up fetch can overlap)
+    if(row.id && _seenEventIds.has(row.id)) return;
+    if(row.id) _seenEventIds.add(row.id);
     if(row.created_at && (!_lastEventTime || row.created_at > _lastEventTime)){
       _lastEventTime = row.created_at;
     }
@@ -1233,12 +1238,17 @@ async function connectGame(gameId){
     bbOnEvent(evt);
   };
 
+  // Fix 1+4: suppress toasts and DOM rebuilds during replay; do one render pass at end
+  BB._replaying = true;
   existing.forEach(row => _trackEvent(row, true));
+  BB._replaying = false;
+  bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
 
   // 3. WebSocket for live events with reconnect
   let _ws = null;
   let _reconnectDelay = 1000;
   let _intentionalClose = false;
+  let _reconnectTimer = null; // Fix 2: store handle to prevent stacked reconnect loops
 
   function setConnectionStatus(status) {
     let el = document.getElementById('live-conn-status');
@@ -1256,6 +1266,7 @@ async function connectGame(gameId){
   }
 
   function openSocket() {
+    clearTimeout(_reconnectTimer); // cancel any pending reconnect before opening fresh
     if (_ws) { _ws.onclose=null; _ws.onerror=null; try{_ws.close();}catch(e){} }
     _ws = new WebSocket(`wss://vtwupenqieesoktonbzg.supabase.co/realtime/v1/websocket?apikey=${LIVE_SB_KEY}&vsn=1.0.0`);
     _ws.onopen = () => {
@@ -1276,7 +1287,7 @@ async function connectGame(gameId){
     _ws.onclose = () => {
       if(_intentionalClose) return;
       setConnectionStatus('reconnecting');
-      setTimeout(() => {
+      _reconnectTimer = setTimeout(() => {
         const since = _lastEventTime ? `&created_at=gt.${encodeURIComponent(_lastEventTime)}` : '';
         fetch(`${LIVE_SB_URL}/rest/v1/game_events?game_id=eq.${gameId}&order=created_at.asc&select=*${since}`,
           { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } })
@@ -1290,6 +1301,14 @@ async function connectGame(gameId){
   }
 
   openSocket();
+
+  // Fix 5: iOS Safari silently kills WS on background — revive when tab comes back
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden) return;
+    if(!_ws || _ws.readyState === WebSocket.CLOSED || _ws.readyState === WebSocket.CLOSING){
+      openSocket();
+    }
+  });
 }
 
 function sbRowToEvt(row){
@@ -1337,6 +1356,7 @@ const BB = {
   // Fielding positions per side — updated by lineup_set and sub_defense
   // { P:{name,num}, C:{name,num}, '1B':{name,num}, ... }
   defense:{ home:{}, away:{} },
+  _replaying: false, // true during initial event replay — suppresses toasts and DOM rebuilds
 };
 
 let bbEvts = [];
@@ -1387,6 +1407,7 @@ function advanceHalf(){
 }
 
 function bbUpdScoreboard(){
+  if(BB._replaying) return; // suppress during replay
   document.getElementById('home-score').textContent = BB.home.score;
   document.getElementById('away-score').textContent = BB.away.score;
   // Hits / errors
@@ -1429,6 +1450,7 @@ function bbUpdScoreboard(){
 }
 
 function bbUpdLinescore(){
+  if(BB._replaying) return; // suppress during replay
   const maxInn = Math.max(BB.inning, BB.innings.home.length, BB.innings.away.length, 7);
   const hdr = document.getElementById('bb-ls-hdr');
   const awayRow = document.getElementById('bb-ls-away');
@@ -1458,6 +1480,7 @@ function bbUpdLinescore(){
 }
 
 function bbUpdPanels(){
+  if(BB._replaying) return; // suppress during replay
   ['home','away'].forEach(side=>{
     // Panel sub (pitching summary)
     const pitchers = BB.pitchers[side];
@@ -1591,6 +1614,7 @@ function bbUpdPanels(){
 }
 
 function bbUpdFeed(){
+  if(BB._replaying) return; // suppress during replay — one pass fired after all events
   const list = document.getElementById('bb-feed-list');
   if(!list) return;
   list.innerHTML='';
@@ -1663,6 +1687,7 @@ function bbUpdFeed(){
 }
 
 function bbUpdField(){
+  if(BB._replaying) return; // suppress during replay
   const fieldingSide = BB.half==='top' ? 'home' : 'away';
   const posMap = {P:'bb-fn-p',C:'bb-fn-c','1B':'bb-fn-1b','2B':'bb-fn-2b',
                   '3B':'bb-fn-3b',SS:'bb-fn-ss',LF:'bb-fn-lf',CF:'bb-fn-cf',RF:'bb-fn-rf'};

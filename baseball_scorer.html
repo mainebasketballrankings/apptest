@@ -808,6 +808,18 @@ let G_away_team_id = null;
 // Request version guard — prevents stale game-list fetches from rendering after a newer one
 let _gameListVersion = 0;
 let _gameListAbort = null; // AbortController for in-flight game list fetch
+// Roster fetch version — prevents a slow roster fetch from a deselected game clobbering the active one
+let _rosterVersion = 0;
+// End-game guard — prevents double-tap on Finalize from double-pushing stats
+let _gameFinalized = false;
+// saveState debounce — avoid serializing full G on every render() tap
+let _saveStateTimer = null;
+function scheduleSave(){
+  clearTimeout(_saveStateTimer);
+  _saveStateTimer = setTimeout(saveState, 1500);
+}
+// PBP render cache — skip innerHTML rebuild if nothing new was added
+let _lastPbpLength = -1;
 
 async function sbFetch(path){
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -1014,6 +1026,7 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
   G_game_id      = id;
   G_home_team_id = homeId;
   G_away_team_id = awayId;
+  _gameFinalized = false; // reset finalized flag for new game selection
   document.getElementById('awayNameInp').value = awayName;
   document.getElementById('homeNameInp').value = homeName;
   if(loc) document.getElementById('gameLocInp').value = loc;
@@ -1023,6 +1036,8 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
   document.getElementById('gamePickerStatus').style.color = 'var(--green)';
 
   // Fetch rosters from Supabase and pre-populate lineups
+  // Version guard: if user clicks a different game before this resolves, discard stale results
+  const myRosterVersion = ++_rosterVersion;
   const sportVal2 = document.getElementById('sportSel')?.value||'baseball';
   const sportId = sportVal2==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
   const fetchRoster = async (teamId, side) => {
@@ -1030,6 +1045,7 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
       const players = await sbFetch(
         `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=30&select=name,number,position`
       );
+      if(myRosterVersion !== _rosterVersion) return; // superseded by a newer selectGame click
       if(!Array.isArray(players) || !players.length) return;
       G.teams[side].lineup = [];
       G.teams[side].bench  = [];
@@ -1330,6 +1346,8 @@ async function startGame(){
     }
   });
   G.curPitches=[]; G.pbp=[]; G.pitStats={}; G.paLog=[];
+  _lastPbpLength = -1; // reset PBP render cache
+  _gameFinalized = false; // reset end-game guard
   G.errorThisHalf=false; G.phantomOuts=0;
   G.pendingHit=null; G.pendingRBIbatter=null; G.pendingScore=null;
   G.pendingUnearnedCheck=null; G.pendingUnearnedQueue=null;
@@ -1683,6 +1701,8 @@ async function pushPlayerStats(){
   }
 
   // ── Batting stats ──────────────────────────────────────
+  // Collect all players who need stat updates across both sides
+  const batUpserts = [];
   for(const side of ['away','home']){
     const teamId = side==='home' ? G_home_team_id : G_away_team_id;
     if(!teamId) continue;
@@ -1697,57 +1717,63 @@ async function pushPlayerStats(){
     G.teams[side].lineup.forEach(p => { if(p.name && !seen.has(p.name)){ seen.add(p.name); allPlayers.push(p); } });
     for(const player of allPlayers){
       const s = player.stats;
-      // Only push if player appeared (has AB or BB)
-      if(!s.ab && !s.bb) continue;
-      const existing = await fetchExisting(teamId, player.name);
-      const ex = existing || {};
-      const newAb    = (ex.ab    ||0) + (s.ab   ||0);
-      const newHits  = (ex.hits  ||0) + (s.h    ||0);
-      const newBb    = (ex.bb    ||0) + (s.bb   ||0);
-      const newRuns  = (ex.runs  ||0) + (s.r    ||0);
-      const newRbi   = (ex.rbi   ||0) + (s.rbi  ||0);
-      const newHr    = (ex.hr    ||0) + (s.hr   ||0);
-      const newKbat  = (ex.k_bat ||0) + (s.k    ||0);
-      const newDbl   = (ex.doubles||0)+ (s.d    ||0);
-      const newTri   = (ex.triples||0)+ (s.t    ||0);
-      const newSb    = (ex.sb    ||0) + (s.sb   ||0);
-      const newGames = (ex.games ||0) + 1;
-      // Recalculate BA and OPS
-      const ba  = newAb > 0 ? newHits/newAb : null;
-      const obp = (newAb+newBb) > 0 ? (newHits+newBb)/(newAb+newBb) : null;
-      const slg = newAb > 0 ? (newHits + newDbl + 2*newTri + 3*newHr)/newAb : null;
-      const ops = (obp!=null && slg!=null) ? obp+slg : null;
-      await upsertPlayer({
-        team_id:    teamId,
-        name:       player.name,
-        number:     player.number||null,
-        sport_id:   sportId,
-        season_year: 2026,
-        games:      newGames,
-        ab:         newAb,
-        hits:       newHits,
-        bb:         newBb,
-        runs:       newRuns,
-        rbi:        newRbi,
-        hr:         newHr,
-        k_bat:      newKbat,
-        doubles:    newDbl,
-        triples:    newTri,
-        sb:         newSb,
-        ba:         ba!=null ? Math.round(ba*1000)/1000 : null,
-        ops:        ops!=null ? Math.round(ops*1000)/1000 : null,
-      });
+      if(!s.ab && !s.bb) continue; // Only push if player appeared
+      batUpserts.push({ teamId, player });
     }
   }
+  // Fetch all existing rows in parallel, then upsert all in parallel
+  const batExisting = await Promise.all(batUpserts.map(({teamId, player}) => fetchExisting(teamId, player.name)));
+  await Promise.all(batUpserts.map(({teamId, player}, i) => {
+    const s = player.stats;
+    const ex = batExisting[i] || {};
+    const newAb    = (ex.ab    ||0) + (s.ab   ||0);
+    const newHits  = (ex.hits  ||0) + (s.h    ||0);
+    const newBb    = (ex.bb    ||0) + (s.bb   ||0);
+    const newRuns  = (ex.runs  ||0) + (s.r    ||0);
+    const newRbi   = (ex.rbi   ||0) + (s.rbi  ||0);
+    const newHr    = (ex.hr    ||0) + (s.hr   ||0);
+    const newKbat  = (ex.k_bat ||0) + (s.k    ||0);
+    const newDbl   = (ex.doubles||0)+ (s.d    ||0);
+    const newTri   = (ex.triples||0)+ (s.t    ||0);
+    const newSb    = (ex.sb    ||0) + (s.sb   ||0);
+    const newGames = (ex.games ||0) + 1;
+    const ba  = newAb > 0 ? newHits/newAb : null;
+    const obp = (newAb+newBb) > 0 ? (newHits+newBb)/(newAb+newBb) : null;
+    const slg = newAb > 0 ? (newHits + newDbl + 2*newTri + 3*newHr)/newAb : null;
+    const ops = (obp!=null && slg!=null) ? obp+slg : null;
+    return upsertPlayer({
+      team_id:    teamId,
+      name:       player.name,
+      number:     player.number||null,
+      sport_id:   sportId,
+      season_year: 2026,
+      games:      newGames,
+      ab:         newAb,
+      hits:       newHits,
+      bb:         newBb,
+      runs:       newRuns,
+      rbi:        newRbi,
+      hr:         newHr,
+      k_bat:      newKbat,
+      doubles:    newDbl,
+      triples:    newTri,
+      sb:         newSb,
+      ba:         ba!=null ? Math.round(ba*1000)/1000 : null,
+      ops:        ops!=null ? Math.round(ops*1000)/1000 : null,
+    });
+  }));
 
   // ── Pitching stats ─────────────────────────────────────
-  for(const [key, ps] of Object.entries(G.pitStats)){
-    if(!ps.pitches && !ps.ip_outs) continue;
+  // Same pattern: collect, fetch all existing in parallel, upsert all in parallel
+  const pitEntries = Object.entries(G.pitStats).filter(([,ps]) => ps.pitches || ps.ip_outs).map(([key, ps]) => {
     const side   = key.startsWith('home_') ? 'home' : 'away';
     const teamId = side==='home' ? G_home_team_id : G_away_team_id;
-    if(!teamId || !ps.name) continue;
-    const existing = await fetchExisting(teamId, ps.name);
-    const ex = existing || {};
+    return { teamId, ps };
+  }).filter(({teamId, ps}) => teamId && ps.name);
+
+  const pitExisting = await Promise.all(pitEntries.map(({teamId, ps}) => fetchExisting(teamId, ps.name)));
+  await Promise.all(pitEntries.map(({teamId, ps}, i) => {
+    const ex = pitExisting[i] || {};
     const newIpOuts = (ex.ip_outs||0) + (ps.ip_outs||0);
     const newPh     = (ex.p_h    ||0) + (ps.h      ||0);
     const newPbb    = (ex.p_bb   ||0) + (ps.bb     ||0);
@@ -1759,7 +1785,7 @@ async function pushPlayerStats(){
     const era       = ipDec>0 ? Math.round((newPer*9/ipDec)*100)/100 : null;
     const whip      = ipDec>0 ? Math.round(((newPh+newPbb)/ipDec)*100)/100 : null;
     const ipStr     = Math.floor(newIpOuts/3)+'.'+(newIpOuts%3);
-    await upsertPlayer({
+    return upsertPlayer({
       team_id:     teamId,
       name:        ps.name,
       number:      ps.num||null,
@@ -1776,11 +1802,13 @@ async function pushPlayerStats(){
       era:         era,
       whip:        whip,
     });
-  }
+  }));
   console.log('Player stats pushed.');
 }
 
 function confirmEndGame(){
+  if(_gameFinalized) return; // guard against double-tap
+  _gameFinalized = true;
   // Read W/L/Save decisions and stamp on pitStats
   ['away','home'].forEach(side => {
     const sel = document.getElementById('egPitcher_' + side);
@@ -2815,7 +2843,7 @@ function saveState(){
 }
 
 function render(){
-  saveState();
+  scheduleSave(); // debounced — fires 1.5s after last render(), not on every tap
   // Scores
   document.getElementById('sbAwayRuns').textContent=G.runs.away;
   document.getElementById('sbHomeRuns').textContent=G.runs.home;
@@ -2927,13 +2955,16 @@ function render(){
   const pitchSymbols={B:'B',K:'ꓘ',Ks:'K',F:'F',X:'X'};
   document.getElementById('pitchSeq').innerHTML=G.curPitches.map(p=>`<div class="pdot ${p}">${pitchSymbols[p]||p}</div>`).join('');
 
-  // PBP
+  // PBP — only rebuild if entries were added since last render
   updateField();
-  document.getElementById('pbpLog').innerHTML=[...G.pbp].reverse().map(e=>`
+  if(G.pbp.length !== _lastPbpLength){
+    _lastPbpLength = G.pbp.length;
+    document.getElementById('pbpLog').innerHTML=[...G.pbp].reverse().map(e=>`
     <div class="pbp-entry">
       <span class="pbp-inn">${e.inn}${e.half}</span>
       <span class="pbp-txt">${e.text}</span>
     </div>`).join('');
+  }
 }
 
 // ═══════════════════════════════════════════════

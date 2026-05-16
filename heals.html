@@ -528,14 +528,19 @@
   // Season dropdown
   document.getElementById('seasonSelect').addEventListener('change', function() {
     activeSeason = parseInt(this.value);
+    expandedTeam = null; // reset expansion — team IDs may differ between seasons
     loadRegions();
   });
 
-  // Cancellation token — incremented on every new load to cancel stale requests
-  let _loadToken = 0;
+  // Cancellation tokens — _regionToken covers loadRegions, _loadToken covers loadData
+  let _regionToken = 0;
+  let _loadToken   = 0;
 
   // ── Load selector (region for basketball, class for others) ──
   async function loadRegions() {
+    const myRegion = ++_regionToken;
+    const regionCancelled = () => myRegion !== _regionToken;
+
     const sel   = document.getElementById('regionSelect');
     const label = document.getElementById('regionLabel');
     sel.innerHTML = '<option value="">Loading…</option>';
@@ -559,6 +564,7 @@
         .select('classes ( id, name ), regions ( id, name )')
         .order('class_id');
 
+      if (regionCancelled()) return;
       if (data) {
         const seen = new Set();
         const combos = [];
@@ -601,6 +607,7 @@
         .not('team_class', 'is', null)
         .neq('team_class', '0');
 
+      if (regionCancelled()) return;
       // Build unique class+region combos
       const seen = new Map();
       (teamData || []).forEach(t => {
@@ -633,6 +640,7 @@
       loadData();
     };
 
+    if (regionCancelled()) return;
     loadData();
   }
 
@@ -772,6 +780,7 @@
       const results = [];
       const chunkSize = 100;
       for (let i = 0; i < ids.length; i += chunkSize) {
+        if (cancelled()) return results; // abandon early if a newer load started
         const chunk = ids.slice(i, i + chunkSize);
         const q = sb.from('games')
           .select(gameSelect)
@@ -810,6 +819,7 @@
       const results = [];
       const chunkSize = 100;
       for (let i = 0; i < ids.length; i += chunkSize) {
+        if (cancelled()) return results; // abandon early if a newer load started
         const chunk = ids.slice(i, i + chunkSize);
         const q = sb.from('games')
           .select('id, home_team_id, away_team_id')
@@ -846,20 +856,25 @@
       return Math.max(count, 12);
     };
 
-    // Load rank from rankings_snapshots — filter by known team IDs to avoid loading all sports
+    // Load rank from rankings_snapshots — paginate to avoid .in() size limits
     const snapMap = {};
     if (allTeamIds.length) {
-      const { data: snapData } = await sb
-        .from('rankings_snapshots')
-        .select('team_id, rank_overall')
-        .eq('season_year', season)
-        .in('team_id', allTeamIds.slice(0, 400))
-        .order('snapshot_date', { ascending: false })
-        .limit(allTeamIds.length * 2);
-      if (snapData) {
-        snapData.forEach(s => {
-          if (!snapMap[s.team_id]) snapMap[s.team_id] = { rank: s.rank_overall };
-        });
+      const snapChunkSize = 200;
+      for (let i = 0; i < allTeamIds.length; i += snapChunkSize) {
+        if (cancelled()) return;
+        const chunk = allTeamIds.slice(i, i + snapChunkSize);
+        const { data: snapData } = await sb
+          .from('rankings_snapshots')
+          .select('team_id, rank_overall')
+          .eq('season_year', season)
+          .in('team_id', chunk)
+          .order('snapshot_date', { ascending: false })
+          .limit(chunk.length * 2);
+        if (snapData) {
+          snapData.forEach(s => {
+            if (!snapMap[s.team_id]) snapMap[s.team_id] = { rank: s.rank_overall };
+          });
+        }
       }
     }
     if (cancelled()) return;
@@ -1009,10 +1024,14 @@
     html += '</tbody></table>';
     document.getElementById('tableWrap').innerHTML = html;
 
-    // Row click handlers
-    document.querySelectorAll('.team-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const id = row.dataset.teamId;
+    // Attach delegated click handler once — survives innerHTML replacements via the flag
+    const tw = document.getElementById('tableWrap');
+    if (!tw._rowListenerAttached) {
+      tw._rowListenerAttached = true;
+      tw.addEventListener('click', e => {
+        const row = e.target.closest('.team-row');
+        if (!row) return;
+        const id     = row.dataset.teamId;
         const detail = document.querySelector(`.detail-row[data-detail-id="${id}"]`);
         const wasOpen = expandedTeam === id;
 
@@ -1031,7 +1050,7 @@
           setTimeout(() => row.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
         }
       });
-    });
+    }
   }
 
   // ── Render expanded game detail ───────────────────────────────

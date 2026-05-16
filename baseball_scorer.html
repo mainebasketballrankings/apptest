@@ -965,6 +965,13 @@ async function pushEvt(key, extras={}){
 
 // ── Game loader ──────────────────────────────
 async function loadGameById(gameId){
+  // Apply sport from URL param before anything else — must be set before selectGame calls fetchRoster
+  const urlSport = new URLSearchParams(window.location.search).get('sport');
+  if(urlSport === 'softball' || urlSport === 'baseball'){
+    document.getElementById('sportSel').value = urlSport;
+    document.getElementById('pickerSportSel').value = urlSport;
+    onSportChange(); // update UI labels, mercy hint, etc.
+  }
   const games = await sbFetch(
     `games?id=eq.${gameId}&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)`
   );

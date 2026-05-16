@@ -1658,7 +1658,7 @@
       <div class="submit-panel" id="panel-${g.id}">
         <h4>${isFinal ? 'Edit Score' : 'Submit Score'}</h4>
         ${!isFinal && (sport==='baseball'||sport==='softball') ? `
-        <a href="baseball_scorer.html?game_id=${g.id}" target="_blank" style="display:block;margin-bottom:10px;padding:8px 12px;background:var(--green);color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;text-align:center;">
+        <a href="baseball_scorer.html?game_id=${g.id}&sport=${sport}" target="_blank" style="display:block;margin-bottom:10px;padding:8px 12px;background:var(--green);color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;text-align:center;">
           Score This Game Live →
         </a>` : ''}
         <form class="score-form" data-id="${g.id}" data-sport="${sport}">

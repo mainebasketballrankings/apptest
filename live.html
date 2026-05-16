@@ -1754,7 +1754,7 @@ function bbOnEvent(e){
   // Skip auto-append for subs — they manage their own slot
   const isSub = e.key === 'sub_pitcher' || e.key === 'sub_batter' || e.key === 'sub_defense';
   if(!batter && e.plast && !isSub){
-    batter = {name:e.plast, num:e.pnum||'', pos:'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0};
+    batter = {name:e.plast, num:e.pnum||'', pos:'', ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0,pas:[]};
     BB.batters[s].push(batter);
   }
   if(!pitcher && e.pitcher && e.key !== 'sub_defense'){
@@ -1766,7 +1766,17 @@ function bbOnEvent(e){
   // Don't update batter display for non-PA events
   const isNonPADisplay = ['runner_advance','sub_defense','inning_end','game_over','batter_up'].includes(e.key);
   if(!isNonPADisplay) BB.batter = { name:e.plast||'—', num:e.pnum||'', side:s, line:'' };
-  if(batter) BB.batter.line = `${batter.h||0}–${batter.ab||0}, ${batter.rbi||0} RBI`;
+  if(batter){
+    // Build per-PA history line: "▲1 K · ▼3 1B (RBI) · ▲5 BB"
+    const pas = batter.pas||[];
+    BB.batter.line = pas.length
+      ? pas.map(pa => {
+          const halfSym = pa.half==='top'?'▲':'▼';
+          const rbiStr  = pa.rbi>0 ? ' ('+(pa.rbi>1?pa.rbi:'')+'RBI)' : '';
+          return halfSym + pa.inn + ' ' + pa.sym + rbiStr;
+        }).join(' · ')
+      : `${batter.h||0}–${batter.ab||0}, ${batter.rbi||0} RBI`; // fallback before any PA
+  }
   if(pitcher) BB.pitcher = {
     name:pitcher.name, num:pitcher.num||'', side:opp,
     pitches:pitcher.pitches,
@@ -1796,7 +1806,7 @@ function bbOnEvent(e){
         if(currentNames !== newNames){
           BB.batters[s] = lineup.map(p => ({
             name: p.name, num: p.num||'', pos: p.pos||'',
-            ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0
+            ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0,pas:[]
           }));
           BB._lineupSize = BB._lineupSize || {};
           BB._lineupSize[s] = lineup.length;
@@ -1893,7 +1903,7 @@ function bbOnEvent(e){
         const prevSubs = slot.subs;
         BB.batters[halfSide][idx] = {
           name:info.name, num:info.num||'', pos:info.pos||'',
-          ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0,
+          ab:0,r:0,h:0,hr:0,rbi:0,bb:0,k:0,sb:0,pas:[],
           subs: prevSubs
         };
         BB.batter = {name:info.name, num:info.num||'', side:halfSide, line:'0–0, 0 RBI'};
@@ -1998,15 +2008,30 @@ function bbOnEvent(e){
   e.scoreSnap = { away:BB.away.score, home:BB.home.score };
 
   // ── Per-event stats ──────────────────────────────────────
+  // PA outcome symbol map (mirrors scorer's logPA symbols)
+  const PA_SYM = {
+    single:'1B', double:'2B', triple:'3B', hr:'HR',
+    groundout:'GO', flyout:'FO', lineout:'LO', popup:'PU',
+    strikeout:'K', walk:'BB', hbp:'HBP'
+  };
+
   if(e.key==='single'||e.key==='double'||e.key==='triple'||e.key==='hr'){
-    if(batter){ batter.ab++; batter.h++; if(e.key==='hr') batter.hr++; }
+    if(batter){
+      batter.ab++; batter.h++; if(e.key==='hr') batter.hr++;
+      if(!batter.pas) batter.pas=[];
+      batter.pas.push({sym:PA_SYM[e.key], rbi:e.rbi||0, inn:e.inning, half:e.half});
+    }
     BB[halfSide].hits++;
     if(pitcher) pitcher.h++;
     if(e.x!=null) bbAddDot(e.x, e.y, e.key==='hr'?'hr':(e.key==='double'||e.key==='triple')?'xbh':'hit');
     toast(`<b>#${e.pnum} ${e.plast}</b> — ${BB_KLBL[e.key]}${e.rbi?' · '+e.rbi+' RBI':''}`);
 
   } else if(['groundout','flyout','lineout','popup','strikeout'].includes(e.key)){
-    if(batter) batter.ab++;
+    if(batter){
+      batter.ab++;
+      if(!batter.pas) batter.pas=[];
+      batter.pas.push({sym:PA_SYM[e.key], rbi:0, inn:e.inning, half:e.half});
+    }
     if(e.key==='strikeout'){ if(batter) batter.k++; if(pitcher) pitcher.k++; e.pitcherK = pitcher ? pitcher.k : null; }
     if(pitcher) pitcher.ip_outs++;
     if(e.x!=null) bbAddDot(e.x, e.y, 'out');
@@ -2022,7 +2047,11 @@ function bbOnEvent(e){
     }
 
   } else if(e.key==='walk'||e.key==='hbp'){
-    if(e.key==='walk'&&batter) batter.bb++;
+    if(e.key==='walk'&&batter){ batter.bb++; }
+    if(batter){
+      if(!batter.pas) batter.pas=[];
+      batter.pas.push({sym:PA_SYM[e.key], rbi:e.rbi||0, inn:e.inning, half:e.half});
+    }
     if(pitcher) pitcher.bb++;
 
   } else if(e.key==='error'){

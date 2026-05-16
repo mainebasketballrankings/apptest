@@ -431,15 +431,19 @@
     SN: 'S North', SS: 'S South',
   };
 
-  // Cache: { 'sport|season': { data, latestDate } } — avoids re-fetching on tab revisit
+  // Cache: { 'sport|season': { data, latestDate, cachedAt } } — avoids re-fetching on tab revisit
   const _rankCache = {};
+  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  let _loadVersion = 0;
 
   async function loadRankings() {
+    const myVersion = ++_loadVersion;
     const cacheKey = `${activeSport}|${activeSeason}`;
 
-    // Serve from cache if available
-    if (_rankCache[cacheKey]) {
-      const { data, latestDate } = _rankCache[cacheKey];
+    // Serve from cache if available and fresh (within TTL)
+    const cached = _rankCache[cacheKey];
+    if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
+      const { data, latestDate } = cached;
       allData = data;
       document.getElementById('updatedNote').textContent =
         'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -458,6 +462,8 @@
       .select('id')
       .eq('sport_id', sportId);
 
+    if (myVersion !== _loadVersion) return; // superseded by a newer loadRankings call
+
     const sportTeamIds = (teamIdData || []).map(t => t.id);
     if (!sportTeamIds.length) {
       document.getElementById('tableWrap').innerHTML =
@@ -465,32 +471,41 @@
       return;
     }
 
-    // Step 2: get latest snapshot date + full data in one query, server-side filtered to this sport
-    const { data, error } = await sb
-      .from('rankings_snapshots')
-      .select(`
-        id, rank_overall, rank_class, rank_region, snapshot_date,
-        pi, heal_points, dirigo, mheals_18, wins, losses, avg_pf, avg_pa, sos,
-        pct_perfect, signature_win, ats_record, win_pct,
-        tournament_odds,
-        team:team_id (
-          id, school_name, gender, logo_url, sport_id, team_class,
-          team_classifications (
-            classes ( name ),
-            regions ( name, abbreviation )
+    // Step 2: fetch snapshots in chunks of 200 to stay within URL length limits
+    const chunkSize = 200;
+    let allRows = [];
+    for (let i = 0; i < sportTeamIds.length; i += chunkSize) {
+      const chunk = sportTeamIds.slice(i, i + chunkSize);
+      const { data: chunkData, error: chunkErr } = await sb
+        .from('rankings_snapshots')
+        .select(`
+          id, rank_overall, rank_class, rank_region, snapshot_date,
+          pi, heal_points, dirigo, mheals_18, wins, losses, avg_pf, avg_pa, sos,
+          pct_perfect, signature_win, ats_record, win_pct,
+          tournament_odds,
+          team:team_id (
+            id, school_name, gender, logo_url, sport_id, team_class,
+            team_classifications (
+              classes ( name ),
+              regions ( name, abbreviation )
+            )
           )
-        )
-      `)
-      .eq('season_year', activeSeason)
-      .in('team_id', sportTeamIds)
-      .order('snapshot_date', { ascending: false })
-      .limit(2000);
-
-    if (error || !data) {
-      document.getElementById('tableWrap').innerHTML =
-        `<div class="empty"><h3>Error</h3><p>${error?.message}</p></div>`;
-      return;
+        `)
+        .eq('season_year', activeSeason)
+        .in('team_id', chunk)
+        .order('snapshot_date', { ascending: false })
+        .limit(chunk.length * 8);
+      if (chunkErr) {
+        if (myVersion !== _loadVersion) return;
+        document.getElementById('tableWrap').innerHTML =
+          `<div class="empty"><h3>Error</h3><p>${chunkErr?.message}</p></div>`;
+        return;
+      }
+      if (chunkData) allRows.push(...chunkData);
+      if (myVersion !== _loadVersion) return; // superseded mid-chunk
     }
+
+    const data = allRows;
 
     if (!data.length) {
       document.getElementById('tableWrap').innerHTML =
@@ -499,10 +514,12 @@
     }
 
     // All rows are for this sport — find the latest date and filter to it
-    const latestDate = data[0].snapshot_date;
+    const latestDate = data.reduce((best, r) => r.snapshot_date > best ? r.snapshot_date : best, data[0].snapshot_date);
     const filtered = data.filter(r => r.snapshot_date === latestDate && r.team != null);
 
-    _rankCache[cacheKey] = { data: filtered, latestDate };
+    _rankCache[cacheKey] = { data: filtered, latestDate, cachedAt: Date.now() };
+
+    if (myVersion !== _loadVersion) return; // one final check before mutating shared state
 
     allData = filtered;
     document.getElementById('updatedNote').textContent =
@@ -704,18 +721,6 @@
       document.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
       document.querySelector('.class-tab[data-class="all"]').classList.add('active');
       sortCol = 'dirigo'; sortAsc = false;
-      renderTable();
-    });
-  });
-
-  // Class tabs
-  document.querySelectorAll('.class-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeClass = btn.dataset.class;
-      sortCol = 'dirigo';   // always sort by DIRIGO regardless of class filter
-      sortAsc = false;
       renderTable();
     });
   });

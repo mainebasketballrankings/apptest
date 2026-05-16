@@ -1708,27 +1708,40 @@ async function pushPlayerStats(){
   }
 
   // ── Batting stats ──────────────────────────────────────
-  // Collect all players who need stat updates across both sides
   const batUpserts = [];
   for(const side of ['away','home']){
     const teamId = side==='home' ? G_home_team_id : G_away_team_id;
     if(!teamId) continue;
-    // Use slots to capture ALL players including those replaced by subs
-    const allPlayers = [];
     const seen = new Set();
     const slots = G.teams[side].slots && G.teams[side].slots.length
       ? G.teams[side].slots
       : G.teams[side].lineup.map(p=>[p]);
-    slots.forEach(slot => slot.forEach(p => { if(p.name && !seen.has(p.name)){ seen.add(p.name); allPlayers.push(p); } }));
-    // Also catch any lineup players not in slots
-    G.teams[side].lineup.forEach(p => { if(p.name && !seen.has(p.name)){ seen.add(p.name); allPlayers.push(p); } });
-    for(const player of allPlayers){
-      const s = player.stats;
-      if(!s.ab && !s.bb) continue; // Only push if player appeared
-      batUpserts.push({ teamId, player });
-    }
+
+    // Mirror buildBoxScore's fix: for the CURRENT player in each slot,
+    // always read from the live lineup object — not the stale slot copy.
+    // Slot copies diverge after undo/restore/substitution; lineup is always live.
+    slots.forEach((slot, slotIdx) => {
+      slot.forEach((p, depth) => {
+        if(!p.name || seen.has(p.name)) return;
+        seen.add(p.name);
+        const isCurrentPlayer = depth === slot.length - 1;
+        const livePlayer = isCurrentPlayer && G.teams[side].lineup[slotIdx]
+          ? G.teams[side].lineup[slotIdx]
+          : p;
+        if(!livePlayer.stats.ab && !livePlayer.stats.bb) return;
+        batUpserts.push({ teamId, player: livePlayer });
+      });
+    });
+
+    // Also catch lineup players not in slots (def subs, etc.)
+    G.teams[side].lineup.forEach(p => {
+      if(p.name && !seen.has(p.name)){
+        seen.add(p.name);
+        if(p.stats.ab || p.stats.bb) batUpserts.push({ teamId, player: p });
+      }
+    });
   }
-  // Fetch all existing rows in parallel, then upsert all in parallel
+    // Fetch all existing rows in parallel, then upsert all in parallel
   const batExisting = await Promise.all(batUpserts.map(({teamId, player}) => fetchExisting(teamId, player.name)));
   await Promise.all(batUpserts.map(({teamId, player}, i) => {
     const s = player.stats;

@@ -814,7 +814,6 @@ async function loadLateScores() {
     // don't set lateLoaded=true so user can retry by refreshing
   }
 }
-}
 
 function dismissLate(id) {
   const dismissed = new Set(JSON.parse(localStorage.getItem('mbr_late_dismissed') || '[]'));

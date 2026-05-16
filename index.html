@@ -1001,6 +1001,10 @@
   let activeSport    = 'all';
   let activeSeason   = 2026;
   let rankMap        = {};
+  // Request version guard — prevents stale loadGames from rendering after a newer one
+  let _loadVersion   = 0;
+  // Patch lock — suppress patchLiveGames while a score submit reload is in flight
+  let _patchSuppressed = false;
 
   // ── DATE / TIME HELPERS ──────────────────────────────────────────────────
   function toISO(d) {
@@ -1071,6 +1075,7 @@
   // dateChanged=true  → clear cache, re-fetch for the new date
   // dateChanged=false → sport tab switch; use cache if available, fetch only if missing
   async function loadGames(date, dateChanged = true) {
+    const myVersion = ++_loadVersion;
     const ds = toISO(date);
     document.getElementById('dateHeading').textContent = fmtHeading(date);
 
@@ -1101,12 +1106,15 @@
         ),
         loadRanks().catch(e => console.warn('loadRanks failed:', e))
       ]);
+      // Discard if a newer loadGames call has already started
+      if (myVersion !== _loadVersion) return;
       fetched.forEach(({ sport, games }) => {
         allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
       });
     } else {
       // Games already cached — still need fresh ranks for this date
       await loadRanks().catch(e => console.warn('loadRanks failed:', e));
+      if (myVersion !== _loadVersion) return;
     }
 
     // Keep allGames in sync for submit handler
@@ -1199,7 +1207,7 @@
       .in('game_id', activeGames.map(g => g.id))
       .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
       .order('created_at', { ascending: false })
-      .limit(activeGames.length * 5);
+      .limit(activeGames.length * 15);
     if (!evts) return;
 
     const lastEvt  = {};
@@ -1799,6 +1807,9 @@
     if (activeSport !== 'all' && allSportsGames[activeSport]) {
       // Already cached — just re-render, no fetch needed
       allGames = allSportsGames[activeSport].games;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"]');
+      if (allFilterBtn) allFilterBtn.classList.add('active');
       buildFilterButtons();
       renderAllGames();
     } else {
@@ -1838,6 +1849,8 @@
   // Never rebuilds the page, so scroll position and open forms are preserved.
 
   async function patchLiveGames() {
+    if (document.hidden) return;       // don't poll from background tabs
+    if (_patchSuppressed) return;      // suppress during post-submit reload window
     const ds = toISO(currentDate);
     // Only re-fetch sports already in cache (i.e. visible on this date)
     const cachedSports = SPORT_PRIORITY.filter(({ sport }) => allSportsGames[sport]);
@@ -1924,7 +1937,9 @@
     const cardEl = document.querySelector(`[data-game-id="${id}"]`);
     if (!cardEl || !gameObj) return;
     const updated = { ...gameObj, status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock, notes };
-    const sport = activeSport !== 'all' ? activeSport : 'baseball';
+    const sport = activeSport !== 'all'
+      ? activeSport
+      : (cardEl.closest('[data-sport-section]')?.dataset.sportSection || 'baseball');
     const notesMap = buildNotesMap([updated]);
     cardEl.outerHTML = card(updated, notesMap, sport);
     // no attachCardListeners needed — delegation handles it
@@ -1988,7 +2003,8 @@
     }
 
     showToast('Game marked as postponed.');
-    setTimeout(() => loadGames(currentDate), 800);
+    _patchSuppressed = true;
+    setTimeout(() => { _patchSuppressed = false; loadGames(currentDate); }, 800);
   }
   // ── END PPD ──────────────────────────────────────────────────────────────
 

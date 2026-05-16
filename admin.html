@@ -3,730 +3,164 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MBR Admin — Score Queue</title>
+  <title>MBR Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
-    :root {
-      --green:  #1a7a4a;
-      --green2: #22a863;
-      --red:    #c0392b;
-      --orange: #e67e22;
-      --gray:   #555;
-      --lgray:  #999;
-      --border: #e2e2e2;
-      --bg:     #f0f0f0;
-      --white:  #fff;
-      --black:  #111;
-    }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow', sans-serif; background: #f4f5f7; color: #111; min-height: 100vh; }
 
-    body {
-      font-family: 'Barlow', sans-serif;
-      background: var(--bg);
-      color: var(--black);
-      min-height: 100vh;
-    }
-
-    /* LOGIN SCREEN */
-    #login-screen {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .login-box {
-      background: var(--white);
-      border-radius: 12px;
-      padding: 40px 36px;
-      width: 340px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-      text-align: center;
-    }
-
-    .login-box h1 {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 26px;
-      color: var(--green);
-      margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .login-box p {
-      font-size: 13px;
-      color: var(--lgray);
-      margin-bottom: 28px;
-    }
-
-    .login-box input {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      font-family: 'Barlow', sans-serif;
-      font-size: 15px;
-      margin-bottom: 12px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    .login-box input:focus { border-color: var(--green); }
-
-    .login-box button {
-      width: 100%;
-      padding: 11px;
-      background: var(--green);
-      color: #fff;
-      border: none;
-      border-radius: 7px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 15px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-
-    .login-box button:hover { background: var(--green2); }
-
-    .login-error {
-      color: var(--red);
-      font-size: 13px;
-      margin-top: 10px;
-      display: none;
-    }
-
-    /* HEADER */
-    header {
-      background: var(--white);
-      border-bottom: 3px solid var(--green);
-      padding: 0 24px;
+    .topbar {
+      background: #fff;
+      border-bottom: 2px solid #1a7a4a;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 60px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
     }
+    .topbar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; color: #1a7a4a; letter-spacing: 0.5px; }
+    .topbar-sub { font-size: 12px; color: #888; margin-top: 1px; }
 
-    .header-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 20px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--green);
+    .main { max-width: 860px; margin: 32px auto; padding: 0 16px; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      padding: 24px;
     }
-
-    .header-sub {
-      font-size: 13px;
-      color: var(--lgray);
-    }
-
-    .logout-btn {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 12px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--gray);
-      padding: 5px 12px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .logout-btn:hover { border-color: var(--red); color: var(--red); }
-
-    /* MAIN */
-    main {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 28px 20px;
-    }
-
-    .section-header {
+    .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 16px;
     }
-
-    .section-title {
+    .card-title {
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 20px;
+      font-size: 18px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.05em;
     }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--orange);
-      color: #fff;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      min-width: 24px;
-      height: 24px;
-      border-radius: 12px;
-      padding: 0 7px;
-      margin-left: 8px;
-    }
-
-    .refresh-btn {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
+    .btn {
+      font-family: 'Barlow', sans-serif;
       font-size: 12px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--gray);
-      padding: 5px 12px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .refresh-btn:hover { border-color: var(--green); color: var(--green); }
-
-    /* TABS */
-    .tabs {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 20px;
-    }
-
-    .tab {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: var(--white);
-      color: var(--gray);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .tab.active { background: var(--green); border-color: var(--green); color: #fff; }
-
-    /* SUBMISSION CARD */
-    .sub-card {
-      background: var(--white);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      margin-bottom: 12px;
-      overflow: hidden;
-      transition: box-shadow 0.15s;
-    }
-
-    .sub-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-
-    .sub-card.approved { border-left: 4px solid var(--green); opacity: 0.6; }
-    .sub-card.rejected { border-left: 4px solid var(--red); opacity: 0.6; }
-
-    .sub-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px 8px;
-      border-bottom: 1px solid var(--bg);
-    }
-
-    .sub-game-info {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--black);
-    }
-
-    .sub-meta {
-      font-size: 12px;
-      color: var(--lgray);
-      margin-top: 2px;
-    }
-
-    .sub-time {
-      font-size: 12px;
-      color: var(--lgray);
-      text-align: right;
-    }
-
-    .sub-body {
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .sub-scores {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      flex: 1;
-    }
-
-    .sub-score-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 14px;
-    }
-
-    .sub-score-row .team-name {
-      flex: 1;
       font-weight: 600;
-    }
-
-    .sub-score-row .score {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 20px;
-      min-width: 32px;
-      text-align: right;
-    }
-
-    .sub-details {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .pill {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 11px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 4px;
-      background: var(--bg);
-      color: var(--gray);
-    }
-
-    .pill.final { background: #e8f5ee; color: var(--green); }
-    .pill.live   { background: #fff3e0; color: var(--orange); }
-
-    .sub-notes {
-      font-size: 12px;
-      color: var(--gray);
-      font-style: italic;
-      margin-top: 6px;
-      padding: 0 14px 10px;
-    }
-
-    /* ACTION BUTTONS */
-    .sub-actions {
-      display: flex;
-      gap: 8px;
-      padding: 0 14px 12px;
-    }
-
-    .approve-btn, .reject-btn {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 7px 18px;
+      padding: 6px 14px;
       border-radius: 6px;
-      border: none;
+      border: 1px solid #ddd;
+      background: #fff;
       cursor: pointer;
-      transition: all 0.15s;
+      color: #555;
     }
+    .btn:hover { background: #f4f5f7; }
+    .btn-green { background: #1a7a4a; color: #fff; border-color: #1a7a4a; }
+    .btn-green:hover { background: #166040; }
 
-    .approve-btn {
-      background: var(--green);
-      color: #fff;
-    }
+    .hint { font-size: 11px; color: #aaa; margin-bottom: 16px; line-height: 1.5; }
 
-    .approve-btn:hover { background: var(--green2); }
-    .approve-btn:disabled { background: #aaa; cursor: default; }
-
-    .reject-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--red);
-    }
-
-    .reject-btn:hover { background: #fdf0ee; border-color: var(--red); }
-    .reject-btn:disabled { opacity: 0.4; cursor: default; }
-
-    .status-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
+    .row {
+      display: grid;
+      grid-template-columns: 82px 1fr 64px 160px 52px 90px;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
       font-size: 13px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 7px 0;
-      color: var(--lgray);
     }
+    .row:last-child { border-bottom: none; }
 
-    .status-label.approved { color: var(--green); }
-    .status-label.rejected { color: var(--red); }
+    .state { padding: 32px 0; text-align: center; color: #aaa; font-size: 14px; }
+    .state.error { color: #ef4444; }
 
-    /* EMPTY / LOADING */
-    .empty {
-      text-align: center;
-      padding: 48px 0;
-      color: var(--lgray);
-      font-size: 15px;
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid #ddd;
+      border-top-color: #1a7a4a;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
     }
-
-    .empty strong {
-      display: block;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 20px;
-      color: var(--gray);
-      margin-bottom: 6px;
-    }
-
-    /* TOAST */
-    #toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--black);
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      opacity: 0;
-      transition: all 0.3s;
-      pointer-events: none;
-      z-index: 999;
-      white-space: nowrap;
-    }
-
-    #toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
-    #toast.error { background: var(--red); }
-
-    #admin-app { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <!-- LOGIN -->
-  <div id="login-screen">
-    <div class="login-box">
-      <h1>MBR Admin</h1>
-      <p>Score submission review queue</p>
-      <input type="password" id="pw-input" placeholder="Password" />
-      <button id="pw-btn">Enter</button>
-      <div class="login-error" id="login-error">Incorrect password</div>
+<div class="topbar">
+  <div>
+    <div class="topbar-title">MBR Admin</div>
+    <div class="topbar-sub">Late score tracker</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Late Scores</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="clearDismissed()">Reset dismissed</button>
+        <button class="btn btn-green" onclick="reload()">↻ Refresh</button>
+      </div>
     </div>
+    <div class="hint">
+      Scores entered after midnight EDT on the game date — ones you didn't have when you ran Excel that night.
+      Sorted newest first. Basketball excluded. Last 30 days.
+    </div>
+    <div id="list"><div class="state"><span class="spinner"></span> Loading…</div></div>
   </div>
-
-  <!-- ADMIN APP -->
-  <div id="admin-app">
-    <header>
-      <div>
-        <div class="header-title">MBR Admin</div>
-        <div class="header-sub">Score submission queue</div>
-      </div>
-      <button class="logout-btn" id="logout-btn">Log out</button>
-    </header>
-
-    <main>
-      <div class="section-header">
-        <div style="display:flex;align-items:center">
-          <span class="section-title">Submissions</span>
-          <span class="badge" id="pending-count">0</span>
-        </div>
-        <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
-      </div>
-
-      <div class="tabs">
-        <button class="tab active" data-tab="pending">Pending</button>
-        <button class="tab" data-tab="confirmed">Approved</button>
-        <button class="tab" data-tab="rejected">Rejected</button>
-        <button class="tab" data-tab="late" onclick="loadLateScores()" style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏰ Late Scores</button>
-      </div>
-
-      <div id="late-scores-list" style="display:none"></div>
-
-      <div id="submissions-list"></div>
-    </main>
-  </div>
-
-  <div id="toast"></div>
+</div>
 
 <script>
-  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-  const ADMIN_PASSWORD = 'mbr2026';
-
-  // Declared at script level so Late Scores functions outside this block can access it
-  window._adminSB = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const sb = window._adminSB;
-
-  let currentTab = 'pending';
-  let allSubs = [];
-  let teamsMap = {};
-
-  // --- LOGIN ---
-  // No password gate — just initialize directly
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('admin-app').style.display = 'block';
-  init();
-
-  // --- TABS ---
-  document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      currentTab = t.dataset.tab;
-      if (t.dataset.tab === 'late') {
-        document.getElementById('submissions-list').style.display = 'none';
-        loadLateScores();
-      } else {
-        document.getElementById('submissions-list').style.display = '';
-        document.getElementById('late-scores-list').style.display = 'none';
-        render();
-      }
-    });
-  });
-
-  document.getElementById('refresh-btn').addEventListener('click', loadData);
-
-  // --- INIT ---
-  async function init() {
-    await loadData();
-  }
-
-  async function loadData() {
-    const { data, error } = await sb
-      .from('score_submissions')
-      .select(`
-        id, game_id, home_score, away_score, is_final, game_clock,
-        notes, status, created_at,
-        games ( id, home_team_id, away_team_id, game_date, home_score, away_score,
-                home_score_live, away_score_live, status, game_clock )
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) { showToast('Load error: ' + error.message, true); return; }
-    allSubs = data || [];
-    if (allSubs.length) console.log('first sub game:', allSubs[0].games);
-
-    // Collect all unique team IDs and fetch names in one query
-    const teamIds = [...new Set(allSubs.flatMap(s => [s.games?.home_team_id, s.games?.away_team_id].filter(Boolean)))];
-    if (teamIds.length) {
-      const { data: teams, error: tErr } = await sb.from('teams').select('id, school_name').in('id', teamIds);
-      console.log('teams fetch:', teams, tErr);
-      if (teams) teams.forEach(t => teamsMap[t.id] = t.school_name);
-    }
-
-    const pendingCount = allSubs.filter(s => s.status === 'pending').length;
-    document.getElementById('pending-count').textContent = pendingCount;
-    document.getElementById('pending-count').style.background =
-      pendingCount > 0 ? 'var(--orange)' : 'var(--lgray)';
-
-    render();
-  }
-
-  function render() {
-    const list = document.getElementById('submissions-list');
-    const filtered = allSubs.filter(s => s.status === currentTab);
-
-    if (filtered.length === 0) {
-      list.innerHTML = `<div class="empty"><strong>All clear</strong>${
-        currentTab === 'pending' ? 'No pending submissions.' :
-        currentTab === 'confirmed' ? 'No approved submissions yet.' :
-        'No rejected submissions.'
-      }</div>`;
-      return;
-    }
-
-    list.innerHTML = filtered.map(s => buildCard(s)).join('');
-
-    // Bind buttons
-    list.querySelectorAll('.approve-btn').forEach(btn => {
-      btn.addEventListener('click', () => approve(btn.dataset.id));
-    });
-    list.querySelectorAll('.reject-btn').forEach(btn => {
-      btn.addEventListener('click', () => reject(btn.dataset.id));
-    });
-  }
-
-  function buildCard(s) {
-    const g = s.games;
-    const homeName = teamsMap[g?.home_team_id] || g?.home_team_id || 'Home Team';
-    const awayName = teamsMap[g?.away_team_id] || g?.away_team_id || 'Away Team';
-
-    const gameDate = g?.game_date
-      ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      : '';
-
-    const submittedAt = new Date(s.created_at).toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
-
-    const cardStatus = s.status === 'confirmed' ? 'approved' : s.status;
-    const isFinalSub = s.is_final;
-    const clockLabel = s.game_clock || '';
-
-    // Current game state
-    const curHome = g?.home_score ?? g?.home_score_live ?? '–';
-    const curAway = g?.away_score ?? g?.away_score_live ?? '–';
-    const hasExisting = (g?.home_score !== null || g?.home_score_live !== null);
-
-    const actionBtns = s.status === 'pending'
-      ? `<button class="approve-btn" data-id="${s.id}">✓ Approve</button>
-         <button class="reject-btn" data-id="${s.id}">✕ Reject</button>`
-      : `<span class="status-label ${s.status === 'confirmed' ? 'approved' : 'rejected'}">${s.status === 'confirmed' ? '✓ Approved' : '✕ Rejected'}</span>`;
-
-    const existingNote = hasExisting && s.status === 'pending'
-      ? `<div class="sub-notes">Current in DB: ${awayName} ${curAway} – ${homeName} ${curHome} (${g.status}${g.game_clock ? ' · ' + g.game_clock : ''})</div>`
-      : '';
-
-    return `
-      <div class="sub-card ${s.status !== 'pending' ? cardStatus : ''}" id="card-${s.id}">
-        <div class="sub-top">
-          <div>
-            <div class="sub-game-info">${awayName} @ ${homeName}</div>
-            <div class="sub-meta">${gameDate}</div>
-          </div>
-          <div class="sub-time">${submittedAt}</div>
-        </div>
-        <div class="sub-body">
-          <div class="sub-scores">
-            <div class="sub-score-row">
-              <span class="team-name">${awayName}</span>
-              <span class="score">${s.away_score ?? '–'}</span>
-            </div>
-            <div class="sub-score-row">
-              <span class="team-name">${homeName}</span>
-              <span class="score">${s.home_score ?? '–'}</span>
-            </div>
-          </div>
-          <div class="sub-details">
-            ${clockLabel ? `<span class="pill ${isFinalSub ? 'final' : 'live'}">${clockLabel}</span>` : ''}
-            ${isFinalSub ? '<span class="pill final">Final</span>' : '<span class="pill live">Live</span>'}
-          </div>
-        </div>
-        ${s.notes ? `<div class="sub-notes">"${s.notes}"</div>` : ''}
-        ${existingNote}
-        <div class="sub-actions">${actionBtns}</div>
-      </div>`;
-  }
-
-  async function approve(subId) {
-    const s = allSubs.find(x => x.id === subId);
-    if (!s) return;
-
-    const btn = document.querySelector(`#card-${subId} .approve-btn`);
-    const rej = document.querySelector(`#card-${subId} .reject-btn`);
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-    if (rej) rej.disabled = true;
-
-    const g = s.games;
-    const isFinal = s.is_final;
-
-    // Build game update
-    const gameUpdate = isFinal
-      ? {
-          status: 'final',
-          home_score: s.home_score,
-          away_score: s.away_score,
-          home_score_live: null,
-          away_score_live: null,
-          game_clock: s.game_clock,
-        }
-      : {
-          status: 'active',
-          home_score_live: s.home_score,
-          away_score_live: s.away_score,
-          game_clock: s.game_clock,
-        };
-
-    const { error: gameErr } = await sb.from('games').update(gameUpdate).eq('id', g.id);
-    if (gameErr) { showToast('Game update failed: ' + gameErr.message, true); return; }
-
-    const { error: subErr } = await sb.from('score_submissions').update({ status: 'confirmed' }).eq('id', subId);
-    if (subErr) { showToast('Submission update failed: ' + subErr.message, true); return; }
-
-    showToast(`✓ Approved — ${isFinal ? 'Final score saved' : 'Live score updated'}`);
-    await loadData();
-  }
-
-  async function reject(subId) {
-    const btn = document.querySelector(`#card-${subId} .reject-btn`);
-    const apr = document.querySelector(`#card-${subId} .approve-btn`);
-    if (btn) { btn.disabled = true; btn.textContent = 'Rejecting…'; }
-    if (apr) apr.disabled = true;
-
-    const { error } = await sb.from('score_submissions').update({ status: 'rejected' }).eq('id', subId);
-    if (error) { showToast('Failed: ' + error.message, true); return; }
-
-    showToast('Submission rejected');
-    await loadData();
-  }
-
-  function showToast(msg, isError = false) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = isError ? 'error' : '';
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
-  }
-// ── Late Scores ────────────────────────────────────────────────────────────
-let lateLoaded = false;
-
-async function loadLateScores() {
-  document.getElementById('submissions-list').style.display = 'none';
-  document.getElementById('late-scores-list').style.display = '';
-
-  if (lateLoaded) return;
-  document.getElementById('late-scores-list').innerHTML = '<div style="padding:20px;color:#888">Loading...</div>';
-
-  const sb = window._adminSB;
-  if (!sb) {
-    document.getElementById('late-scores-list').innerHTML = '<div style="padding:20px;color:red">Supabase not initialized.</div>';
-    return;
-  }
-
-  const LOOKBACK_DAYS = 30;
+  const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
   const BASKETBALL_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
+  const LOOKBACK_DAYS = 30;
 
-  const lookbackDate = new Date();
-  lookbackDate.setDate(lookbackDate.getDate() - LOOKBACK_DAYS);
-  const lookbackISO = lookbackDate.toISOString().slice(0, 10);
+  const sb = supabase.createClient(SB_URL, SB_KEY);
 
-  try {
+  // Midnight EDT after a game date: next day at 04:00 UTC (EDT = UTC-4)
+  function midnightEDT(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return Date.UTC(y, m - 1, d + 1, 4, 0, 0);
+  }
+
+  function getDismissed() {
+    return new Set(JSON.parse(localStorage.getItem('mbr_late_dismissed') || '[]'));
+  }
+
+  function dismiss(id) {
+    const s = getDismissed();
+    s.add(id);
+    localStorage.setItem('mbr_late_dismissed', JSON.stringify([...s]));
+    const el = document.getElementById('row-' + id);
+    if (el) el.remove();
+    if (!document.querySelectorAll('[id^="row-"]').length) {
+      document.getElementById('list').innerHTML = '<div class="state">All caught up.</div>';
+    }
+  }
+
+  function clearDismissed() {
+    localStorage.removeItem('mbr_late_dismissed');
+    reload();
+  }
+
+  function reload() {
+    document.getElementById('list').innerHTML = '<div class="state"><span class="spinner"></span> Loading…</div>';
+    load();
+  }
+
+  async function load() {
+    const lookbackDate = new Date();
+    lookbackDate.setDate(lookbackDate.getDate() - LOOKBACK_DAYS);
+    const lookbackISO = lookbackDate.toISOString().slice(0, 10);
+
     const { data: games, error } = await sb
       .from('games')
-      .select(`
-        id, game_date, home_score, away_score, status, season_year, updated_at, sport_id,
-        home_team:home_team_id(school_name, gender),
-        away_team:away_team_id(school_name),
-        sport:sport_id(name)
-      `)
+      .select('id, game_date, home_score, away_score, updated_at, sport_id, home_team:home_team_id(school_name, gender), away_team:away_team_id(school_name), sport:sport_id(name)')
       .eq('status', 'final')
       .eq('season_year', 2026)
       .gte('game_date', lookbackISO)
@@ -734,98 +168,53 @@ async function loadLateScores() {
       .order('updated_at', { ascending: false })
       .limit(500);
 
-    if (error) throw new Error(error.message);
-    console.log('[admin] late scores query returned:', games?.length, 'games', error);
-
-    const dismissed = new Set(JSON.parse(localStorage.getItem('mbr_late_dismissed') || '[]'));
-
-    function midnightEasternAfter(dateStr) {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      return Date.UTC(y, m - 1, d + 1, 4, 0, 0);
-    }
-
-    const late = games.filter(g => {
-      if (!g.updated_at || !g.game_date) return false;
-      if (dismissed.has(g.id)) return false;
-      if (g.home_score === null || g.away_score === null) return false;
-      return new Date(g.updated_at).getTime() >= midnightEasternAfter(g.game_date);
-    });
-
-    lateLoaded = true;
-
-    if (!late.length) {
-      document.getElementById('late-scores-list').innerHTML =
-        `<div style="padding:20px;color:#888">No late-reported scores in the last ${LOOKBACK_DAYS} days.</div>`;
+    if (error) {
+      document.getElementById('list').innerHTML = '<div class="state error">Error: ' + error.message + '</div>';
       return;
     }
 
-    late.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    const dis = getDismissed();
+
+    const late = (games || []).filter(g => {
+      if (!g.updated_at || !g.game_date) return false;
+      if (dis.has(g.id)) return false;
+      if (g.home_score === null || g.away_score === null) return false;
+      return new Date(g.updated_at).getTime() >= midnightEDT(g.game_date);
+    });
+
+    if (!late.length) {
+      document.getElementById('list').innerHTML = '<div class="state">No late scores in the last ' + LOOKBACK_DAYS + ' days.</div>';
+      return;
+    }
 
     const rows = late.map(g => {
-      const [y, m, d] = g.game_date.split('-').map(Number);
-      const cutoff = Date.UTC(y, m - 1, d + 1, 4, 0, 0);
-      const updated = new Date(g.updated_at);
-      const hoursLate = (updated.getTime() - cutoff) / (1000 * 60 * 60);
-      const daysLate = hoursLate / 24;
-      const lateLabel = hoursLate < 24 ? '+' + Math.round(hoursLate) + 'h' : '+' + Math.floor(daysLate) + 'd';
-
+      const cutoff    = midnightEDT(g.game_date);
+      const updated   = new Date(g.updated_at);
+      const hoursLate = (updated.getTime() - cutoff) / 3600000;
+      const lateLabel = hoursLate < 24 ? '+' + Math.round(hoursLate) + 'h' : '+' + Math.floor(hoursLate / 24) + 'd';
+      const lateColor = hoursLate >= 168 ? '#ef4444' : hoursLate >= 72 ? '#f59e0b' : '#6b7280';
       const sportName = g.sport?.name || '';
-      const gender = g.home_team?.gender || '';
-      const sport = ['Lacrosse','Soccer','Field Hockey','Volleyball'].includes(sportName) && gender
-        ? `${gender} ${sportName}` : sportName;
-      const home = g.home_team?.school_name || '?';
-      const away = g.away_team?.school_name || '?';
-      const score = `${g.home_score}–${g.away_score}`;
-      const updatedStr = updated.toLocaleDateString('en-US', { month:'short', day:'numeric' })
-        + ' ' + updated.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
-      const lateColor = daysLate >= 7 ? '#ef4444' : daysLate >= 3 ? '#f59e0b' : '#6b7280';
+      const gender    = g.home_team?.gender || '';
+      const sport     = ['Lacrosse','Soccer','Field Hockey','Volleyball'].includes(sportName) && gender ? gender + ' ' + sportName : sportName;
+      const score     = g.home_score + '–' + g.away_score;
+      const entered   = updated.toLocaleDateString('en-US', {month:'short',day:'numeric'}) + ' ' + updated.toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'});
 
-      return `<div id="late-${g.id}" style="display:grid;grid-template-columns:80px 1fr 70px 150px 50px 90px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #eee;font-size:13px">
-        <div style="color:#888;font-size:12px">${g.game_date}</div>
-        <div><strong>${away}</strong> @ <strong>${home}</strong> <span style="color:#aaa;font-size:11px">${sport}</span></div>
-        <div style="font-weight:700">${score}</div>
-        <div style="color:#888;font-size:11px">Entered ${updatedStr}</div>
-        <div style="color:${lateColor};font-weight:700;font-size:12px">${lateLabel}</div>
-        <button onclick="dismissLate('${g.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✓ Got it</button>
-      </div>`;
+      return '<div class="row" id="row-' + g.id + '">'
+        + '<div style="color:#888;font-size:12px">' + g.game_date + '</div>'
+        + '<div><strong>' + (g.away_team?.school_name||'?') + '</strong> @ <strong>' + (g.home_team?.school_name||'?') + '</strong><br><span style="color:#aaa;font-size:11px">' + sport + '</span></div>'
+        + '<div style="font-weight:700">' + score + '</div>'
+        + '<div style="color:#888;font-size:11px">' + entered + '</div>'
+        + '<div style="color:' + lateColor + ';font-weight:700;font-size:12px">' + lateLabel + '</div>'
+        + '<button class="btn btn-green" onclick="dismiss(\'' + g.id + '\')">✓ Got it</button>'
+        + '</div>';
     }).join('');
 
-    document.getElementById('late-scores-list').innerHTML = `
-      <div style="padding:12px 0 4px;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:flex;justify-content:space-between;align-items:center">
-        <span>${late.length} score${late.length !== 1 ? 's' : ''} entered after midnight on game date</span>
-        <button onclick="clearDismissed()" style="background:none;border:1px solid #ddd;border-radius:4px;padding:3px 8px;font-size:10px;color:#aaa;cursor:pointer">Reset dismissed</button>
-      </div>
-      <div style="font-size:11px;color:#aaa;margin-bottom:12px">Sorted newest first. Same-night scores not shown. Last ${LOOKBACK_DAYS} days. Basketball excluded.</div>
-      ${rows}`;
-
-  } catch(err) {
-    console.error('loadLateScores error:', err);
-    document.getElementById('late-scores-list').innerHTML =
-      `<div style="padding:20px;color:red">Error: ${err.message}</div>`;
-    // don't set lateLoaded=true so user can retry by refreshing
+    document.getElementById('list').innerHTML =
+      '<div style="font-size:12px;color:#888;margin-bottom:12px">' + late.length + ' score' + (late.length !== 1 ? 's' : '') + ' to add to Excel</div>'
+      + rows;
   }
-}
 
-function dismissLate(id) {
-  const dismissed = new Set(JSON.parse(localStorage.getItem('mbr_late_dismissed') || '[]'));
-  dismissed.add(id);
-  localStorage.setItem('mbr_late_dismissed', JSON.stringify([...dismissed]));
-  const el = document.getElementById('late-' + id);
-  if (el) el.remove();
-  // Update count
-  const remaining = document.querySelectorAll('[id^="late-"]').length;
-  const header = document.querySelector('#late-scores-list div');
-  if (header) header.textContent = `${remaining} late-reported scores — add these to Excel`;
-}
-
-function clearDismissed() {
-  localStorage.removeItem('mbr_late_dismissed');
-  lateLoaded = false;
-  loadLateScores();
-}
-// Reset late cache on refresh
-const origLoadData = loadData;
-
+  load();
 </script>
 </body>
 </html>

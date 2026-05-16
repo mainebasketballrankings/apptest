@@ -1643,6 +1643,11 @@ function confirmHalf(){
   if(G.half==='top'){ G.half='bottom'; }
   else { G.half='top'; G.inning++; if(G.inning>G.linescore.length) G.linescore.push({away:null,home:null}); checkGameEnd(); }
   render();
+  // Push batter_up for the leadoff hitter of the new half inning
+  // so live.html shows the current batter immediately without waiting for a pitch
+  const s = battingSide();
+  const leadoff = G.teams[s].lineup[G.batIdx[s]];
+  if(leadoff) setTimeout(() => pushEvt('batter_up', {player_override: leadoff}), 200);
 }
 
 function checkGameEnd(){

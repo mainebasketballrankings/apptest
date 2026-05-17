@@ -151,6 +151,10 @@ const MBRNav = (() => {
       }
     }
 
+    // Yield event loop before getSession — prevents GoTrueClient internal lock deadlock
+    // when the page's inline script has already initialized the client in the same tick
+    await new Promise(r => setTimeout(r, 0));
+
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
       const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();

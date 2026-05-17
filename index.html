@@ -1049,7 +1049,9 @@
 
   // ── GAME FETCH ───────────────────────────────────────────────────────────
   async function fetchSportGames(ds, sport, season) {
-    const { data, error } = await sb.from('games').select(`
+    // Timeout after 12s — if Supabase hangs, return [] rather than spinning forever
+    const timeout = new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 12000));
+    const query = sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock, notes,
@@ -1061,6 +1063,7 @@
       .eq('sport_id', SPORT_IDS[sport])
       .eq('season_year', season)
       .order('game_time', { ascending: true, nullsFirst: false });
+    const { data, error } = await Promise.race([query, timeout]);
     if (error || !data) return [];
     return data.filter(g => g.home_team && g.away_team);
   }
@@ -1092,29 +1095,34 @@
 
     const needsFetch = sportsToFetch.filter(({ sport }) => !allSportsGames[sport]);
 
-    if (needsFetch.length) {
-      if (!dateChanged) {
-        document.getElementById('gamesContainer').innerHTML =
-          `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
+    try {
+      if (needsFetch.length) {
+        if (!dateChanged) {
+          document.getElementById('gamesContainer').innerHTML =
+            `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
+        }
+        const [fetched] = await Promise.all([
+          Promise.all(
+            needsFetch.map(({ sport, season }) =>
+              fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
+            )
+          ),
+          loadRanks().catch(e => console.warn('loadRanks failed:', e))
+        ]);
+        if (myVersion !== _loadVersion) return;
+        fetched.forEach(({ sport, games }) => {
+          allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
+        });
+      } else {
+        await loadRanks().catch(e => console.warn('loadRanks failed:', e));
+        if (myVersion !== _loadVersion) return;
       }
-      // Run ranks + game fetches in parallel — both must finish before rendering
-      const [fetched] = await Promise.all([
-        Promise.all(
-          needsFetch.map(({ sport, season }) =>
-            fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
-          )
-        ),
-        loadRanks().catch(e => console.warn('loadRanks failed:', e))
-      ]);
-      // Discard if a newer loadGames call has already started
+    } catch (err) {
+      console.error('loadGames error:', err);
       if (myVersion !== _loadVersion) return;
-      fetched.forEach(({ sport, games }) => {
-        allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
-      });
-    } else {
-      // Games already cached — still need fresh ranks for this date
-      await loadRanks().catch(e => console.warn('loadRanks failed:', e));
-      if (myVersion !== _loadVersion) return;
+      document.getElementById('gamesContainer').innerHTML =
+        `<div class="loading"><span style="color:#ef4444">Failed to load games — tap Today to retry.</span></div>`;
+      return;
     }
 
     // Keep allGames in sync for submit handler

@@ -353,8 +353,8 @@ async function loadMatchup() {
       state: computeRanks(sportSnaps, statFn, hiGood),
       hCls:  computeRanks(sportSnaps.filter(s => snapCls(s) === homeCls), statFn, hiGood),
       aCls:  computeRanks(sportSnaps.filter(s => snapCls(s) === awayCls), statFn, hiGood),
-      hReg:  computeRanks(sportSnaps.filter(s => snapReg(s) === homeReg), statFn, hiGood),
-      aReg:  computeRanks(sportSnaps.filter(s => snapReg(s) === awayReg), statFn, hiGood),
+      hReg:  computeRanks(sportSnaps.filter(s => snapCls(s) === homeCls && snapReg(s) === homeReg), statFn, hiGood),
+      aReg:  computeRanks(sportSnaps.filter(s => snapCls(s) === awayCls && snapReg(s) === awayReg), statFn, hiGood),
     };
   }
 
@@ -506,7 +506,7 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
     const parts = [];
     if (s)         parts.push(`<span>#${s}</span>`);
     if (cr) parts.push(`<span>#${cr}${cls ? ' '+cls : ''}</span>`);
-    if (rr && reg) parts.push(`<span>#${rr} ${regName||reg}</span>`);
+    if (rr && reg) parts.push(`<span>#${rr} ${cls ? cls+' ' : ''}${regName||reg}</span>`);
     return parts.length ? `[ ${parts.join(' <span style="opacity:.3">|</span> ')} ]` : '';
   }
 

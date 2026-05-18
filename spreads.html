@@ -34,6 +34,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -243,8 +244,7 @@
 const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
-const { createClient } = supabase;
-const sb = createClient(SB_URL, SB_KEY);
+const sb = window.__mbrSB; // nav.js creates this in <head> before this script runs
 
 const SPORT_NAMES = {
   'b31ab283-b28e-4ba8-9684-b1cf30cea219': 'Basketball',
@@ -529,7 +529,6 @@ async function loadSpreads() {
 loadSpreads();
 </script>
 
-<script src="nav.js"></script>
 <script>MBRNav.init({ active: 'spreads' });</script>
 </body>
 </html>

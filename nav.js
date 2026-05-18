@@ -161,9 +161,12 @@ const MBRNav = (() => {
       ]);
       session = result.data?.session;
     } catch(e) {
-      // Timed out or errored — session is corrupted/expired, clear it
+      // Timed out or errored — session is corrupted/expired, clear it directly
+      // Don't call signOut() — it uses the same frozen client and will also hang
       console.warn('[MBR] Session refresh timed out, clearing stored session');
-      await client.auth.signOut();
+      Object.keys(localStorage).forEach(k => {
+        if (k.includes('supabase') || k.startsWith('sb-')) localStorage.removeItem(k);
+      });
       renderAuth(null, false);
       if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
       return;

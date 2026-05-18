@@ -160,10 +160,16 @@ const MBRNav = (() => {
       if (_resolved) return;
       _resolved = true;
       if (session?.user) {
+        // Fire callback immediately with conservative isPaid=false, then update after tier lookup
+        renderAuth(session.user, false);
+        if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, false);
+        // Now do the tier lookup — pages are already loading
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
         const isPaid = data?.tier === 'paid';
-        renderAuth(session.user, isPaid);
-        if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
+        if (isPaid) {
+          renderAuth(session.user, isPaid);
+          if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
+        }
       } else {
         renderAuth(null, false);
         if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);

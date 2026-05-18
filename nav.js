@@ -151,7 +151,24 @@ const MBRNav = (() => {
       }
     }
 
-    const { data: { session } } = await client.auth.getSession();
+    // Wrap getSession in a timeout — if the token refresh hangs (expired refresh token),
+    // clear the corrupted session automatically so users don't get stuck forever.
+    let session = null;
+    try {
+      const result = await Promise.race([
+        client.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ]);
+      session = result.data?.session;
+    } catch(e) {
+      // Timed out or errored — session is corrupted/expired, clear it
+      console.warn('[MBR] Session refresh timed out, clearing stored session');
+      await client.auth.signOut();
+      renderAuth(null, false);
+      if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
+      return;
+    }
+
     if (session?.user) {
       const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
       const isPaid = data?.tier === 'paid';

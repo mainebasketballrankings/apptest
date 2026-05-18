@@ -1831,7 +1831,7 @@
 
   // Load all sports for today
   activeSport = 'all';
-  loadGames(currentDate);
+  window.mbrAuthCallback = function() { loadGames(currentDate); };
 
   // ── LIVE PATCH (non-destructive background refresh) ─────────────────────
   // Fetches only games data + events and patches DOM in place.

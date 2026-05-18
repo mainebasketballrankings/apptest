@@ -467,7 +467,8 @@
 </div>
 
 <script>
-  const sb = MBRNav.getSB();
+  // window.__mbrSB is set by nav.js which loads in <head> before this script
+  const sb = window.__mbrSB;
 
   // Tracks paid status set by nav.js auth callback
   var _isPaid = false;

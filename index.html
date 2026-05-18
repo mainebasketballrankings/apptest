@@ -39,7 +39,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="nav.js"></script>
   <link rel="stylesheet" href="nav.css" />
 
   <style>
@@ -926,8 +925,7 @@
 <script>
   const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-  // nav.js loads in <head> before this script and sets window.__mbrSB
-  const sb = window.__mbrSB;
+  const sb = window.__mbrSB; // set by MBRNav.init() synchronously
 
   // Cached short-date formatter — avoids repeated option-object allocation inside card()
   const _shortDateFmt = new Intl.DateTimeFormat('en-US', { month:'numeric', day:'numeric' });
@@ -1831,7 +1829,7 @@
 
   // Load all sports for today
   activeSport = 'all';
-  window.mbrAuthCallback = function() { loadGames(currentDate); };
+  // loadGames called after MBRNav.init() below
 
   // ── LIVE PATCH (non-destructive background refresh) ─────────────────────
   // Fetches only games data + events and patches DOM in place.
@@ -2071,6 +2069,7 @@
   // ── END EXPORT ───────────────────────────────────────────────────────────
 </script>
 
-<script>MBRNav.init({ active: 'scoreboard' });</script>
+<script src="nav.js"></script>
+<script>MBRNav.init({ active: 'scoreboard' }); loadGames(currentDate);</script>
 </body>
 </html>

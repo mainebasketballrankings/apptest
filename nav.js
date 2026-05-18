@@ -298,6 +298,12 @@ const MBRNav = (() => {
       return;
     }
     mount.innerHTML = buildHeader(active);
+
+    // Create the Supabase client SYNCHRONOUSLY right here, before any async work.
+    // This guarantees window.__mbrSB is set by the time init() returns,
+    // so pages can use it immediately in their load functions without waiting for auth.
+    getSB();
+
     wireModal();
     wireBurger(active);
     initAuth();

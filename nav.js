@@ -45,6 +45,10 @@ const MBRNav = (() => {
     return sb;
   }
 
+  // Create and expose client immediately so pages loading before MBRNav.init()
+  // can use window.__mbrSB without creating a second GoTrueClient instance
+  getSB();
+
   function buildHeader(activeKey) {
     const navLinks = NAV_LINKS.map(link => {
       const isActive = link.key === activeKey ? 'active' : '';

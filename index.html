@@ -39,6 +39,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js"></script>
   <link rel="stylesheet" href="nav.css" />
 
   <style>
@@ -925,20 +926,8 @@
 <script>
   const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-  // Don't create a Supabase client here — wait for nav.js to create it first.
-  // This eliminates the GoTrueClient deadlock from two clients initializing simultaneously.
-  // sb is resolved lazily via getSB() which reads window.__mbrSB set by nav.js.
-  function getSB() {
-    if (!window.__mbrSB) {
-      // Fallback: nav.js hasn't run yet — create client ourselves
-      window.__mbrSB = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    }
-    return window.__mbrSB;
-  }
-  // sb is a proxy so all existing code using `sb.from(...)` still works
-  const sb = new Proxy({}, {
-    get(_, prop) { return getSB()[prop]; }
-  });
+  // nav.js loads in <head> before this script, so window.__mbrSB is always set
+  const sb = window.__mbrSB;
 
   // Cached short-date formatter — avoids repeated option-object allocation inside card()
   const _shortDateFmt = new Intl.DateTimeFormat('en-US', { month:'numeric', day:'numeric' });
@@ -1858,15 +1847,8 @@
 
 
   syncDatePicker();
-
-  // Wait for nav.js to finish setting up its Supabase client before loading games.
-  // nav.js calls window.mbrAuthCallback once auth is resolved — that's our signal.
-  // This eliminates the GoTrueClient race condition entirely.
   activeSport = 'all';
-  window.mbrAuthCallback = function(user, isPaid) {
-    // nav.js has finished — window.__mbrSB is fully initialized, safe to query
-    loadGames(currentDate);
-  };
+  loadGames(currentDate);
 
   // ── LIVE PATCH (non-destructive background refresh) ─────────────────────
   // Fetches only games data + events and patches DOM in place.
@@ -2111,7 +2093,6 @@
   // ── END EXPORT ───────────────────────────────────────────────────────────
 </script>
 
-<script src="nav.js"></script>
 <script>MBRNav.init({ active: 'scoreboard' });</script>
 </body>
 </html>

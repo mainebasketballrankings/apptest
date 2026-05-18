@@ -34,6 +34,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -528,7 +529,6 @@ async function loadSpreads() {
 loadSpreads = loadSpreads; // ensure function is defined
 </script>
 
-<script src="nav.js"></script>
 <script>MBRNav.init({ active: 'spreads' }); loadSpreads();</script>
 </body>
 </html>

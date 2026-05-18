@@ -381,7 +381,7 @@
 <script>
   const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-  const sb = { from: (...a) => (window.__mbrSB || supabase.createClient(SUPABASE_URL, SUPABASE_KEY)).from(...a) };
+  const sb = window.__mbrSB;
 
   const SPORT_IDS = {
     'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',

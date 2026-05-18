@@ -165,20 +165,21 @@ const MBRNav = (() => {
       }
     }
 
-    const { data: { session } } = await client.auth.getSession();
-    if (session?.user) {
-      const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
-      const isPaid = data?.tier === 'paid';
-      renderAuth(session.user, isPaid);
-      // Expose for pages that need to gate content
-      if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
-    } else {
-      renderAuth(null, false);
-      if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
-    }
-
+    // onAuthStateChange fires INITIAL_SESSION synchronously from localStorage
+    // without acquiring the GoTrueClient lock that getSession() uses.
+    // This avoids the deadlock entirely.
     client.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
+      if (event === 'INITIAL_SESSION') {
+        if (session?.user) {
+          const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
+          const isPaid = data?.tier === 'paid';
+          renderAuth(session.user, isPaid);
+          if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
+        } else {
+          renderAuth(null, false);
+          if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
+        }
+      } else if (event === 'SIGNED_IN') {
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
         const isPaid = data?.tier === 'paid';
         renderAuth(session.user, isPaid);

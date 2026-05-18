@@ -467,12 +467,7 @@
 </div>
 
 <script>
-  // Don't call MBRNav.getSB() at parse time — that creates the Supabase client
-  // before MBRNav.init() runs, causing a GoTrueClient deadlock.
-  // Instead use a proxy that resolves lazily when first actually used.
-  const sb = new Proxy({}, {
-    get(_, prop) { return MBRNav.getSB()[prop]; }
-  });
+  const sb = { from: (...a) => MBRNav.getSB().from(...a) };
 
   // Tracks paid status set by nav.js auth callback
   var _isPaid = false;

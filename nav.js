@@ -138,7 +138,6 @@ const MBRNav = (() => {
 
   async function initAuth() {
     const client = getSB();
-    window.__mbrSB = client;
 
     // Handle magic link token in URL hash
     const hash = window.location.hash;
@@ -152,57 +151,29 @@ const MBRNav = (() => {
       }
     }
 
-    // Race between onAuthStateChange (no lock) and getSession (with lock, 2s timeout)
-    // Whichever resolves first wins — this handles both fast and slow auth paths
-    let _resolved = false;
+    const { data: { session } } = await client.auth.getSession();
+    if (session?.user) {
+      const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
+      const isPaid = data?.tier === 'paid';
+      renderAuth(session.user, isPaid);
+      // Expose for pages that need to gate content
+      if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
+    } else {
+      renderAuth(null, false);
+      if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
+    }
 
-    async function handleSession(session) {
-      if (_resolved) return;
-      _resolved = true;
-      if (session?.user) {
-        // Fire callback immediately with conservative isPaid=false, then update after tier lookup
-        renderAuth(session.user, false);
-        if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, false);
-        // Now do the tier lookup — pages are already loading
+    client.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
         const isPaid = data?.tier === 'paid';
-        if (isPaid) {
-          renderAuth(session.user, isPaid);
-          if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
-        }
-      } else {
+        renderAuth(session.user, isPaid);
+        if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
+      } else if (event === 'SIGNED_OUT') {
         renderAuth(null, false);
         if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
       }
-    }
-
-    // Path 1: onAuthStateChange — fires without acquiring lock
-    client.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        await handleSession(session);
-      } else if (event === 'SIGNED_OUT') {
-        await handleSession(null);
-      }
-      // Re-fire on subsequent auth changes even after initial resolution
-      if (_resolved && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
-        _resolved = false;
-        await handleSession(event === 'SIGNED_IN' ? session : null);
-      }
     });
-
-    // Path 2: getSession with 2s timeout — fallback if onAuthStateChange is slow
-    setTimeout(async () => {
-      if (_resolved) return;
-      try {
-        const { data: { session } } = await Promise.race([
-          client.auth.getSession(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
-        ]);
-        await handleSession(session);
-      } catch {
-        await handleSession(null); // timeout or error — treat as signed out
-      }
-    }, 100); // small delay to give onAuthStateChange first chance
   }
 
   function wireModal() {

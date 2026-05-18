@@ -243,8 +243,13 @@
 const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
-const { createClient } = supabase;
-const sb = createClient(SB_URL, SB_KEY);
+// Lazy proxy — don't create client at parse time, wait for nav.js to init first
+const sb = new Proxy({}, {
+  get(_, prop) {
+    if (!window.__mbrSB) window.__mbrSB = supabase.createClient(SB_URL, SB_KEY);
+    return window.__mbrSB[prop];
+  }
+});
 
 const SPORT_NAMES = {
   'b31ab283-b28e-4ba8-9684-b1cf30cea219': 'Basketball',
@@ -526,7 +531,12 @@ async function loadSpreads() {
   });
 }
 
-loadSpreads();
+// Wait for nav.js to finish initializing before loading
+window.mbrAuthCallback = function(user, isPaid) {
+  // nav.js already resolved the session — cache it so loadSpreads skips getSession()
+  if (user) _cachedSession = { user };
+  loadSpreads();
+};
 </script>
 
 <script src="nav.js"></script>

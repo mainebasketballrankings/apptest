@@ -295,11 +295,9 @@ function applyGate(paid) {
 
 window.mbrAuthCallback = function(user, paid) {
   applyGate(paid);
-  // loadData() already fired immediately below — no need to re-run on auth
+  // Wait for nav.js to finish initializing before loading — prevents GoTrueClient deadlock
+  loadData();
 };
-
-// Load data immediately without waiting for auth (gate applied separately)
-loadData();
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 document.getElementById('sportTabs').addEventListener('click', e => {

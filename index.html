@@ -39,7 +39,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="nav.js"></script>
   <link rel="stylesheet" href="nav.css" />
 
   <style>
@@ -926,7 +925,8 @@
 <script>
   const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-  // nav.js loads in <head> before this script, so window.__mbrSB is always set
+  // Reuse nav.js client if available, otherwise create one (avoids double GoTrueClient)
+  window.__mbrSB = window.__mbrSB || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const sb = window.__mbrSB;
 
   // Cached short-date formatter — avoids repeated option-object allocation inside card()
@@ -1001,10 +1001,6 @@
   let activeSport    = 'all';
   let activeSeason   = 2026;
   let rankMap        = {};
-  // Request version guard — prevents stale loadGames from rendering after a newer one
-  let _loadVersion   = 0;
-  // Patch lock — suppress patchLiveGames while a score submit reload is in flight
-  let _patchSuppressed = false;
 
   // ── DATE / TIME HELPERS ──────────────────────────────────────────────────
   function toISO(d) {
@@ -1049,9 +1045,7 @@
 
   // ── GAME FETCH ───────────────────────────────────────────────────────────
   async function fetchSportGames(ds, sport, season) {
-    // Timeout after 12s — if Supabase hangs, return [] rather than spinning forever
-    const timeout = new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 12000));
-    const query = sb.from('games').select(`
+    const { data, error } = await sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock, notes,
@@ -1063,7 +1057,6 @@
       .eq('sport_id', SPORT_IDS[sport])
       .eq('season_year', season)
       .order('game_time', { ascending: true, nullsFirst: false });
-    const { data, error } = await Promise.race([query, timeout]);
     if (error || !data) return [];
     return data.filter(g => g.home_team && g.away_team);
   }
@@ -1078,7 +1071,6 @@
   // dateChanged=true  → clear cache, re-fetch for the new date
   // dateChanged=false → sport tab switch; use cache if available, fetch only if missing
   async function loadGames(date, dateChanged = true) {
-    const myVersion = ++_loadVersion;
     const ds = toISO(date);
     document.getElementById('dateHeading').textContent = fmtHeading(date);
 
@@ -1095,34 +1087,26 @@
 
     const needsFetch = sportsToFetch.filter(({ sport }) => !allSportsGames[sport]);
 
-    try {
-      if (needsFetch.length) {
-        if (!dateChanged) {
-          document.getElementById('gamesContainer').innerHTML =
-            `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
-        }
-        const [fetched] = await Promise.all([
-          Promise.all(
-            needsFetch.map(({ sport, season }) =>
-              fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
-            )
-          ),
-          loadRanks().catch(e => console.warn('loadRanks failed:', e))
-        ]);
-        if (myVersion !== _loadVersion) return;
-        fetched.forEach(({ sport, games }) => {
-          allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
-        });
-      } else {
-        await loadRanks().catch(e => console.warn('loadRanks failed:', e));
-        if (myVersion !== _loadVersion) return;
+    if (needsFetch.length) {
+      if (!dateChanged) {
+        document.getElementById('gamesContainer').innerHTML =
+          `<div class="loading"><div class="spinner"></div><span>Loading…</span></div>`;
       }
-    } catch (err) {
-      console.error('loadGames error:', err);
-      if (myVersion !== _loadVersion) return;
-      document.getElementById('gamesContainer').innerHTML =
-        `<div class="loading"><span style="color:#ef4444">Failed to load games — tap Today to retry.</span></div>`;
-      return;
+      // Run ranks + game fetches in parallel — both must finish before rendering
+      const [fetched] = await Promise.all([
+        Promise.all(
+          needsFetch.map(({ sport, season }) =>
+            fetchSportGames(ds, sport, season).then(games => ({ sport, games }))
+          )
+        ),
+        loadRanks().catch(e => console.warn('loadRanks failed:', e))
+      ]);
+      fetched.forEach(({ sport, games }) => {
+        allSportsGames[sport] = { games, notesMap: buildNotesMap(games) };
+      });
+    } else {
+      // Games already cached — still need fresh ranks for this date
+      await loadRanks().catch(e => console.warn('loadRanks failed:', e));
     }
 
     // Keep allGames in sync for submit handler
@@ -1215,7 +1199,7 @@
       .in('game_id', activeGames.map(g => g.id))
       .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
       .order('created_at', { ascending: false })
-      .limit(activeGames.length * 15);
+      .limit(activeGames.length * 5);
     if (!evts) return;
 
     const lastEvt  = {};
@@ -1666,7 +1650,7 @@
       <div class="submit-panel" id="panel-${g.id}">
         <h4>${isFinal ? 'Edit Score' : 'Submit Score'}</h4>
         ${!isFinal && (sport==='baseball'||sport==='softball') ? `
-        <a href="baseball_scorer.html?game_id=${g.id}&sport=${sport}" target="_blank" style="display:block;margin-bottom:10px;padding:8px 12px;background:var(--green);color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;text-align:center;">
+        <a href="baseball_scorer.html?game_id=${g.id}" target="_blank" style="display:block;margin-bottom:10px;padding:8px 12px;background:var(--green);color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;text-align:center;">
           Score This Game Live →
         </a>` : ''}
         <form class="score-form" data-id="${g.id}" data-sport="${sport}">
@@ -1815,9 +1799,6 @@
     if (activeSport !== 'all' && allSportsGames[activeSport]) {
       // Already cached — just re-render, no fetch needed
       allGames = allSportsGames[activeSport].games;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"]');
-      if (allFilterBtn) allFilterBtn.classList.add('active');
       buildFilterButtons();
       renderAllGames();
     } else {
@@ -1847,6 +1828,8 @@
 
 
   syncDatePicker();
+
+  // Load all sports for today
   activeSport = 'all';
   loadGames(currentDate);
 
@@ -1855,8 +1838,6 @@
   // Never rebuilds the page, so scroll position and open forms are preserved.
 
   async function patchLiveGames() {
-    if (document.hidden) return;       // don't poll from background tabs
-    if (_patchSuppressed) return;      // suppress during post-submit reload window
     const ds = toISO(currentDate);
     // Only re-fetch sports already in cache (i.e. visible on this date)
     const cachedSports = SPORT_PRIORITY.filter(({ sport }) => allSportsGames[sport]);
@@ -1943,9 +1924,7 @@
     const cardEl = document.querySelector(`[data-game-id="${id}"]`);
     if (!cardEl || !gameObj) return;
     const updated = { ...gameObj, status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock, notes };
-    const sport = activeSport !== 'all'
-      ? activeSport
-      : (cardEl.closest('[data-sport-section]')?.dataset.sportSection || 'baseball');
+    const sport = activeSport !== 'all' ? activeSport : 'baseball';
     const notesMap = buildNotesMap([updated]);
     cardEl.outerHTML = card(updated, notesMap, sport);
     // no attachCardListeners needed — delegation handles it
@@ -2009,8 +1988,7 @@
     }
 
     showToast('Game marked as postponed.');
-    _patchSuppressed = true;
-    setTimeout(() => { _patchSuppressed = false; loadGames(currentDate); }, 800);
+    setTimeout(() => loadGames(currentDate), 800);
   }
   // ── END PPD ──────────────────────────────────────────────────────────────
 
@@ -2093,6 +2071,7 @@
   // ── END EXPORT ───────────────────────────────────────────────────────────
 </script>
 
+<script src="nav.js"></script>
 <script>MBRNav.init({ active: 'scoreboard' });</script>
 </body>
 </html>

@@ -266,7 +266,8 @@ function sbFetch(path) {
 
 // Get authenticated supabase client from nav.js
 function getSB() {
-  return window.__mbrSB;
+  if (typeof MBRNav !== 'undefined' && MBRNav.getSB) return MBRNav.getSB();
+  return supabase.createClient(SB_URL, SB_KEY);
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────

@@ -14,16 +14,6 @@
                    'goldballs' | 'tournament' | 'team'
    ============================================================ */
 
-// Create the ONE shared Supabase client immediately when nav.js loads.
-// This runs before any inline page script, ensuring window.__mbrSB is always
-// available and no page ever needs to create its own GoTrueClient instance.
-if (!window.__mbrSB) {
-  window.__mbrSB = supabase.createClient(
-    'https://vtwupenqieesoktonbzg.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA'
-  );
-}
-
 const MBRNav = (() => {
 
   const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
@@ -54,10 +44,6 @@ const MBRNav = (() => {
     }
     return sb;
   }
-
-  // Create and expose client immediately so pages loading before MBRNav.init()
-  // can use window.__mbrSB without creating a second GoTrueClient instance
-  getSB();
 
   function buildHeader(activeKey) {
     const navLinks = NAV_LINKS.map(link => {
@@ -165,21 +151,20 @@ const MBRNav = (() => {
       }
     }
 
-    // onAuthStateChange fires INITIAL_SESSION synchronously from localStorage
-    // without acquiring the GoTrueClient lock that getSession() uses.
-    // This avoids the deadlock entirely.
+    const { data: { session } } = await client.auth.getSession();
+    if (session?.user) {
+      const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
+      const isPaid = data?.tier === 'paid';
+      renderAuth(session.user, isPaid);
+      // Expose for pages that need to gate content
+      if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
+    } else {
+      renderAuth(null, false);
+      if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
+    }
+
     client.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION') {
-        if (session?.user) {
-          const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
-          const isPaid = data?.tier === 'paid';
-          renderAuth(session.user, isPaid);
-          if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
-        } else {
-          renderAuth(null, false);
-          if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
-        }
-      } else if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' && session?.user) {
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
         const isPaid = data?.tier === 'paid';
         renderAuth(session.user, isPaid);

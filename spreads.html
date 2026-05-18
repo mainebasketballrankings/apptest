@@ -525,10 +525,10 @@ async function loadSpreads() {
   });
 }
 
-loadSpreads();
+loadSpreads = loadSpreads; // ensure function is defined
 </script>
 
 <script src="nav.js"></script>
-<script>MBRNav.init({ active: 'spreads' });</script>
+<script>MBRNav.init({ active: 'spreads' }); loadSpreads();</script>
 </body>
 </html>

@@ -152,32 +152,51 @@ const MBRNav = (() => {
       }
     }
 
-    // Use onAuthStateChange instead of getSession — fires immediately with current session
-    // without acquiring the GoTrueClient internal lock, preventing deadlocks when
-    // multiple scripts share the same client instance.
-    let _authFired = false;
-    client.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
+    // Race between onAuthStateChange (no lock) and getSession (with lock, 2s timeout)
+    // Whichever resolves first wins — this handles both fast and slow auth paths
+    let _resolved = false;
+
+    async function handleSession(session) {
+      if (_resolved) return;
+      _resolved = true;
+      if (session?.user) {
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
         const isPaid = data?.tier === 'paid';
         renderAuth(session.user, isPaid);
         if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
-      } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-        if (!session) {
-          renderAuth(null, false);
-          if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
-        }
+      } else {
+        renderAuth(null, false);
+        if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
       }
-      _authFired = true;
+    }
+
+    // Path 1: onAuthStateChange — fires without acquiring lock
+    client.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        await handleSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        await handleSession(null);
+      }
+      // Re-fire on subsequent auth changes even after initial resolution
+      if (_resolved && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
+        _resolved = false;
+        await handleSession(event === 'SIGNED_IN' ? session : null);
+      }
     });
 
-    // Fallback: if onAuthStateChange doesn't fire within 3s, unblock pages
-    setTimeout(() => {
-      if (!_authFired && window.mbrAuthCallback) {
-        renderAuth(null, false);
-        window.mbrAuthCallback(null, false);
+    // Path 2: getSession with 2s timeout — fallback if onAuthStateChange is slow
+    setTimeout(async () => {
+      if (_resolved) return;
+      try {
+        const { data: { session } } = await Promise.race([
+          client.auth.getSession(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+        ]);
+        await handleSession(session);
+      } catch {
+        await handleSession(null); // timeout or error — treat as signed out
       }
-    }, 3000);
+    }, 100); // small delay to give onAuthStateChange first chance
   }
 
   function wireModal() {

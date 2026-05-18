@@ -138,6 +138,7 @@ const MBRNav = (() => {
 
   async function initAuth() {
     const client = getSB();
+    window.__mbrSB = client;
 
     // Handle magic link token in URL hash
     const hash = window.location.hash;
@@ -151,29 +152,32 @@ const MBRNav = (() => {
       }
     }
 
-    const { data: { session } } = await client.auth.getSession();
-    if (session?.user) {
-      const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
-      const isPaid = data?.tier === 'paid';
-      renderAuth(session.user, isPaid);
-      // Expose for pages that need to gate content
-      if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
-    } else {
-      renderAuth(null, false);
-      if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
-    }
-
+    // Use onAuthStateChange instead of getSession — fires immediately with current session
+    // without acquiring the GoTrueClient internal lock, preventing deadlocks when
+    // multiple scripts share the same client instance.
+    let _authFired = false;
     client.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const { data } = await client.from('users').select('tier').eq('email', session.user.email).maybeSingle();
         const isPaid = data?.tier === 'paid';
         renderAuth(session.user, isPaid);
         if (window.mbrAuthCallback) window.mbrAuthCallback(session.user, isPaid);
-      } else if (event === 'SIGNED_OUT') {
-        renderAuth(null, false);
-        if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
+      } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+        if (!session) {
+          renderAuth(null, false);
+          if (window.mbrAuthCallback) window.mbrAuthCallback(null, false);
+        }
       }
+      _authFired = true;
     });
+
+    // Fallback: if onAuthStateChange doesn't fire within 3s, unblock pages
+    setTimeout(() => {
+      if (!_authFired && window.mbrAuthCallback) {
+        renderAuth(null, false);
+        window.mbrAuthCallback(null, false);
+      }
+    }, 3000);
   }
 
   function wireModal() {

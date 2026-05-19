@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-LMHHJT0QX2');
+</script>
+  
+  <title>MBR Rankings Embed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --gold:   #c8921a;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--black);
+      min-height: 100vh;
+    }
+
+
+    /* PAGE */
+    .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 30px; margin-bottom: 4px;
+    }
+
+    .page-sub { font-size: 13px; color: var(--lgray); margin-bottom: 20px; }
+
+    /* SPORT TABS */
+    .sport-tabs {
+      display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .sport-tab {
+      padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer;
+      color: var(--gray); transition: all .15s;
+    }
+    .sport-tab:hover { border-color: #bbb; color: var(--black); }
+    .sport-tab.active { background: var(--black); border-color: var(--black); color: #fff; }
+
+    /* GENDER TABS */
+    .gender-tabs {
+      display: flex; gap: 0; margin-bottom: 0;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .gender-tab {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 14px; letter-spacing: 0.2px;
+      padding: 10px 24px;
+      border: none; background: transparent;
+      color: var(--lgray); cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s;
+    }
+
+    .gender-tab:hover { color: var(--black); }
+    .gender-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+    /* CLASS TABS */
+    .class-tabs {
+      display: flex; gap: 6px; padding: 16px 0 14px;
+      flex-wrap: wrap;
+    }
+
+    .class-tab {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 500; font-size: 13px; letter-spacing: 0.2px;
+      padding: 5px 16px; border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--white); color: var(--gray);
+      cursor: pointer; transition: all 0.15s;
+    }
+
+    .class-tab:hover { color: var(--black); border-color: #bbb; }
+    .class-tab.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+    /* TABLE WRAPPER */
+    .table-wrap {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    /* RANKINGS TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 16px;
+    }
+
+    thead tr {
+      background: #fafafa;
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 12px; letter-spacing: 0.3px;
+      text-transform: uppercase; color: var(--lgray);
+      padding: 10px 12px; text-align: left;
+      white-space: nowrap; cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+
+    th:hover { color: var(--black); }
+    th.sorted { color: var(--green); }
+    th.num, td.num { text-align: right; }
+
+    th .sort-arrow { font-size: 9px; margin-left: 3px; opacity: 0.4; }
+    th.sorted .sort-arrow { opacity: 1; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f9fafb; }
+
+    td { padding: 13px 12px; vertical-align: middle; }
+
+    /* rank cell */
+    .td-rank {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 17px;
+      color: var(--lgray); width: 20px; text-align: center;
+    }
+
+    /* team cell */
+    .td-team {
+      display: flex; align-items: center; gap: 10px; min-width: 160px;
+    }
+
+    .td-logo {
+      width: 32px; height: 32px; object-fit: contain; flex-shrink: 0;
+    }
+
+    .td-logo-init {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 13px; color: var(--lgray);
+      flex-shrink: 0;
+    }
+
+    .team-name-cell {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 17px; line-height: 1.2;
+    }
+
+    .team-region {
+      font-size: 10px; color: var(--lgray); font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* record */
+    .td-record {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 16px; white-space: nowrap;
+    }
+
+    /* numeric cells */
+    .td-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 16px;
+      text-align: right; white-space: nowrap;
+    }
+
+    /* tourney odds */
+    .odds-cell {
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .odds-bar-wrap {
+      flex: 1; height: 6px; background: var(--bg);
+      border-radius: 3px; min-width: 50px; overflow: hidden;
+    }
+
+    .odds-bar {
+      height: 100%; border-radius: 3px;
+      background: var(--green2); transition: width 0.3s;
+    }
+
+    .odds-pct {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 13px;
+      min-width: 38px; text-align: right;
+    }
+
+    /* sig win */
+    .td-sig {
+      font-size: 12px; color: var(--gray);
+      max-width: 160px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* class badge */
+    .class-badge {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 11px;
+      padding: 2px 7px; border-radius: 4px;
+      background: var(--bg); color: var(--lgray);
+    }
+
+    /* COLUMN VISIBILITY CONTROLS */
+    .col-controls {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 0 4px; flex-wrap: wrap;
+    }
+
+    .col-controls span {
+      font-size: 11px; color: var(--lgray); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.8px; margin-right: 4px;
+    }
+
+    .col-toggle {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 500; font-size: 12px; letter-spacing: 0.1px;
+      padding: 3px 10px; border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--white); color: var(--lgray);
+      cursor: pointer; transition: all 0.15s;
+    }
+
+    .col-toggle.on { background: var(--black); border-color: var(--black); color: #fff; }
+
+    /* LOADING / EMPTY */
+    .loading {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px; padding: 60px 20px; color: var(--lgray);
+    }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green2);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center; padding: 50px 20px; color: var(--lgray);
+    }
+
+    .empty h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 18px; color: var(--gray); margin-bottom: 4px;
+    }
+
+    /* updated timestamp */
+    .updated-note {
+      font-size: 11px; color: var(--lgray);
+      text-align: right; padding: 8px 12px 0;
+    }
+
+    @media (max-width: 768px) {
+      nav { display: none; }
+      .hide-mobile { display: none; }
+      .td-logo { width: 24px; height: 24px; }
+      .td-logo-init { width: 24px; height: 24px; font-size: 10px; }
+      .td-team { gap: 7px; }
+      td { padding: 13px 8px; }
+      th { padding: 10px 8px; }
+    }
+  </style>
+  <style>
+    html, body { margin: 0; padding: 0; overflow-x: hidden; }
+  </style>
+</head>
+<body>
+
+
+<div class="page">
+  <div class="page-title">Power Rankings</div>
+  <div class="page-sub" id="updatedNote">Loading latest snapshot…</div>
+
+  <div class="sport-tabs" id="sportTabs">
+    <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
+    <button class="sport-tab" data-sport="baseball" data-season="2026">Baseball</button>
+    <button class="sport-tab" data-sport="softball" data-season="2026">Softball</button>
+    <button class="sport-tab" data-sport="lacrosse" data-season="2026">Lacrosse</button>
+    <button class="sport-tab" data-sport="soccer" data-season="2025">Soccer</button>
+    <button class="sport-tab" data-sport="field-hockey" data-season="2025">Field Hockey</button>
+    <button class="sport-tab" data-sport="football" data-season="2025">Football</button>
+  </div>
+  <script>
+    (function(){
+      var sp = localStorage.getItem('mbr_rankings_sport');
+      if(sp){
+        document.querySelectorAll('#sportTabs .sport-tab').forEach(function(b){
+          b.classList.toggle('active', b.dataset.sport === sp);
+        });
+      }
+    })();
+  </script>
+
+  <div class="gender-tabs">
+    <button class="gender-tab active" data-gender="Boys">Boys</button>
+    <button class="gender-tab" data-gender="Girls">Girls</button>
+  </div>
+
+  <div id="season-row" style="display:flex;align-items:center;gap:8px;margin:8px 0 0;font-family:'Barlow',sans-serif;font-size:13px;color:var(--ink3)">
+    <span>Season:</span>
+    <select id="seasonSel" style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer">
+      <option value="2026">25-26</option>
+      <option value="2025">24-25</option>
+      <option value="2024">23-24</option>
+    </select>
+    <script>
+      (function(){
+        var s = localStorage.getItem('mbr_rankings_season');
+        if(s){ var el = document.getElementById('seasonSel'); if(el) el.value = s; }
+      })();
+    </script>
+  </div>
+
+  <div class="class-tabs" id="classTabs">
+    <button class="class-tab active" data-class="all">All</button>
+    <button class="class-tab" data-class="A">Class A</button>
+    <button class="class-tab" data-class="B">Class B</button>
+    <button class="class-tab" data-class="C">Class C</button>
+    <button class="class-tab" data-class="D">Class D</button>
+    <button class="class-tab" data-class="S">Class S</button>
+  </div>
+
+  <div class="col-controls">
+    <span>Show:</span>
+    <button class="col-toggle on"  data-col="pf">PF</button>
+    <button class="col-toggle on"  data-col="pa">PA</button>
+    <button class="col-toggle on"  data-col="diff">Diff</button>
+    <button class="col-toggle on"  data-col="pct">%Perfect</button>
+    <button class="col-toggle on"  data-col="sos">SOS</button>
+    <button class="col-toggle"     data-col="odds">Gold Ball %</button>
+  </div>
+
+  <div class="table-wrap" id="tableWrap">
+    <div class="loading"><div class="spinner"></div><span>Loading rankings…</span></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  window.__mbrSB = window.__mbrSB || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'mbr-rankings-embed' } });
+
+  const SPORT_IDS = {
+    'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+    'baseball':     'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+    'softball':     '095c9841-7261-4cb1-824e-6304792b53d0',
+    'lacrosse':     '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'soccer':       'ff80a695-0e78-4432-98f2-141b2b571e0e',
+    'field-hockey': '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
+    'football':     'fa905ca5-f416-409b-81ac-777179ee5576',
+  };
+  const SINGLE_GENDER = {
+    'baseball':     'Boys',
+    'softball':     'Girls',
+    'field-hockey': 'Girls',
+    'football':     'Boys',
+  };
+  const SPORT_CLASSES = {
+    'basketball':   ['A','B','C','D','S'],
+    'baseball':     ['A','B','C','D'],
+    'softball':     ['A','B','C','D'],
+    'lacrosse':     ['A','B','C'],
+    'soccer':       ['A','B','C','D','8'],
+    'field-hockey': ['A','B','C'],
+    'football':     ['A','B','C','D','8L','8S'],
+  };
+
+  let allData      = [];
+  let activeGender = 'Boys';
+  let activeClass  = 'all';
+  let activeSport  = localStorage.getItem('mbr_rankings_sport') || 'basketball';
+  let activeSeason = parseInt(localStorage.getItem('mbr_rankings_season') || '2026');
+
+  // Season dropdown — default seasons per sport
+  const SPORT_DEFAULT_SEASON = {
+    'basketball': 2026, 'baseball': 2026, 'softball': 2026, 'lacrosse': 2026,
+    'soccer': 2025, 'field-hockey': 2025, 'football': 2025,
+  };
+  let sortCol      = 'dirigo';
+  let sortAsc      = false;
+  let visibleCols  = { pf: true, pa: true, diff: true, pct: true, sos: true, odds: false };
+
+  // Region abbreviation → full name
+  const REGION_NAMES = {
+    AN: 'A North', AS: 'A South', BN: 'B North', BS: 'B South',
+    CN: 'C North', CS: 'C South', DN: 'D North', DS: 'D South',
+    SN: 'S North', SS: 'S South',
+  };
+
+  // Cache: { 'sport|season': { data, latestDate, cachedAt } } — avoids re-fetching on tab revisit
+  const _rankCache = {};
+  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  let _loadVersion = 0;
+
+  async function loadRankings() {
+    const myVersion = ++_loadVersion;
+    const cacheKey = `${activeSport}|${activeSeason}`;
+
+    // Serve from cache if available and fresh (within TTL)
+    const cached = _rankCache[cacheKey];
+    if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
+      const { data, latestDate } = cached;
+      allData = data;
+      document.getElementById('updatedNote').textContent =
+        'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      renderTable();
+      return;
+    }
+
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="loading"><div class="spinner"></div><span>Loading rankings…</span></div>';
+
+    const sportId = SPORT_IDS[activeSport];
+
+    // Step 1: get team IDs for this sport (server-side filter — avoids row-limit cross-sport collision)
+    const { data: teamIdData } = await sb
+      .from('teams')
+      .select('id')
+      .eq('sport_id', sportId);
+
+    if (myVersion !== _loadVersion) return; // superseded by a newer loadRankings call
+
+    const sportTeamIds = (teamIdData || []).map(t => t.id);
+    if (!sportTeamIds.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
+      return;
+    }
+
+    // Step 2: fetch snapshots in chunks of 200 to stay within URL length limits
+    const chunkSize = 200;
+    let allRows = [];
+    for (let i = 0; i < sportTeamIds.length; i += chunkSize) {
+      const chunk = sportTeamIds.slice(i, i + chunkSize);
+      const { data: chunkData, error: chunkErr } = await sb
+        .from('rankings_snapshots')
+        .select(`
+          id, rank_overall, rank_class, rank_region, snapshot_date,
+          pi, heal_points, dirigo, mheals_18, wins, losses, avg_pf, avg_pa, sos,
+          pct_perfect, signature_win, ats_record, win_pct,
+          tournament_odds,
+          team:team_id (
+            id, school_name, gender, logo_url, sport_id, team_class,
+            team_classifications (
+              classes ( name ),
+              regions ( name, abbreviation )
+            )
+          )
+        `)
+        .eq('season_year', activeSeason)
+        .in('team_id', chunk)
+        .order('snapshot_date', { ascending: false })
+        .limit(chunk.length * 8);
+      if (chunkErr) {
+        if (myVersion !== _loadVersion) return;
+        document.getElementById('tableWrap').innerHTML =
+          `<div class="empty"><h3>Error</h3><p>${chunkErr?.message}</p></div>`;
+        return;
+      }
+      if (chunkData) allRows.push(...chunkData);
+      if (myVersion !== _loadVersion) return; // superseded mid-chunk
+    }
+
+    const data = allRows;
+
+    if (!data.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No rankings data yet</h3><p>Push a snapshot from Excel to see rankings.</p></div>';
+      return;
+    }
+
+    // All rows are for this sport — find the latest date and filter to it
+    const latestDate = data.reduce((best, r) => r.snapshot_date > best ? r.snapshot_date : best, data[0].snapshot_date);
+    const filtered = data.filter(r => r.snapshot_date === latestDate && r.team != null);
+
+    _rankCache[cacheKey] = { data: filtered, latestDate, cachedAt: Date.now() };
+
+    if (myVersion !== _loadVersion) return; // one final check before mutating shared state
+
+    allData = filtered;
+    document.getElementById('updatedNote').textContent =
+      'Last updated: ' + new Date(latestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    renderTable();
+  }
+
+  function getClass(row) {
+    return row.team?.team_class || row.team?.team_classifications?.[0]?.classes?.name || '?';
+  }
+
+  function getRegion(row) {
+    const abbr = row.team?.team_classifications?.[0]?.regions?.abbreviation || '';
+    return REGION_NAMES[abbr] || abbr;
+  }
+
+  function updateClassTabs() {
+    const classes = SPORT_CLASSES[activeSport] || ['A','B','C','D','S'];
+    const container = document.getElementById('classTabs');
+    container.innerHTML = '<button class="class-tab active" data-class="all">All</button>' +
+      classes.map(c => `<button class="class-tab" data-class="${c}">Class ${c}</button>`).join('');
+    // Rewire clicks
+    container.querySelectorAll('.class-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeClass = btn.dataset.class;
+        sortCol = 'dirigo';
+        sortAsc = false;
+        renderTable();
+      });
+    });
+  }
+
+  function renderTable() {
+    const genderFilter = SINGLE_GENDER[activeSport] || activeGender;
+    let rows = allData.filter(r => r.team && r.team.gender === genderFilter);
+    if (activeClass !== 'all') rows = rows.filter(r => getClass(r) === activeClass);
+
+    // Sort
+    rows.sort((a, b) => {
+      let va = a[sortCol], vb = b[sortCol];
+      // Handle nested
+      if (sortCol === 'school_name') { va = a.team?.school_name; vb = b.team?.school_name; }
+      if (sortCol === 'record') { va = (a.wins||0); vb = (b.wins||0); }
+      if (va === null || va === undefined) return 1;
+      if (vb === null || vb === undefined) return -1;
+      if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sortAsc ? va - vb : vb - va;
+    });
+
+    if (!rows.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No data</h3><p>No rankings found for this selection.</p></div>';
+      return;
+    }
+
+    const showPF   = visibleCols.pf;
+    const showPA   = visibleCols.pa;
+    const showDiff = visibleCols.diff;
+    const showPct  = visibleCols.pct;
+    const showSOS  = visibleCols.sos;
+    const showOdds = visibleCols.odds;
+
+    function th(label, col, cls='') {
+      const sorted = sortCol === col ? 'sorted' : '';
+      const arrow = sortCol === col ? (sortAsc ? '▲' : '▼') : '▲';
+      return `<th class="${sorted} ${cls}" data-col="${col}">${label} <span class="sort-arrow">${arrow}</span></th>`;
+    }
+
+    let html = `<table>
+      <thead><tr>
+        <th data-col="">Rank</th>
+        ${th('Team', 'school_name')}
+
+        ${th('W-L', 'wins', 'num')}
+        ${showPF   ? th('PF', 'avg_pf', 'num hide-mobile') : ''}
+        ${showPA   ? th('PA', 'avg_pa', 'num hide-mobile') : ''}
+        ${showDiff ? th('Diff', 'avg_pf', 'num hide-mobile') : ''}
+        ${showSOS  ? th('SOS', 'sos', 'num hide-mobile') : ''}
+        ${showPct  ? th('%Perfect', 'pct_perfect', 'num hide-mobile') : ''}
+        ${th('DIRIGO', 'dirigo', 'num')}
+        ${showOdds ? th('Gold Ball %', 'tournament_odds', 'num hide-mobile') : ''}
+      </tr></thead>
+      <tbody>`;
+
+    rows.forEach((r, i) => {
+      const t      = r.team;
+      const cls    = getClass(r);
+      const reg    = getRegion(r);
+      const odds   = r.tournament_odds || {};
+      const gbNum  = odds.gold_ball || 0;
+      const heal   = r.dirigo ? r.dirigo.toFixed(2) : '—';
+      const sos    = r.sos ? r.sos.toFixed(2) : '—';
+      const pct    = r.pct_perfect ? (r.pct_perfect * 100).toFixed(1) + '%' : '—';
+      const pf     = r.avg_pf ? r.avg_pf.toFixed(1) : '—';
+      const pa     = r.avg_pa ? r.avg_pa.toFixed(1) : '—';
+      const diffVal = (r.avg_pf && r.avg_pa) ? r.avg_pf - r.avg_pa : null;
+      const diff   = diffVal !== null
+        ? (diffVal >= 0 ? '+' : '') + diffVal.toFixed(1)
+        : '—';
+      const diffColor = diffVal === null ? '' : diffVal >= 0 ? 'color:#1a7a4a' : 'color:#c0392b';
+      const rankDisp = activeClass === 'all'
+        ? (r.rank_overall || i+1)
+        : i+1;  // always use position in sorted list
+
+      const logoEl = t.logo_url
+        ? `<img class="td-logo" src="${t.logo_url}" alt="${t.school_name}"
+               loading="lazy" decoding="async"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          + `<div class="td-logo-init" style="display:none">${t.school_name[0]}</div>`
+        : `<div class="td-logo-init">${t.school_name[0]}</div>`;
+
+      html += `<tr style="cursor:pointer" onclick="window.location.href='team.html?team_id=${t.id}'">
+        <td class="td-rank">${rankDisp}</td>
+        <td>
+          <div class="td-team">
+            ${logoEl}
+            <div>
+              <div class="team-name-cell">${t.school_name}</div>
+              ${reg ? `<div class="team-region">${reg}</div>` : ''}
+            </div>
+          </div>
+        </td>
+
+        <td class="td-record td-num">${r.wins}-${r.losses}</td>
+        ${showPF   ? `<td class="td-num hide-mobile">${pf}</td>` : ''}
+        ${showPA   ? `<td class="td-num hide-mobile">${pa}</td>` : ''}
+        ${showDiff ? `<td class="td-num hide-mobile" style="${diffColor};font-weight:700">${diff}</td>` : ''}
+        ${showSOS  ? `<td class="td-num hide-mobile">${sos}</td>` : ''}
+        ${showPct  ? `<td class="td-num hide-mobile">${pct}</td>` : ''}
+        <td class="td-num">${heal}</td>
+        ${showOdds ? `<td class="hide-mobile">
+          <div class="odds-cell">
+            <div class="odds-bar-wrap"><div class="odds-bar" style="width:${Math.min(gbNum*100,100)}%"></div></div>
+            <div class="odds-pct">${gbNum > 0 ? (gbNum*100).toFixed(1)+'%' : '—'}</div>
+          </div>
+        </td>` : ''}
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tableWrap').innerHTML = html;
+    // sort listeners handled by delegation below
+  }
+
+  // ── DELEGATED SORT LISTENER (set up once) ───────────────────────────────
+  document.getElementById('tableWrap').addEventListener('click', e => {
+    const th = e.target.closest('th[data-col]');
+    if (!th || !th.dataset.col) return;
+    if (sortCol === th.dataset.col) {
+      sortAsc = !sortAsc;
+    } else {
+      sortCol = th.dataset.col;
+      sortAsc = ['school_name'].includes(sortCol);
+    }
+    renderTable();
+  });
+
+  // Gender tabs
+  // Season dropdown handler
+  document.getElementById('seasonSel')?.addEventListener('change', function() {
+    activeSeason = parseInt(this.value);
+    localStorage.setItem('mbr_rankings_season', activeSeason);
+    loadRankings();
+  });
+
+  document.querySelectorAll('.sport-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeSport  = btn.dataset.sport;
+      activeSeason = SPORT_DEFAULT_SEASON[activeSport] || 2026;
+      localStorage.setItem('mbr_rankings_sport', activeSport);
+      localStorage.setItem('mbr_rankings_season', activeSeason);
+      const sel = document.getElementById('seasonSel');
+      if(sel) sel.value = activeSeason;
+      activeClass  = 'all';
+      sortCol = 'dirigo'; sortAsc = false;
+      // Show/hide gender tabs
+      const genderTabs = document.querySelector('.gender-tabs');
+      if (SINGLE_GENDER[activeSport]) {
+        genderTabs.style.display = 'none';
+        activeGender = SINGLE_GENDER[activeSport];
+      } else {
+        genderTabs.style.display = '';
+      }
+      updateClassTabs();
+      loadRankings();
+    });
+  });
+
+  document.querySelectorAll('.gender-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.gender-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeGender = btn.dataset.gender;
+      activeClass  = 'all';
+      document.querySelectorAll('.class-tab').forEach(b => b.classList.remove('active'));
+      document.querySelector('.class-tab[data-class="all"]').classList.add('active');
+      sortCol = 'dirigo'; sortAsc = false;
+      renderTable();
+    });
+  });
+
+  // Column toggles
+  document.querySelectorAll('.col-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const col = btn.dataset.col;
+      visibleCols[col] = !visibleCols[col];
+      btn.classList.toggle('on', visibleCols[col]);
+      renderTable();
+    });
+  });
+
+  // Restore active sport tab and season dropdown from localStorage
+  document.querySelectorAll('.sport-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.sport === activeSport);
+  });
+  const selRestore = document.getElementById('seasonSel');
+  if (selRestore) selRestore.value = activeSeason;
+  // Restore gender tab if sport has single gender
+  const genderTabs = document.querySelector('.gender-tabs');
+  if (SINGLE_GENDER[activeSport]) {
+    genderTabs.style.display = 'none';
+    activeGender = SINGLE_GENDER[activeSport];
+  }
+
+  updateClassTabs();
+  loadRankings();
+</script>
+
+
+<div style="text-align:center;padding:12px 0 16px;font-size:11px;color:#aaa;font-family:'Barlow',sans-serif">
+  Powered by <a href="https://mainebasketballrankings.com" target="_blank" style="color:#1a7a4a;text-decoration:none;font-weight:600">Maine Basketball Rankings</a>
+</div>
+<script>loadRankings();</script>
+</body>
+</html>

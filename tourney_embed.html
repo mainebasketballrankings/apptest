@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta property="og:site_name" content="Maine Basketball Rankings" />
+  <meta property="og:title" content="Gold Ball Odds — Maine Basketball Rankings" />
+  <meta property="og:description" content="Monte Carlo tournament odds for Maine high school spring sports." />
+  <meta property="og:url" content="https://app.mainebasketballrankings.com/tourney.html" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-LMHHJT0QX2');</script>
+
+  <title>MBR Tourney Embed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+
+  <style>
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --teal:   #0d9488;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+      --paper2: #f5f5f5;
+      --rule:   #ebebeb;
+      --orange: #ee6730;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--black); min-height: 100vh; }
+
+    .page { max-width: 1280px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; margin-bottom: 2px; }
+    .page-sub   { font-size: 14px; color: var(--lgray); margin-bottom: 22px; }
+
+    /* Sport tabs */
+    .sport-tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+    .sport-tab {
+      padding:5px 14px; border-radius:20px; border:1.5px solid var(--border);
+      background:var(--white); font-size:13px; font-weight:600; cursor:pointer;
+      color:var(--gray); transition:all .15s;
+    }
+    .sport-tab:hover { border-color:#bbb; color:var(--black); }
+    .sport-tab.active { background:var(--black); border-color:var(--black); color:#fff; }
+
+    /* Gender tabs */
+    .gender-tabs { display:flex; gap:0; margin-bottom:14px; border-bottom:2px solid var(--border); }
+    .gender-tab {
+      padding:6px 16px; font-size:13px; font-weight:600; cursor:pointer;
+      color:var(--lgray); background:none; border:none;
+      border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .15s;
+    }
+    .gender-tab.active { color:var(--green); border-bottom-color:var(--green); }
+
+    /* Controls row */
+    .controls-row { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+    .season-select {
+      background:var(--white); border:1.5px solid var(--border); border-radius:6px;
+      color:var(--black); font-family:'Barlow',sans-serif; font-size:13px; font-weight:600;
+      padding:5px 10px; cursor:pointer; outline:none;
+    }
+    .sim-badge {
+      font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700;
+      letter-spacing:.06em; text-transform:uppercase; color:var(--lgray); margin-left:auto;
+    }
+
+    /* Region tabs */
+    .region-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+    .region-btn {
+      background:var(--white); border:1.5px solid var(--border); border-radius:6px;
+      color:var(--gray); cursor:pointer; font-family:'Barlow Condensed',sans-serif;
+      font-size:12px; font-weight:700; letter-spacing:.04em; padding:4px 12px;
+      text-transform:uppercase; transition:all .15s;
+    }
+    .region-btn:hover { border-color:#999; color:var(--black); }
+    .region-btn.active { background:var(--black); border-color:var(--black); color:#fff; }
+
+    /* Legend */
+    .legend { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px; font-size:11px; color:var(--gray); }
+    .legend-item { display:flex; align-items:center; gap:4px; }
+    .legend-dot  { width:10px; height:10px; border-radius:2px; }
+
+    /* Table */
+    .tbl-wrap { overflow-x:auto; border-radius:8px; border:1px solid var(--border); background:var(--white); }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    thead th {
+      background:var(--paper2); border-bottom:1px solid var(--border);
+      font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700;
+      letter-spacing:.06em; padding:7px 8px; text-align:center; text-transform:uppercase;
+      white-space:nowrap; color:var(--gray);
+    }
+    thead th.left { text-align:left; }
+    tbody tr { border-bottom:1px solid var(--rule); cursor:pointer; transition:filter .1s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { filter:brightness(.96); }
+    td { padding:6px 8px; text-align:center; font-family:'Barlow Condensed',sans-serif; white-space:nowrap; }
+    td.left  { text-align:left; font-family:'Barlow',sans-serif; font-weight:600; font-size:13px; }
+    td.rank  { color:var(--lgray); font-size:11px; width:24px; }
+    td.avg   { font-weight:700; }
+    td.seed-hi  { font-weight:700; color:var(--black); }
+    td.seed-dim { color:#ccc; }
+
+    /* Row tiers */
+    tr.tier-bye    { background:#f0fdf4; }
+    tr.tier-in     { background:#f0f9ff; }
+    tr.tier-bubble { background:#fefce8; }
+    tr.tier-out    { background:var(--white); }
+
+    /* Badge */
+    .in-badge {
+      display:inline-block; border-radius:4px; font-size:10px; font-weight:700;
+      letter-spacing:.05em; padding:2px 6px; text-transform:uppercase; white-space:nowrap;
+      font-family:'Barlow Condensed',sans-serif;
+    }
+    .in-badge.bye    { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
+    .in-badge.in     { background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd; }
+    .in-badge.bubble { background:#fef9c3; color:#a16207; border:1px solid #fde047; }
+    .in-badge.out    { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
+
+    /* Gate */
+    .gate-wrap    { position:relative; }
+    .gate-blur    { filter:blur(6px); pointer-events:none; user-select:none; max-height:320px; overflow:hidden; }
+    .gate-overlay {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:12px; z-index:10;
+    }
+    .gate-msg { font-size:14px; font-weight:600; color:var(--black); text-align:center; }
+    .gate-btn {
+      background:var(--orange); border:none; border-radius:6px; color:#fff;
+      cursor:pointer; font-family:'Barlow',sans-serif; font-size:13px; font-weight:700;
+      padding:10px 24px; text-decoration:none;
+    }
+
+    /* WL Modal */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200;
+      display:flex; align-items:center; justify-content:center; padding:16px;
+    }
+    .modal-box {
+      background:var(--white); border-radius:10px; max-width:860px; width:100%;
+      max-height:88vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.25);
+    }
+    .modal-header {
+      position:sticky; top:0; background:var(--white); border-bottom:1px solid var(--border);
+      padding:14px 18px; display:flex; align-items:center; justify-content:space-between; z-index:1;
+    }
+    .modal-title { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:700; }
+    .modal-sub   { font-size:12px; color:var(--lgray); margin-top:1px; }
+    .modal-close { background:none; border:none; cursor:pointer; font-size:20px; color:var(--lgray); padding:4px 8px; border-radius:4px; }
+    .modal-close:hover { background:var(--paper2); }
+    .modal-body  { padding:16px 18px; }
+
+    .wl-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .wl-table thead th {
+      font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:700;
+      letter-spacing:.06em; text-transform:uppercase; padding:6px 8px;
+      background:var(--paper2); border-bottom:1px solid var(--border); text-align:center; white-space:nowrap;
+    }
+    .wl-table thead th:first-child { text-align:left; }
+    .wl-table tbody tr { border-bottom:1px solid var(--rule); }
+    .wl-table tbody tr:last-child { border-bottom:none; }
+    .wl-table td { padding:5px 8px; text-align:center; font-family:'Barlow Condensed',sans-serif; white-space:nowrap; }
+    .wl-table td:first-child { text-align:left; font-weight:700; }
+    .wl-bar { height:4px; border-radius:2px; background:var(--teal); display:inline-block; min-width:2px; }
+
+    /* State */
+    .state-msg { padding:48px; text-align:center; color:var(--lgray); font-size:14px; }
+    .spinner {
+      display:inline-block; width:18px; height:18px; border:2px solid var(--border);
+      border-top-color:var(--teal); border-radius:50%; animation:spin .7s linear infinite;
+      margin-right:8px; vertical-align:middle;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+  <style>
+    html, body { margin: 0; padding: 0; overflow-x: hidden; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1 class="page-title">Gold Ball Odds</h1>
+  <p class="page-sub">10,000 Monte Carlo simulations · Click any team for W-L breakdown</p>
+
+  <div class="sport-tabs" id="sportTabs">
+    <button class="sport-tab active" data-sport="baseball">Baseball</button>
+    <button class="sport-tab" data-sport="softball">Softball</button>
+    <button class="sport-tab" data-sport="lax">Lacrosse</button>
+  </div>
+
+  <div class="gender-tabs" id="genderTabs" style="display:none">
+    <button class="gender-tab active" data-gender="Boys">Boys</button>
+    <button class="gender-tab" data-gender="Girls">Girls</button>
+  </div>
+
+  <div class="controls-row">
+    <select class="season-select" id="seasonSel"><option value="2026">25-26</option></select>
+    <span class="sim-badge" id="simBadge"></span>
+  </div>
+
+  <div class="region-row" id="regionRow"></div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>BYE (1st round)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>IN (play-in)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fde047"></div>Bubble</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fca5a5"></div>OUT</div>
+  </div>
+
+  <div class="gate-wrap" id="gateWrap">
+    <div class="tbl-wrap" id="tblWrap">
+      <div class="state-msg"><span class="spinner"></span>Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- WL Modal -->
+<div class="modal-overlay" id="wlModal" style="display:none" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-sub">W-L record distribution · 10,000 simulations</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('wlModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+const SPORT_IDS = {
+  baseball: 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+  softball: '095c9841-7261-4cb1-824e-6304792b53d0',
+  lax:      '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+};
+const SPORT_GENDER = { baseball:'Boys', softball:'Girls', lax:null };
+
+let activeSport  = 'baseball';
+let activeGender = 'Boys';
+let activeSeason = 2026;
+let activeRegion = null;
+let allSnaps     = [];
+let regions      = [];
+let currentRegional = [];
+let _loadVersion = 0;           // version guard — prevents stale tab switches from rendering
+let _regionListenerAttached = false; // prevents stacking click listeners on regionRow
+
+function sbFetch(path) {
+  return fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+  }).then(r => r.json());
+}
+
+function getSB() {
+  return supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'mbr-tourney-embed' } });
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+
+
+  // loadData() already fired immediately below — no need to re-run on auth
+};
+
+// Load data immediately without waiting for auth (gate applied separately)
+loadData();
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+document.getElementById('sportTabs').addEventListener('click', e => {
+  const pill = e.target.closest('.sport-tab');
+  if (!pill) return;
+  document.querySelectorAll('.sport-tab').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  activeSport = pill.dataset.sport;
+  const isLax = activeSport === 'lax';
+  document.getElementById('genderTabs').style.display = isLax ? 'flex' : 'none';
+  activeGender = isLax
+    ? (document.querySelector('.gender-tab.active')?.dataset.gender || 'Boys')
+    : SPORT_GENDER[activeSport];
+  activeRegion = null;
+  loadData();
+});
+
+document.getElementById('genderTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.gender-tab');
+  if (!btn) return;
+  document.querySelectorAll('.gender-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeGender = btn.dataset.gender;
+  activeRegion = null;
+  loadData();
+});
+
+document.getElementById('seasonSel').addEventListener('change', e => {
+  activeSeason = parseInt(e.target.value);
+  loadData();
+});
+
+// ── Load ──────────────────────────────────────────────────────────────────
+async function loadData() {
+  const myVersion = ++_loadVersion;
+  document.getElementById('tblWrap').innerHTML = '<div class="state-msg"><span class="spinner"></span>Loading…</div>';
+  document.getElementById('regionRow').innerHTML = '';
+  document.getElementById('simBadge').textContent = '';
+
+  const gender  = SPORT_GENDER[activeSport] || activeGender;
+  const sportId = SPORT_IDS[activeSport];
+
+  const teams = await sbFetch(
+    `teams?sport_id=eq.${sportId}&gender=eq.${gender}&active=eq.true` +
+    `&select=id,school_name,team_class,team_region,logo_url&limit=500`
+  );
+  if (myVersion !== _loadVersion) return;
+  if (!teams.length) {
+    document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No teams found.</div>';
+    return;
+  }
+
+  const teamIds = teams.map(t => t.id);
+
+  // Fix 4: Use a single team_id to find the latest snapshot date — all teams in a push
+  // share the same snapshot_date, so any one valid team gives the correct date for all.
+  // This is safer than slice(0,10) (which could miss if early teams have no snapshot yet).
+  const latestDateResp = await sbFetch(
+    `rankings_snapshots?team_id=in.(${teamIds.slice(0,1).join(',')})&season_year=eq.${activeSeason}` +
+    `&select=snapshot_date&order=snapshot_date.desc&limit=1`
+  );
+  if (myVersion !== _loadVersion) return;
+
+  // If first team has no snapshot, try a broader sample of 5 before giving up
+  let latestSnapDate = latestDateResp[0]?.snapshot_date;
+  if (!latestSnapDate && teamIds.length > 1) {
+    const fallback = await sbFetch(
+      `rankings_snapshots?team_id=in.(${teamIds.slice(0, 5).join(',')})&season_year=eq.${activeSeason}` +
+      `&select=snapshot_date&order=snapshot_date.desc&limit=1`
+    );
+    if (myVersion !== _loadVersion) return;
+    latestSnapDate = fallback[0]?.snapshot_date;
+  }
+  const snaps = latestSnapDate ? await sbFetch(
+    `rankings_snapshots?team_id=in.(${teamIds.join(',')})&season_year=eq.${activeSeason}` +
+    `&snapshot_date=eq.${latestSnapDate}` +
+    `&select=team_id,wins,losses,tournament_odds,wl_distribution,snapshot_date` +
+    `&limit=500`
+  ) : [];
+  if (myVersion !== _loadVersion) return;
+  // Most recent snapshot per team
+  const snapMap = {};
+  for (const s of snaps) {
+    if (!snapMap[s.team_id]) snapMap[s.team_id] = s;
+  }
+
+  allSnaps = teams
+    .filter(t => snapMap[t.id]?.tournament_odds)
+    .map(t => {
+      const snap = snapMap[t.id];
+      const odds = snap.tournament_odds || {};
+      const tc = t.team_class || '';
+      const tr = t.team_region || '';
+      // Build display region: lax = class only; baseball/softball = "A North" style
+      let region;
+      if (activeSport === 'lax') {
+        region = tc;
+      } else {
+        // tr = "North", tc = "A" → "A North"
+        region = (tr && tc && !tr.includes(tc)) ? `${tc} ${tr}` : (tr || tc);
+      }
+      const playoff = (odds.playoff || 0) * 100;
+      const bye     = (odds.bye    || 0) * 100;
+      return {
+        team_id:  t.id,
+        name:     t.school_name,
+        class:    tc,
+        region,
+        wins:     snap.wins   || 0,
+        losses:   snap.losses || 0,
+        playoff, bye,
+        out:      (1 - (odds.playoff || 0)) * 100,
+        seeds:    Array.from({length:16}, (_, i) => (odds[`s${i+1}`] || 0) * 100),
+        avg_seed: computeAvgSeed(odds),
+        wl_dist:  snap.wl_distribution || null,
+      };
+    });
+
+  if (!allSnaps.length) {
+    if (myVersion !== _loadVersion) return;
+    document.getElementById('tblWrap').innerHTML =
+      '<div class="state-msg">No simulation data found. Run simulate_spring.py --push first.</div>';
+    return;
+  }
+
+  if (myVersion !== _loadVersion) return;
+
+  // Build sorted region list: class letter first, then North before South
+  regions = [...new Set(allSnaps.map(s => s.region).filter(Boolean))].sort((a, b) => {
+    const [ac, ar = ''] = a.split(' ');
+    const [bc, br = ''] = b.split(' ');
+    if (ac !== bc) return ac < bc ? -1 : 1;
+    if (ar !== br) return ar === 'North' ? -1 : 1;
+    return 0;
+  });
+
+  renderRegionTabs();
+  if (!activeRegion || !regions.includes(activeRegion)) activeRegion = regions[0];
+  document.querySelectorAll('.region-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.region === activeRegion));
+  renderTable();
+}
+
+function computeAvgSeed(odds) {
+  let total = 0, weight = 0;
+  for (let i = 1; i <= 16; i++) {
+    const p = odds[`s${i}`] || 0;
+    total += i * p; weight += p;
+  }
+  return weight > 0 ? total / weight : 99;
+}
+
+function renderRegionTabs() {
+  const row = document.getElementById('regionRow');
+  row.innerHTML = regions.map(r =>
+    `<button class="region-btn" data-region="${r}">${r}</button>`
+  ).join('');
+  // Attach delegated listener once — survives innerHTML replacement
+  if (!_regionListenerAttached) {
+    _regionListenerAttached = true;
+    row.addEventListener('click', e => {
+      const btn = e.target.closest('.region-btn');
+      if (!btn) return;
+      document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeRegion = btn.dataset.region;
+      renderTable();
+    });
+  }
+}
+
+function renderTable() {
+  currentRegional = allSnaps
+    .filter(s => s.region === activeRegion)
+    .sort((a, b) => a.avg_seed - b.avg_seed);
+
+  if (!currentRegional.length) {
+    document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No data for this region.</div>';
+    return;
+  }
+
+  // Max seed col = highest seed with >=0.05% probability across all teams in region
+  let maxS = 1;
+  for (const s of currentRegional) {
+    for (let i = 15; i >= 0; i--) {
+      if (s.seeds[i] >= 0.05) { maxS = Math.max(maxS, i + 1); break; }
+    }
+  }
+  maxS = Math.min(Math.max(maxS, 8), 16);
+  const seedCols = Array.from({length: maxS}, (_, i) => i + 1);
+
+  document.getElementById('simBadge').textContent = '10,000 simulations';
+
+  let html = `<table>
+    <thead><tr>
+      <th class="left">#</th>
+      <th class="left">Team</th>
+      <th>In?</th>
+      <th>Avg Seed</th>
+      <th style="color:#15803d">Bye%</th>
+      <th style="color:#1d4ed8">In%</th>
+      <th style="color:#b91c1c">Out%</th>
+      ${seedCols.map(s => `<th>S${s}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+  currentRegional.forEach((s, i) => {
+    // Row tier based on majority outcome
+    const tier = s.bye >= 50 ? 'bye' : s.playoff >= 50 ? 'in' : s.playoff >= 15 ? 'bubble' : 'out';
+    // Badge only when truly locked: >99.99%
+    const inLabel = s.bye >= 99.99    ? 'BYE'
+                  : s.playoff >= 99.99 ? 'IN'
+                  : s.out >= 99.99     ? 'OUT'
+                  : '???';
+    const inClass = s.bye >= 99.99    ? 'bye'
+                  : s.playoff >= 99.99 ? 'in'
+                  : s.out >= 99.99     ? 'out'
+                  : 'bubble';
+
+    // Find modal seed pct for bolding
+    const maxPct = Math.max(...s.seeds.slice(0, maxS));
+
+    html += `<tr class="tier-${tier}" onclick="openWL(${i})">
+      <td class="rank">${i + 1}</td>
+      <td class="left">${s.name}</td>
+      <td><span class="in-badge ${inClass}">${inLabel}</span></td>
+      <td class="avg">${s.avg_seed < 99 ? s.avg_seed.toFixed(2) : '—'}</td>
+      <td style="color:#15803d;font-weight:600">${s.bye.toFixed(1)}%</td>
+      <td style="color:#1d4ed8;font-weight:600">${s.playoff.toFixed(1)}%</td>
+      <td style="color:#b91c1c">${s.out.toFixed(1)}%</td>
+      ${s.seeds.slice(0, maxS).map((p, si) => {
+        if (p < 0.05) return `<td class="seed-dim">—</td>`;
+        const isHi = (p === maxPct && p >= 5);
+        return `<td class="${isHi ? 'seed-hi' : ''}">${p.toFixed(1)}%</td>`;
+      }).join('')}
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tblWrap').innerHTML = html;
+}
+
+// ── WL Modal ──────────────────────────────────────────────────────────────
+function openWL(idx) {
+  const snap = currentRegional[idx];
+  if (!snap) return;
+
+  document.getElementById('modalTitle').textContent = snap.name;
+  const wl = snap.wl_dist;
+
+  if (!wl || !Object.keys(wl).length) {
+    document.getElementById('modalBody').innerHTML =
+      '<div class="state-msg" style="padding:28px">No W-L data available.<br>Re-run simulate_spring.py --push to generate it.</div>';
+    document.getElementById('wlModal').style.display = 'flex';
+    return;
+  }
+
+  const records = Object.entries(wl)
+    .filter(([, d]) => d.how_often >= 0.1)
+    .sort(([a], [b]) => {
+      const [aw, al] = a.split('-').map(Number);
+      const [bw, bl] = b.split('-').map(Number);
+      return bw !== aw ? bw - aw : al - bl;
+    });
+
+  // Find max seed in this team's wl data
+  let maxS = 1;
+  for (const [, d] of records) {
+    for (const s of Object.keys(d.seeds || {})) maxS = Math.max(maxS, parseInt(s));
+  }
+  maxS = Math.min(maxS, 16);
+  const seedCols = Array.from({length: maxS}, (_, i) => i + 1);
+
+  let html = `
+    <p style="font-size:12px;color:var(--lgray);margin-bottom:14px">
+      How often ${snap.name} finishes with each W-L record, their playoff odds at that record, and seed distribution.
+    </p>
+    <div style="overflow-x:auto">
+    <table class="wl-table">
+      <thead><tr>
+        <th>Record</th>
+        <th>How Often?</th>
+        <th>In%</th>
+        ${seedCols.map(s => `<th>S${s}</th>`).join('')}
+      </tr></thead><tbody>`;
+
+  for (const [record, d] of records) {
+    const inPct = d.in_pct || 0;
+    const inColor = inPct >= 95 ? '#15803d' : inPct >= 60 ? '#1d4ed8' : inPct >= 25 ? '#a16207' : '#b91c1c';
+    const seeds = d.seeds || {};
+    const barW  = Math.min(Math.round(d.how_often * 1.8), 90);
+
+    html += `<tr>
+      <td>${record}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="wl-bar" style="width:${barW}px"></span>
+          <span>${d.how_often.toFixed(1)}%</span>
+        </div>
+      </td>
+      <td style="color:${inColor};font-weight:700">${inPct.toFixed(1)}%</td>
+      ${seedCols.map(s => {
+        const p = seeds[String(s)] || 0;
+        if (p < 0.1) return `<td style="color:#ddd">—</td>`;
+        return `<td style="${p >= 15 ? 'font-weight:700;color:var(--black)' : 'color:var(--gray)'}">${p.toFixed(1)}%</td>`;
+      }).join('')}
+    </tr>`;
+  }
+
+  html += '</tbody></table></div>';
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('wlModal').style.display = 'flex';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('wlModal'))
+    document.getElementById('wlModal').style.display = 'none';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('wlModal').style.display = 'none';
+});
+</script>
+
+<div style="text-align:center;padding:12px 0 16px;font-size:11px;color:#aaa;font-family:'Barlow',sans-serif">
+  Powered by <a href="https://mainebasketballrankings.com" target="_blank" style="color:#1a7a4a;text-decoration:none;font-weight:600">Maine Basketball Rankings</a>
+</div>
+</body>
+</html>

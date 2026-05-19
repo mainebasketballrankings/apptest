@@ -191,6 +191,10 @@ const SPORT_KEY_BY_ID = Object.fromEntries(Object.entries(SPORT_IDS).map(([k,v])
 
 var _isPaid = false;
 var _authResolved = false;
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+const _sb = supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'mbr-matchup' } });
+
 var _loadVersion = 0; // version guard for loadMatchup race on rapid game switching
 
 function applyGate(isPaid) {
@@ -259,7 +263,7 @@ async function loadMatchup() {
   const gameId = new URLSearchParams(window.location.search).get('game_id');
   if (!gameId) { el.innerHTML = '<div class="state-msg">No game specified.</div>'; return; }
 
-  const sb = MBRNav.getSB();
+  const sb = _sb;
 
   // 1. Fetch game
   const { data: game, error: gErr } = await sb.from('games').select(`
@@ -623,7 +627,7 @@ const SPORT_DISPLAY = {
 };
 
 async function loadTodaysGames(currentGameId, gameDate) {
-  const sb = MBRNav.getSB();
+  const sb = _sb;
   const { data: games } = await sb
     .from('games')
     .select(`id, sport_id, status, game_time,

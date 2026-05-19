@@ -525,8 +525,12 @@ async function loadSpreads() {
   });
 }
 
-// loadSpreads called via mbrAuthCallback
-window.mbrAuthCallback = window.mbrAuthCallback || function() { loadSpreads(); };
+// loadSpreads called via mbrAuthCallback which passes the user/session from nav.js
+window.mbrAuthCallback = function(user, isPaid) {
+  // Use the session nav.js already resolved — don't call getSession() again
+  if (user) _cachedSession = { user };
+  loadSpreads();
+};
 </script>
 
 <script src="nav.js"></script>

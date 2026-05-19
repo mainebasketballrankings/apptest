@@ -226,6 +226,7 @@ window.mbrAuthCallback = function(user, isPaid) {
   // Always load today's game switcher
   const today = new Date().toISOString().slice(0, 10);
   loadTodaysGames(gameId, today);
+  // loadMatchup already fired on page load — only re-run if paid (to unlock full content)
   if (isPaid && gameId) loadMatchup();
   else if (!gameId) {
     document.getElementById('content').innerHTML = '<div class="state-msg">Select a game above.</div>';
@@ -701,6 +702,14 @@ async function loadTodaysGames(currentGameId, gameDate) {
 
 </script>
 <script src="nav.js"></script>
-<script>MBRNav.init({ active: 'matchup' });</script>
+<script>
+  MBRNav.init({ active: 'matchup' });
+  // Start loading today's games immediately — don't wait for auth
+  // loadMatchup() still gates on isPaid via mbrAuthCallback
+  const _gameId = new URLSearchParams(window.location.search).get('game_id');
+  const _today = new Date().toISOString().slice(0, 10);
+  loadTodaysGames(_gameId, _today);
+  if (_gameId) loadMatchup(); // try loading — applyGate() will show paywall if not paid
+</script>
 </body>
 </html>

@@ -623,7 +623,7 @@
           + `<div class="td-logo-init" style="display:none">${t.school_name[0]}</div>`
         : `<div class="td-logo-init">${t.school_name[0]}</div>`;
 
-      html += `<tr style="cursor:pointer" onclick="window.location.href='team.html?team_id=${t.id}'">
+      html += `<tr style="cursor:pointer" onclick="window.open('https://app.mainebasketballrankings.com/team.html?team_id=${t.id}', '_blank')">
         <td class="td-rank">${rankDisp}</td>
         <td>
           <div class="td-team">

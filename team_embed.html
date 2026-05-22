@@ -585,7 +585,7 @@ async function load() {
     const gLbl = team.gender === 'Boys' ? 'Boys' : 'Girls';
     const sLbl = team.gender === 'Boys' ? 'Girls' : 'Boys';
     const genderHtml = sibling
-      ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="team.html?team_id=${sibling.id}">${sLbl} ↗</a>`
+      ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="https://app.mainebasketballrankings.com/team.html?team_id=${sibling.id}" target="_blank">${sLbl} ↗</a>`
       : `<span class="gender-current">${gLbl}</span>`;
 
     const rankHtml = (rState || rClass) ? `
@@ -1029,7 +1029,7 @@ async function doSearch(q) {
 function goToTeam(id) {
   searchResults.classList.remove('open');
   searchInput.value = '';
-  window.location.href = `team.html?team_id=${id}`;
+  window.open(`https://app.mainebasketballrankings.com/team.html?team_id=${id}`, "_blank");
 }
 
 // Default: visible. Auth callback adds blur if user is free tier.

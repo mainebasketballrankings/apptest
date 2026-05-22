@@ -782,6 +782,7 @@ input,select,button{font-family:inherit;}
   <div class="ocard">
     <div class="otitle">End Game</div>
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--dim);margin-bottom:12px">Assign decisions before finalizing</div>
+    <div id="endGameRecon" style="display:none;font-family:'Barlow Condensed',sans-serif;font-size:12px;color:#b45309;background:#fefce8;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;margin-bottom:12px;line-height:1.5"></div>
     <div id="endGamePickers"></div>
     <div class="oactions">
       <button class="oconfirm" onclick="confirmEndGame()">Finalize Game</button>
@@ -1145,7 +1146,7 @@ function psKey(side, idx){
 }
 function psKeyForPitcher(side, name, idx){
   // Unique per pitcher appearance: use name if available, fallback to idx
-  return name ? side + '_' + name.replace(/\s+/g,'_') : side + '_' + idx;
+  return name ? side + '_' + name.trim().replace(/\s+/g,'_') : side + '_' + idx;
 }
 function getPS(side, idx){
   // Find the active pitcher's key for this side/idx
@@ -1733,6 +1734,31 @@ function openEndGame(){
   const saveOpts = winPitchers.map(name => `<option value="${name}">${name}</option>`).join("");
   html += `<div style="margin-bottom:12px;font-family:'Barlow Condensed',sans-serif"><div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Save (optional)</div><select id="egSave" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:14px;background:var(--surface);color:var(--text)"><option value="">— no save —</option>${saveOpts}</select></div>`;
   document.getElementById("endGamePickers").innerHTML = html;
+
+  // Run reconciliation check — compare G.runs totals against sum of player stats.r
+  const reconWarnings = [];
+  ['away','home'].forEach(side => {
+    const teamRuns = G.runs[side] || 0;
+    const allPlayers = [
+      ...G.teams[side].lineup,
+      ...G.teams[side].bench
+    ];
+    const statRuns = allPlayers.reduce((sum, p) => sum + (p.stats?.r || 0), 0);
+    if(teamRuns !== statRuns){
+      reconWarnings.push(`${G.teams[side].name}: score shows ${teamRuns}R but player stats total ${statRuns}R`);
+    }
+  });
+  const reconDiv = document.getElementById('endGameRecon');
+  if(reconDiv){
+    if(reconWarnings.length){
+      reconDiv.style.display = 'block';
+      reconDiv.innerHTML = '⚠ Run mismatch — check box score before finalizing:<br>' + reconWarnings.join('<br>');
+    } else {
+      reconDiv.style.display = 'none';
+      reconDiv.innerHTML = '';
+    }
+  }
+
   openOv("ovEndGame");
 }
 
@@ -1911,7 +1937,7 @@ function confirmEndGame(){
     if(sel && sel.value){
       const winningSide = G.runs.home > G.runs.away ? 'home' : 'away';
       // pitStats keys use underscores for spaces: side_First_Last
-      const key = side + '_' + sel.value.replace(/\s+/g,'_');
+      const key = side + '_' + sel.value.trim().replace(/\s+/g,'_');
       if(G.pitStats[key]){
         if(side === winningSide) G.pitStats[key].w = 1;
         else G.pitStats[key].l = 1;
@@ -1921,7 +1947,7 @@ function confirmEndGame(){
   const saveSel = document.getElementById('egSave');
   if(saveSel && saveSel.value){
     const winningSide = G.runs.home > G.runs.away ? 'home' : 'away';
-    const key = winningSide + '_' + saveSel.value.replace(/\s+/g,'_');
+    const key = winningSide + '_' + saveSel.value.trim().replace(/\s+/g,'_');
     if(G.pitStats[key]) G.pitStats[key].sv = 1;
   }
   addPBP("<strong>Final</strong>");
@@ -2247,6 +2273,7 @@ function confirmRBI(){
 
 function pushRunnerAdvance(){
   if(!G_game_id) return;
+  if(!G._overlayMoved) { G._overlayRunsStart = null; return; }
   const side = battingSide();
   const runsStart = G._overlayRunsStart || {home:0, away:0};
   const runsScored = G.runs[side] - (runsStart[side] || 0);
@@ -2260,6 +2287,7 @@ function pushRunnerAdvance(){
 function openRunners(){
   // Snapshot current run total so pushRunnerAdvance only credits delta
   G._overlayRunsStart = {home: G.runs.home, away: G.runs.away};
+  G._overlayMoved = false;
   deselectRunner();
   updateRunnerDiamond();
   openOv('ovRunners');
@@ -2315,6 +2343,8 @@ function tapBase(dest){
       const from=selectedRunnerBase;
       if(dest===0){
         // Score
+        saveSnapshot();
+        G._overlayMoved = true;
         const r=G.bases[from];
         const side=battingSide();
         scoreRunner(r, side); G.bases[from]=null;
@@ -2335,6 +2365,7 @@ function tapBase(dest){
       // Move runner
       const r=G.bases[from];
       G.bases[dest]=r; G.bases[from]=null;
+      G._overlayMoved = true;
       const advancing=dest>from;
       addPBP(`${r.name} ${advancing?'advances to':'returns to'} ${dest===1?'1st':dest===2?'2nd':'3rd'}`);
       deselectRunner(); updateRunnerDiamond(); render(); return;
@@ -2381,6 +2412,7 @@ function tapBase(dest){
 
 function moveRunnerTo(from, dest){
   saveSnapshot();
+  G._overlayMoved = true;
   const r=G.bases[from];
   const side=battingSide();
   if(dest===0){

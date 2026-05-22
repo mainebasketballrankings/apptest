@@ -597,5 +597,28 @@ document.addEventListener('keydown', e => {
 <div style="text-align:center;padding:12px 0 16px;font-size:11px;color:#aaa;font-family:'Barlow',sans-serif">
   Powered by <a href="https://mainebasketballrankings.com" target="_blank" style="color:#1a7a4a;text-decoration:none;font-weight:600">Maine Basketball Rankings</a>
 </div>
+<script>
+// Auto-resize: tells the parent page how tall this embed is
+// so the iframe can resize to fit content without scrollbars or dead space.
+// Works by posting the document height to the parent whenever content changes.
+
+(function() {
+  function sendHeight() {
+    const h = document.documentElement.scrollHeight;
+    window.parent.postMessage({ type: 'mbr-embed-resize', height: h }, '*');
+  }
+
+  // Send on load
+  window.addEventListener('load', sendHeight);
+
+  // Send whenever DOM changes (games load, tabs switch, etc.)
+  const observer = new ResizeObserver(sendHeight);
+  observer.observe(document.body);
+
+  // Also send on any click (tab switches change height)
+  document.addEventListener('click', () => setTimeout(sendHeight, 100));
+})();
+
+</script>
 </body>
 </html>

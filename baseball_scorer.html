@@ -1110,6 +1110,7 @@ let G = {
   inning:1, half:'top', outs:0, balls:0, strikes:0,
   bases:{1:null,2:null,3:null},
   runs:{away:0,home:0}, hits:{away:0,home:0}, errors:{away:0,home:0},
+  anonRuns:{away:0,home:0},  // runs scored via scoreRunner(null) — no individual credit
   linescore:[],
   batIdx:{away:0,home:0},
   cr:{away:{p:null,c:null},home:{p:null,c:null}}, // courtesy runners
@@ -1359,6 +1360,7 @@ async function startGame(){
   G.inning=1; G.half='top'; G.outs=0; G.balls=0; G.strikes=0;
   G.bases={1:null,2:null,3:null};
   G.runs={away:0,home:0}; G.hits={away:0,home:0}; G.errors={away:0,home:0};
+  G.anonRuns={away:0,home:0};
   G.batIdx={away:0,home:0};
   // Skip any DNB (flex) players at the start of each lineup
   ['away','home'].forEach(s=>{
@@ -1631,6 +1633,10 @@ function scoreRunner(runner, side, unearned){
     // Fallback: match by number
     if(!player && runner.num) player = lu.find(p => p.number === runner.num) || G.teams[side].bench.find(p => p.number === runner.num);
     if(player) player.stats.r = (player.stats.r||0) + 1;
+  } else {
+    // Anonymous run (e.g. manual RBI on error) — track separately for reconciliation
+    if(!G.anonRuns) G.anonRuns={away:0,home:0};
+    G.anonRuns[side]++;
   }
   // Track earned/unearned for pitcher
   // If unearned param passed, use it; else if error this half, it's potentially unearned
@@ -1739,13 +1745,14 @@ function openEndGame(){
   const reconWarnings = [];
   ['away','home'].forEach(side => {
     const teamRuns = G.runs[side] || 0;
+    const anon = (G.anonRuns||{})[side] || 0;
     const allPlayers = [
       ...G.teams[side].lineup,
       ...G.teams[side].bench
     ];
     const statRuns = allPlayers.reduce((sum, p) => sum + (p.stats?.r || 0), 0);
-    if(teamRuns !== statRuns){
-      reconWarnings.push(`${G.teams[side].name}: score shows ${teamRuns}R but player stats total ${statRuns}R`);
+    if(teamRuns !== statRuns + anon){
+      reconWarnings.push(`${G.teams[side].name}: score shows ${teamRuns}R but player stats total ${statRuns + anon}R`);
     }
   });
   const reconDiv = document.getElementById('endGameRecon');
@@ -2363,6 +2370,7 @@ function tapBase(dest){
         showStealPrompt(from, dest); return;
       }
       // Move runner
+      saveSnapshot();
       const r=G.bases[from];
       G.bases[dest]=r; G.bases[from]=null;
       G._overlayMoved = true;
@@ -2832,6 +2840,7 @@ function saveSnapshot(){
     runs:JSON.parse(JSON.stringify(G.runs)),
     hits:JSON.parse(JSON.stringify(G.hits)),
     errors:JSON.parse(JSON.stringify(G.errors)),
+    anonRuns:JSON.parse(JSON.stringify(G.anonRuns||{away:0,home:0})),
     linescore:JSON.parse(JSON.stringify(G.linescore)),
     batIdx:JSON.parse(JSON.stringify(G.batIdx)),
     curPitches:[...G.curPitches],
@@ -2856,6 +2865,7 @@ function doUndo(){
   G.balls=snap.balls; G.strikes=snap.strikes;
   G.bases=snap.bases;
   G.runs=snap.runs; G.hits=snap.hits; G.errors=snap.errors;
+  G.anonRuns=snap.anonRuns||{away:0,home:0};
   G.linescore=snap.linescore;
   G.batIdx=snap.batIdx;
   G.curPitches=snap.curPitches;
@@ -2894,6 +2904,7 @@ function doUndo(){
   G._rbiResult = null;
   G.pendingUnearnedCheck = null;
   G.pendingUnearnedQueue = null;
+  G._overlayMoved = false;
   render();
 }
 

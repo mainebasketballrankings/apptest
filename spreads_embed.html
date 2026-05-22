@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+
+<title>Daily Spreads — Maine Basketball Rankings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green:   #1a7a4a;
+      --green2:  #22a863;
+      --red:     #c0392b;
+      --gray:    #555;
+      --lgray:   #999;
+      --border:  #e2e2e2;
+      --bg:      #f0f0f0;
+      --white:   #fff;
+      --black:   #111;
+    }
+
+    body { font-family: 'Barlow', sans-serif; background: #fff; color: var(--black); }
+
+    .page-wrap { max-width: 860px; margin: 0 auto; padding: 16px 16px 40px; }
+
+    /* ── Date nav ── */
+    .date-nav {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+    }
+    .date-heading {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 24px; flex: 1;
+    }
+    .nav-btn {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 13px;
+      padding: 7px 14px; border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--white); color: var(--black);
+      cursor: pointer; transition: all 0.12s;
+      white-space: nowrap;
+    }
+    .nav-btn:hover { background: var(--black); color: var(--white); border-color: var(--black); }
+    .date-input {
+      font-family: 'Barlow', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      max-width: 140px;
+    }
+    .nav-btn.today { background: var(--green); color: #fff; border-color: var(--green); }
+    .nav-btn.today:hover { background: var(--green2); border-color: var(--green2); }
+
+    /* ── Sport section ── */
+    .sport-section { margin-bottom: 28px; }
+    .sport-label {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 13px;
+      text-transform: uppercase; letter-spacing: 0.3px;
+      color: var(--lgray); padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    /* ── Status sub-label ── */
+    .status-label {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.3px;
+      color: var(--lgray); margin: 10px 0 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .status-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── Game card — single line ── */
+    .game-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 6px;
+      display: flex; align-items: center; gap: 8px;
+      transition: box-shadow 0.12s;
+    }
+    .game-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .card-teams { cursor: pointer; }
+    .game-card.is-final { opacity: 0.72; }
+    .game-card.is-final:hover { opacity: 1; }
+
+    /* Teams section */
+    .card-teams {
+      display: flex; align-items: center; gap: 6px;
+      flex: 1; min-width: 0; overflow: hidden;
+    }
+    .team-block {
+      display: flex; align-items: center; gap: 5px;
+      min-width: 0; flex-shrink: 1;
+    }
+    .team-logo {
+      width: 24px; height: 24px; border-radius: 50%;
+      object-fit: contain; background: var(--bg);
+      border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .team-fallback {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--green); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 10px; flex-shrink: 0;
+    }
+    .team-rank {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 500; font-size: 11px;
+      color: #bbb; flex-shrink: 0;
+    }
+    .team-name {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 15px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--black);
+    }
+    .team-name.winner { color: var(--black); font-weight: 700; }
+    .team-name.loser  { color: #aaa; }
+    .score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 500; font-size: 18px; flex-shrink: 0;
+    }
+    .score.winner { color: var(--black); font-weight: 700; }
+    .score.loser  { color: #aaa; }
+    .at-sep {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 12px;
+      color: var(--lgray); flex-shrink: 0;
+    }
+
+    /* Pick section */
+    .card-pick {
+      display: flex; align-items: center; gap: 5px;
+      flex-shrink: 0; padding-left: 10px;
+      border-left: 1px solid var(--border);
+    }
+    .pick-label {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.3px;
+      color: var(--lgray);
+    }
+    .pick-team {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 15px;
+      color: var(--green); white-space: nowrap;
+    }
+    .pick-team.wrong { color: var(--red); }
+    .pick-spread {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 500; font-size: 15px;
+      color: var(--gray); white-space: nowrap;
+    }
+    .result-icon { font-weight: 600; font-size: 16px; flex-shrink: 0; }
+    .result-icon.correct { color: var(--green2); }
+    .result-icon.wrong   { color: var(--red); }
+    .no-pick { font-size: 11px; color: var(--lgray); font-style: italic; white-space: nowrap; }
+
+    /* Stax badge */
+    .stax-badge {
+      display: flex; align-items: center; gap: 3px;
+      font-family: 'Barlow', sans-serif;
+      font-weight: 500; font-size: 14px; flex-shrink: 0;
+    }
+    .stax-icon { font-size: 10px; }
+    .stax-gray   { color: var(--lgray); }
+    .stax-yellow { color: #c8870a; }
+    .stax-orange { color: #d4621a; }
+    .stax-red    { color: var(--red); }
+
+    .empty {
+      text-align: center; padding: 48px 20px; color: var(--lgray);
+      font-family: 'Barlow Condensed', sans-serif; font-size: 18px;
+    }
+    .loading { text-align: center; padding: 48px; color: var(--lgray); }
+    .spinner {
+      display: inline-block; width: 22px; height: 22px;
+      border: 3px solid var(--border); border-top-color: var(--green);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .game-card { flex-wrap: wrap; }
+      .card-pick { border-left: none; border-top: 1px solid var(--border);
+        padding-left: 0; padding-top: 6px; width: 100%; }
+      .team-name { font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrap">
+  <div class="date-nav">
+    <div class="date-heading" id="dateHeading">Today's Picks</div>
+    <input type="date" id="datePicker" class="nav-btn date-input" onchange="pickDate(this.value)" />
+    <button class="nav-btn today" id="todayBtn" onclick="goToday()">Today</button>
+    <button class="nav-btn" onclick="navigate(-1)">‹ Prev</button>
+  </div>
+  <div id="app"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+</div>
+
+<script>
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+const sb = supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'mbr-spreads' } });
+
+const SPORT_NAMES = {
+  'b31ab283-b28e-4ba8-9684-b1cf30cea219': 'Basketball',
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0': 'Baseball',
+  '095c9841-7261-4cb1-824e-6304792b53d0': 'Softball',
+  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d': 'Lacrosse',
+  'ff80a695-0e78-4432-98f2-141b2b571e0e': 'Soccer',
+  '1054869a-20d4-465f-8ca9-4bc4d2bafe1b': 'Field Hockey',
+  'fa905ca5-f416-409b-81ac-777179ee5576': 'Football',
+  'e26b0fcc-e661-4945-8b2d-063c37ace44f': 'Volleyball',
+};
+
+const SPORT_ORDER = [
+  'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+  '095c9841-7261-4cb1-824e-6304792b53d0',
+  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+  'ff80a695-0e78-4432-98f2-141b2b571e0e',
+  '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
+  'fa905ca5-f416-409b-81ac-777179ee5576',
+  'e26b0fcc-e661-4945-8b2d-063c37ace44f',
+];
+
+let currentDate = new Date();
+currentDate.setHours(12, 0, 0, 0);
+
+let _loadVersion  = 0;  // version guard — prevents stale date navigation from rendering
+
+function toISO(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function fmtHeading(d) {
+  const today = new Date(); today.setHours(12,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+  const ds = toISO(d);
+  if (ds === toISO(today)) return "Today's Picks";
+  if (ds === toISO(tomorrow)) return "Tomorrow's Picks";
+  return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }) + ' Picks';
+}
+
+function maxAllowedDate() {
+  // After 8pm Eastern, allow tomorrow's picks
+  const now = new Date();
+  const etOffset = -5 * 60; // EST offset in minutes (ignores DST, close enough)
+  const etNow = new Date(now.getTime() + (now.getTimezoneOffset() + etOffset) * 60000);
+  const today = new Date(etNow); today.setHours(12,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  return etNow.getHours() >= 20 ? tomorrow : today;
+}
+
+function navigate(dir) {
+  const max = maxAllowedDate();
+  const next = new Date(currentDate);
+  next.setDate(next.getDate() + dir);
+  if (next > max) return;
+  currentDate = next;
+  loadSpreads();
+}
+
+function pickDate(val) {
+  if (!val) return;
+  const d = new Date(val + 'T12:00:00');
+  const max = maxAllowedDate();
+  if (d > max) return;
+  currentDate = d;
+  loadSpreads();
+}
+
+function goToday() {
+  currentDate = new Date(); currentDate.setHours(12,0,0,0);
+  loadSpreads();
+}
+
+function logoEl(url, name) {
+  const ch = (name||'?')[0];
+  if (url) return `<img class="team-logo" src="${url}" alt="${name}"
+    onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="team-fallback" style="display:none">${ch}</div>`;
+  return `<div class="team-fallback">${ch}</div>`;
+}
+
+function staxEl(val) {
+  if (val == null) return '';
+  const n = +val;
+  let cls = 'stax-gray';
+  if (n >= 80) cls = 'stax-red';
+  else if (n >= 65) cls = 'stax-orange';
+  else if (n >= 50) cls = 'stax-yellow';
+  return `<div class="stax-badge"><span class="stax-icon">⚡</span><span class="${cls}">${n.toFixed(1)}</span></div>`;
+}
+
+function rankEl(snaps, teamId) {
+  const s = snaps.find(s => s.team_id === teamId);
+  return s?.rank_overall ? `#${s.rank_overall}` : '';
+}
+
+function gameCard(g, snaps) {
+  const home = g.home_team;
+  const away = g.away_team;
+  const isFinal = g.status === 'final';
+  const hScore = isFinal ? g.home_score : null;
+  const aScore = isFinal ? g.away_score : null;
+  const hWin = isFinal && hScore > aScore;
+  const aWin = isFinal && aScore > hScore;
+
+  const hRnk = rankEl(snaps, home.id);
+  const aRnk = rankEl(snaps, away.id);
+
+  // Pick correctness
+  let pickWon = null;
+  if (isFinal && g.pick_team) {
+    pickWon = (g.pick_team === home.school_name && hWin) ||
+              (g.pick_team === away.school_name && aWin);
+  }
+
+  const pickSection = (g.pick_team && g.spread != null) ? `
+    <div class="card-pick">
+      <span class="pick-label">Pick</span>
+      <span class="pick-team ${pickWon === false ? 'wrong' : ''}">${g.pick_team}</span>
+      <span class="pick-spread">+${(+g.spread).toFixed(1)}</span>
+      ${isFinal ? `<span class="result-icon ${pickWon ? 'correct' : 'wrong'}">${pickWon ? '✓' : '✗'}</span>` : ''}
+      ${staxEl(g.stax_index)}
+    </div>` : `
+    <div class="card-pick">
+      <span class="no-pick">No pick</span>
+      ${staxEl(g.stax_index)}
+    </div>`;
+
+  return `
+    <div class="game-card ${isFinal ? 'is-final' : ''}" data-game-id="${g.id}">
+      <div class="card-teams">
+        <div class="team-block">
+          ${aRnk ? `<span class="team-rank">${aRnk}</span>` : ''}
+          ${logoEl(away.logo_url, away.school_name)}
+          <span class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}">${away.school_name}</span>
+        </div>
+        ${isFinal ? `<span class="score ${aWin?'winner':'loser'}">${aScore}</span>` : ''}
+        <span class="at-sep">@</span>
+        ${isFinal ? `<span class="score ${hWin?'winner':'loser'}">${hScore}</span>` : ''}
+        <div class="team-block">
+          ${logoEl(home.logo_url, home.school_name)}
+          <span class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}">${home.school_name}</span>
+          ${hRnk ? `<span class="team-rank">${hRnk}</span>` : ''}
+        </div>
+      </div>
+      ${pickSection}
+    </div>`;
+}
+
+async function loadSpreads() {
+  const myVersion = ++_loadVersion;
+
+const ds = toISO(currentDate);
+  document.getElementById('dateHeading').textContent = fmtHeading(currentDate);
+  document.getElementById('datePicker').value = ds;
+  document.getElementById('datePicker').max = toISO(maxAllowedDate());
+
+  const isToday = ds === toISO(maxAllowedDate());
+  document.getElementById('todayBtn').style.display = isToday ? 'none' : '';
+
+  document.getElementById('app').innerHTML =
+    '<div class="loading"><span class="spinner"></span> Loading…</div>';
+
+  // Fetch games for this date
+  const { data: games, error } = await sb
+    .from('games')
+    .select(`
+      id, status, stax_index, pick_team, spread,
+      home_score, away_score,
+      home_team:home_team_id ( id, school_name, logo_url, sport_id, gender ),
+      away_team:away_team_id ( id, school_name, logo_url )
+    `)
+    .eq('game_date', ds)
+    .not('pick_team', 'is', null)
+    .order('stax_index', { ascending: false });
+
+  if (error || !games?.length) {
+    if (myVersion !== _loadVersion) return;
+    document.getElementById('app').innerHTML =
+      `<div class="empty">No games with picks on this date.</div>`;
+    return;
+  }
+  if (myVersion !== _loadVersion) return;
+
+  // Fetch latest snapshots for ranks
+  const teamIds = [...new Set(games.flatMap(g => [g.home_team?.id, g.away_team?.id]).filter(Boolean))];
+  const { data: snaps } = await sb
+    .from('rankings_snapshots')
+    .select('team_id, rank_overall')
+    .in('team_id', teamIds)
+    .order('snapshot_date', { ascending: false })
+    .limit(teamIds.length * 3);
+
+  if (myVersion !== _loadVersion) return;
+
+  // Dedupe snaps to latest per team
+  const snapMap = {};
+  for (const s of (snaps || [])) {
+    if (!snapMap[s.team_id]) snapMap[s.team_id] = s;
+  }
+  const snapList = Object.values(snapMap);
+
+  // Filter out games without valid teams
+  const valid = games.filter(g => g.home_team && g.away_team);
+
+  // Group by sport → gender → status
+  const bySport = {};
+  for (const g of valid) {
+    const sid = g.home_team.sport_id;
+    const gender = g.home_team.gender || 'Boys';
+    if (!bySport[sid]) bySport[sid] = {};
+    if (!bySport[sid][gender]) bySport[sid][gender] = { scheduled: [], final: [] };
+    if (g.status === 'final') bySport[sid][gender].final.push(g);
+    else bySport[sid][gender].scheduled.push(g);
+  }
+
+  let html = '';
+  const sportIds = SPORT_ORDER.filter(id => bySport[id]);
+
+  if (!sportIds.length) {
+    html = `<div class="empty">No games with picks on this date.</div>`;
+  } else {
+    for (const sid of sportIds) {
+      const sportName = SPORT_NAMES[sid] || 'Other';
+      const genders = ['Boys', 'Girls'].filter(g => bySport[sid][g]);
+      const totalCount = genders.reduce((n, g) => n + bySport[sid][g].scheduled.length + bySport[sid][g].final.length, 0);
+
+      html += `<div class="sport-section">
+        <div class="sport-label">${sportName} · ${totalCount} game${totalCount !== 1 ? 's' : ''}</div>`;
+
+      for (const gender of genders) {
+        const { scheduled, final } = bySport[sid][gender];
+        const hasBoth = genders.length > 1;
+
+        if (hasBoth) {
+          html += `<div class="status-label">${gender}</div>`;
+        }
+
+        if (scheduled.length) {
+          if (final.length) html += `<div class="status-label">${hasBoth ? '↳ ' : ''}Upcoming</div>`;
+          for (const g of scheduled) html += gameCard(g, snapList);
+        }
+
+        if (final.length) {
+          html += `<div class="status-label">${hasBoth ? '↳ ' : ''}Final</div>`;
+          for (const g of final) html += gameCard(g, snapList);
+        }
+      }
+
+      html += `</div>`;
+    }
+  }
+
+  document.getElementById('app').innerHTML = html;
+
+  document.querySelectorAll('.card-teams').forEach(ct => {
+    ct.addEventListener('click', (e) => {
+      if (e.target.closest('a, button')) return;
+      const gameId = ct.closest('.game-card')?.dataset.gameId;
+      if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
+    });
+  });
+}
+
+</script>
+
+
+<script>
+// Auto-resize: posts content height to parent Ghost page so iframe fits without scrollbars
+(function() {
+  function sendHeight() {
+    var h = document.documentElement.scrollHeight;
+    window.parent.postMessage({ type: 'mbr-embed-resize', height: h }, '*');
+  }
+  window.addEventListener('load', sendHeight);
+  var ro = new ResizeObserver(sendHeight);
+  ro.observe(document.body);
+  document.addEventListener('click', function() { setTimeout(sendHeight, 150); });
+})();
+</script>
+
+<script>document.addEventListener("DOMContentLoaded", loadSpreads);</script>
+</body>
+</html>

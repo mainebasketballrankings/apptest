@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matchup — Maine Basketball Rankings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --green:   #2d6a4f;
+      --green2:  #40916c;
+      --greenlt: #d8f3dc;
+      --orange:  #ee6730;
+      --black:   #1a1a1a;
+      --lgray:   #999;
+      --border:  #e5e5e5;
+      --bg:      #f4f5f9;
+      --card:    #fff;
+      --red:     #c0392b;
+      --gold:    #d4a00a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow', sans-serif; background: #fff; color: var(--black); }
+
+    .page-wrap { max-width: 860px; margin: 0 auto; padding: 16px 16px 40px; }
+
+    /* ── Spinner ── */
+    .state-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 24px; color: var(--lgray); font-size: 15px; }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--green2); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Hero ── */
+    .hero { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+    .hero-meta { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #fafafa; border-bottom: 1px solid var(--border); font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--lgray); }
+
+    .hero-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 24px 20px 20px; gap: 12px; }
+    .hero-team  { display: flex; flex-direction: column; gap: 6px; }
+    .hero-team.away { align-items: flex-end; text-align: right; }
+    .hero-team.home { align-items: flex-start; }
+
+    .hero-logo      { width: 56px; height: 56px; object-fit: contain; }
+    .hero-logo-init { width: 56px; height: 56px; background: var(--greenlt); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; color: var(--green); }
+    .hero-name   { font-weight: 600; font-size: 17px; line-height: 1.2; }
+    .hero-rank-line { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; color: var(--green2); letter-spacing: 0.3px; }
+    .hero-rnk   { color: var(--lgray); font-weight: 600; }
+    .hero-score  { font-family: 'Barlow Condensed', sans-serif; font-size: 38px; font-weight: 700; line-height: 1; margin-top: 4px; }
+
+    .hero-vs     { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 80px; }
+    .hero-vs-label { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--lgray); }
+    .hero-loc    { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; color: var(--lgray); text-align: center; max-width: 100px; line-height: 1.4; margin-top: 2px; }
+
+    .stax-badge { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; }
+    .stax-badge.gray   { color: #aaa; }
+    .stax-badge.yellow { color: var(--gold); }
+    .stax-badge.orange { color: var(--orange); }
+    .stax-badge.red    { color: var(--red); }
+
+    /* ── Win prob bar ── */
+    .win-prob { padding: 0 20px 18px; }
+    .win-prob-bar { height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 5px; display: flex; }
+    .win-prob-fill-home { background: var(--green2); transition: width 0.6s ease; }
+    .win-prob-fill-away { background: #bbb; transition: width 0.6s ease; }
+    .win-prob-labels { display: flex; justify-content: space-between; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--lgray); }
+    .win-prob-labels .pct { font-size: 12px; color: var(--black); }
+
+    /* ── Model pick ── */
+    .pick-row { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--lgray); }
+    .pick-team-label { color: var(--green); font-size: 15px; font-weight: 700; }
+    .spread-label    { color: var(--black); font-size: 15px; }
+
+    /* ── Comparison table ── */
+    .cmp-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+    .cmp-header { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--lgray); padding: 9px 16px; background: #fafafa; border-bottom: 1px solid var(--border); text-align: center; }
+
+    .cmp-row { display: grid; grid-template-columns: 1fr 140px 1fr; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--border); }
+    .cmp-row:last-child { border-bottom: none; }
+
+    .cmp-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--lgray); text-align: center; }
+
+    .cmp-cell { display: flex; flex-direction: column; gap: 2px; }
+    .cmp-cell.home { align-items: flex-start; }
+    .cmp-cell.away { align-items: flex-end; }
+
+    .cmp-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; line-height: 1; }
+    .cmp-val.better { color: var(--green2); }
+    .cmp-val.worse  { color: var(--lgray); }
+
+    .cmp-ranks { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; color: var(--lgray); letter-spacing: 0.3px; }
+    .cmp-ranks span { color: var(--black); }
+
+    /* ── ATS chips ── */
+    .chips-row { display: flex; gap: 12px; margin-bottom: 14px; }
+    .chip { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; text-align: center; }
+    .chip-val { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; line-height: 1; margin-bottom: 2px; }
+    .chip-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--lgray); }
+
+
+    /* ── Game switcher ── */
+    .game-switcher { margin-bottom: 16px; }
+    .game-switcher-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--lgray); margin-bottom: 6px; }
+    .game-switcher select {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--black);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 14px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    .game-switcher select:focus { border-color: var(--green2); }
+    .watermark { text-align: center; padding: 20px 0 0; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--lgray); }
+
+    @media (max-width: 580px) {
+      .cmp-row { grid-template-columns: 1fr 120px 1fr; }
+      .cmp-val { font-size: 14px; }
+      .hero-name { font-size: 15px; }
+    }
+  </style>
+
+</head>
+<body>
+
+<div class="page-wrap">
+  <div class="game-switcher" id="gameSwitcher" style="display:none">
+    <div class="game-switcher-label">Today's Games</div>
+    <select id="gameSelect"></select>
+  </div>
+  <div id="content">
+      <div class="state-msg"><div class="spinner"></div><span>Loading matchup…</span></div>
+  </div>
+</div>
+
+<script>
+const SPORT_SCORE_LABELS = {
+  'basketball':   ['Pts Scored', 'Pts Allowed'],
+  'football':     ['Pts Scored', 'Pts Allowed'],
+  'soccer':       ['Goals For',  'Goals Against'],
+  'lacrosse':     ['Goals For',  'Goals Against'],
+  'field-hockey': ['Goals For',  'Goals Against'],
+  'baseball':     ['Runs For',   'Runs Against'],
+  'softball':     ['Runs For',   'Runs Against'],
+  'volleyball':   ['Sets Won',   'Sets Lost'],
+};
+const SPORT_IDS = {
+  'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+  'baseball':     'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+  'softball':     '095c9841-7261-4cb1-824e-6304792b53d0',
+  'lacrosse':     '9c34ec5c-0e4c-4b5a-8e3a-7f2d1c9b4a6e',
+  'soccer':       'ff80a695-0e78-4432-98f2-141b2b571e0e',
+  'field-hockey': '1054869a-2b3c-4d5e-6f7a-8b9c0d1e2f3a',
+  'football':     'fa905ca5-1234-5678-abcd-ef0123456789',
+  'volleyball':   'e26b0fcc-e661-4945-8b2d-063c37ace44f',
+};
+const SPORT_KEY_BY_ID = Object.fromEntries(Object.entries(SPORT_IDS).map(([k,v])=>[v,k]));
+
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+const _sb = supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'mbr-matchup' } });
+
+var _loadVersion = 0; // version guard for loadMatchup race on rapid game switching
+}
+
+// ── Rank helpers ────────────────────────────────────────────────────────────
+
+// Rank a set of snaps by a stat. Returns map of team_id -> rank (1=best)
+function computeRanks(snaps, statFn, higherIsBetter = true) {
+  const valid = snaps.filter(s => statFn(s) != null).sort((a, b) =>
+    higherIsBetter ? statFn(b) - statFn(a) : statFn(a) - statFn(b));
+  const map = {};
+  valid.forEach((s, i) => { map[s.team_id] = i + 1; });
+  return map;
+}
+
+function rankBracket(stateRanks, classRanks, regionRanks, teamId, cls, reg) {
+  const s = stateRanks[teamId];
+  const c = classRanks[teamId];
+  const r = regionRanks[teamId];
+  const parts = [];
+  if (s) parts.push(`<span>#${s}</span>`);
+  if (c) parts.push(`<span>#${c} ${cls}</span>`);
+  if (r && reg) parts.push(`<span>#${r} ${reg}</span>`);
+  if (!parts.length) return '';
+  return parts.join(' <span style="color:var(--border)">|</span> ');
+}
+
+// ── Load ─────────────────────────────────────────────────────────────────────
+
+async function loadMatchup() {
+  const myVersion = ++_loadVersion;
+  const el     = document.getElementById('content');
+  const gameId = new URLSearchParams(window.location.search).get('game_id');
+  if (!gameId) { el.innerHTML = '<div class="state-msg">No game specified.</div>'; return; }
+
+  const sb = _sb;
+
+  // 1. Fetch game
+  const { data: game, error: gErr } = await sb.from('games').select(`
+    id, game_date, game_time, location, sport_id, season_year,
+    home_score, away_score, status, stax_index, pick_team, spread, win_prob, is_neutral_site,
+    home_team:home_team_id ( id, school_name, gender, logo_url, team_class, team_region,
+      team_classifications ( classes(name), regions(name,abbreviation) ) ),
+    away_team:away_team_id ( id, school_name, gender, logo_url, team_class, team_region,
+      team_classifications ( classes(name), regions(name,abbreviation) ) )
+  `).eq('id', gameId).single();
+
+  if (gErr || !game) { el.innerHTML = '<div class="state-msg">Game not found.</div>'; return; }
+  if (myVersion !== _loadVersion) return; // superseded by newer game selection
+
+  const home = game.home_team, away = game.away_team;
+  const sportKey = SPORT_KEY_BY_ID[game.sport_id] || 'basketball';
+
+  // 2. Fetch snapshots for this sport+season only — get sport team IDs first to avoid cross-sport overfetch
+  // Step 2a: get all team IDs for this sport
+  const { data: sportTeamRows } = await sb.from('teams')
+    .select('id')
+    .eq('sport_id', game.sport_id);
+  if (myVersion !== _loadVersion) return;
+
+  const sportTeamIds = (sportTeamRows || []).map(t => t.id);
+
+  // Step 2b: fetch snapshots in chunks of 200 to stay within URL limits
+  let allSnaps = [];
+  const snapChunkSize = 200;
+  for (let i = 0; i < sportTeamIds.length; i += snapChunkSize) {
+    if (myVersion !== _loadVersion) return;
+    const chunk = sportTeamIds.slice(i, i + snapChunkSize);
+    const { data: batch } = await sb.from('rankings_snapshots')
+      .select(`team_id, avg_pf, avg_pa, sos, pct_perfect, vs_top_25, vs_top_50,
+               win_pct, heal_points, dirigo, mheals_18, ats_record, wins, losses, rank_overall, snapshot_date,
+               team:team_id(sport_id, gender, team_class, team_region, team_classifications(classes(name), regions(abbreviation)))`)
+      .eq('season_year', game.season_year)
+      .in('team_id', chunk)
+      .order('snapshot_date', { ascending: false })
+      .limit(chunk.length * 8);
+    if (batch) allSnaps.push(...batch);
+  }
+  if (myVersion !== _loadVersion) return;
+
+  // Keep only latest snap per team
+  const latestMap = {};
+  for (const s of allSnaps) {
+    if (!latestMap[s.team_id]) latestMap[s.team_id] = s;
+  }
+
+  // Fix 2: Only fetch team_classifications for the two teams in this game
+  // (class/region data for all other teams comes from the team join in snapshots)
+  const clsMap = {};
+  const twoTeamIds = [home.id, away.id].filter(Boolean);
+  if (twoTeamIds.length) {
+    const { data: clsData } = await sb.from('team_classifications')
+      .select('team_id, classes(name), regions(name, abbreviation)')
+      .in('team_id', twoTeamIds);
+    if (clsData) for (const row of clsData) {
+      clsMap[row.team_id] = {
+        cls: row.classes?.name || null,
+        reg: row.regions?.abbreviation || null,
+        regName: row.regions?.name || null,
+      };
+    }
+  }
+  if (myVersion !== _loadVersion) return;
+
+
+  function snapCls(s) { return s.team?.team_class || clsMap[s.team_id]?.cls || null; }
+  function snapReg(s)     { return s.team?.team_region || clsMap[s.team_id]?.reg || null; }
+  function snapRegName(s) { return clsMap[s.team_id]?.regName || snapReg(s) || null; }
+
+  const sportSnaps = Object.values(latestMap).filter(s =>
+    s.team?.sport_id === game.sport_id && s.team?.gender === home.gender);
+
+
+  const hSnap = latestMap[home.id] || {};
+  const aSnap = latestMap[away.id] || {};
+
+  const homeCls = home.team_class || home.team_classifications?.classes?.name || clsMap[home.id]?.cls || null;
+  const awayCls = away.team_class || away.team_classifications?.classes?.name || clsMap[away.id]?.cls || null;
+  const homeReg = home.team_region || home.team_classifications?.regions?.abbreviation || clsMap[home.id]?.reg || null;
+  const awayReg     = away.team_region || away.team_classifications?.regions?.abbreviation || clsMap[away.id]?.reg || null;
+  const homeRegName = clsMap[home.id]?.regName || homeReg || null;
+  const awayRegName = clsMap[away.id]?.regName || awayReg || null;
+
+  // 3. Build rank lookup tables — separate class/region pools for each team
+  function makeRanks(statFn, hiGood = true) {
+    return {
+      state: computeRanks(sportSnaps, statFn, hiGood),
+      hCls:  computeRanks(sportSnaps.filter(s => snapCls(s) === homeCls), statFn, hiGood),
+      aCls:  computeRanks(sportSnaps.filter(s => snapCls(s) === awayCls), statFn, hiGood),
+      hReg:  computeRanks(sportSnaps.filter(s => snapCls(s) === homeCls && snapReg(s) === homeReg), statFn, hiGood),
+      aReg:  computeRanks(sportSnaps.filter(s => snapCls(s) === awayCls && snapReg(s) === awayReg), statFn, hiGood),
+    };
+  }
+
+  const pfRanks  = makeRanks(s => s.avg_pf, true);
+  const paRanks  = makeRanks(s => s.avg_pa, false);
+  const difRanks = makeRanks(s => (s.avg_pf != null && s.avg_pa != null) ? s.avg_pf - s.avg_pa : null, true);
+  const sosRanks = makeRanks(s => s.sos,          true);
+  const pctRanks = makeRanks(s => s.pct_perfect,  true);
+  const t25Ranks = makeRanks(s => s.vs_top_25,    true);
+  const t50Ranks = makeRanks(s => s.vs_top_50,    true);
+
+
+  // 4. Fetch rest days (last game before this one for each team)
+  async function getLastGame(teamId) {
+    const { data } = await sb.from('games')
+      .select('game_date')
+      .eq('status', 'final')
+      .eq('season_year', game.season_year)
+      .lt('game_date', game.game_date)
+      .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+      .order('game_date', { ascending: false })
+      .limit(1);
+    return data?.[0]?.game_date || null;
+  }
+
+  const [hLastDate, aLastDate] = await Promise.all([
+    getLastGame(home.id),
+    getLastGame(away.id),
+  ]);
+
+  function restDays(lastDate) {
+    if (!lastDate) return null;
+    const d1 = new Date(game.game_date + 'T12:00:00');
+    const d2 = new Date(lastDate + 'T12:00:00');
+    return Math.round((d1 - d2) / 86400000);
+  }
+
+  const hRest = restDays(hLastDate);
+  const aRest = restDays(aLastDate);
+
+  if (myVersion !== _loadVersion) return; // final check before writing to DOM
+
+  el.innerHTML = buildMatchup({
+    game, home, away, hSnap, aSnap,
+    homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName,
+    pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
+    hRest, aRest,
+    scoreLabels: SPORT_SCORE_LABELS[sportKey] || ['Pts Scored', 'Pts Allowed'],
+  });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function logoEl(team) {
+  if (team.logo_url) return `
+    <img class="hero-logo" src="${team.logo_url}" alt="${team.school_name}"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="hero-logo-init" style="display:none">${team.school_name[0]}</div>`;
+  return `<div class="hero-logo-init">${team.school_name[0]}</div>`;
+}
+
+function fmt(v, d=1)  { return (v==null||isNaN(v)) ? '—' : Number(v).toFixed(d); }
+function fmtPct(v)    { return (v==null||isNaN(v)) ? '—' : (Number(v)*100).toFixed(1)+'%'; }
+function fmtRec(s)    { return s.wins != null ? `${s.wins}–${s.losses??0}` : null; }
+function fmtDiff(pf, pa) {
+  if (pf==null||pa==null) return '—';
+  const d = (Number(pf)-Number(pa)).toFixed(1);
+  return d >= 0 ? `+${d}` : `${d}`;
+}
+
+function staxEl(val) {
+  if (!val) return '';
+  const n = parseFloat(val);
+  const cls = n>=80?'red':n>=65?'orange':n>=50?'yellow':'gray';
+  return `<span class="stax-badge ${cls}">⚡${n.toFixed(1)}</span>`;
+}
+
+function betterCls(hv, av, hiGood=true) {
+  if (hv==null||av==null||isNaN(hv)||isNaN(av)) return ['',''];
+  return (hiGood ? hv>=av : hv<=av) ? ['better','worse'] : ['worse','better'];
+}
+
+// ── Build ─────────────────────────────────────────────────────────────────────
+
+function buildMatchup({ game, home, away, hSnap, aSnap,
+  homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName,
+  pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
+  hRest, aRest, scoreLabels }) {
+
+  const isFinal = game.status==='final', isLive = game.status==='active';
+  const crossCls = homeCls !== awayCls;
+  const clsLabel = crossCls ? `Cross-Class · ${home.gender}` : `Class ${homeCls||'?'} · ${home.gender}`;
+  const dateStr  = game.game_date
+    ? new Date(game.game_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})
+    : '';
+  const statusLabel = isFinal ? `Final · ${dateStr}` : isLive ? `Live · ${dateStr}` : dateStr;
+
+  // Win prob — use game.win_prob (GameDay projected win% for home team)
+  let winProbHTML = '';
+  if (game.win_prob != null) {
+    const hp = Math.round(game.win_prob * 100);
+    const ap = 100 - hp;
+    winProbHTML = `<div class="win-prob">
+      <div class="win-prob-bar">
+        <div class="win-prob-fill-away" style="width:${ap}%"></div>
+        <div class="win-prob-fill-home" style="width:${hp}%"></div>
+      </div>
+      <div class="win-prob-labels">
+        <span>${away.school_name} <span class="pct">${ap}%</span></span>
+        <span><span class="pct">${hp}%</span> ${home.school_name}</span>
+      </div>
+    </div>`;
+  }
+
+  // Pick
+  let pickHTML = '';
+  if (game.pick_team && game.spread != null) {
+    const pickName = game.pick_team===home.school_name ? home.school_name
+                     : game.pick_team===away.school_name ? away.school_name
+                     : game.pick_team; // fallback: show raw value
+    const stax = staxEl(game.stax_index);
+    pickHTML = `<div class="pick-row">
+      ${stax ? stax+'<span style="color:var(--border)">·</span>' : ''}
+      <span>Model Pick:</span>
+      <span class="pick-team-label">${pickName}</span>
+      <span class="spread-label">+${Math.abs(game.spread).toFixed(1)}</span>
+    </div>`;
+  }
+
+  // cmp row builder
+  function cmpRow(label, hVal, aVal, hRankHTML, aRankHTML, hCls, aCls) {
+    return `<div class="cmp-row">
+      <div class="cmp-cell away">
+        <span class="cmp-val ${aCls}">${aVal}</span>
+        ${aRankHTML ? `<span class="cmp-ranks">${aRankHTML}</span>` : ''}
+      </div>
+      <div class="cmp-label">${label}</div>
+      <div class="cmp-cell home">
+        <span class="cmp-val ${hCls}">${hVal}</span>
+        ${hRankHTML ? `<span class="cmp-ranks">${hRankHTML}</span>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function bracketFor(ranks, teamId, cls, reg, regName, isHome) {
+    const s  = ranks.state[teamId];
+    const cr = isHome ? ranks.hCls[teamId]  : ranks.aCls[teamId];
+    const rr = isHome ? ranks.hReg[teamId]  : ranks.aReg[teamId];
+    const parts = [];
+    if (s)         parts.push(`<span>#${s}</span>`);
+    if (cr) parts.push(`<span>#${cr}${cls ? ' '+cls : ''}</span>`);
+    if (rr && reg) parts.push(`<span>#${rr} ${cls ? cls+' ' : ''}${regName||reg}</span>`);
+    return parts.length ? `[ ${parts.join(' <span style="opacity:.3">|</span> ')} ]` : '';
+  }
+
+  function statCmpRow(label, hRaw, aRaw, ranks, fmtFn, hiGood=true) {
+    const [hc, ac] = betterCls(hRaw, aRaw, hiGood);
+    return cmpRow(label,
+      fmtFn(hRaw), fmtFn(aRaw),
+      bracketFor(ranks, home.id, homeCls, homeReg, homeRegName, true),
+      bracketFor(ranks, away.id, awayCls, awayReg, awayRegName, false),
+      hc, ac);
+  }
+
+  const hGames = (hSnap.wins != null && hSnap.losses != null) ? hSnap.wins + hSnap.losses : null;
+  const aGames = (aSnap.wins != null && aSnap.losses != null) ? aSnap.wins + aSnap.losses : null;
+  const hAvgDiff = hSnap.avg_pf != null && hSnap.avg_pa != null ? hSnap.avg_pf - hSnap.avg_pa : null;
+  const aAvgDiff = aSnap.avg_pf != null && aSnap.avg_pa != null ? aSnap.avg_pf - aSnap.avg_pa : null;
+  const hTotalDiff = hAvgDiff != null && hGames != null ? Math.round(hAvgDiff * hGames) : null;
+  const aTotalDiff = aAvgDiff != null && aGames != null ? Math.round(aAvgDiff * aGames) : null;
+  const hDiff = hAvgDiff;
+  const aDiff = aAvgDiff;
+  const [hDc, aDc] = betterCls(hDiff, aDiff, true);
+
+  // Rest days
+  const restRow = (hRest != null || aRest != null) ? cmpRow(
+    'Rest Days',
+    hRest != null ? `${hRest}d` : '—',
+    aRest != null ? `${aRest}d` : '—',
+    '', '', '', '') : '';
+
+  // ATS
+  const hAts = hSnap.ats_record || '—';
+  const aAts = aSnap.ats_record || '—';
+
+  // Hero rank line
+  function heroRankLine(snap, cls, reg) {
+    const parts = [];
+    if (snap.rank_overall != null) parts.push(`#${snap.rank_overall} State`);
+    // We don't have rank_class/rank_region in our fetched snaps here — show class/region from team
+    return parts.join(' · ') || '';
+  }
+
+  return `
+  <div class="hero">
+    <div class="hero-meta">
+      <span>${statusLabel}</span>
+      <span>${clsLabel}</span>
+      ${!game.pick_team ? staxEl(game.stax_index) : ''}
+    </div>
+    <div class="hero-teams">
+      <div class="hero-team away">
+        ${logoEl(away)}
+        <div class="hero-name">${aSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+aSnap.rank_overall+'</span> ' : ''}${away.school_name}</div>
+        ${isFinal ? `<div class="hero-score">${game.away_score??'–'}</div>` : ''}
+      </div>
+      <div class="hero-vs">
+        <div class="hero-vs-label">vs</div>
+        <div class="hero-loc">${game.location ? '@ '+game.location : game.is_neutral_site ? 'Neutral Site' : '@ '+home.school_name}</div>
+      </div>
+      <div class="hero-team home">
+        ${logoEl(home)}
+        <div class="hero-name">${hSnap.rank_overall ? '<span class=\'hero-rnk\'>#'+hSnap.rank_overall+'</span> ' : ''}${home.school_name}</div>
+        ${isFinal ? `<div class="hero-score">${game.home_score??'–'}</div>` : ''}
+      </div>
+    </div>
+    ${winProbHTML}
+    ${pickHTML}
+  </div>
+
+  <div class="cmp-section">
+    <div class="cmp-header">Scoring</div>
+    ${statCmpRow(scoreLabels[0], hSnap.avg_pf, aSnap.avg_pf, pfRanks, v=>fmt(v), true)}
+    ${statCmpRow(scoreLabels[1], hSnap.avg_pa, aSnap.avg_pa, paRanks, v=>fmt(v), false)}
+    <div class="cmp-row">
+      <div class="cmp-cell away">
+        <span class="cmp-val ${aDc}">${aTotalDiff != null ? (aTotalDiff >= 0 ? '+' : '') + aTotalDiff : '—'}${aAvgDiff != null ? '<span style="font-size:11px;font-weight:600;color:var(--lgray)"> ('+fmtDiff(aSnap.avg_pf,aSnap.avg_pa)+')</span>' : ''}</span>
+        <span class="cmp-ranks">${bracketFor(difRanks, away.id, awayCls, awayReg, awayRegName, false)}</span>
+      </div>
+      <div class="cmp-label">+/–</div>
+      <div class="cmp-cell home">
+        <span class="cmp-val ${hDc}">${hTotalDiff != null ? (hTotalDiff >= 0 ? '+' : '') + hTotalDiff : '—'}${hAvgDiff != null ? '<span style="font-size:11px;font-weight:600;color:var(--lgray)"> ('+fmtDiff(hSnap.avg_pf,hSnap.avg_pa)+')</span>' : ''}</span>
+        <span class="cmp-ranks">${bracketFor(difRanks, home.id, homeCls, homeReg, homeRegName, true)}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmp-section">
+    <div class="cmp-header">Schedule &amp; Domination</div>
+    ${statCmpRow('SOS',       hSnap.sos,        aSnap.sos,        sosRanks, v=>fmt(v,2), true)}
+    ${statCmpRow('%Perfect',  hSnap.pct_perfect, aSnap.pct_perfect, pctRanks, v=>fmtPct(v), true)}
+    ${statCmpRow('%vs Top 25', hSnap.vs_top_25, aSnap.vs_top_25, t25Ranks, v=>fmtPct(v), true)}
+    ${statCmpRow('%vs Top 50', hSnap.vs_top_50, aSnap.vs_top_50, t50Ranks, v=>fmtPct(v), true)}
+  </div>
+
+  <div class="cmp-section">
+    <div class="cmp-header">Assorted</div>
+    ${cmpRow('Record', hSnap.wins!=null?hSnap.wins+'-'+(hSnap.losses??0):'—', aSnap.wins!=null?aSnap.wins+'-'+(aSnap.losses??0):'—', '', '', '', '')}
+    ${cmpRow('ATS', hAts, aAts, '', '', '', '')}
+    ${restRow}
+  </div>
+
+  <div class="watermark">mainebasketballrankings.com</div>`;
+}
+// ── Game switcher ─────────────────────────────────────────────────────────────
+
+const SPORT_DISPLAY = {
+  'b31ab283-b28e-4ba8-9684-b1cf30cea219': 'Basketball',
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0': 'Baseball',
+  '095c9841-7261-4cb1-824e-6304792b53d0': 'Softball',
+  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d': 'Lacrosse',
+  'ff80a695-0e78-4432-98f2-141b2b571e0e': 'Soccer',
+  '1054869a-2b3c-4d5e-6f7a-8b9c0d1e2f3a': 'Field Hockey',
+  'fa905ca5-1234-5678-abcd-ef0123456789': 'Football',
+  'e26b0fcc-e661-4945-8b2d-063c37ace44f': 'Volleyball',
+};
+
+async function loadTodaysGames(currentGameId, gameDate) {
+  const sb = _sb;
+  const { data: games } = await sb
+    .from('games')
+    .select(`id, sport_id, status, game_time,
+      home_team:home_team_id(school_name),
+      away_team:away_team_id(school_name)`)
+    .eq('game_date', gameDate)
+    .not('status', 'eq', 'postponed')
+    .order('sport_id', { ascending: true })
+    .order('game_time', { ascending: true, nullsFirst: false });
+
+  if (!games || !games.length) return;
+
+  // Sort: sport display name, then home team name
+  const sportOrder = ['Baseball','Basketball','Field Hockey','Football','Lacrosse','Soccer','Softball','Volleyball'];
+  games.sort((a, b) => {
+    const sa = SPORT_DISPLAY[a.sport_id] || 'Z';
+    const sb2 = SPORT_DISPLAY[b.sport_id] || 'Z';
+    const si = sportOrder.indexOf(sa) - sportOrder.indexOf(sb2);
+    if (si !== 0) return si;
+    return (a.home_team?.school_name || '').localeCompare(b.home_team?.school_name || '');
+  });
+
+  const sel = document.getElementById('gameSelect');
+  sel.innerHTML = '';
+
+  // Add blank option if no game selected
+  if (!currentGameId) {
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = '— Select a game —';
+    blank.disabled = true;
+    blank.selected = true;
+    sel.appendChild(blank);
+  }
+
+  let lastSport = null;
+  games.forEach(g => {
+    const sport = SPORT_DISPLAY[g.sport_id] || 'Other';
+    const away = g.away_team?.school_name || '?';
+    const home = g.home_team?.school_name || '?';
+    const status = g.status === 'final' ? ' ✓' : g.status === 'in_progress' ? ' ●' : '';
+
+    // Add optgroup when sport changes
+    if (sport !== lastSport) {
+      const grp = document.createElement('optgroup');
+      grp.label = sport;
+      sel.appendChild(grp);
+      lastSport = sport;
+    }
+
+    const label = `${away} @ ${home}${status}`;
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = label;
+    if (g.id === currentGameId) opt.selected = true;
+    sel.lastElementChild.appendChild(opt);
+  });
+
+  sel.addEventListener('change', () => {
+    const newId = sel.value;
+    if (!newId) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('game_id', newId);
+    window.history.pushState({}, '', url);
+    document.getElementById('content').innerHTML = '<div class="state-msg"><div class="spinner"></div><span>Loading matchup…</span></div>';
+    loadMatchup();
+  });
+
+  document.getElementById('gameSwitcher').style.display = 'block';
+}
+
+</script>
+<script>
+  const _gameId = new URLSearchParams(window.location.search).get('game_id');
+  const _today = new Date().toISOString().slice(0, 10);
+  loadTodaysGames(_gameId, _today);
+  if (_gameId) loadMatchup();
+  else document.getElementById('content').innerHTML = '<div class="state-msg">Select a game above.</div>';
+</script>
+
+<script>
+// Auto-resize: posts content height to parent Ghost page so iframe fits without scrollbars
+(function() {
+  function sendHeight() {
+    var h = document.documentElement.scrollHeight;
+    window.parent.postMessage({ type: 'mbr-embed-resize', height: h }, '*');
+  }
+  window.addEventListener('load', sendHeight);
+  var ro = new ResizeObserver(sendHeight);
+  ro.observe(document.body);
+  document.addEventListener('click', function() { setTimeout(sendHeight, 150); });
+})();
+</script>
+
+</body>
+</html>

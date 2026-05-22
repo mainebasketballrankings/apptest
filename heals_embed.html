@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  
+  <title>Maine Basketball Rankings — Heal Points</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    :root {
+      --green:  #1a7a4a;
+      --green2: #22a863;
+      --red:    #c0392b;
+      --gray:   #555;
+      --lgray:  #999;
+      --border: #e2e2e2;
+      --bg:     #f0f0f0;
+      --white:  #fff;
+      --black:  #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: #fff;
+      color: var(--black);
+    }
+
+
+    /* PAGE */
+    .page { max-width: 860px; margin: 0 auto; padding: 16px 20px 40px; }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 30px; margin-bottom: 2px;
+    }
+
+    .page-sub { font-size: 16px; color: var(--lgray); margin-bottom: 22px; }
+
+    /* REGION SELECTOR */
+    /* SPORT TABS */
+    .sport-tabs {
+      display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .sport-tab {
+      padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer;
+      color: var(--gray); transition: all .15s;
+    }
+    .sport-tab:hover { border-color: #bbb; color: var(--black); }
+    .sport-tab.active { background: var(--black); border-color: var(--black); color: #fff; }
+
+    .region-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .region-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 12px; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--lgray);
+    }
+
+    .region-select {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 14px;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--white);
+      color: var(--black);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 34px;
+      transition: border-color 0.15s;
+    }
+
+    .region-select:focus { border-color: var(--green2); }
+
+    /* GENDER TABS */
+    .gender-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .gender-tab {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 14px; letter-spacing: 0.2px;
+      padding: 10px 24px;
+      border: none; background: transparent;
+      color: var(--lgray); cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s;
+    }
+
+    .gender-tab:hover { color: var(--black); }
+    .gender-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+    /* TABLE */
+    .table-wrap {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead tr {
+      background: #fafafa;
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 12px; letter-spacing: 0.3px;
+      text-transform: uppercase; color: var(--lgray);
+      padding: 10px 14px; text-align: left;
+      white-space: nowrap;
+    }
+
+    th.num { text-align: right; }
+
+    tbody tr.team-row {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    tbody tr.team-row:last-of-type { border-bottom: none; }
+    tbody tr.team-row:hover { background: #f9fafb; }
+    tbody tr.team-row.expanded { background: #f4fbf7; border-bottom: none; }
+
+    td { padding: 13px 14px; vertical-align: middle; }
+
+    .td-rank {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 16px;
+      color: var(--lgray); width: 36px; text-align: center;
+    }
+
+    .td-team {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .td-logo {
+      width: 30px; height: 30px; object-fit: contain; flex-shrink: 0;
+    }
+
+    .td-logo-init {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 12px; color: var(--lgray);
+      flex-shrink: 0;
+    }
+
+    .team-name-cell {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 600; font-size: 16px;
+    }
+
+    .td-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 500; font-size: 16px;
+      text-align: right; white-space: nowrap;
+    }
+
+    .td-record {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 500; font-size: 16px;
+      text-align: right;
+    }
+
+    .td-chevron {
+      color: var(--lgray); font-size: 12px; width: 20px; text-align: right;
+      transition: transform 0.2s;
+    }
+
+    .expanded .td-chevron { transform: rotate(180deg); color: var(--green); }
+
+    /* EXPANDED DETAIL ROW */
+    tr.detail-row { display: none; }
+    tr.detail-row.open { display: table-row; }
+
+    tr.detail-row td {
+      padding: 0;
+      border-bottom: 1px solid var(--border);
+      background: #f4fbf7;
+    }
+
+    .detail-inner { padding: 16px 20px 20px; }
+
+    .detail-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 22px;
+    }
+
+    .detail-summary {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 16px;
+      color: var(--gray);
+    }
+
+    /* GAME LIST */
+    .game-list { display: flex; flex-direction: column; gap: 3px; }
+
+    .game-line {
+      display: grid;
+      grid-template-columns: 20px 70px 1fr 120px 70px;
+      gap: 8px;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #eef5f0;
+      min-width: 0;
+    }
+
+    .game-line:last-child { border-bottom: none; }
+
+    .gl-result {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 15px;
+    }
+
+    .gl-result.W { color: var(--green); }
+    .gl-result.T { color: var(--gold); }
+    .gl-result.L { color: var(--red); }
+
+    .gl-date {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 14px;
+      color: var(--lgray);
+    }
+
+    .gl-opp {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 15px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .gl-opp .at   { color: var(--lgray); font-weight: 600; }
+    .gl-opp .rank { color: var(--lgray); font-weight: 600; font-size: 12px; }
+
+    /* WIN% BAR */
+    .gl-winpct {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .gl-bar-wrap {
+      height: 7px;
+      background: #ffd5d0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .gl-bar {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--green2);
+      transition: width 0.3s;
+    }
+
+    .gl-bar-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 11px;
+      color: var(--lgray);
+      text-align: center;
+    }
+
+    .gl-score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 15px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .gl-score.W { color: var(--black); }
+    .gl-score.L { color: var(--lgray); }
+
+    .detail-note {
+      font-size: 11px; color: var(--lgray);
+      margin-top: 10px; text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    /* LOADING / EMPTY */
+    .loading {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px; padding: 60px 20px; color: var(--lgray);
+    }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green2);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center; padding: 50px 20px; color: var(--lgray);
+    }
+
+    .empty h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600; font-size: 18px; color: var(--gray); margin-bottom: 4px;
+    }
+
+    .lbl-short { display: none; }  /* shown only on mobile via media query below */
+
+    @media (max-width: 640px) {
+      nav { display: none; }
+      .page { padding-left: 10px; padding-right: 10px; }
+      .table-wrap { overflow: hidden; }
+      .game-line {
+        grid-template-columns: 16px minmax(0,1fr) 78px 58px;
+        gap: 4px;
+        font-size: 12px;
+      }
+      .gl-winpct { display: flex; }
+      .gl-date { display: none; }
+      .gl-bar-label { font-size: 10px; letter-spacing: 0; }
+      .gl-bar-wrap { height: 8px; }
+      .lbl-full { display: none; }
+      .lbl-short { display: inline; }
+      th.hide-mobile, td.hide-mobile { display: none; }
+      .detail-header { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .detail-summary { font-size: 11px; }
+      .gl-result { font-size: 13px; }
+      .gl-date { font-size: 11px; }
+      .gl-opp { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; min-width: 0; }
+      .gl-score { font-size: 13px; text-align: right; white-space: nowrap; }
+      th { padding: 10px 8px; }
+      td { padding: 11px 8px; }
+      .detail-inner { padding: 10px 4px 14px; }
+      .game-list { padding: 0 2px; }
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-title">Heal Points</div>
+  <div class="page-sub">The Way Heal Points Should Be.</div>
+
+  <div class="sport-tabs" id="sportTabs">
+    <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
+    <button class="sport-tab" data-sport="baseball" data-season="2026">Baseball</button>
+    <button class="sport-tab" data-sport="softball" data-season="2026">Softball</button>
+    <button class="sport-tab" data-sport="lacrosse" data-season="2026">Lacrosse</button>
+    <button class="sport-tab" data-sport="soccer" data-season="2026">Soccer</button>
+    <button class="sport-tab" data-sport="field-hockey" data-season="2026">Field Hockey</button>
+    <button class="sport-tab" data-sport="football" data-season="2026">Football</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+    <div class="region-wrap" id="regionWrap" style="flex:1;">
+      <span class="region-label" id="regionLabel">Region</span>
+      <select class="region-select" id="regionSelect">
+        <option value="">Loading…</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <label style="font-size:12px;color:var(--ink3);font-weight:500;">Season</label>
+      <select id="seasonSelect" style="font-size:12px;border:1px solid var(--rule);border-radius:6px;padding:4px 8px;background:var(--paper2);color:var(--ink);cursor:pointer;">
+        <option value="2026">25-26</option>
+        <option value="2025">24-25</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="gender-tabs">
+    <button class="gender-tab active" data-gender="Boys">Boys</button>
+    <button class="gender-tab" data-gender="Girls">Girls</button>
+  </div>
+
+  <div class="table-wrap" id="tableWrap">
+      <div class="loading"><div class="spinner"></div><span>Loading…</span></div>
+  </div>
+</div>
+
+<script>
+  const sb = supabase.createClient('https://vtwupenqieesoktonbzg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA', { auth: { storageKey: 'mbr-heals' } });
+
+}
+
+  // Win point values by class
+  const WIN_PTS = { A: 40, B: 38, C: 36, D: 34, S: 32, '8': 30 };
+
+  const SPORT_IDS = {
+    'basketball':   'b31ab283-b28e-4ba8-9684-b1cf30cea219',
+    'baseball':     'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+    'softball':     '095c9841-7261-4cb1-824e-6304792b53d0',
+    'lacrosse':     '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+    'soccer':       'ff80a695-0e78-4432-98f2-141b2b571e0e',
+    'field-hockey': '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
+    'football':     'fa905ca5-f416-409b-81ac-777179ee5576',
+  };
+  const SPORT_SEASON = {
+    'basketball': 2026, 'baseball': 2026, 'softball': 2026,
+    'lacrosse': 2026, 'soccer': 2026, 'field-hockey': 2026, 'football': 2026,
+  };
+  const SPORT_GENDER = {
+    'baseball': 'Boys', 'softball': 'Girls',
+    'field-hockey': 'Girls', 'football': 'Boys',
+  };
+
+  let activeGender = 'Boys';
+  let activeRegion = null;
+  let activeSport  = 'basketball';
+  let activeSeason = 2026;
+  let allTeams     = [];
+  let expandedTeam = null;
+
+  // Season dropdown
+  document.getElementById('seasonSelect').addEventListener('change', function() {
+    activeSeason = parseInt(this.value);
+    expandedTeam = null; // reset expansion — team IDs may differ between seasons
+    loadRegions();
+  });
+
+  // Cancellation tokens — _regionToken covers loadRegions, _loadToken covers loadData
+  let _regionToken = 0;
+  let _loadToken   = 0;
+
+  // ── Load selector (region for basketball, class for others) ──
+  async function loadRegions() {
+    const myRegion = ++_regionToken;
+    const regionCancelled = () => myRegion !== _regionToken;
+
+    const sel   = document.getElementById('regionSelect');
+    const label = document.getElementById('regionLabel');
+    sel.innerHTML = '<option value="">Loading…</option>';
+
+    // Show/hide gender tabs
+    const singleGender = SPORT_GENDER[activeSport];
+    const genderTabs = document.querySelector('.gender-tabs');
+    if (singleGender) {
+      genderTabs.style.display = 'none';
+      activeGender = singleGender;
+    } else {
+      genderTabs.style.display = '';
+    }
+
+    sel.innerHTML = '';
+
+    if (activeSport === 'basketball') {
+      label.textContent = 'Region';
+      const { data } = await sb
+        .from('team_classifications')
+        .select('classes ( id, name ), regions ( id, name )')
+        .order('class_id');
+
+      if (regionCancelled()) return;
+      if (data) {
+        const seen = new Set();
+        const combos = [];
+        data.forEach(tc => {
+          if (!tc.classes || !tc.regions) return;
+          const key = `${tc.classes.name}-${tc.regions.id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            combos.push({
+              regionId: tc.regions.id,
+              label: `${tc.classes.name} ${tc.regions.name}`,
+              classOrder: tc.classes.name,
+              regionName: tc.regions.name,
+            });
+          }
+        });
+        combos.sort((a, b) => {
+          if (a.classOrder !== b.classOrder) return a.classOrder.localeCompare(b.classOrder);
+          return a.regionName.localeCompare(b.regionName);
+        });
+        combos.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.regionId;
+          opt.textContent = c.label;
+          sel.appendChild(opt);
+        });
+        activeRegion = combos[0]?.regionId;
+        if (activeRegion) sel.value = activeRegion;
+      }
+    } else {
+      // Sports with regions use team_region; LAX has no regions
+      const SPORTS_NO_REGION = ['lacrosse'];
+      const hasRegion = !SPORTS_NO_REGION.includes(activeSport);
+      label.textContent = hasRegion ? 'Region' : 'Class';
+
+      const { data: teamData } = await sb
+        .from('teams')
+        .select('team_class, team_region')
+        .eq('sport_id', SPORT_IDS[activeSport])
+        .not('team_class', 'is', null)
+        .neq('team_class', '0');
+
+      if (regionCancelled()) return;
+      // Build unique class+region combos
+      const seen = new Map();
+      (teamData || []).forEach(t => {
+        const key = hasRegion
+          ? `${t.team_class}|${t.team_region || ''}`
+          : t.team_class;
+        if (!seen.has(key)) seen.set(key, {
+          value: key,
+          label: hasRegion && t.team_region
+            ? `Class ${t.team_class} ${t.team_region}`
+            : `Class ${t.team_class}`,
+          sortKey: `${t.team_class}${t.team_region || ''}`,
+        });
+      });
+
+      const combos = [...seen.values()].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      combos.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.value;
+        opt.textContent = c.label;
+        sel.appendChild(opt);
+      });
+      activeRegion = combos[0]?.value || null;
+      if (activeRegion) sel.value = activeRegion;
+    }
+
+    sel.onchange = () => {
+      activeRegion = sel.value;
+      expandedTeam = null;
+      loadData();
+    };
+
+    if (regionCancelled()) return;
+    loadData();
+  }
+
+  // ── Load all teams + games for selected sport/region/class/gender ──
+  async function loadData() {
+    _loadToken++;
+    const myToken = _loadToken;
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="loading"><div class="spinner"></div><span>Calculating…</span></div>';
+    try {
+    const cancelled = () => myToken !== _loadToken;
+
+    let teams = [];
+
+    if (activeSport === 'basketball') {
+      // Basketball: get teams via team_classifications + region
+      const { data: tcData } = await sb
+        .from('team_classifications')
+        .select(`
+          team:team_id ( id, school_name, gender, logo_url ),
+          classes ( name ),
+          regions ( id, name, abbreviation )
+        `)
+        .eq('region_id', activeRegion);
+
+      if (!tcData || !tcData.length) {
+        document.getElementById('tableWrap').innerHTML =
+          '<div class="empty"><h3>No teams found</h3><p>No teams in this region.</p></div>';
+        return;
+      }
+      teams = tcData
+        .filter(tc => tc.team?.gender === activeGender)
+        .map(tc => ({ ...tc.team, class: tc.classes?.name, region: tc.regions?.abbreviation }));
+    } else {
+      // Other sports: get teams by sport_id + team_class + team_region
+      const SPORTS_NO_REGION = ['lacrosse'];
+      const hasRegion = !SPORTS_NO_REGION.includes(activeSport);
+
+      // activeRegion is 'A|North' for sports with regions, 'A' for LAX
+      let classFilter, regionFilter;
+      if (hasRegion && activeRegion && activeRegion.includes('|')) {
+        [classFilter, regionFilter] = activeRegion.split('|');
+      } else {
+        classFilter  = activeRegion;
+        regionFilter = null;
+      }
+
+      const q = sb.from('teams')
+        .select('id, school_name, gender, logo_url, team_class, team_region')
+        .eq('sport_id', SPORT_IDS[activeSport])
+        .eq('team_class', classFilter)
+        .eq('active', true);
+
+      if (regionFilter) q.eq('team_region', regionFilter);
+      else if (hasRegion) q.is('team_region', null);
+
+      const singleGender = SPORT_GENDER[activeSport];
+      if (singleGender) {
+        q.eq('gender', singleGender);
+      } else {
+        q.eq('gender', activeGender);
+      }
+
+      const { data: teamData } = await q;
+      teams = (teamData || []).map(t => ({ ...t, class: t.team_class }));
+    }
+
+    if (cancelled()) return;
+    if (!teams.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No teams</h3><p>No teams found for this selection.</p></div>';
+      return;
+    }
+
+    // Filter out teams without class or with class '0' (unclassified/co-op)
+    teams = teams.filter(t => (t.team_class || t.class) && (t.team_class || t.class) !== '0');
+
+    let teamIds = teams.map(t => t.id);
+    const season  = activeSeason;
+    const sportId = SPORT_IDS[activeSport];
+
+    // Filter to only teams that have a rankings snapshot for this season
+    // (excludes teams not playing this year, e.g. MCI boys lax)
+    const { data: snapshotTeams } = await sb
+      .from('rankings_snapshots')
+      .select('team_id')
+      .in('team_id', teamIds)
+      .eq('season_year', season)
+      .limit(500);
+    if (snapshotTeams && snapshotTeams.length) {
+      const snapshotIds = new Set(snapshotTeams.map(s => s.team_id));
+      teams = teams.filter(t => snapshotIds.has(t.id));
+      teamIds = teams.map(t => t.id);
+    }
+
+    // Season end date cutoffs — keyed by sport + season year
+    const SEASON_CUTOFFS = {
+      'basketball-2026': '2026-02-06', 'basketball-2025': '2025-02-07',
+      'baseball-2026':   '2026-06-04', 'baseball-2025':   '2025-06-04',
+      'softball-2026':   '2026-06-04', 'softball-2025':   '2025-06-04',
+      'lacrosse-2026':   '2026-06-06', 'lacrosse-2025':   '2025-06-06',
+      'soccer-2026':     '2026-10-22', 'soccer-2025':     '2025-10-22',
+      'field-hockey-2026':'2026-10-22','field-hockey-2025':'2025-10-22',
+      'football-2026':   '2026-11-01', 'football-2025':   '2025-11-01',
+    };
+    const cutoff = SEASON_CUTOFFS[`${activeSport}-${season}`] || null;
+
+    // Football cutoff varies by class (A ends Oct 31, others Oct 25)
+    const getFootballCutoff = (cls) => cls === 'A' ? '2025-11-01' : '2025-10-26';
+    const effectiveCutoff = activeSport === 'football'
+      ? getFootballCutoff(activeRegion?.split('|')[0] || activeRegion)
+      : cutoff;
+
+    // Game select — basketball uses team_classifications for oppClass, others use team_class
+    const gameSelect = activeSport === 'basketball'
+      ? `id, game_date, home_score, away_score, is_neutral_site, status,
+         home_team:home_team_id ( id, school_name, logo_url,
+           team_classifications ( classes ( name ) ) ),
+         away_team:away_team_id ( id, school_name, logo_url,
+           team_classifications ( classes ( name ) ) )`
+      : `id, game_date, home_score, away_score, is_neutral_site, status,
+         home_team:home_team_id ( id, school_name, logo_url, team_class ),
+         away_team:away_team_id ( id, school_name, logo_url, team_class )`;
+
+    // Load ALL teams for this sport to calculate opponent PI correctly
+    const allTeamsQuery = sb.from('teams')
+      .select('id, team_class')
+      .eq('sport_id', sportId)
+      .eq('active', true);
+    // For non-basketball sports, exclude teams with no class (co-op/unclassified)
+    if (activeSport !== 'basketball') allTeamsQuery.not('team_class', 'is', null).neq('team_class', '0');
+    const allTeamsResp = await allTeamsQuery;
+    const allTeamIds = (allTeamsResp.data || []).map(t => t.id);
+
+    // Fetch all games for this sport in chunks if needed
+    const fetchGames = async (field, ids) => {
+      const results = [];
+      const chunkSize = 100;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        if (cancelled()) return results; // abandon early if a newer load started
+        const chunk = ids.slice(i, i + chunkSize);
+        const q = sb.from('games')
+          .select(gameSelect)
+          .in(field, chunk)
+          .eq('sport_id', sportId)
+          .eq('season_year', season)
+          .neq('status', 'cancelled')
+          .eq('is_tournament', false)
+          .order('game_date', { ascending: true });
+        if (effectiveCutoff) q.lte('game_date', effectiveCutoff);
+        const { data } = await q;
+        if (data) results.push(...data);
+      }
+      return results;
+    };
+
+    if (cancelled()) return;
+    const [allHomeGames, allAwayGames] = await Promise.all([
+      fetchGames('home_team_id', allTeamIds),
+      fetchGames('away_team_id', allTeamIds),
+    ]);
+
+    const seen = new Set();
+    const allGames = [];
+    for (const g of [...allHomeGames, ...allAwayGames]) {
+      if (!seen.has(g.id)) { seen.add(g.id); allGames.push(g); }
+    }
+
+    // Filter to just the selected region's teams for display
+    const games = allGames.filter(g =>
+      teamIds.includes(g.home_team?.id) || teamIds.includes(g.away_team?.id)
+    );
+
+    // Fetch ALL games (final + scheduled) for schedule length calculation
+    const fetchAllScheduled = async (field, ids) => {
+      const results = [];
+      const chunkSize = 100;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        if (cancelled()) return results; // abandon early if a newer load started
+        const chunk = ids.slice(i, i + chunkSize);
+        const q = sb.from('games')
+          .select('id, home_team_id, away_team_id')
+          .in(field, chunk)
+          .eq('sport_id', sportId)
+          .eq('season_year', season)
+          .eq('is_tournament', false)
+          .neq('status', 'cancelled');
+        if (effectiveCutoff) q.lte('game_date', effectiveCutoff);
+        const { data } = await q;
+        if (data) results.push(...data);
+      }
+      return results;
+    };
+
+    if (cancelled()) return;
+    const [schedHome, schedAway] = await Promise.all([
+      fetchAllScheduled('home_team_id', allTeamIds),
+      fetchAllScheduled('away_team_id', allTeamIds),
+    ]);
+
+    // Build scheduled game count per team (deduplicated)
+    const schedGameIds = new Set();
+    const schedCountMap = {}; // team_id -> scheduled game count
+    for (const g of [...schedHome, ...schedAway]) {
+      if (schedGameIds.has(g.id)) continue;
+      schedGameIds.add(g.id);
+      schedCountMap[g.home_team_id] = (schedCountMap[g.home_team_id] || 0) + 1;
+      schedCountMap[g.away_team_id] = (schedCountMap[g.away_team_id] || 0) + 1;
+    }
+
+    const getScheduled = (tid) => {
+      const count = schedCountMap[tid] || 0;
+      return Math.max(count, 12);
+    };
+
+    // Load rank from rankings_snapshots — paginate to avoid .in() size limits
+    const snapMap = {};
+    if (allTeamIds.length) {
+      const snapChunkSize = 200;
+      for (let i = 0; i < allTeamIds.length; i += snapChunkSize) {
+        if (cancelled()) return;
+        const chunk = allTeamIds.slice(i, i + snapChunkSize);
+        const { data: snapData } = await sb
+          .from('rankings_snapshots')
+          .select('team_id, rank_overall')
+          .eq('season_year', season)
+          .in('team_id', chunk)
+          .order('snapshot_date', { ascending: false })
+          .limit(chunk.length * 2);
+        if (snapData) {
+          snapData.forEach(s => {
+            if (!snapMap[s.team_id]) snapMap[s.team_id] = { rank: s.rank_overall };
+          });
+        }
+      }
+    }
+    if (cancelled()) return;
+
+    // ── Step 1: Calculate PI for ALL teams in the sport ──────────
+    // PI = sum of win point values / max(scheduled, 12); 0 wins -> 1.0
+    const piMap = {}; // team_id -> calculated PI
+
+    // Pre-index games by team_id to avoid O(n*m) scans in calcPI
+    const gamesByTeam = {};
+    allGames.forEach(g => {
+      const hid = g.home_team?.id, aid = g.away_team?.id;
+      if (hid) { if (!gamesByTeam[hid]) gamesByTeam[hid] = []; gamesByTeam[hid].push(g); }
+      if (aid) { if (!gamesByTeam[aid]) gamesByTeam[aid] = []; gamesByTeam[aid].push(g); }
+    });
+
+    const calcPI = (tid) => {
+      if (piMap[tid] !== undefined) return piMap[tid];
+      const teamAllGames = gamesByTeam[tid] || [];
+      let sumWinPts = 0, wins = 0, played = 0;
+      teamAllGames.forEach(g => {
+        const isHome   = g.home_team?.id === tid;
+        const myScore  = isHome ? g.home_score : g.away_score;
+        const oppScore = isHome ? g.away_score : g.home_score;
+        if (myScore === null || oppScore === null) return;
+        played++;
+        const opp = isHome ? g.away_team : g.home_team;
+        const oppClass = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
+        const fullPts  = WIN_PTS[oppClass] || 36;
+        if (myScore > oppScore) {
+          wins++;
+          sumWinPts += fullPts;        // full points for a win
+        } else if (myScore === oppScore) {
+          sumWinPts += fullPts / 2;    // half points for a tie
+        }
+      });
+      const snap = snapMap[tid];
+      const denom = Math.max(getScheduled(tid), 12);
+      const pi = (wins === 0 && sumWinPts === 0) ? 1.0 : sumWinPts / denom;
+      piMap[tid] = pi;
+      return pi;
+    };
+
+    // Pre-calculate PI for all teams
+    allTeamIds.forEach(tid => calcPI(tid));
+
+    // ── Step 2: Calculate Heal Points for each team in selected region ──
+    allTeams = teams.map(team => {
+      const teamGames = (gamesByTeam[team.id] || [])
+        .filter(g => teamIds.includes(g.home_team?.id) || teamIds.includes(g.away_team?.id))
+        .sort((a, b) => a.game_date.localeCompare(b.game_date));
+
+      const gameDetails = teamGames.map(g => {
+        const isHome    = g.home_team?.id === team.id;
+        const opp       = isHome ? g.away_team : g.home_team;
+        const myScore   = isHome ? g.home_score : g.away_score;
+        const oppScore  = isHome ? g.away_score : g.home_score;
+        const won       = myScore > oppScore;
+        const tied      = myScore === oppScore && myScore !== null;
+        const oppClass  = opp?.team_classifications?.[0]?.classes?.name || opp?.team_class || 'A';
+        const oppPI     = opp?.id ? calcPI(opp.id) : 1.0;
+        const oppRank   = snapMap[opp?.id]?.rank || null;
+        const fullPts   = WIN_PTS[oppClass] || 36;
+        const winPts    = tied ? fullPts / 2 : fullPts;  // half for tie
+        const atHome    = !isHome && !g.is_neutral_site;
+
+        return { g, opp, myScore, oppScore, won, tied, oppClass, oppPI, oppRank, winPts, atHome, isNeutral: g.is_neutral_site, unplayed: myScore === null || oppScore === null };
+      });
+
+      const wins   = gameDetails.filter(d => !d.unplayed && d.won).length;
+      const ties   = gameDetails.filter(d => !d.unplayed && d.tied).length;
+      const losses = gameDetails.filter(d => !d.unplayed && !d.won && !d.tied).length;
+      const played = wins + losses + ties;
+      const snapInfo = snapMap[team.id];
+      const denom  = Math.max(getScheduled(team.id), 12);
+
+      // PI = already calculated in piMap (includes ties)
+      const pi = piMap[team.id] ?? 1.0;
+
+      // Heal = sum of (won oppPI + 0.5 * tied oppPI) / denom * 10
+      const sumOppPI = gameDetails.reduce((s, d) => {
+        if (d.won)  return s + d.oppPI;
+        if (d.tied) return s + d.oppPI / 2;
+        return s;
+      }, 0);
+      const heal = (sumOppPI / denom) * 10;
+
+      return { team, gameDetails, wins, losses, ties, pi, heal, denom };
+    });
+
+    if (cancelled()) return;
+    // Sort by Heal desc
+    allTeams.sort((a, b) => b.heal - a.heal);
+    renderTable();
+  } catch(err) {
+    console.error('loadData error:', err);
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty"><h3>Failed to load</h3><p>Check your connection and try refreshing.</p></div>';
+  }
+}
+
+  // ── Render table ───────────────────────────────────────────────
+  function renderTable() {
+    if (!allTeams.length) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="empty"><h3>No data</h3></div>';
+      return;
+    }
+
+    let html = `<table>
+      <thead><tr>
+        <th>#</th>
+        <th>Team</th>
+        <th class="num">Record</th>
+        <th class="num hide-mobile">PI</th>
+        <th class="num">Heals</th>
+        <th></th>
+      </tr></thead>
+      <tbody>`;
+
+    allTeams.forEach((entry, i) => {
+      const { team, wins, losses, ties, pi, heal } = entry;
+      const isExp = expandedTeam === team.id;
+      const recStr = (ties || 0) > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
+
+      const logoEl = team.logo_url
+        ? `<img class="td-logo" src="${team.logo_url}" alt="${team.school_name}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+           <div class="td-logo-init" style="display:none">${team.school_name[0]}</div>`
+        : `<div class="td-logo-init">${team.school_name[0]}</div>`;
+
+      html += `
+      <tr class="team-row ${isExp ? 'expanded' : ''}" data-team-id="${team.id}">
+        <td class="td-rank">${i + 1}</td>
+        <td><div class="td-team">${logoEl}<span class="team-name-cell">${team.school_name}</span><a href="team.html?team_id=${team.id}" onclick="event.stopPropagation()" style="margin-left:8px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--green);text-decoration:none;opacity:0.7" title="Team detail">↗</a></div></td>
+        <td class="td-num">${recStr}</td>
+        <td class="td-num hide-mobile">${pi.toFixed(3)}</td>
+        <td class="td-num">${heal.toFixed(3)}</td>
+        <td class="td-chevron">▼</td>
+      </tr>
+      <tr class="detail-row ${isExp ? 'open' : ''}" data-detail-id="${team.id}">
+        <td colspan="6">${isExp ? renderDetail(entry) : ''}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tableWrap').innerHTML = html;
+
+    // Attach delegated click handler once — survives innerHTML replacements via the flag
+    const tw = document.getElementById('tableWrap');
+    if (!tw._rowListenerAttached) {
+      tw._rowListenerAttached = true;
+      tw.addEventListener('click', e => {
+        const row = e.target.closest('.team-row');
+        if (!row) return;
+        const id     = row.dataset.teamId;
+        const detail = document.querySelector(`.detail-row[data-detail-id="${id}"]`);
+        const wasOpen = expandedTeam === id;
+
+        // Close all
+        document.querySelectorAll('.team-row').forEach(r => r.classList.remove('expanded'));
+        document.querySelectorAll('.detail-row').forEach(r => { r.classList.remove('open'); r.querySelector('td').innerHTML = ''; });
+        expandedTeam = null;
+
+        if (!wasOpen) {
+          row.classList.add('expanded');
+          detail.classList.add('open');
+          const entry = allTeams.find(e => e.team.id === id);
+          detail.querySelector('td').innerHTML = renderDetail(entry);
+          expandedTeam = id;
+          // Smooth scroll
+          setTimeout(() => row.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }
+      });
+    }
+  }
+
+  // ── Render expanded game detail ───────────────────────────────
+  function winPct(myScore, oppScore) {
+    if (myScore === null || oppScore === null) return null;
+    const offset = activeSport === 'basketball' ? 0 : 10;
+    const exp    = activeSport === 'basketball' ? 11 : 3.7;
+    const a = Math.pow(myScore + offset, exp);
+    const b = Math.pow(oppScore + offset, exp);
+    return a / (a + b);
+  }
+
+  function renderDetail(entry) {
+    const { team, gameDetails, wins, losses, ties, pi, heal, denom } = entry;
+    const record = (ties || 0) > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
+
+    let lines = '';
+    gameDetails.forEach(d => {
+      const dateObj = new Date(d.g.game_date + 'T12:00:00');
+      const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).replace(' ', '-');
+      const prefix  = d.atHome ? '@ ' : '';
+      const rankStr = d.oppRank ? `#${d.oppRank} ` : '';
+      const piStr   = d.oppPI ? d.oppPI.toFixed(2) : '—';
+      const unplayed = d.g.status === 'scheduled' || d.myScore === null || d.oppScore === null;
+      const scoreStr = unplayed ? dateStr : `${d.myScore}-${d.oppScore}`;
+      const res = unplayed ? 'U' : (d.won ? 'W' : d.tied ? 'T' : 'L');
+
+      const wp = winPct(d.myScore, d.oppScore);
+      const wpPct = wp !== null ? (wp * 100).toFixed(1) : null;
+      const barWidth = wp !== null ? Math.round(wp * 100) : 0;
+
+      const resultEl = unplayed
+        ? `<span class="gl-result" style="color:#bbb">·</span>`
+        : `<span class="gl-result ${res}">${res}</span>`;
+
+      const barEl = unplayed
+        ? `<div class="gl-winpct">
+            <div class="gl-bar-wrap" style="background:#e8e8e8"><div class="gl-bar" style="width:0%;background:#ccc"></div></div>
+            <div class="gl-bar-label" style="color:#aaa"><span class="lbl-full">${piStr} PI available</span><span class="lbl-short">${piStr} PI</span></div>
+           </div>`
+        : `<div class="gl-winpct">
+            <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
+            ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${piStr} PI</span></div>` : ''}
+           </div>`;
+
+      const scoreEl = unplayed
+        ? `<span class="gl-score" style="color:#bbb;font-size:11px;text-align:right">– Sched.</span>`
+        : `<span class="gl-score ${res}">${scoreStr}</span>`;
+
+      lines += `<div class="game-line">
+        ${resultEl}
+        <span class="gl-date">${dateStr}</span>
+        <span class="gl-opp"><span class="at">${prefix}</span><span class="rank">${rankStr}</span>${d.opp?.school_name || '?'}</span>
+        ${barEl}
+        ${scoreEl}
+      </div>`;
+    });
+
+    const totalPF  = gameDetails.reduce((s, d) => s + (d.myScore || 0), 0);
+    const totalPA  = gameDetails.reduce((s, d) => s + (d.oppScore || 0), 0);
+    const totalDiff = totalPF - totalPA;
+    const diffStr  = (totalDiff >= 0 ? '+' : '') + totalDiff;
+    const diffColor = totalDiff >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+
+    return `<div class="detail-inner">
+      <div class="detail-header">
+        <span class="detail-team-name">${team.school_name}</span>
+        <span class="detail-summary">${record} &nbsp;|&nbsp; ${pi.toFixed(4)} PI &nbsp;|&nbsp; ${heal.toFixed(4)} Heals &nbsp;|&nbsp; <span style="${diffColor};font-weight:700">${diffStr}</span></span>
+      </div>
+      <div class="game-list">${lines}</div>
+      <div class="detail-note">[Win%] · Opp PI in brackets · Denominator: ${denom}</div>
+    </div>`;
+  }
+
+  // ── Gender tabs ───────────────────────────────────────────────
+  document.querySelectorAll('.gender-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.gender-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeGender = btn.dataset.gender;
+      expandedTeam = null;
+      loadData();
+    });
+  });
+
+  document.querySelectorAll('.sport-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeSport  = btn.dataset.sport;
+      activeSeason = parseInt(btn.dataset.season);
+      activeRegion = null;
+      expandedTeam = null;
+      // Reset gender to Boys for multi-gender sports
+      if (!SPORT_GENDER[activeSport]) {
+        activeGender = 'Boys';
+        document.querySelectorAll('.gender-tab').forEach(b => b.classList.toggle('active', b.dataset.gender === 'Boys'));
+      }
+      loadRegions();
+    });
+  });
+
+</script>
+
+
+
+
+<script>
+// Auto-resize: posts content height to parent Ghost page so iframe fits without scrollbars
+(function() {
+  function sendHeight() {
+    var h = document.documentElement.scrollHeight;
+    window.parent.postMessage({ type: 'mbr-embed-resize', height: h }, '*');
+  }
+  window.addEventListener('load', sendHeight);
+  var ro = new ResizeObserver(sendHeight);
+  ro.observe(document.body);
+  document.addEventListener('click', function() { setTimeout(sendHeight, 150); });
+})();
+</script>
+
+<script>document.addEventListener("DOMContentLoaded", loadRegions);</script>
+</body>
+</html>

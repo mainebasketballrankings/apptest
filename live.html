@@ -1666,8 +1666,27 @@ function bbUpdFeed(){
           ? `Pitching change — <b>${incoming}</b> replaces <b>${outgoing}</b>`
           : `Pitching change — <b>${incoming}</b>`;
       } catch(err){ desc = `Pitching change`; }
+    } else if(e.key==='sub_defense'){
+      try {
+        const info = JSON.parse(e.notes||'{}');
+        const incoming = info.name || e.plast || '';
+        const outgoing = info.subFor || '';
+        const pos      = info.pos || '';
+        if(incoming && outgoing && pos) desc = `<b>${incoming}</b> replaces <b>${outgoing}</b> at ${pos}`;
+        else if(incoming && pos) desc = `<b>${incoming}</b> enters at ${pos}`;
+        else desc = `Defensive sub — <b>${incoming}</b>`;
+      } catch(err){ desc = `Defensive sub — ${who}`; }
+    } else if(e.key==='strikeout' && e.notes === 'dropped 3rd strike'){
+      desc = `${who} — K (dropped 3rd strike) — reaches 1B`;
     } else {
-      desc = `${who} — ${action}`;
+      // For out events, append fielding notation from notes if present
+      let fieldingNote = '';
+      const isOutEvt2 = ['groundout','flyout','lineout','popup'].includes(e.key);
+      if(isOutEvt2 && e.notes && typeof e.notes === 'string' && !e.notes.startsWith('{')){
+        const notation = e.notes.replace(/\s*\(DP\)\s*/,'').trim();
+        if(notation) fieldingNote = ` (${notation})`;
+      }
+      desc = `${who} — ${action}${fieldingNote}`;
     }
     if(e.runs) desc += ` <span style="color:var(--green);font-weight:600">· ${e.runs} run${e.runs>1?'s':''}</span>`;
     if(e.rbi && !e.runs) desc += ` <span style="color:var(--ink3)">${e.rbi} RBI</span>`;
@@ -1940,7 +1959,7 @@ function bbOnEvent(e){
           batSlot.rbi=0; batSlot.bb=0; batSlot.k=0; batSlot.sb=0;
           batSlot.subs = batSlot.subs;
         }
-        const desc = outgoing ? `${info.name} replaces ${outgoing}` : `${info.name} (${info.pos})`;
+        const desc = outgoing ? `${info.name} replaces ${outgoing} at ${info.pos}` : `${info.name} (${info.pos})`;
         toast(`Def sub: ${desc}`);
         bbUpdField();
       }

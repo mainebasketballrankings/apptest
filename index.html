@@ -1145,6 +1145,22 @@
       } catch { return `Pitching change: ${e.pitcher_name}`; }
     }
 
+    if (e.event_type === 'sub_defense') {
+      try {
+        const info = JSON.parse(e.notes||'{}');
+        const incoming = info.name || e.player_name || '';
+        const outgoing = info.subFor || '';
+        const pos      = info.pos || '';
+        if (incoming && outgoing && pos) return `${incoming} replaces ${outgoing} at ${pos}`;
+        if (incoming && pos) return `${incoming} enters at ${pos}`;
+        return `Defensive sub: ${incoming}`;
+      } catch { return `Defensive sub: ${e.player_name||''}`; }
+    }
+
+    if (e.event_type === 'strikeout' && e.notes === 'dropped 3rd strike') {
+      return `<strong>${name}</strong> K (dropped 3rd strike) — reaches 1B`;
+    }
+
     if (e.event_type === 'runner_advance') {
       try {
         const info = typeof e.notes === 'string' ? JSON.parse(e.notes||'{}') : (e.notes||{});
@@ -1166,11 +1182,17 @@
     const rbi    = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
     const isOut  = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
     const outNum = isDP ? ' · 2 outs' : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
+    // Fielding notation: notes holds e.g. "6-3" or "8" for outs
+    let fieldingNote = '';
+    if (isOut && !['strikeout'].includes(e.event_type) && e.notes && typeof e.notes === 'string' && !e.notes.startsWith('{')) {
+      const notation = e.notes.replace(/\s*\(DP\)\s*/,'').trim();
+      if (notation) fieldingNote = ` (${notation})`;
+    }
     let kDesc = '';
     if (e.event_type === 'strikeout' && e.notes) {
       try { const ni = JSON.parse(e.notes||'{}'); if (ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch {}
     }
-    return `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`;
+    return `<strong>${name}</strong> ${evtLabel}${fieldingNote}${scored}${rbi}${outNum}${kDesc}`;
   }
 
   function renderScoreBug(topLeftEl, se) {

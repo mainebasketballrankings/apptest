@@ -513,6 +513,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="openSub('defense')">Def. Sub</button>
     <button class="abtn blue"   onclick="openRunners()">Runners</button>
     <button class="abtn blue"   onclick="doBalk()">Balk</button>
+    <button class="abtn blue"   onclick="openWPPB()">WP / PB</button>
     <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn"        style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Error (no pitch)</button>
@@ -525,6 +526,20 @@ input,select,button{font-family:inherit;}
 
   <!-- PBP Log (scrollable, below fold) -->
   <div class="pbp" id="pbpLog" style="padding-bottom:env(safe-area-inset-bottom,60px)"></div>
+</div>
+
+<!-- Wild Pitch / Passed Ball -->
+<div class="overlay" id="ovWPPB" style="display:none">
+  <div class="ocard">
+    <div class="otitle">Wild Pitch or Passed Ball?</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);margin-bottom:12px">All runners advance one base. Select who is charged.</div>
+    <div id="wppbRunnerInfo" style="font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--fg);margin-bottom:12px;padding:8px;background:var(--surface2);border-radius:6px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <button class="abtn hi" style="font-size:15px;padding:12px 0" onclick="confirmWPPB('wp')">Wild Pitch</button>
+      <button class="abtn" style="font-size:15px;padding:12px 0;border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="confirmWPPB('pb')">Passed Ball</button>
+    </div>
+    <button class="ocancel" style="width:100%" onclick="closeOv('ovWPPB')">Cancel</button>
+  </div>
 </div>
 
 <!-- Defensive sub position picker -->
@@ -1532,6 +1547,43 @@ function doBalk(){
   G.bases[1] = null;
   addPBP('Balk — all runners advance');
   pushEvt('balk');
+  render();
+}
+
+function openWPPB(){
+  // Build runner info string for display
+  const runners = [];
+  if(G.bases[3]) runners.push('3rd: ' + G.bases[3].name);
+  if(G.bases[2]) runners.push('2nd: ' + G.bases[2].name);
+  if(G.bases[1]) runners.push('1st: ' + G.bases[1].name);
+  const info = document.getElementById('wppbRunnerInfo');
+  if(runners.length){
+    info.textContent = 'Runners: ' + runners.join(' · ');
+    info.style.display = 'block';
+  } else {
+    info.textContent = 'No runners on base — still advances count as WP/PB.';
+    info.style.display = 'block';
+  }
+  document.getElementById('ovWPPB').style.display = 'flex';
+}
+
+function confirmWPPB(type){
+  closeOv('ovWPPB');
+  saveSnapshot();
+  const r3=G.bases[3], r2=G.bases[2], r1=G.bases[1];
+  let runsScored = 0;
+  if(r3){ scoreRunner(r3); runsScored++; }
+  G.bases[3] = r2 || null;
+  G.bases[2] = r1 || null;
+  G.bases[1] = null;
+  const label = type === 'wp' ? 'Wild Pitch' : 'Passed Ball';
+  // Charge pitcher with WP stat if WP
+  if(type === 'wp'){
+    const p = curPitcher();
+    if(p){ const ps=getPS(p.side,p.idx); ps.wp=(ps.wp||0)+1; }
+  }
+  addPBP(label + (runsScored ? ' — run scores' : ' — all runners advance'));
+  pushEvt('wild_pitch', {runs: runsScored, notes: type});
   render();
 }
 

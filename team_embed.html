@@ -95,15 +95,15 @@
     .section-header a.submit-roster-link:hover { background: var(--orange); color: #fff; }
 
     /* TOURNAMENT ODDS */
-    .odds-section { margin-bottom: 16px; }
-    .odds-card { background: var(--white); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .odds-top { display: flex; border-bottom: 1px solid var(--border); }
-    .odds-bucket { flex: 1; padding: 14px 18px; border-right: 1px solid var(--border); }
-    .odds-bucket:last-child { border-right: none; }
-    .odds-bucket .lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; color: var(--lgray); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
-    .odds-bucket .val { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 30px; line-height: 1; }
-    .odds-bucket .val.in  { color: var(--green); }
-    .odds-bucket .val.out { color: var(--red); }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     .seed-grid { padding: 14px 18px; }
     .seed-grid-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; color: var(--lgray); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
     .seed-rows { display: flex; flex-direction: column; gap: 7px; }
@@ -120,13 +120,13 @@
     .status-badge.playin { background: #1565c0; color: #fff; }
     .status-badge.bubble { background: #e67e22; color: #fff; }
     .status-badge.out    { background: var(--red); color: #fff; }
-    .odds-bucket .val.bye-val { color: var(--green); }
-    .odds-hero { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-    .odds-check-pct { display: flex; align-items: center; gap: 6px; }
-    .odds-check { font-size: 28px; color: var(--green); font-weight: 600; }
-    .odds-big-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 36px; }
-    .odds-big-num.green-col { color: var(--green); }
-    .odds-big-num.out-col   { color: var(--red); }
+    
+    
+    
+    
+    
+    
+    
     .seed-pct { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 13px; width: 44px; text-align: right; }
 
     /* COMBINED GAMES TABLE */
@@ -628,8 +628,6 @@ async function load() {
   "S North|Girls": { bye: 8, inCutoff: 8 },
   "S South|Girls": { bye: 8, inCutoff: 8 }
 };
-
-    let oddsHtml = '';
     const odds = stats?.tournament_odds || null;
     if (odds) {
       const isTourney  = new Date() > new Date('2026-02-20');
@@ -714,17 +712,6 @@ async function load() {
           <span class="seed-pct">${pct}%</span>
         </div>`;
       }).join('');
-
-      oddsHtml = `
-        
-          <div class="odds-section" id="oddsSection">
-            <div class="section-header">${oddsTitle}</div>
-            <div class="odds-card">
-              ${topHtml}
-              ${seedHtml ? `<div class="seed-grid"><div class="seed-grid-lbl">Seed Distribution</div><div class="seed-rows">${seedHtml}</div></div>` : ''}
-            </div>
-          </div>
-`;
     }
 
     // Combined games table
@@ -965,13 +952,12 @@ async function load() {
         </div>
       </div>
       ${cards}
-      ${oddsHtml}
+      
       ${gamesHtml}
       ${rosterHtml}`;
 
     document.title = `${team.school_name} ${SPORT_NAME[sport] || ''} — Maine Basketball Rankings`;
 
-    // Re-apply gate now that oddsSection is in the DOM.
     // Auth callback may have already fired while load() was running — this ensures
     // the paid/free state is always evaluated against real DOM elements.
   
@@ -1046,7 +1032,6 @@ function goToTeam(id) {
   window.location.href = `team.html?team_id=${id}`;
 }
 
-// Gate the tournament odds section — everything else is public
 // Default: visible. Auth callback adds blur if user is free tier.
 // This avoids a flash of blurred content for paid users while auth resolves.
 

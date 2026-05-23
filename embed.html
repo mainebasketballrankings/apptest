@@ -1324,7 +1324,7 @@
     const body = e.target.closest('.card-body');
     if (!body || e.target.closest('a, button')) return;
     const gameId = body.closest('.game-card')?.dataset.gameId;
-    if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
+    if (gameId) window.open(`matchup_embed.html?game_id=${gameId}`, '_blank');
   });
 
   // Submit button → toggle score panel
@@ -1575,7 +1575,7 @@
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`;
 
     // Score cells
-    const gamePageUrl = `game.html?game_id=${g.id}`;
+    const gamePageUrl = `game_embed.html?game_id=${g.id}`;
     const hScEl = has
       ? (isFinal
           ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${hSc}</a>`

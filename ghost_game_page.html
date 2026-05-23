@@ -1,0 +1,41 @@
+<!--
+  GHOST PAGE SETUP
+  ================
+  1. Create a new Ghost page with URL slug: "game"
+  2. Set the page to Public (or Members-only if you want gating at Ghost level)
+  3. Add an HTML card with the contents of this file
+  4. In page settings, hide the page title (toggle off "Show title")
+  5. Publish
+
+  Shareable URL format: https://mainebasketballrankings.com/game/?id=GAME_UUID
+  The scoreboard will link here automatically via embed.html update.
+-->
+
+<style>
+  /* Remove Ghost page padding so iframe fills edge-to-edge */
+  .gh-content { padding: 0 !important; max-width: 100% !important; }
+  .gh-article-header { display: none; }
+  #game-frame { width: 100%; border: none; display: block; min-height: 600px; }
+</style>
+
+<iframe id="game-frame" src="" scrolling="no" frameborder="0"></iframe>
+
+<script>
+  (function() {
+    var gameId = new URLSearchParams(window.location.search).get('id');
+    if (gameId) {
+      document.getElementById('game-frame').src =
+        'https://app.mainebasketballrankings.com/game_embed.html?game_id=' + gameId;
+    } else {
+      document.getElementById('game-frame').outerHTML =
+        '<p style="font-family:sans-serif;padding:40px;text-align:center;color:#999;">No game specified.</p>';
+    }
+
+    // Auto-resize iframe to content height
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.type === 'mbr-embed-resize') {
+        document.getElementById('game-frame').style.height = e.data.height + 'px';
+      }
+    });
+  })();
+</script>

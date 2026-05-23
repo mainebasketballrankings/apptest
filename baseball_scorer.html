@@ -2784,6 +2784,19 @@ function doUndo(){
       G.teams[side].lineup = snap.lineups[side].lineup;
       G.teams[side].bench  = snap.lineups[side].bench;
       G.teams[side].slots  = snap.lineups[side].slots;
+      // CRITICAL: after JSON deep-copy restore, slots[i][last] and lineup[i] are
+      // different objects. Resync so future stat writes hit the same object that
+      // buildBoxScore / generatePDF read from via lineup[slotIdx].
+      const slots = G.teams[side].slots;
+      const lineup = G.teams[side].lineup;
+      if(slots && lineup){
+        slots.forEach((slot, si) => {
+          if(lineup[si] && slot.length > 0){
+            // Replace the last entry (current player) with the live lineup reference
+            slot[slot.length - 1] = lineup[si];
+          }
+        });
+      }
     });
   }
   G.pbp = G.pbp.slice(0, snap.pbpLen);
@@ -3286,7 +3299,9 @@ async function generatePDF(){
     slots.forEach((slot,si)=>{
       slot.forEach((p,depth)=>{
         checkY(13);
-        const s=p.stats;
+        const isCurrentPlayer = depth === slot.length - 1;
+        const liveP = isCurrentPlayer && team.lineup[si] ? team.lineup[si] : p;
+        const s=liveP.stats;
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(fld=>tot[fld]+=(s[fld]||0));
         const posD=depth>0?(p.isPR?'PR':p.isDefSub?'DS':'PH'):p.pos;
         const nm=(depth>0?'  > ':'')+( p.name||'\u2014');

@@ -1,0 +1,47 @@
+<!--
+  GHOST PAGE SETUP
+  ================
+  1. Create a new Ghost page with URL slug: "matchup"
+  2. Set the page to Members-only (paid gating handled by Ghost)
+  3. Add an HTML card with the contents of this file
+  4. In page settings, hide the page title (toggle off "Show title")
+  5. Publish
+
+  Shareable URL format: https://mainebasketballrankings.com/matchup/?id=GAME_UUID
+-->
+
+<style>
+  .gh-content { padding: 0 !important; max-width: 100% !important; }
+  .gh-article-header { display: none !important; }
+  .gh-article { padding: 0 !important; }
+  #matchup-frame { width: 100%; border: none; display: block; min-height: 600px; }
+</style>
+
+<iframe id="matchup-frame" src="" scrolling="no" frameborder="0"></iframe>
+
+<script>
+  (function() {
+    var gameId = new URLSearchParams(window.location.search).get('id');
+    var frame = document.getElementById('matchup-frame');
+
+    if (gameId) {
+      frame.src = 'https://app.mainebasketballrankings.com/matchup_embed.html?game_id=' + gameId;
+    } else {
+      frame.src = 'https://app.mainebasketballrankings.com/matchup_embed.html';
+    }
+
+    window.addEventListener('message', function(e) {
+      if (!e.data) return;
+      // Auto-resize
+      if (e.data.type === 'mbr-embed-resize') {
+        frame.style.height = e.data.height + 'px';
+      }
+      // Game switcher changed — update Ghost page URL so it stays shareable
+      if (e.data.type === 'mbr-matchup-navigate' && e.data.gameId) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('id', e.data.gameId);
+        window.history.pushState({}, '', url);
+      }
+    });
+  })();
+</script>

@@ -1324,7 +1324,7 @@
     const body = e.target.closest('.card-body');
     if (!body || e.target.closest('a, button')) return;
     const gameId = body.closest('.game-card')?.dataset.gameId;
-    if (gameId) window.open(`https://app.mainebasketballrankings.com/matchup_embed.html?game_id=${gameId}`, '_blank');
+    if (gameId) window.top.location.href = `https://mainebasketballrankings.com/matchup/?id=${gameId}`;
   });
 
   // Submit button → toggle score panel

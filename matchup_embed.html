@@ -641,6 +641,7 @@ async function loadTodaysGames(currentGameId, gameDate) {
     const url = new URL(window.location.href);
     url.searchParams.set('game_id', newId);
     window.history.pushState({}, '', url);
+    window.parent.postMessage({ type: 'mbr-matchup-navigate', gameId: newId }, '*');
     document.getElementById('content').innerHTML = '<div class="state-msg"><div class="spinner"></div><span>Loading matchup…</span></div>';
     loadMatchup();
   });

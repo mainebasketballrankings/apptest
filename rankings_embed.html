@@ -41,7 +41,7 @@
 
 
     /* PAGE */
-    .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 16px 20px 40px; }
 
     .page-title {
       font-family: 'Barlow Condensed', sans-serif;
@@ -156,7 +156,7 @@
 
     /* team cell */
     .td-team {
-      display: flex; align-items: center; gap: 10px; min-width: 160px;
+      display: flex; align-items: center; gap: 10px; min-width: 120px;
     }
 
     .td-logo {
@@ -289,9 +289,21 @@
       .hide-mobile { display: none; }
       .td-logo { width: 24px; height: 24px; }
       .td-logo-init { width: 24px; height: 24px; font-size: 10px; }
-      .td-team { gap: 7px; }
-      td { padding: 13px 8px; }
-      th { padding: 10px 8px; }
+      .td-team { gap: 7px; min-width: 0; }
+      .team-name-cell { font-size: 13px; }
+      .team-region { font-size: 10px; }
+      td { padding: 10px 6px; }
+      th { padding: 8px 6px; font-size: 11px; }
+      .td-rank { width: 24px; font-size: 13px; }
+      .td-record { font-size: 13px; }
+      .td-num { font-size: 13px; }
+      .page { padding: 12px 12px 40px; }
+      .page-title { font-size: 24px; }
+      .sport-tab { font-size: 12px; padding: 5px 11px; }
+      .class-tab { font-size: 12px; padding: 4px 12px; }
+      /* Allow table to scroll horizontally if needed */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 320px; }
     }
   </style>
   <style>

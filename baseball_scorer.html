@@ -513,6 +513,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="openSub('defense')">Def. Sub</button>
     <button class="abtn blue"   onclick="openRunners()">Runners</button>
     <button class="abtn blue"   onclick="doBalk()">Balk</button>
+    <button class="abtn"        onclick="openWPPB()">WP / PB</button>
     <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
     <button class="abtn"        style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Error (no pitch)</button>
@@ -572,7 +573,7 @@ input,select,button{font-family:inherit;}
 <div class="overlay" id="ovDP" style="display:none">
   <div class="ocard">
     <div id="dpPanel"></div>
-    <button class="ocancel" style="margin-top:8px;width:100%" onclick="closeOv('ovDP');doUndo()">Cancel (Undo DP)</button>
+    <button class="ocancel" id="dpCancelBtn" style="margin-top:8px;width:100%" onclick="closeOv('ovDP')">Cancel</button>
   </div>
 </div>
 
@@ -1550,6 +1551,41 @@ function doBalk(){
   render();
 }
 
+function openWPPB(){
+  const panel = document.getElementById('dpPanel');
+  if(panel){
+    panel.innerHTML =
+      `<div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">Wild Pitch or Passed Ball?</div>` +
+      `<button onclick="doWPPB('WP')" style="display:block;width:100%;margin-bottom:8px;padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Wild Pitch</button>` +
+      `<button onclick="doWPPB('PB')" style="display:block;width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Passed Ball</button>`;
+    const cancelBtn = document.getElementById('dpCancelBtn');
+    if(cancelBtn){ cancelBtn.textContent='Cancel'; cancelBtn.onclick=()=>closeOv('ovDP'); }
+  }
+  openOv('ovDP');
+}
+
+function doWPPB(type){
+  saveSnapshot();
+  closeOv('ovDP');
+  // Charge one pitch to the pitcher
+  G.curPitches.push('B');
+  chargePitch();
+  // Advance all runners one base; runner on 3rd scores
+  const r3=G.bases[3], r2=G.bases[2], r1=G.bases[1];
+  if(r3){ scoreRunner(r3, battingSide(), false); }
+  G.bases[3] = r2 || null;
+  G.bases[2] = r1 || null;
+  G.bases[1] = null;
+  addPBP(`${type} — runners advance`);
+  pushEvt(type==='WP'?'wild_pitch':'passed_ball', {runs: r3?1:0});
+  // Open runners overlay — scorer can correct if a runner held
+  if(hasRunners() || r3){
+    setTimeout(()=>openRunners(), 150);
+  } else {
+    render();
+  }
+}
+
 function doDroppedThird(){
   saveSnapshot();
   const b=curBatter(), p=curPitcher();
@@ -1989,7 +2025,6 @@ function openDPOverlay(){
   const runners=[];
   [1,2,3].forEach(base=>{ if(G.bases[base]) runners.push({base,runner:G.bases[base]}); });
   if(!runners.length){ render(); return; }
-  // Build a quick overlay
   const panel=document.getElementById('dpPanel');
   if(panel){
     panel.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Which runner is out on the DP?</div>`+
@@ -1997,6 +2032,9 @@ function openDPOverlay(){
         <button onclick="recordDPRunnerOut(${base})" style="display:block;width:100%;margin-bottom:6px;padding:10px 12px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--red);cursor:pointer;text-align:left">
           ${runner.name} on ${base===1?'1st':base===2?'2nd':'3rd'}
         </button>`).join('');
+    // DP cancel must undo — we're mid-play
+    const cancelBtn = document.getElementById('dpCancelBtn');
+    if(cancelBtn){ cancelBtn.textContent='Cancel (Undo DP)'; cancelBtn.onclick=()=>{ closeOv('ovDP'); doUndo(); }; }
     openOv('ovDP');
   }
 }
@@ -2381,6 +2419,8 @@ function openPinchRunner(base){
       : '<div style="color:var(--dim);font-size:13px">No available players</div>');
   }
   closeOv('ovRunners');
+  const cancelBtn = document.getElementById('dpCancelBtn');
+  if(cancelBtn){ cancelBtn.textContent='Cancel'; cancelBtn.onclick=()=>closeOv('ovDP'); }
   openOv('ovDP');
 }
 

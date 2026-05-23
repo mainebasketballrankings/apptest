@@ -2364,7 +2364,7 @@ function openPinchRunner(base){
   const bside = battingSide();
   const onBases = [G.bases[1]?.name, G.bases[2]?.name, G.bases[3]?.name].filter(Boolean);
   const avail = [
-    ...G.teams[bside].bench,
+    ...G.teams[bside].bench.filter(p => !p.isPR),
     ...G.teams[bside].lineup.filter(p => p.name && !onBases.includes(p.name))
   ].filter(p => p.name);
   // Build PR overlay using dpPanel (reuse ovDP overlay)
@@ -2402,9 +2402,15 @@ function confirmPR(base, name, number){
       G.teams[bside].slots.push([slotEntry(prPlayer, {isPR:true, subFor:replaced?.name})]);
     }
   }
-  // Remove from bench if they were a bench player
+  // Remove from bench and re-add as a PR entry so resolvePlayer() can still find them
+  // (scoreRunner credits r via lineup/bench lookup — PR must remain findable)
   const benchIdx = G.teams[bside].bench.findIndex(p=>p.name===name);
-  if(benchIdx >= 0) G.teams[bside].bench.splice(benchIdx,1);
+  if(benchIdx >= 0){
+    // Replace bench entry with the fresh prPlayer object (has correct stats object)
+    G.teams[bside].bench.splice(benchIdx, 1, prPlayer);
+  } else {
+    // Not on bench (already in lineup as a position player) — they're already findable
+  }
   addPBP(`PR: <strong>${name}</strong> for <strong>${replaced?.name}</strong>`);
   // Push substitution event to Supabase
   pushEvt('sub_batter', {
@@ -2581,10 +2587,11 @@ function openSub(mode){
       <span class="sub-name">${p.name||'Player '+(i+1)}</span>
       <span class="sub-pos">${p.pos}</span>
     </div>`).join('');
-  const benchHTML = G.teams[side].bench.length ? 
+  const benchForSub = G.teams[side].bench.filter(p => !p.isPR);
+  const benchHTML = benchForSub.length ? 
     `<div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px;padding:0 2px">Bench</div>` +
-    G.teams[side].bench.map((p,i)=>`
-      <div class="sub-player" onclick="confirmSub('${side}',${i},true)">
+    benchForSub.map((p,i)=>`
+      <div class="sub-player" onclick="confirmSub('${side}',${G.teams[side].bench.indexOf(p)},true)">
         <span class="sub-num">${p.number||'—'}</span>
         <span class="sub-name">${p.name||'Bench '+(i+1)}</span>
         <span class="sub-pos">${p.pos}</span>

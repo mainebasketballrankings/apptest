@@ -1142,6 +1142,20 @@ function getPS(side, idx){
 }
 function battingSide(){ return G.half==='top'?'away':'home'; }
 function fieldingSide(){ return G.half==='top'?'home':'away'; }
+
+// Single source of truth: find a live player object by name.
+// Searches lineup first, then bench. Never returns a slot entry.
+// If not found (shouldn't happen), returns a zero-stat sentinel so renders don't crash.
+function resolvePlayer(side, name){
+  if(!name) return null;
+  const lu = G.teams[side].lineup;
+  const bn = G.teams[side].bench;
+  return lu.find(p=>p.name===name) || bn.find(p=>p.name===name) || null;
+}
+// Slim slot entry — display metadata only, no stats, no object reference.
+function slotEntry(player, extra){
+  return Object.assign({ name:player.name, number:player.number||'', pos:player.pos||'' }, extra||{});
+}
 function curBatter(){
   const s=battingSide(), lu=G.teams[s].lineup;
   const idx=G.batIdx[s]%lu.length;
@@ -1362,9 +1376,9 @@ async function startGame(){
   G.runDecisions={}; G.fldSeq=[];
   G.linescore = [];
   for(let i=0;i<G.maxInn;i++) G.linescore.push({away:null,home:null});
-  // Initialize batting order slots (each slot tracks all players at that position)
+  // Initialize batting order slots — slim metadata only, stats always read via resolvePlayer()
   ['away','home'].forEach(s=>{
-    G.teams[s].slots = G.teams[s].lineup.map(p => [p]);
+    G.teams[s].slots = G.teams[s].lineup.map(p => [slotEntry(p)]);
   });
   // Set first pitcher
   ['away','home'].forEach(s=>{
@@ -1723,19 +1737,15 @@ async function pushPlayerStats(){
       ? G.teams[side].slots
       : G.teams[side].lineup.map(p=>[p]);
 
-    // Mirror buildBoxScore's fix: for the CURRENT player in each slot,
-    // always read from the live lineup object — not the stale slot copy.
-    // Slot copies diverge after undo/restore/substitution; lineup is always live.
+    // slots holds slim display entries — resolve live player for stats
     slots.forEach((slot, slotIdx) => {
-      slot.forEach((p, depth) => {
-        if(!p.name || seen.has(p.name)) return;
-        seen.add(p.name);
-        const isCurrentPlayer = depth === slot.length - 1;
-        const livePlayer = isCurrentPlayer && G.teams[side].lineup[slotIdx]
-          ? G.teams[side].lineup[slotIdx]
-          : p;
-        if(!livePlayer.stats.ab && !livePlayer.stats.bb) return;
-        batUpserts.push({ teamId, player: livePlayer });
+      slot.forEach((e, depth) => {
+        if(!e.name || seen.has(e.name)) return;
+        seen.add(e.name);
+        const player = resolvePlayer(side, e.name);
+        if(!player) return;
+        if(!player.stats.ab && !player.stats.bb) return;
+        batUpserts.push({ teamId, player });
       });
     });
 
@@ -2380,18 +2390,16 @@ function confirmPR(base, name, number){
     isPR: true,
     stats:{ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0,sb:0,ibb:0,sac:0}
   };
-  // Find which slot the replaced runner is in (check all players in each slot)
+  // Find which slot the replaced runner is in and add a slim entry
   if(G.teams[bside].slots){
     let found = false;
     G.teams[bside].slots.forEach(slot => {
       if(found) return;
-      // Check if replaced player is anywhere in this slot
-      const inSlot = slot.some(p => p.name === replaced?.name);
-      if(inSlot){ slot.push(prPlayer); found = true; }
+      const inSlot = slot.some(e => e.name === replaced?.name);
+      if(inSlot){ slot.push(slotEntry(prPlayer, {isPR:true, subFor:replaced?.name})); found = true; }
     });
     if(!found){
-      // Fallback: add as extra slot
-      G.teams[bside].slots.push([prPlayer]);
+      G.teams[bside].slots.push([slotEntry(prPlayer, {isPR:true, subFor:replaced?.name})]);
     }
   }
   // Remove from bench if they were a bench player
@@ -2603,7 +2611,7 @@ function confirmSub(side,idx,fromBench){
       G.pitchers[side] = prevPitcherIdx;
       // Add to slot history for box score
       if(G.teams[side].slots && G.teams[side].slots[prevPitcherIdx]){
-        G.teams[side].slots[prevPitcherIdx].push(player);
+        G.teams[side].slots[prevPitcherIdx].push(slotEntry(player, {subFor:prevPitcher?.name}));
       }
       addPBP(`Pitching change: <strong>${player.name}</strong> replaces <strong>${prevPitcher?.name||'pitcher'}</strong>`);
       pushEvt('sub_pitcher', {pitcher_name: player.name, notes: JSON.stringify({incoming:player.name, incomingNum:player.number||'', outgoing:prevPitcher?.name||''})});
@@ -2638,7 +2646,7 @@ function confirmSub(side,idx,fromBench){
     player.subPos=replaced.pos; // inherit fielding position
     G.teams[bside].lineup[batIdx]=player;
     // Add to slot history
-    if(G.teams[bside].slots[batIdx]) G.teams[bside].slots[batIdx].push(player);
+    if(G.teams[bside].slots[batIdx]) G.teams[bside].slots[batIdx].push(slotEntry(player, {subFor:replaced.name, subPos:replaced.pos}));
     if(fromBench) G.teams[bside].bench.splice(idx,1);
     // Keep replaced player on bench for possible re-entry
     if(replaced && replaced.name) G.teams[bside].bench.push({...replaced, reentry:true});
@@ -2683,7 +2691,7 @@ function confirmAddMidGame(){
   if(dest === 'lineup'){
     G.teams[side].lineup.push(player);
     if(!G.teams[side].slots) G.teams[side].slots = [];
-    G.teams[side].slots.push([player]);
+    G.teams[side].slots.push([slotEntry(player)]);
     showAlert(`${name} added to lineup (slot ${G.teams[side].lineup.length})`);
   } else {
     G.teams[side].bench.push(player);
@@ -2784,19 +2792,6 @@ function doUndo(){
       G.teams[side].lineup = snap.lineups[side].lineup;
       G.teams[side].bench  = snap.lineups[side].bench;
       G.teams[side].slots  = snap.lineups[side].slots;
-      // CRITICAL: after JSON deep-copy restore, slots[i][last] and lineup[i] are
-      // different objects. Resync so future stat writes hit the same object that
-      // buildBoxScore / generatePDF read from via lineup[slotIdx].
-      const slots = G.teams[side].slots;
-      const lineup = G.teams[side].lineup;
-      if(slots && lineup){
-        slots.forEach((slot, si) => {
-          if(lineup[si] && slot.length > 0){
-            // Replace the last entry (current player) with the live lineup reference
-            slot[slot.length - 1] = lineup[si];
-          }
-        });
-      }
     });
   }
   G.pbp = G.pbp.slice(0, snap.pbpLen);
@@ -3051,37 +3046,30 @@ function buildBoxScore(){
         <th style="padding:3px 5px">BB</th><th style="padding:3px 5px">K</th><th style="padding:3px 5px">2B</th><th style="padding:3px 5px">3B</th><th style="padding:3px 5px">HR</th>
       </tr>`;
     let tot={ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
-    // Use slots for box score — shows full substitution history per batting order slot
-    // CRITICAL: for the current (active) player in each slot, read stats from the
-    // live lineup object, not the slot copy, so undo doesn't break stat display
-    const slots = team.slots && team.slots.length ? team.slots : team.lineup.map(p=>[p]);
+    // slots holds slim display entries (name/pos/role only) — stats always via resolvePlayer()
+    const slots = team.slots && team.slots.length ? team.slots : team.lineup.map(p=>[slotEntry(p)]);
     slots.forEach((slot, slotIdx)=>{
-      slot.forEach((p, depth)=>{
-        const isCurrentPlayer = depth === slot.length - 1;
-        // ALWAYS read stats from the live lineup object at this slot index
-        // This avoids stale references after undo/snapshot restore
-        const livePlayer = isCurrentPlayer && team.lineup[slotIdx]
-          ? team.lineup[slotIdx]
-          : p;
-        const s = livePlayer.stats;
+      slot.forEach((e, depth)=>{
+        const player = resolvePlayer(side, e.name);
+        const s = player ? player.stats : {ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
         const isFirst = depth===0;
-        const posDisplay = !isFirst ? (p.isPR ? 'PR' : p.isDefSub ? `DS-${p.pos}` : `PH-${p.subPos||p.pos}`) : p.pos;
+        const posDisplay = !isFirst ? (e.isPR ? 'PR' : e.isDefSub ? `DS-${e.pos}` : `PH-${e.subPos||e.pos}`) : e.pos;
         const indent = !isFirst ? 'padding-left:20px;' : '';
         const prefix = !isFirst ? '▸ ' : '';
         html+=`<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:3px 4px;color:var(--dim)">${p.number||'—'}</td>
-          <td style="padding:3px 4px;font-weight:600;${indent}">${prefix}${p.name||'—'}</td>
+          <td style="padding:3px 4px;color:var(--dim)">${e.number||'—'}</td>
+          <td style="padding:3px 4px;font-weight:600;${indent}">${prefix}${e.name||'—'}</td>
           <td style="padding:3px 4px;color:var(--dim)">${posDisplay}</td>
           ${[s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr].map(v=>`<td style="padding:3px 5px;text-align:center">${v}</td>`).join('')}
         </tr>`;
       });
     });
-    // Show all substitutes not already in slots (def subs, extra pitchers, etc.)
+    // Show lineup players not captured by any slot (edge cases: extra def subs, etc.)
     const inSlots = new Set();
-    (team.slots||[]).forEach(slot => slot.forEach(p => inSlots.add(p.name)));
+    (team.slots||[]).forEach(slot => slot.forEach(e => inSlots.add(e.name)));
     team.lineup.forEach(p => {
-      if(inSlots.has(p.name)) return; // already shown via slots
+      if(inSlots.has(p.name)) return;
       const s=p.stats;
       ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(f=>tot[f]+=s[f]||0);
       const posDisplay = p.isDefSub ? `DS-${p.pos}` : p.pos;
@@ -3295,16 +3283,15 @@ async function generatePDF(){
     hdr.forEach((c,i)=>{ cell(c,cx,y,cws[i],i>2?'center':'left',true); cx+=cws[i]; });
     y+=14;
     let tot={ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
-    const slots=team.slots&&team.slots.length?team.slots:team.lineup.map(p=>[p]);
+    const slots=team.slots&&team.slots.length?team.slots:team.lineup.map(p=>[slotEntry(p)]);
     slots.forEach((slot,si)=>{
-      slot.forEach((p,depth)=>{
+      slot.forEach((e,depth)=>{
         checkY(13);
-        const isCurrentPlayer = depth === slot.length - 1;
-        const liveP = isCurrentPlayer && team.lineup[si] ? team.lineup[si] : p;
-        const s=liveP.stats;
+        const player = resolvePlayer(side, e.name);
+        const s = player ? player.stats : {ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0};
         ['ab','r','h','rbi','bb','k','d','t','hr'].forEach(fld=>tot[fld]+=(s[fld]||0));
-        const posD=depth>0?(p.isPR?'PR':p.isDefSub?'DS':'PH'):p.pos;
-        const nm=(depth>0?'  > ':'')+( p.name||'\u2014');
+        const posD=depth>0?(e.isPR?'PR':e.isDefSub?'DS':'PH'):e.pos;
+        const nm=(depth>0?'  > ':'')+( e.name||'\u2014');
         rct(ML,y,CW,12,si%2===0?[255,255,255]:[250,250,252]);
         cx=ML;
         const fmt3 = n => n.toFixed(3).replace(/^0\./, '.');
@@ -3312,7 +3299,7 @@ async function generatePDF(){
         const gobpv = (s.ab+s.bb)>0 ? (s.h+s.bb)/(s.ab+s.bb) : null;
         const gslgv = s.ab>0 ? ((s.h-(s.d||0)-(s.t||0)-(s.hr||0))+(s.d||0)*2+(s.t||0)*3+(s.hr||0)*4)/s.ab : null;
         const gops = gobpv!==null&&gslgv!==null ? fmt3(gobpv+gslgv) : '—';
-        [p.number||'',nm,posD,s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr||0,gba,gops]
+        [e.number||'',nm,posD,s.ab,s.r,s.h,s.rbi,s.bb,s.k,s.d||0,s.t||0,s.hr||0,gba,gops]
           .forEach((v,i)=>{ cell(v,cx,y,cws[i],i>2?'center':'left',i===1&&depth===0); cx+=cws[i]; });
         y+=12;
       });
@@ -3510,10 +3497,10 @@ function confirmDefSub(pos){
   player.pos = pos;
   if(!player.subFor) player.subFor = replaced ? replaced.name : '';
   player.isDefSub = true;
-  // If already in slots (e.g. came in as PR), update their pos there too
+  // If already in slots (e.g. came in as PR), update their pos entry there too
   if(G.teams[side].slots){
-    G.teams[side].slots.forEach(slot => slot.forEach(p => {
-      if(p.name === player.name) p.pos = pos;
+    G.teams[side].slots.forEach(slot => slot.forEach(e => {
+      if(e.name === player.name) e.pos = pos;
     }));
   }
   if(fromBench){
@@ -3524,14 +3511,14 @@ function confirmDefSub(pos){
       G.teams[side].lineup[oldIdx] = player;
       if(pos==='P') G.pitchers[side] = oldIdx;
       if(G.teams[side].slots && G.teams[side].slots[oldIdx]){
-        G.teams[side].slots[oldIdx].push(player);
+        G.teams[side].slots[oldIdx].push(slotEntry(player, {isDefSub:true, subFor:replaced.name}));
       }
     } else {
       // No replaced player found — append as edge case
       G.teams[side].lineup.push(player);
       const newIdx = G.teams[side].lineup.length-1;
       if(pos==='P') G.pitchers[side] = newIdx;
-      if(G.teams[side].slots) G.teams[side].slots.push([player]);
+      if(G.teams[side].slots) G.teams[side].slots.push([slotEntry(player, {isDefSub:true})]);
     }
   } else {
     lu[idx].pos = pos;
@@ -3761,21 +3748,6 @@ function restoreGame(){
     document.getElementById('gameScreen').style.display='flex';
     document.getElementById('gameScreen').style.flexDirection='column';
     document.getElementById('restoreBanner')?.remove();
-    // Resync slots to use the same object references as lineup
-    // After JSON.parse, slots and lineup are separate objects — must relink
-    ['away','home'].forEach(side => {
-      if(!G.teams[side].slots) return;
-      G.teams[side].slots = G.teams[side].slots.map((slot, i) => {
-        return slot.map((slotPlayer, depth) => {
-          if(depth === 0) {
-            // Find matching player in lineup by name and merge stats
-            const lu = G.teams[side].lineup.find(p => p.name === slotPlayer.name);
-            if(lu) { Object.assign(lu.stats, slotPlayer.stats); return lu; }
-          }
-          return slotPlayer;
-        });
-      });
-    });
     init(true); // skip test players
     renderLU('away'); renderLU('home'); renderBench('away'); renderBench('home'); updateCRDropdowns('away'); updateCRDropdowns('home'); onSportChange();
     render();

@@ -2,19 +2,20 @@
   GHOST PAGE SETUP
   ================
   1. Create a new Ghost page with URL slug: "game"
-  2. Set the page to Public (or Members-only if you want gating at Ghost level)
+  2. Set the page to Public
   3. Add an HTML card with the contents of this file
   4. In page settings, hide the page title (toggle off "Show title")
   5. Publish
 
   Shareable URL format: https://mainebasketballrankings.com/game/?id=GAME_UUID
-  The scoreboard will link here automatically via embed.html update.
 -->
 
 <style>
-  /* Remove Ghost page padding so iframe fills edge-to-edge */
+  /* Remove Ghost page padding so iframe fills cleanly */
   .gh-content { padding: 0 !important; max-width: 100% !important; }
-  .gh-article-header { display: none; }
+  .gh-article-header { display: none !important; }
+  .gh-article { padding: 0 !important; }
+  /* Hide any nav that game_embed might render inside the iframe */
   #game-frame { width: 100%; border: none; display: block; min-height: 600px; }
 </style>
 
@@ -33,8 +34,9 @@
 
     // Auto-resize iframe to content height
     window.addEventListener('message', function(e) {
-      if (e.data && e.data.type === 'mbr-embed-resize') {
-        document.getElementById('game-frame').style.height = e.data.height + 'px';
+      var frame = document.getElementById('game-frame');
+      if (frame && e.data && e.data.type === 'mbr-embed-resize') {
+        frame.style.height = e.data.height + 'px';
       }
     });
   })();

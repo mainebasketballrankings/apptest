@@ -1371,7 +1371,7 @@ async function startGame(){
   _lastPbpLength = -1; // reset PBP render cache
   _gameFinalized = false; // reset end-game guard
   G.errorThisHalf=false; G.phantomOuts=0;
-  G.pendingHit=null; G.pendingRBIbatter=null; G.pendingScore=null;
+  G.pendingHit=null; G.pendingRBIbatter=null; G.pendingScore=null; G.pendingFCbatter=null;
   G.pendingUnearnedCheck=null; G.pendingUnearnedQueue=null;
   G.runDecisions={}; G.fldSeq=[];
   G.linescore = [];
@@ -2136,6 +2136,12 @@ function confirmRBI(){
   if(mode==='runners'){
     // ── Runners-only mode: no batter stats, just movement + push ──
     G.bases=newBases;
+    // If an FC batter is waiting to be placed on 1st, do it now that bases have shifted
+    if(G.pendingFCbatter){
+      if(!G.bases[1]) G.bases[1] = G.pendingFCbatter;
+      // If 1st is still blocked (unlikely but possible), scorer can fix via Runners button
+      G.pendingFCbatter = null;
+    }
     // Capture batter BEFORE clearing pendingRBIbatter
     const rbiPlayer = G.pendingRBIbatter || (b && b.player);
     // Credit RBI: use pendingRBIbatter if set (sac fly/out), else current batter
@@ -2821,6 +2827,7 @@ function doUndo(){
   G.pendingRBIbatter = null;
   G.pendingHit = null;
   G.pendingScore = null;
+  G.pendingFCbatter = null;
   G.runDecisions = {};
   G._rbiMode = null;
   G._rbiResult = null;
@@ -3421,32 +3428,42 @@ function confirmFC(outBase){
   b.player.stats.ab++;
   const bRunner={name:b.player.name,num:b.player.number};
 
-  // Remove the retired runner first
+  // Retire the selected runner
+  let retiredName = null;
   if(outBase!==null && G.bases[outBase]){
-    const retired=G.bases[outBase];
+    retiredName = G.bases[outBase].name;
     G.bases[outBase]=null;
-    addPBP(`<strong>${b.player.name}</strong> FC — ${retired.name} out at ${outBase===1?'1st':outBase===2?'2nd':'3rd'}, batter reaches 1st`);
-  } else {
-    addPBP(`<strong>${b.player.name}</strong> FC — reaches 1st`);
   }
 
-  // Batter always reaches 1st on FC — shift any runner still on 1st
-  if(G.bases[1]){
-    // Runner still on 1st needs to advance
-    if(!G.bases[2])       G.bases[2]=G.bases[1];
-    else if(!G.bases[3])  G.bases[3]=G.bases[1];
-    // If 2nd and 3rd both occupied, runner is stuck (scorer can use Runners button to fix)
+  // Batter reaches 1st. If 1st is still occupied (outBase wasn't 1), we need to
+  // place them. Don't auto-cascade — the runners overlay will let the scorer
+  // manually advance everyone to where they actually ended up.
+  // Only auto-place batter on 1st if it's empty; otherwise the scorer resolves via overlay.
+  if(!G.bases[1]){
+    G.bases[1]=bRunner;
+    if(retiredName)
+      addPBP(`<strong>${b.player.name}</strong> FC — ${retiredName} out at ${outBase===1?'1st':outBase===2?'2nd':outBase===3?'3rd':'home'}, batter reaches 1st`);
+    else
+      addPBP(`<strong>${b.player.name}</strong> FC — reaches 1st`);
+  } else {
+    // 1st is occupied — batter is on the way, scorer will place via runners overlay
+    // Park the batter runner in a pending state for the overlay to place
+    G.pendingFCbatter = bRunner;
+    if(retiredName)
+      addPBP(`<strong>${b.player.name}</strong> FC — ${retiredName} out at ${outBase===1?'1st':outBase===2?'2nd':outBase===3?'3rd':'home'}, batter reaches 1st`);
+    else
+      addPBP(`<strong>${b.player.name}</strong> FC — reaches 1st`);
   }
-  G.bases[1]=bRunner;
 
   G.pendingRBIbatter = b.player;
   pushEvt('fielders_choice', {outs_override: G.outs + 1});
   addOut('FC');
-  // Open runners overlay if there are runners who may have scored/advanced
-  if(hasRunners() && G.outs < 3){
+  // Always open runners overlay — scorer places runners where they actually ended up
+  if(G.outs < 3){
     setTimeout(()=>openRBIResolver(null,'runners'), 150);
   } else {
     G.pendingRBIbatter = null;
+    G.pendingFCbatter = null;
     render();
   }
 }

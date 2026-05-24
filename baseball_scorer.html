@@ -716,18 +716,6 @@ input,select,button{font-family:inherit;}
         <option>RF</option><option>DH</option>
       </select>
     </div>
-    <div class="srow">
-      <span class="slabel">Add to</span>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-        <input type="radio" name="midGameDest" value="lineup" checked id="midGameDestLU"> Batting order (next slot)
-      </label>
-    </div>
-    <div class="srow">
-      <span class="slabel"></span>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-        <input type="radio" name="midGameDest" value="bench" id="midGameDestBench"> Bench only
-      </label>
-    </div>
     <div class="oactions">
       <button class="oconfirm" onclick="confirmAddMidGame()">Add Player</button>
       <button class="ocancel" style="margin-top:8px;width:100%" onclick="closeOv('ovAddMidGame');openSub(subMode)">Back</button>
@@ -2726,8 +2714,16 @@ function openAddMidGame(){
   document.getElementById('addMidGameTeamLabel').textContent = G.teams[side].name;
   document.getElementById('midGameName').value = '';
   document.getElementById('midGameNum').value = '';
-  document.getElementById('midGamePos').value = '';
-  document.getElementById('midGameDestLU').checked = true;
+  // Pre-fill position from the player being subbed out
+  let defaultPos = '';
+  if(subMode === 'batter'){
+    const b = curBatter();
+    defaultPos = b?.player?.pos || '';
+  } else if(subMode === 'pitcher'){
+    const pitIdx = G.pitchers[side];
+    defaultPos = pitIdx !== null && pitIdx !== undefined ? (G.teams[side].lineup[pitIdx]?.pos || 'P') : 'P';
+  }
+  document.getElementById('midGamePos').value = defaultPos;
   closeOv('ovSub');
   openOv('ovAddMidGame');
 }
@@ -2740,16 +2736,8 @@ function confirmAddMidGame(){
   if(!name){ showAlert('Enter a name'); return; }
   const player = { name, number:num, pos, order: G.teams[side].lineup.length+1,
     flex:false, stats:{ab:0,r:0,h:0,rbi:0,bb:0,k:0,d:0,t:0,hr:0,sb:0,sf:0,sac:0,hbp:0} };
-  const dest = document.querySelector('input[name="midGameDest"]:checked')?.value || 'bench';
-  if(dest === 'lineup'){
-    G.teams[side].lineup.push(player);
-    if(!G.teams[side].slots) G.teams[side].slots = [];
-    G.teams[side].slots.push([slotEntry(player)]);
-    showAlert(`${name} added to lineup (slot ${G.teams[side].lineup.length})`);
-  } else {
-    G.teams[side].bench.push(player);
-    showAlert(`${name} added to bench`);
-  }
+  // Always add to bench — scorer then completes the sub normally from the sub list
+  G.teams[side].bench.push(player);
   updateCRDropdowns(side);
   closeOv('ovAddMidGame');
   // Re-open the sub overlay they came from

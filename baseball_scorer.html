@@ -149,7 +149,7 @@ input,select,button{font-family:inherit;}
 
 /* Action bar */
 .action-bar{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:8px 14px;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));border-bottom:1px solid var(--border);background:var(--surface);}
-.abtn{padding:8px 4px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;flex-shrink:0;}
+.abtn{padding:8px 4px;min-height:44px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;flex-shrink:0;}
 .abtn:active{opacity:.7;}
 .abtn.hi{border-color:var(--green-border);color:var(--green);background:var(--green-bg);}
 .abtn.danger{border-color:var(--red-border);color:var(--red);background:var(--red-bg);}
@@ -516,7 +516,7 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="openWPPB()">WP / PB</button>
     <button class="abtn"        onclick="doIBB()">IBB</button>
     <button class="abtn"        onclick="doWalk('HBP')">HBP</button>
-    <button class="abtn"        style="border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Error (no pitch)</button>
+    <button class="abtn"        style="grid-column:span 2;border-color:#9333ea;color:#9333ea;background:#f3e8ff" onclick="openFieldingErrorOverlay()">Error (no pitch)</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
     <button class="abtn danger" onclick="doSkipBatter()">Skip Batter</button>
     <button class="abtn" style="grid-column:span 2" onclick="openBoxScore()">Box Score</button>

@@ -3210,7 +3210,7 @@ async function generatePDF(){
     loadImgBase64(awayLogoUrl),
     loadImgBase64(homeLogoUrl),
   ]);
-  const mbrLogoB64 = await loadImgBase64('https://res.cloudinary.com/dulfssb6y/image/upload/v1774220002/ghost-banner-5_sykt26.png');
+  const mbrLogoB64 = await loadImgBase64('https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/ghost-banner-5_sykt26.png');
 
   const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter' });
   const PW=612, PH=792, ML=40, MR=40, MT=40, CW=532;

@@ -673,6 +673,7 @@ input,select,button{font-family:inherit;}
       <button class="otbtn" onclick="confirmOut('SAC')">Sac Bunt</button>
       <button class="otbtn" onclick="confirmOut('SF')">Sac Fly</button>
       <button class="otbtn" onclick="confirmOut('IFF')" style="border-color:#9333ea;color:#9333ea;background:#f3e8ff">Infield Fly</button>
+      <button class="otbtn" onclick="confirmErrorFromSeq()" style="border-color:#e05c2a;color:#e05c2a;background:#fff3ee">Error</button>
     </div>
     <div class="out-type-row" style="margin-top:4px">
       <button class="otbtn" style="background:var(--red-bg);color:var(--red);border-color:var(--red-border);flex:1" onclick="confirmDP('DP')">Double Play</button>
@@ -3511,6 +3512,23 @@ function openErrorOverlay(){
   closeOv('ovInPlay');
   // Do NOT charge pitch here — confirmRBI handles push('X') + chargePitch()
   openErrorFielderPicker('confirmError');
+}
+
+function confirmErrorFromSeq(){
+  // If a fielder is already tapped in the sequence, use them directly
+  if(G.fldSeq.length > 0){
+    const posNum = G.fldSeq[0];
+    const fSide = fieldingSide();
+    const posMap = {1:'P',2:'C',3:'1B',4:'2B',5:'3B',6:'SS',7:'LF',8:'CF',9:'RF'};
+    const posName = posMap[posNum] || String(posNum);
+    const fielder = G.teams[fSide].lineup.find(p => p.pos === posName);
+    const fielderName = fielder ? fielder.name : posName;
+    closeOv('ovInPlay');
+    confirmError(posNum, posName, fielderName);
+  } else {
+    // No fielder tapped — fall back to picker
+    openErrorOverlay();
+  }
 }
 
 function confirmError(pos, posName, fielderName){

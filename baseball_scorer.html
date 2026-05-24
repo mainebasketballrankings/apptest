@@ -3454,10 +3454,12 @@ function openFCOverlay(){
     confirmFC(null);
     return;
   }
-  el.innerHTML=runners.map(({base,runner})=>`
-    <button onclick="confirmFC(${base})" style="display:block;width:100%;margin-bottom:7px;padding:11px 14px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--red);cursor:pointer;text-align:left">
-      ${runner.name} on ${base===1?'1st':base===2?'2nd':'3rd'}
-    </button>`).join('');
+  el.innerHTML=runners.map(({base,runner})=>{
+    const outAt = base===3?'home':base===2?'3rd':base===1?'2nd':'home';
+    return `<button onclick="confirmFC(${base})" style="display:block;width:100%;margin-bottom:7px;padding:11px 14px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--red);cursor:pointer;text-align:left">
+      ${runner.name} — out at ${outAt}
+    </button>`;
+  }).join('');
   openOv('ovFC');
 }
 
@@ -3479,20 +3481,25 @@ function confirmFC(outBase){
   // place them. Don't auto-cascade — the runners overlay will let the scorer
   // manually advance everyone to where they actually ended up.
   // Only auto-place batter on 1st if it's empty; otherwise the scorer resolves via overlay.
+
+  // Build notation: fielder sequence + where the out was recorded
+  const seqStr = G.fldSeq.length > 0 ? G.fldSeq.join('-') : '';
+  // Runner on base X is thrown out at the NEXT base (3rd→home, 2nd→3rd, 1st→2nd)
+  const outAtBase = outBase===3 ? 'home' : outBase===2 ? '3rd' : outBase===1 ? '2nd' : 'home';
+  const fcNotation = seqStr ? `FC ${seqStr}` : 'FC';
+
   if(!G.bases[1]){
     G.bases[1]=bRunner;
     if(retiredName)
-      addPBP(`<strong>${b.player.name}</strong> FC — ${retiredName} out at ${outBase===1?'1st':outBase===2?'2nd':outBase===3?'3rd':'home'}, batter reaches 1st`);
+      addPBP(`<strong>${b.player.name}</strong> ${fcNotation} — ${retiredName} out at ${outAtBase}, batter reaches 1st`);
     else
-      addPBP(`<strong>${b.player.name}</strong> FC — reaches 1st`);
+      addPBP(`<strong>${b.player.name}</strong> ${fcNotation} — reaches 1st`);
   } else {
-    // 1st is occupied — batter is on the way, scorer will place via runners overlay
-    // Park the batter runner in a pending state for the overlay to place
     G.pendingFCbatter = bRunner;
     if(retiredName)
-      addPBP(`<strong>${b.player.name}</strong> FC — ${retiredName} out at ${outBase===1?'1st':outBase===2?'2nd':outBase===3?'3rd':'home'}, batter reaches 1st`);
+      addPBP(`<strong>${b.player.name}</strong> ${fcNotation} — ${retiredName} out at ${outAtBase}, batter reaches 1st`);
     else
-      addPBP(`<strong>${b.player.name}</strong> FC — reaches 1st`);
+      addPBP(`<strong>${b.player.name}</strong> ${fcNotation} — reaches 1st`);
   }
 
   G.pendingRBIbatter = b.player;

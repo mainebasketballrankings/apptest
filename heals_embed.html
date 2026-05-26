@@ -657,7 +657,7 @@
       .select('team_id')
       .in('team_id', teamIds)
       .eq('season_year', season)
-      .limit(500);
+      .limit(2000);
     if (snapshotTeams && snapshotTeams.length) {
       const snapshotIds = new Set(snapshotTeams.map(s => s.team_id));
       teams = teams.filter(t => snapshotIds.has(t.id));

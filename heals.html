@@ -869,7 +869,7 @@
           .eq('season_year', season)
           .in('team_id', chunk)
           .order('snapshot_date', { ascending: false })
-          .limit(chunk.length * 20);
+          .limit(2000);
         if (snapData) {
           snapData.forEach(s => {
             if (!snapMap[s.team_id]) snapMap[s.team_id] = { rank: s.rank_overall };

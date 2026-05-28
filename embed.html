@@ -1081,7 +1081,7 @@
         .from('rankings_snapshots')
         .select('team_id,wins,losses')
         .in('team_id', chunk)
-        .eq('season_year', SEASON_YEAR)
+        .eq('season_year', 2026)
         .order('snapshot_date', { ascending: false })
         .limit(chunk.length * 40);
       if (!data) continue;

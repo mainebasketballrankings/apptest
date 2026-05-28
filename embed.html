@@ -996,6 +996,7 @@
   let currentDate    = new Date();
   let allGames       = [];        // active sport's games (kept for submit handler)
   let allSportsGames = {};        // { sport: { games, notesMap } } — cached per date
+  let recordMap      = {};        // team_id -> 'W-L' string from latest snapshot
   let activeFilter   = 'all';
   let activeSport    = 'all';
   let activeSeason   = 2026;
@@ -1069,6 +1070,31 @@
   // ── LOAD GAMES ───────────────────────────────────────────────────────────
   // dateChanged=true  → clear cache, re-fetch for the new date
   // dateChanged=false → sport tab switch; use cache if available, fetch only if missing
+
+  // Fetch W-L records for all teams currently on the scoreboard
+  async function fetchRecords(teamIds) {
+    if (!teamIds.length) return;
+    const chunks = [];
+    for (let i = 0; i < teamIds.length; i += 50) chunks.push(teamIds.slice(i, i + 50));
+    for (const chunk of chunks) {
+      const { data } = await sb
+        .from('rankings_snapshots')
+        .select('team_id,wins,losses')
+        .in('team_id', chunk)
+        .eq('season_year', SEASON_YEAR)
+        .order('snapshot_date', { ascending: false })
+        .limit(chunk.length * 40);
+      if (!data) continue;
+      const seen = new Set();
+      for (const row of data) {
+        if (!seen.has(row.team_id)) {
+          seen.add(row.team_id);
+          recordMap[row.team_id] = `${row.wins ?? 0}-${row.losses ?? 0}`;
+        }
+      }
+    }
+  }
+
   async function loadGames(date, dateChanged = true) {
     const ds = toISO(date);
     document.getElementById('dateHeading').textContent = fmtHeading(date);
@@ -1119,6 +1145,10 @@
     buildSportTabs(sportsWithGames);
     buildFilterButtons();
     renderAllGames();
+
+    // Fetch records async — re-render once they arrive
+    const allTeamIds = [...new Set(allGames.flatMap(g => [g.home_team?.id, g.away_team?.id].filter(Boolean)))];
+    fetchRecords(allTeamIds).then(() => renderAllGames());
 
     const activeGames = allGames.filter(g => g.status === 'active');
     if (activeGames.length) await fetchLiveEvents(activeGames);
@@ -1324,7 +1354,7 @@
     const body = e.target.closest('.card-body');
     if (!body || e.target.closest('a, button')) return;
     const gameId = body.closest('.game-card')?.dataset.gameId;
-    if (gameId) window.top.location.href = `https://mainebasketballrankings.com/matchup/?id=${gameId}`;
+    if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
   });
 
   // Submit button → toggle score panel
@@ -1575,15 +1605,15 @@
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${clsLabel} · ${home.gender}</span>${submitBtnTop}</div>`;
 
     // Score cells
-    const gamePageUrl = `https://mainebasketballrankings.com/game/?id=${g.id}`;
+    const gamePageUrl = `game.html?game_id=${g.id}`;
     const hScEl = has
       ? (isFinal
-          ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" target="_top" style="text-decoration:none">${hSc}</a>`
+          ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${hSc}</a>`
           : `<div class="team-score">${hSc}</div>`)
       : `<div class="team-score empty">–</div>`;
     const aScEl = has
       ? (isFinal
-          ? `<a class="team-score ${aWin?'winner':'loser'}" href="${gamePageUrl}" target="_top" style="text-decoration:none">${aSc}</a>`
+          ? `<a class="team-score ${aWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${aSc}</a>`
           : `<div class="team-score">${aSc}</div>`)
       : `<div class="team-score empty">–</div>`;
 
@@ -1599,7 +1629,7 @@
     if (isFinal) {
       const notesContent = notes || '—';
       const notesStyle = notes ? 'color:var(--black)' : 'color:var(--lgray)';
-      footerMeta = `<a class="card-meta" href="${gamePageUrl}" target="_top" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
+      footerMeta = `<a class="card-meta" href="${gamePageUrl}" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
     } else if (isLive) {
       footerMeta = `<div class="card-meta" style="color:var(--lgray)">In progress</div>`;
     } else {
@@ -1613,14 +1643,14 @@
         <div class="team-row">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="https://app.mainebasketballrankings.com/team_embed.html?team_id=${away.id}" target="_blank">${aR}${away.school_name}</a>
+            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="https://app.mainebasketballrankings.com/team_embed.html?team_id=${away.id}" target="_blank">${aR}${away.school_name}</a>${recordMap[away.id] ? ` <span style="font-size:11px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif">${recordMap[away.id]}</span>` : ''}
           </div>
           ${aScEl}
         </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="https://app.mainebasketballrankings.com/team_embed.html?team_id=${home.id}" target="_blank">${hR}${home.school_name}</a>
+            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="https://app.mainebasketballrankings.com/team_embed.html?team_id=${home.id}" target="_blank">${hR}${home.school_name}</a>${recordMap[home.id] ? ` <span style="font-size:11px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif">${recordMap[home.id]}</span>` : ''}
           </div>
           ${hScEl}
         </div>

@@ -93,9 +93,6 @@
     /* Table */
     .tbl-wrap { overflow-x:auto; border-radius:8px; border:1px solid var(--border); background:var(--white); }
     table { width:100%; border-collapse:collapse; font-size:12.5px; }
-    th.sticky-rank, td.sticky-rank { position:sticky; left:0; background:var(--white); z-index:2; }
-    th.sticky-team, td.sticky-team { position:sticky; left:32px; background:var(--white); z-index:2; box-shadow:2px 0 4px rgba(0,0,0,0.06); }
-    thead th.sticky-rank, thead th.sticky-team { z-index:3; }
     thead th {
       background:var(--paper2); border-bottom:1px solid var(--border);
       font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700;
@@ -232,7 +229,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="modalTitle"></div>
-        <div class="modal-sub">W-L record distribution · 10,000 simulations</div>
+        <div class="modal-sub" id="modalSub">W-L record distribution · 10,000 simulations</div>
       </div>
       <button class="modal-close" onclick="document.getElementById('wlModal').style.display='none'">✕</button>
     </div>
@@ -469,15 +466,13 @@ function renderTable() {
 
   let html = `<table>
     <thead><tr>
-      <th class="left sticky-rank">#</th>
-      <th class="left sticky-team">Team</th>
+      <th class="left">#</th>
+      <th class="left">Team</th>
       <th>In?</th>
       <th>Avg Seed</th>
       <th style="color:#15803d">Bye%</th>
       <th style="color:#1d4ed8">In%</th>
       <th style="color:#b91c1c">Out%</th>
-      <th title="Average simulated Heal Points">Avg HP</th>
-      <th title="Maximum simulated Heal Points">Max HP</th>
       ${seedCols.map(s => `<th>S${s}</th>`).join('')}
     </tr></thead><tbody>`;
 
@@ -498,15 +493,13 @@ function renderTable() {
     const maxPct = Math.max(...s.seeds.slice(0, maxS));
 
     html += `<tr class="tier-${tier}" onclick="openWL(${i})">
-      <td class="rank sticky-rank">${i + 1}</td>
-      <td class="left sticky-team">${s.name}</td>
+      <td class="rank">${i + 1}</td>
+      <td class="left">${s.name}</td>
       <td><span class="in-badge ${inClass}">${inLabel}</span></td>
       <td class="avg">${s.avg_seed < 99 ? s.avg_seed.toFixed(2) : '—'}</td>
       <td style="color:#15803d;font-weight:600">${s.bye.toFixed(1)}%</td>
       <td style="color:#1d4ed8;font-weight:600">${s.playoff.toFixed(1)}%</td>
       <td style="color:#b91c1c">${s.out.toFixed(1)}%</td>
-      <td style="color:var(--lgray)">${s.avg_heals > 0 ? s.avg_heals.toFixed(1) : '—'}</td>
-      <td style="color:var(--green);font-weight:600">${s.max_heals > 0 ? s.max_heals.toFixed(1) : '—'}</td>
       ${s.seeds.slice(0, maxS).map((p, si) => {
         if (p < 0.05) return `<td class="seed-dim">—</td>`;
         const isHi = (p === maxPct && p >= 5);
@@ -525,6 +518,9 @@ function openWL(idx) {
   if (!snap) return;
 
   document.getElementById('modalTitle').textContent = snap.name;
+  document.getElementById('modalSub').innerHTML =
+    'W-L record distribution · 10,000 simulations' +
+    (snap.avg_heals > 0 ? ` · <span style="color:var(--lgray)">Avg HP: <b>${snap.avg_heals.toFixed(1)}</b></span> · <span style="color:var(--green)">Max HP: <b>${snap.max_heals.toFixed(1)}</b></span>` : '');
   const wl = snap.wl_dist;
 
   if (!wl || !Object.keys(wl).length) {

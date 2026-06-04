@@ -1083,7 +1083,7 @@ let G = {
   sport:'baseball', level:'varsity', date:'', loc:'', maxInn:7, mercy:true, pitchLimits:true, mode:'both',
   teams:{ away:{name:'Away',lineup:[],bench:[],slots:[]}, home:{name:'Home',lineup:[],bench:[],slots:[]} },
   pitchers:{ away:0, home:0 },   // active pitcher index per side
-  inning:1, half:'top', outs:0, balls:0, strikes:0,
+  inning:1, half:'top', outs:0, balls:0, strikes:0, lastOutPlayer:null,
   bases:{1:null,2:null,3:null},
   runs:{away:0,home:0}, hits:{away:0,home:0}, errors:{away:0,home:0},
   linescore:[],
@@ -1637,6 +1637,8 @@ function addOut(notation){
   if(p) getPS(p.side,p.idx).ip_outs++;
   G.outs++;
   if(G.outs>=3){
+    // Track who made the last out for extra inning ghost runner rule
+    G.lastOutPlayer = curBatter()?.player || null;
     // DO NOT call nextBatter here — the 3rd out batter stays in the
     // batting order slot; next half inning starts with the NEXT batter
     nextBatter(true);  // advance past the batter who made the 3rd out; skip batter_up (inning flipping)
@@ -1693,6 +1695,11 @@ function confirmHalf(){
   closeOv('ovHalfEnd');
   if(G.half==='top'){ G.half='bottom'; }
   else { G.half='top'; G.inning++; if(G.inning>G.linescore.length) G.linescore.push({away:null,home:null}); checkGameEnd(); }
+  // Extra innings: place ghost runner (last out of previous inning) on 2nd base
+  if(G.inning >= 10 && G.lastOutPlayer){
+    G.bases[2] = { ...G.lastOutPlayer, isGhost: true };
+    addPBP(`<em>Ghost runner: ${G.lastOutPlayer.name} placed on 2nd to start inning ${G.inning}</em>`);
+  }
   render();
   // Push batter_up for the leadoff hitter of the new half inning
   // so live.html shows the current batter immediately without waiting for a pitch

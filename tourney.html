@@ -94,6 +94,12 @@
     /* Table */
     .tbl-wrap { overflow-x:auto; border-radius:8px; border:1px solid var(--border); background:var(--white); }
     table { width:100%; border-collapse:collapse; font-size:14px; }
+    .td-team { display:flex; align-items:center; gap:10px; }
+    .td-logo { width:28px; height:28px; object-fit:contain; flex-shrink:0; }
+    .td-logo-init { width:28px; height:28px; border-radius:50%; background:#f0f0f0;
+      border:1px solid #e2e2e2; display:flex; align-items:center; justify-content:center;
+      font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:11px;
+      color:#999; flex-shrink:0; }
     thead th {
       background:var(--paper2); border-bottom:1px solid var(--border);
       font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700;
@@ -413,6 +419,7 @@ async function loadData() {
           wins:      snap.wins  || 0,
           losses:    snap.losses || 0,
           seed:      odds.seed || 99,
+          logo_url:  t.logo_url || null,
           play_in:   (odds.play_in  || 0) * 100,
           quarters:  (odds.quarters || 0) * 100,
           semis:     (odds.semis    || 0) * 100,
@@ -553,7 +560,11 @@ function renderTableTourney() {
 
     html += `<tr class="tier-${tier}" onclick="openWL(${i})">
       <td class="rank">${i + 1}</td>
-      <td class="left">${s.name}</td>
+      <td class="left"><div class="td-team">${
+        s.logo_url
+          ? `<img class="td-logo" src="${s.logo_url}" alt="${s.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="td-logo-init" style="display:none">${s.name[0]}</div>`
+          : `<div class="td-logo-init">${s.name[0]}</div>`
+      }<span>${s.name}</span></div></td>
       ${fmt(s.play_in)}
       ${fmt(s.quarters)}
       ${fmt(s.semis)}

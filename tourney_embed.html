@@ -478,7 +478,7 @@ function renderTableTourney() {
   // Tournament mode: show Play-In / Quarters / Semis / Regional / Gold Ball
   currentRegional = allSnaps
     .filter(s => s.region === activeRegion)
-    .sort((a, b) => (b.play_in - a.play_in) || (b.gold_ball - a.gold_ball));
+    .sort((a, b) => (a.seed || 999) - (b.seed || 999));
 
   if (!currentRegional.length) {
     document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No data for this region.</div>';

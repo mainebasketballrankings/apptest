@@ -412,6 +412,7 @@ async function loadData() {
           region,
           wins:      snap.wins  || 0,
           losses:    snap.losses || 0,
+          seed:      odds.seed || 99,
           play_in:   (odds.play_in  || 0) * 100,
           quarters:  (odds.quarters || 0) * 100,
           semis:     (odds.semis    || 0) * 100,
@@ -508,7 +509,7 @@ function renderTableTourney() {
   // Tournament mode: show Play-In / Quarters / Semis / Regional / Gold Ball
   currentRegional = allSnaps
     .filter(s => s.region === activeRegion)
-    .sort((a, b) => b.gold_ball - a.gold_ball);
+    .sort((a, b) => (a.seed || 99) - (b.seed || 99));
 
   if (!currentRegional.length) {
     document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No data for this region.</div>';

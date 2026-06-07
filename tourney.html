@@ -538,8 +538,17 @@ function renderTableTourney() {
     const inLabel = s.play_in >= 99.9 ? 'IN' : s.play_in < 0.1 ? 'OUT' : `${s.play_in.toFixed(0)}%`;
     const inClass = s.play_in >= 99.9 ? 'in' : s.play_in < 0.1 ? 'out' : 'bubble';
 
-    const fmt = v => v < 0.05 ? '<td style="color:#ccc">—</td>' :
-      `<td style="${v >= 20 ? 'font-weight:700;color:var(--black)' : v >= 5 ? 'color:var(--gray)' : 'color:#aaa'}">${v.toFixed(1)}%</td>`;
+    const fmt = v => {
+      if (v >= 99.95) return `<td style="font-weight:700;color:var(--green)">✓</td>`;
+      if (v < 0.05)   return `<td style="color:#ccc">—</td>`;
+      if (v < 0.1)    return `<td style="color:#bbb;font-size:10px">&lt;0.1%</td>`;
+      return `<td style="${v >= 20 ? 'font-weight:700;color:var(--black)' : v >= 5 ? 'color:var(--gray)' : 'color:#aaa'}">${v.toFixed(1)}%</td>`;
+    };
+
+    const gbFmt = gb >= 99.95 ? `<td style="font-weight:800;color:var(--orange)">✓</td>`
+      : gb < 0.05 ? `<td style="color:#ccc">—</td>`
+      : gb < 0.1  ? `<td style="color:#bbb;font-size:10px">&lt;0.1%</td>`
+      : `<td style="font-weight:700;color:${gb>=20?'var(--orange)':gb>=5?'var(--gray)':'#aaa'}">${gb.toFixed(1)}%</td>`;
 
     html += `<tr class="tier-${tier}" onclick="openWL(${i})">
       <td class="rank">${i + 1}</td>
@@ -548,7 +557,7 @@ function renderTableTourney() {
       ${fmt(s.quarters)}
       ${fmt(s.semis)}
       ${showRegional ? fmt(s.regional) : ''}
-      <td style="font-weight:700;color:${gb>=20?'var(--orange)':gb>=5?'var(--gray)':'#aaa'}">${gb < 0.05 ? '—' : gb.toFixed(1)+'%'}</td>
+      ${gbFmt}
     </tr>`;
   });
 

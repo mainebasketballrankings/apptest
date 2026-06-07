@@ -355,6 +355,9 @@ async function loadData() {
     if (!snapMap[s.team_id]) snapMap[s.team_id] = s;
   }
 
+  // Detect tournament mode: new format has play_in key, old has bye/playoff
+  const isTourneyMode = snaps.some(s => s.tournament_odds?.play_in !== undefined);
+
   allSnaps = teams
     .filter(t => snapMap[t.id]?.tournament_odds)
     .map(t => {
@@ -362,31 +365,49 @@ async function loadData() {
       const odds = snap.tournament_odds || {};
       const tc = t.team_class || '';
       const tr = t.team_region || '';
-      // Build display region: lax = class only; baseball/softball = "A North" style
       let region;
       if (activeSport === 'lax') {
         region = tc;
       } else {
-        // tr = "North", tc = "A" → "A North"
         region = (tr && tc && !tr.includes(tc)) ? `${tc} ${tr}` : (tr || tc);
       }
-      const playoff = (odds.playoff || 0) * 100;
-      const bye     = (odds.bye    || 0) * 100;
-      return {
-        team_id:  t.id,
-        name:     t.school_name,
-        class:    tc,
-        region,
-        wins:     snap.wins   || 0,
-        losses:   snap.losses || 0,
-        playoff, bye,
-        out:      (1 - (odds.playoff || 0)) * 100,
-        seeds:    Array.from({length:16}, (_, i) => (odds[`s${i+1}`] || 0) * 100),
-        avg_seed:  computeAvgSeed(odds),
-        avg_heals: odds.avg_heals || 0,
-        max_heals: odds.max_heals || 0,
-        wl_dist:   snap.wl_distribution || null,
-      };
+
+      if (isTourneyMode) {
+        // New format: play_in/quarters/semis/regional/gold_ball
+        return {
+          team_id:   t.id,
+          name:      t.school_name,
+          class:     tc,
+          region,
+          wins:      snap.wins  || 0,
+          losses:    snap.losses || 0,
+          play_in:   (odds.play_in  || 0) * 100,
+          quarters:  (odds.quarters || 0) * 100,
+          semis:     (odds.semis    || 0) * 100,
+          regional:  (odds.regional || 0) * 100,
+          gold_ball: (odds.gold_ball|| 0) * 100,
+          wl_dist:   snap.wl_distribution || null,
+        };
+      } else {
+        // Old format: bye/playoff/s1-s16
+        const playoff = (odds.playoff || 0) * 100;
+        const bye     = (odds.bye    || 0) * 100;
+        return {
+          team_id:   t.id,
+          name:      t.school_name,
+          class:     tc,
+          region,
+          wins:      snap.wins  || 0,
+          losses:    snap.losses || 0,
+          playoff, bye,
+          out:       (1 - (odds.playoff || 0)) * 100,
+          seeds:     Array.from({length:16}, (_, i) => (odds[`s${i+1}`] || 0) * 100),
+          avg_seed:  computeAvgSeed(odds),
+          avg_heals: odds.avg_heals || 0,
+          max_heals: odds.max_heals || 0,
+          wl_dist:   snap.wl_distribution || null,
+        };
+      }
     });
 
   if (!allSnaps.length) {
@@ -443,6 +464,69 @@ function renderRegionTabs() {
 }
 
 function renderTable() {
+  const isTourney = allSnaps.length ? ('play_in' in allSnaps[0]) : false;
+
+  if (isTourney) {
+    renderTableTourney();
+  } else {
+    renderTableRegular();
+  }
+}
+
+function renderTableTourney() {
+  // Tournament mode: show Play-In / Quarters / Semis / Regional / Gold Ball
+  currentRegional = allSnaps
+    .filter(s => s.region === activeRegion)
+    .sort((a, b) => b.gold_ball - a.gold_ball);
+
+  if (!currentRegional.length) {
+    document.getElementById('tblWrap').innerHTML = '<div class="state-msg">No data for this region.</div>';
+    return;
+  }
+
+  document.getElementById('simBadge').textContent = '10,000 simulations';
+
+  // For LAX: regional === gold_ball, so skip Regional column
+  const isLax = activeSport === 'lax';
+  const showRegional = !isLax;
+
+  let html = `<table>
+    <thead><tr>
+      <th class="left">#</th>
+      <th class="left">Team</th>
+      <th>Play-In</th>
+      <th>Quarters</th>
+      <th>Semis</th>
+      ${showRegional ? '<th>Regional</th>' : ''}
+      <th style="color:var(--orange);font-weight:800">${isLax ? 'Championship' : 'Gold Ball'}</th>
+    </tr></thead><tbody>`;
+
+  currentRegional.forEach((s, i) => {
+    const gb = s.gold_ball;
+    const tier = gb >= 30 ? 'bye' : gb >= 10 ? 'in' : gb >= 3 ? 'bubble' : 'out';
+    const inLabel = s.play_in >= 99.9 ? 'IN' : s.play_in < 0.1 ? 'OUT' : `${s.play_in.toFixed(0)}%`;
+    const inClass = s.play_in >= 99.9 ? 'in' : s.play_in < 0.1 ? 'out' : 'bubble';
+
+    const fmt = v => v < 0.05 ? '<td style="color:#ccc">—</td>' :
+      `<td style="${v >= 20 ? 'font-weight:700;color:var(--black)' : v >= 5 ? 'color:var(--gray)' : 'color:#aaa'}">${v.toFixed(1)}%</td>`;
+
+    html += `<tr class="tier-${tier}" onclick="openWL(${i})">
+      <td class="rank">${i + 1}</td>
+      <td class="left">${s.name}</td>
+      ${fmt(s.play_in)}
+      ${fmt(s.quarters)}
+      ${fmt(s.semis)}
+      ${showRegional ? fmt(s.regional) : ''}
+      <td style="font-weight:700;color:${gb>=20?'var(--orange)':gb>=5?'var(--gray)':'#aaa'}">${gb < 0.05 ? '—' : gb.toFixed(1)+'%'}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tblWrap').innerHTML = html;
+}
+
+function renderTableRegular() {
+  // Regular season mode: show BYE/IN/OUT/seed distribution (original behavior)
   currentRegional = allSnaps
     .filter(s => s.region === activeRegion)
     .sort((a, b) => a.avg_seed - b.avg_seed);
@@ -452,7 +536,6 @@ function renderTable() {
     return;
   }
 
-  // Max seed col = highest seed with >=0.05% probability across all teams in region
   let maxS = 1;
   for (const s of currentRegional) {
     for (let i = 15; i >= 0; i--) {
@@ -477,9 +560,7 @@ function renderTable() {
     </tr></thead><tbody>`;
 
   currentRegional.forEach((s, i) => {
-    // Row tier based on majority outcome
     const tier = s.bye >= 50 ? 'bye' : s.playoff >= 50 ? 'in' : s.playoff >= 15 ? 'bubble' : 'out';
-    // Badge only when truly locked: >99.99%
     const inLabel = s.bye >= 99.99    ? 'BYE'
                   : s.playoff >= 99.99 ? 'IN'
                   : s.out >= 99.99     ? 'OUT'
@@ -488,8 +569,6 @@ function renderTable() {
                   : s.playoff >= 99.99 ? 'in'
                   : s.out >= 99.99     ? 'out'
                   : 'bubble';
-
-    // Find modal seed pct for bolding
     const maxPct = Math.max(...s.seeds.slice(0, maxS));
 
     html += `<tr class="tier-${tier}" onclick="openWL(${i})">
@@ -512,10 +591,42 @@ function renderTable() {
   document.getElementById('tblWrap').innerHTML = html;
 }
 
+
 // ── WL Modal ──────────────────────────────────────────────────────────────
 function openWL(idx) {
   const snap = currentRegional[idx];
   if (!snap) return;
+
+  // In tournament mode, show round-by-round odds instead of WL distribution
+  const isTourney = 'play_in' in snap;
+  if (isTourney) {
+    document.getElementById('modalTitle').textContent = snap.name;
+    document.getElementById('modalSub').innerHTML = 'Tournament round-by-round odds · 10,000 simulations';
+    const isLax = activeSport === 'lax';
+    const rows = [
+      ['Play-In', snap.play_in],
+      ['Quarters', snap.quarters],
+      ['Semis', snap.semis],
+      ...(!isLax ? [['Regional', snap.regional]] : []),
+      [isLax ? 'Championship' : 'Gold Ball', snap.gold_ball],
+    ];
+    const html = `<div style="padding:8px 0">` +
+      rows.map(([label, val]) => {
+        const pct = val || 0;
+        const bar = Math.round(Math.min(pct, 100) * 2.4);
+        const color = pct >= 50 ? 'var(--orange)' : pct >= 20 ? 'var(--green)' : pct >= 5 ? 'var(--teal)' : 'var(--lgray)';
+        return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:90px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;color:var(--gray)">${label}</div>
+          <div style="flex:1;background:#f0f0f0;border-radius:4px;height:8px">
+            <div style="width:${bar}px;max-width:100%;height:8px;border-radius:4px;background:${color}"></div>
+          </div>
+          <div style="width:54px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;color:${color}">${pct < 0.05 ? '—' : pct.toFixed(1)+'%'}</div>
+        </div>`;
+      }).join('') + `</div>`;
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('wlModal').style.display = 'flex';
+    return;
+  }
 
   document.getElementById('modalTitle').textContent = snap.name;
   document.getElementById('modalSub').innerHTML =

@@ -332,8 +332,12 @@ function gameCard(g, snaps) {
   const hWin = isFinal && hScore > aScore;
   const aWin = isFinal && aScore > hScore;
 
-  const hRnk = rankEl(snaps, home.id);
-  const aRnk = rankEl(snaps, away.id);
+  const hSnap = snaps.find(s => s.team_id === home.id);
+  const aSnap = snaps.find(s => s.team_id === away.id);
+  const hSeed = g.is_tournament && hSnap?.tournament_odds?.seed < 99 ? hSnap.tournament_odds.seed : null;
+  const aSeed = g.is_tournament && aSnap?.tournament_odds?.seed < 99 ? aSnap.tournament_odds.seed : null;
+  const hRnk = hSeed ? `#${hSeed}` : rankEl(snaps, home.id);
+  const aRnk = aSeed ? `#${aSeed}` : rankEl(snaps, away.id);
 
   // Pick correctness
   let pickWon = null;
@@ -394,7 +398,7 @@ const ds = toISO(currentDate);
   const { data: games, error } = await sb
     .from('games')
     .select(`
-      id, status, stax_index, pick_team, spread,
+      id, status, stax_index, pick_team, spread, is_tournament, event,
       home_score, away_score,
       home_team:home_team_id ( id, school_name, logo_url, sport_id, gender ),
       away_team:away_team_id ( id, school_name, logo_url )
@@ -415,7 +419,7 @@ const ds = toISO(currentDate);
   const teamIds = [...new Set(games.flatMap(g => [g.home_team?.id, g.away_team?.id]).filter(Boolean))];
   const { data: snaps } = await sb
     .from('rankings_snapshots')
-    .select('team_id, rank_overall')
+    .select('team_id, rank_overall, tournament_odds')
     .in('team_id', teamIds)
     .order('snapshot_date', { ascending: false })
     .limit(teamIds.length * 3);

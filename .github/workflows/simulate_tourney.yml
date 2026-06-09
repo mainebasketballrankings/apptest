@@ -1,0 +1,27 @@
+name: Tournament Odds Update
+
+on:
+  schedule:
+    # Every 15 minutes, 2pm-10pm ET (18:00-02:00 UTC), June 9-21
+    - cron: '0,15,30,45 18-23 9-21 6 *'
+    - cron: '0,15,30,45 0-2 10-22 6 *'
+  workflow_dispatch:  # also allows manual trigger from GitHub UI
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install supabase tqdm
+
+      - name: Run tournament simulation
+        env:
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python simulate_spring_tourney.py --push --sims 10000

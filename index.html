@@ -999,6 +999,7 @@
   let activeSport    = 'all';
   let activeSeason   = 2026;
   let rankMap        = {};
+  let seedMap        = {};
 
   // ── DATE / TIME HELPERS ──────────────────────────────────────────────────
   function toISO(d) {
@@ -1028,7 +1029,7 @@
     try {
       const { data, error } = await sb
         .from('rankings_snapshots')
-        .select('team_id, rank_overall, snapshot_date')
+        .select('team_id, rank_overall, snapshot_date, tournament_odds')
         .eq('season_year', 2026)
         .not('rank_overall', 'is', null)
         .order('snapshot_date', { ascending: false })
@@ -1037,6 +1038,9 @@
       if (!data?.length) return;
       data.forEach(r => {
         if (!(r.team_id in rankMap)) rankMap[r.team_id] = r.rank_overall;
+        if (r.tournament_odds?.seed && r.tournament_odds.seed < 99) {
+          if (!(r.team_id in seedMap)) seedMap[r.team_id] = r.tournament_odds.seed;
+        }
       });
     } catch(e) { console.warn('loadRanks threw:', e); }
   }
@@ -1044,7 +1048,7 @@
   // ── GAME FETCH ───────────────────────────────────────────────────────────
   async function fetchSportGames(ds, sport, season) {
     const { data, error } = await sb.from('games').select(`
-      id, game_date, game_time, location, status, new_date, stream_url, stax_index,
+      id, game_date, game_time, location, status, new_date, stream_url, stax_index, event,
       is_neutral_site, is_tournament,
       home_score, away_score, home_score_live, away_score_live, game_clock, notes,
       home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, team_class,
@@ -1567,8 +1571,10 @@
 
     const hRnk = rankMap[home.id];
     const aRnk = rankMap[away.id];
-    const hR   = hRnk ? `<span class="rnk">#${hRnk} </span>` : '';
-    const aR   = aRnk ? `<span class="rnk">#${aRnk} </span>` : '';
+    const hSeed = g.is_tournament ? seedMap[home.id] : null;
+    const aSeed = g.is_tournament ? seedMap[away.id] : null;
+    const hR   = hSeed ? `<span class="rnk">#${hSeed} </span>` : (hRnk ? `<span class="rnk">#${hRnk} </span>` : '');
+    const aR   = aSeed ? `<span class="rnk">#${aSeed} </span>` : (aRnk ? `<span class="rnk">#${aRnk} </span>` : '');
 
     // PPD badge label (needed for topBar)
     let ppdLabel = '';

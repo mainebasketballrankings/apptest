@@ -542,11 +542,29 @@ def push_to_supabase(sb, odds, all_teams):
     pushed = 0
     skipped = 0
 
-    # Build set of team_ids that have odds (made the field)
-    field_team_ids = set(odds.keys())
+    # Load existing tournament_odds to preserve locked seeds
+    # Seeds are assigned once from Heal Points at tournament start and never change
+    existing_seeds = {}
+    snap_ids = {}
+    team_ids = list(all_teams.keys())
+    # Fetch in batches of 100
+    for i in range(0, len(team_ids), 100):
+        batch = team_ids[i:i+100]
+        rows = sb.table("rankings_snapshots").select(
+            "id,team_id,tournament_odds"
+        ).eq("season_year", SEASON_YEAR).in_(
+            "team_id", batch
+        ).order("snapshot_date", desc=True).execute()
+        seen = set()
+        for r in rows.data:
+            if r["team_id"] not in seen:
+                seen.add(r["team_id"])
+                snap_ids[r["team_id"]] = r["id"]
+                existing = r.get("tournament_odds") or {}
+                if existing.get("seed") and existing["seed"] < 99:
+                    existing_seeds[r["team_id"]] = existing["seed"]
 
-    # For teams not in the field, write a zeroed-out entry with seed=99
-    # so the frontend sort works correctly
+    # Build final odds — preserve existing seed if already set
     empty_odds = {
         "seed": 99, "status": "out", "play_in": 0, "quarters": 0,
         "semis": 0, "regional": 0, "gold_ball": 0
@@ -554,19 +572,19 @@ def push_to_supabase(sb, odds, all_teams):
     all_odds = {tid: odds.get(tid, empty_odds) for tid in all_teams}
 
     for team_id, team_odds in all_odds.items():
-        snap = sb.table("rankings_snapshots").select("id").eq(
-            "team_id", team_id
-        ).eq("season_year", SEASON_YEAR).order(
-            "snapshot_date", desc=True
-        ).limit(1).execute()
-
-        if not snap.data:
+        snap_id = snap_ids.get(team_id)
+        if not snap_id:
             skipped += 1
             continue
 
+        # Preserve locked seed — never overwrite with a new calculation
+        if team_id in existing_seeds:
+            team_odds = dict(team_odds)
+            team_odds["seed"] = existing_seeds[team_id]
+
         sb.table("rankings_snapshots").update({
             "tournament_odds": team_odds
-        }).eq("id", snap.data[0]["id"]).execute()
+        }).eq("id", snap_id).execute()
         pushed += 1
 
     print(f"  ✓ Pushed: {pushed}  Skipped (no snapshot): {skipped}")

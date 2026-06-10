@@ -338,13 +338,32 @@ def load_data(sb, sport_name, cfg):
     ).gte("game_date", tourney_start).execute()
     tourney_games = tourney_resp.data
 
+    print(f"  Loading existing seeds (locked from tournament start)...")
+    existing_seeds_resp = sb.table("rankings_snapshots").select(
+        "team_id,tournament_odds"
+    ).eq("season_year", SEASON_YEAR).in_(
+        "team_id", list(all_teams.keys())
+    ).order("snapshot_date", desc=True).execute()
+
+    existing_seeds = {}
+    seen = set()
+    for row in existing_seeds_resp.data:
+        tid = row["team_id"]
+        if tid not in seen:
+            seen.add(tid)
+            odds = row.get("tournament_odds") or {}
+            if odds.get("seed") and int(odds["seed"]) < 99:
+                existing_seeds[tid] = int(odds["seed"])
+
+    print(f"  Existing locked seeds: {len(existing_seeds)}")
+
     print(f"  Teams: {len(all_teams)}, Active (played games): {len(active_teams & set(all_teams.keys()))}")
     print(f"  Tournament games: {len(tourney_games)}")
 
-    return all_teams, heal_map, latest_snap, tourney_games, active_teams
+    return all_teams, heal_map, latest_snap, tourney_games, active_teams, existing_seeds
 
 # ── Build brackets ────────────────────────────────────────────────────────────
-def build_brackets(all_teams, heal_map, latest_snap, tourney_games, active_teams, cfg):
+def build_brackets(all_teams, heal_map, latest_snap, tourney_games, active_teams, cfg, existing_seeds=None):
     grouping = cfg["grouping"]
 
     # Build locked results from completed tourney games
@@ -392,29 +411,25 @@ def build_brackets(all_teams, heal_map, latest_snap, tourney_games, active_teams
             "dirigo":      dirigo,
         })
 
-    # Build brackets: determine field size, assign seeds
+    # Build brackets: determine field size, assign seeds from Heal Points
+    # Seeds are deterministic — Heal Points only use regular season games
+    # which don't change after tournament starts, so seeds are always identical
     brackets = {}
     for bracket_key, teams in groups.items():
         n_total = len(teams)
         if n_total < 2:
             continue
 
-        # Field size = ceil(2/3 * total teams)
         field_size = math.ceil(2 / 3 * n_total)
         field_size = max(field_size, 2)
 
-        # Sort by Heal Points descending → seed order
         sorted_teams = sorted(teams, key=lambda x: x["heal_points"], reverse=True)
-
-        # Only top field_size teams make it
         field = sorted_teams[:field_size]
 
-        # Assign seeds 1..field_size, fill 16-slot bracket
-        # Seeds beyond field_size are empty (bye slots)
         seeds = {}
         dirigo = {}
-        seed_num = {}   # team_id -> seed number
-        seed_status = {}  # team_id -> "bye" | "in"
+        seed_num = {}
+        seed_status = {}
         for i, t in enumerate(field, start=1):
             seeds[i] = t["team_id"]
             dirigo[t["team_id"]] = t["dirigo"]
@@ -534,6 +549,20 @@ def run_simulation(brackets, cfg, num_sims):
             "gold_ball":round(round_counts["gold_ball"]/ num_sims, 4),
         }
 
+    # Add eliminated teams — they need their correct seed written even with zero odds
+    for b in brackets.values():
+        for team_id in b["eliminated"]:
+            if team_id not in odds and team_id in team_seed:
+                odds[team_id] = {
+                    "seed":     team_seed[team_id],
+                    "status":   "eliminated",
+                    "play_in":  0,
+                    "quarters": 0,
+                    "semis":    0,
+                    "regional": 0,
+                    "gold_ball":0,
+                }
+
     return odds
 
 # ── Push to Supabase ──────────────────────────────────────────────────────────
@@ -542,16 +571,13 @@ def push_to_supabase(sb, odds, all_teams):
     pushed = 0
     skipped = 0
 
-    # Load existing tournament_odds to preserve locked seeds
-    # Seeds are assigned once from Heal Points at tournament start and never change
-    existing_seeds = {}
+    # Pre-fetch all snapshot IDs in batches
     snap_ids = {}
     team_ids = list(all_teams.keys())
-    # Fetch in batches of 100
     for i in range(0, len(team_ids), 100):
         batch = team_ids[i:i+100]
         rows = sb.table("rankings_snapshots").select(
-            "id,team_id,tournament_odds"
+            "id,team_id"
         ).eq("season_year", SEASON_YEAR).in_(
             "team_id", batch
         ).order("snapshot_date", desc=True).execute()
@@ -560,11 +586,7 @@ def push_to_supabase(sb, odds, all_teams):
             if r["team_id"] not in seen:
                 seen.add(r["team_id"])
                 snap_ids[r["team_id"]] = r["id"]
-                existing = r.get("tournament_odds") or {}
-                if existing.get("seed") and existing["seed"] < 99:
-                    existing_seeds[r["team_id"]] = existing["seed"]
 
-    # Build final odds — preserve existing seed if already set
     empty_odds = {
         "seed": 99, "status": "out", "play_in": 0, "quarters": 0,
         "semis": 0, "regional": 0, "gold_ball": 0
@@ -576,12 +598,6 @@ def push_to_supabase(sb, odds, all_teams):
         if not snap_id:
             skipped += 1
             continue
-
-        # Preserve locked seed — never overwrite with a new calculation
-        if team_id in existing_seeds:
-            team_odds = dict(team_odds)
-            team_odds["seed"] = existing_seeds[team_id]
-
         sb.table("rankings_snapshots").update({
             "tournament_odds": team_odds
         }).eq("id", snap_id).execute()
@@ -614,12 +630,12 @@ def main():
         print(f"  {sport_name}")
         print(f"{'='*60}")
 
-        all_teams, heal_map, latest_snap, tourney_games, active_teams = load_data(sb, sport_name, cfg)
+        all_teams, heal_map, latest_snap, tourney_games, active_teams, existing_seeds = load_data(sb, sport_name, cfg)
         active_teams = active_teams & set(all_teams.keys())
 
         print(f"\n  Building brackets...")
         brackets = build_brackets(
-            all_teams, heal_map, latest_snap, tourney_games, active_teams, cfg
+            all_teams, heal_map, latest_snap, tourney_games, active_teams, cfg, existing_seeds
         )
 
         if not brackets:

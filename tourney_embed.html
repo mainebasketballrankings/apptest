@@ -388,6 +388,7 @@ async function loadData() {
           wins:      snap.wins  || 0,
           losses:    snap.losses || 0,
           seed:      odds.seed || 99,
+          status:    odds.status || 'out',
           logo_url:  t.logo_url || null,
           play_in:   (odds.play_in  || 0) * 100,
           quarters:  (odds.quarters || 0) * 100,

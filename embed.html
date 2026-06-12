@@ -1612,15 +1612,15 @@
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${topLabel}</span>${submitBtnTop}</div>`;
 
     // Score cells
-    const gamePageUrl = `https://mainebasketballrankings.com/game/?id=${g.id}`;
+    const gamePageUrl = `https://app.mainebasketballrankings.com/game.html?game_id=${g.id}`;
     const hScEl = has
       ? (isFinal
-          ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${hSc}</a>`
+          ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" target="_blank" style="text-decoration:none">${hSc}</a>`
           : `<div class="team-score">${hSc}</div>`)
       : `<div class="team-score empty">–</div>`;
     const aScEl = has
       ? (isFinal
-          ? `<a class="team-score ${aWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${aSc}</a>`
+          ? `<a class="team-score ${aWin?'winner':'loser'}" href="${gamePageUrl}" target="_blank" style="text-decoration:none">${aSc}</a>`
           : `<div class="team-score">${aSc}</div>`)
       : `<div class="team-score empty">–</div>`;
 
@@ -1636,7 +1636,7 @@
     if (isFinal) {
       const notesContent = notes || '—';
       const notesStyle = notes ? 'color:var(--black)' : 'color:var(--lgray)';
-      footerMeta = `<a class="card-meta" href="${gamePageUrl}" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
+      footerMeta = `<a class="card-meta" href="${gamePageUrl}" target="_blank" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
     } else if (isLive) {
       footerMeta = `<div class="card-meta" style="color:var(--lgray)">In progress</div>`;
     } else {

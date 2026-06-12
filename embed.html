@@ -1612,7 +1612,7 @@
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${topLabel}</span>${submitBtnTop}</div>`;
 
     // Score cells
-    const gamePageUrl = `https://app.mainebasketballrankings.com/game.html?game_id=${g.id}`;
+    const gamePageUrl = `https://www.mainebasketballrankings.com/game/?id=${g.id}`;
     const hScEl = has
       ? (isFinal
           ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" target="_blank" style="text-decoration:none">${hSc}</a>`

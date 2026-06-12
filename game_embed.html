@@ -32,6 +32,28 @@
     body { font-family: 'Barlow', sans-serif; background: #fff; color: var(--black); }
     .page { max-width: 980px; margin: 0 auto; padding: 16px 16px 40px; }
 
+    /* ── DATE NAV ── */
+    .date-nav {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .date-nav button {
+      background: #f5f5f5; border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 12px; font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 14px; cursor: pointer; color: var(--black);
+    }
+    .date-nav button:hover { background: var(--green); color: #fff; border-color: var(--green); }
+    .date-nav .date-label {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 15px; color: var(--gray); min-width: 160px; text-align: center;
+    }
+    .game-select {
+      flex: 1; min-width: 200px; padding: 7px 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+      font-family: 'Barlow', sans-serif; font-size: 13px;
+      color: var(--black); background: #fff; cursor: pointer;
+    }
+
     /* ── MATCHUP HEADER ── */
     .matchup-card {
       background: var(--white); border: 1px solid var(--border);
@@ -269,6 +291,12 @@
 
 
 <div class="page">
+  <div class="date-nav" id="dateNav">
+    <button id="btnPrev">←</button>
+    <span class="date-label" id="dateLabel">Loading…</span>
+    <button id="btnNext">→</button>
+    <select class="game-select" id="gameSelect"></select>
+  </div>
   <div id="root"><div class="loading">Loading game…</div></div>
 </div>
 
@@ -308,6 +336,51 @@ function logoEl(url, name, sz = 40) {
   return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#1a7a4a;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:${Math.floor(sz*0.4)}px">${ini}</div>`;
 }
 
+// ── DATE NAV ──────────────────────────────────────────
+let currentDate = null;
+
+async function loadGamesForDate(date) {
+  const games = await api(
+    `games?game_date=eq.${date}&season_year=eq.2026&status=in.(final,scheduled,postponed,active)` +
+    `&select=id,sport_id,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
+    `&order=sport_id,home_team_id&limit=100`
+  );
+  const sel = document.getElementById('gameSelect');
+  sel.innerHTML = '';
+  if (!games?.length) {
+    sel.innerHTML = '<option>No games on this date</option>';
+    return;
+  }
+  games.forEach(g => {
+    const sport = SPORT_LABELS[g.sport_id] || '';
+    const label = `${sport}: ${g.away_team?.school_name || '?'} @ ${g.home_team?.school_name || '?'}`;
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  });
+}
+
+function setDateLabel(date) {
+  const d = new Date(date + 'T12:00:00');
+  document.getElementById('dateLabel').textContent =
+    d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+async function navigateToGame(gameId) {
+  const url = new URL(location.href);
+  url.searchParams.set('game_id', gameId);
+  history.pushState({}, '', url);
+  document.getElementById('root').innerHTML = '<div class="loading">Loading game…</div>';
+  await init();
+}
+
+function offsetDate(date, days) {
+  const d = new Date(date + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 // ── MAIN ──────────────────────────────────────────────
 async function init() {
   const params = new URLSearchParams(location.search);
@@ -328,6 +401,35 @@ async function init() {
   }
 
   const g       = gameArr[0];
+  currentDate   = g.game_date;
+
+  // Wire date nav
+  setDateLabel(currentDate);
+  await loadGamesForDate(currentDate);
+  const sel = document.getElementById('gameSelect');
+  // Set current game as selected
+  for (const opt of sel.options) {
+    if (opt.value === gameId) { opt.selected = true; break; }
+  }
+  sel.onchange = () => navigateToGame(sel.value);
+  document.getElementById('btnPrev').onclick = async () => {
+    const newDate = offsetDate(currentDate, -1);
+    currentDate = newDate;
+    setDateLabel(newDate);
+    await loadGamesForDate(newDate);
+    if (sel.options.length && sel.options[0].value !== '') {
+      navigateToGame(sel.options[0].value);
+    }
+  };
+  document.getElementById('btnNext').onclick = async () => {
+    const newDate = offsetDate(currentDate, 1);
+    currentDate = newDate;
+    setDateLabel(newDate);
+    await loadGamesForDate(newDate);
+    if (sel.options.length && sel.options[0].value !== '') {
+      navigateToGame(sel.options[0].value);
+    }
+  };
   const ht      = g.home_team || {};
   const at      = g.away_team || {};
   const isFinal = g.status === 'final';

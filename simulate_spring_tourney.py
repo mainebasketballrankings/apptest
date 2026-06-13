@@ -332,7 +332,7 @@ def load_data(sb, sport_name, cfg):
 
     print(f"  Loading tournament games...")
     tourney_resp = sb.table("games").select(
-        "id,home_team_id,away_team_id,home_score,away_score,status"
+        "id,home_team_id,away_team_id,home_score,away_score,status,event"
     ).eq("sport_id", sport_id).eq("season_year", SEASON_YEAR).eq(
         "is_tournament", True
     ).gte("game_date", tourney_start).execute()
@@ -368,7 +368,7 @@ def build_brackets(all_teams, heal_map, latest_snap, tourney_games, active_teams
 
     # Build locked results from completed tourney games
     locked_results = {}
-    eliminated = set()
+    eliminated = {}  # team_id -> round name they lost in
     for g in tourney_games:
         if g["status"] != "final":
             continue
@@ -380,7 +380,18 @@ def build_brackets(all_teams, heal_map, latest_snap, tourney_games, active_teams
         else:
             winner, loser = away, home
         locked_results[(home, away)] = winner
-        eliminated.add(loser)
+        event = g.get("event") or ""
+        if "Play-In" in event:
+            round_name = "play_in"
+        elif "Quarter" in event:
+            round_name = "quarters"
+        elif "Semi" in event:
+            round_name = "semis"
+        elif "Regional" in event or "Championship" in event:
+            round_name = "regional"
+        else:
+            round_name = "play_in"  # fallback
+        eliminated[loser] = round_name
 
     # Group teams by bracket key using team_class/team_region on teams table
     # Baseball/Softball: (class, region) e.g. ("A", "North")
@@ -551,11 +562,11 @@ def run_simulation(brackets, cfg, num_sims):
 
     # Add eliminated teams — they need their correct seed written even with zero odds
     for b in brackets.values():
-        for team_id in b["eliminated"]:
+        for team_id, elim_round in b["eliminated"].items():
             if team_id not in odds and team_id in team_seed:
                 odds[team_id] = {
                     "seed":     team_seed[team_id],
-                    "status":   "eliminated",
+                    "status":   f"eliminated_{elim_round}",
                     "play_in":  0,
                     "quarters": 0,
                     "semis":    0,

@@ -560,7 +560,32 @@ def run_simulation(brackets, cfg, num_sims):
             "gold_ball":round(round_counts["gold_ball"]/ num_sims, 4),
         }
 
-    # Add eliminated teams — they need their correct seed written even with zero odds
+    # Post-processing: lock completed rounds to 1.0 and fix status
+    # Build round_winners from locked_results + eliminated dict
+    ROUND_ORDER = ["play_in", "quarters", "semis", "regional"]
+    round_winners = defaultdict(set)
+    for b in brackets.values():
+        for (home, away), winner in b["locked_results"].items():
+            loser = away if winner == home else home
+            elim_round = b["eliminated"].get(loser)
+            if elim_round:
+                round_winners[elim_round].add(winner)
+
+    for team_id, o in odds.items():
+        # Lock confirmed round wins to 1.0
+        for rnd in ROUND_ORDER:
+            if team_id in round_winners[rnd]:
+                o[rnd] = 1.0
+        # Bye teams always have play_in = 1.0
+        if o.get("status") == "bye":
+            o["play_in"] = 1.0
+        # Fix status for teams that won rounds then got eliminated
+        for b in brackets.values():
+            if team_id in b["eliminated"]:
+                o["status"] = f"eliminated_{b['eliminated'][team_id]}"
+                break
+
+    # Add eliminated teams that have zero counts (lost in first game they played)
     for b in brackets.values():
         for team_id, elim_round in b["eliminated"].items():
             if team_id not in odds and team_id in team_seed:

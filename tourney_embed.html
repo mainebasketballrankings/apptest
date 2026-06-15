@@ -517,9 +517,11 @@ function renderTableTourney() {
     const inClass = s.play_in >= 99.9 ? 'in' : s.play_in < 0.1 ? 'out' : 'bubble';
 
     const elimRound = s.status?.startsWith('eliminated_') ? s.status.replace('eliminated_', '') : null;
-    const fmt = (v, roundName) => {
+    const fmt = (v, roundName, prev) => {
       if (elimRound === roundName) return `<td style="color:#e74c3c;font-weight:700">✗</td>`;
       if (v >= 99.95) return `<td style="font-weight:700;color:var(--green)">✓</td>`;
+      // Confirmed loss: won the previous round (prev>=99.95) but zero chance here
+      if (prev >= 99.95 && v < 0.05) return `<td style="color:#e74c3c;font-weight:700">✗</td>`;
       if (v < 0.05)   return `<td style="color:#ccc">—</td>`;
       if (v < 0.1)    return `<td style="color:#bbb;font-size:10px">&lt;0.1%</td>`;
       return `<td style="${v >= 20 ? 'font-weight:700;color:var(--black)' : v >= 5 ? 'color:var(--gray)' : 'color:#aaa'}">${v.toFixed(1)}%</td>`;
@@ -537,10 +539,10 @@ function renderTableTourney() {
           ? `<img class="td-logo" src="${s.logo_url}" alt="${s.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="td-logo-init" style="display:none">${s.name[0]}</div>`
           : `<div class="td-logo-init">${s.name[0]}</div>`
       }<span>${s.name}</span></div></td>
-      ${fmt(s.play_in, 'play_in')}
-      ${fmt(s.quarters, 'quarters')}
-      ${fmt(s.semis, 'semis')}
-      ${showRegional ? fmt(s.regional, 'regional') : ''}
+      ${fmt(s.play_in, 'play_in', 100)}
+      ${fmt(s.quarters, 'quarters', s.play_in)}
+      ${fmt(s.semis, 'semis', s.quarters)}
+      ${showRegional ? fmt(s.regional, 'regional', s.semis) : ''}
       ${gbFmt}
     </tr>`;
   });

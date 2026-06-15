@@ -540,7 +540,7 @@ function renderTableTourney() {
           : `<div class="td-logo-init">${s.name[0]}</div>`
       }<span>${s.name}</span></div></td>
       ${fmt(s.play_in, 'play_in', 100)}
-      ${fmt(s.quarters, 'quarters', s.play_in)}
+      ${fmt(s.quarters, 'quarters', s.play_in >= 99.95 ? s.play_in : (s.play_in < 0.05 && elimRound !== 'play_in' ? 100 : s.play_in))}
       ${fmt(s.semis, 'semis', s.quarters)}
       ${showRegional ? fmt(s.regional, 'regional', s.semis) : ''}
       ${gbFmt}

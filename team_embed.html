@@ -714,8 +714,12 @@ async function load() {
       }).join('');
     }
 
+    // Split regular/tournament games from summer games
+    const regularGames = games.filter(g => !g.is_summer);
+    const summerGames  = games.filter(g => g.is_summer);
+
     // Combined games table
-    const rows = games.map(g => {
+    const rows = regularGames.map(g => {
       if (g.status === 'cancelled') return '';
       const ih  = g.home_team_id === tid;
       const oid = ih ? g.away_team_id : g.home_team_id;
@@ -795,6 +799,61 @@ async function load() {
           </div>
         </div>
       </div>`;
+
+    // Summer ball section
+    let summerHtml = '';
+    if (summerGames.length) {
+      const summerRows = summerGames.map(g => {
+        if (g.status === 'cancelled') return '';
+        const ih  = g.home_team_id === tid;
+        const oid = ih ? g.away_team_id : g.home_team_id;
+        const ot  = tmap[oid] || {};
+        const ms  = ih ? g.home_score : g.away_score;
+        const ops = ih ? g.away_score : g.home_score;
+        const fin = g.status === 'final';
+        const won = fin && ms > ops;
+        const lost= fin && ms < ops;
+        const df  = fin ? ms - ops : null;
+        const at  = g.is_neutral_site ? `<span class="atsym">N</span>` : !ih ? `<span class="atsym">@</span>` : '';
+        const res = fin ? (won ? 'W' : 'L') : (g.status === 'scheduled' ? '–' : '●');
+        const scoreTxt = fin ? `${ms}–${ops}` : (g.status === 'scheduled' ? 'Sched.' : 'Live');
+        const evtLabel = g.event ? `<div style="font-size:11px;color:var(--gray);margin-top:1px">${g.event}</div>` : '';
+        return `<tr>
+          <td class="dtxt">${fdt(g.game_date)}</td>
+          <td>
+            <div class="opp-cell">
+              ${at}
+              ${logoEl(ot.logo_url, ot.school_name, false)}
+              <div class="opp-info">
+                <span class="opp-name">${ot.school_name || 'Unknown'}</span>
+                ${evtLabel}
+              </div>
+            </div>
+          </td>
+          <td class="sc ${won?'w':lost?'l':''}">
+            <span class="rbadge ${res==='W'?'W':res==='L'?'L':''}">${res}</span> ${scoreTxt}
+          </td>
+          <td class="dc ${df>0?'p':df<0?'n':''} hsm">${df !== null ? (df > 0 ? '+' : '') + df : ''}</td>
+          <td class="hsm"></td>
+          <td class="hc none"></td>
+        </tr>`;
+      }).join('');
+
+      summerHtml = `
+      <div class="games-section">
+        <div class="section-header">Summer Ball 25-26</div>
+        <div class="games-wrap">
+          <table class="gt">
+            <thead><tr>
+              <th>Date</th><th>Opponent</th><th class="r">Score</th>
+              <th class="r hsm">Diff</th><th class="hsm"></th>
+              <th class="r"></th>
+            </tr></thead>
+            <tbody>${summerRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
 
     // Roster
     let rosterHtml = '';
@@ -954,6 +1013,7 @@ async function load() {
       ${cards}
       
       ${gamesHtml}
+      ${summerHtml}
       ${rosterHtml}`;
 
     document.title = `${team.school_name} ${SPORT_NAME[sport] || ''} — Maine Basketball Rankings`;

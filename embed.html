@@ -1051,7 +1051,7 @@
   async function fetchSportGames(ds, sport, season) {
     const { data, error } = await sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index, event,
-      is_neutral_site, is_tournament,
+      is_neutral_site, is_tournament, is_summer,
       home_score, away_score, home_score_live, away_score_live, game_clock, notes,
       home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, team_class,
         team_classifications ( classes ( name ) ) ),
@@ -1627,7 +1627,7 @@
     // Footer
     const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = fmtShortDate(g.game_date);
-    const streamUrl = g.stream_url || home.stream_url || null;
+    const streamUrl = g.is_summer ? (g.stream_url || null) : (g.stream_url || home.stream_url || null);
     const eventEl = g.event ? `<span style="color:var(--green);font-weight:700">${g.event} · </span>` : '';
     const notes = notesMap[g.id];
 

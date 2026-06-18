@@ -992,8 +992,8 @@ async function loadTodaysGames(){
   let games;
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026&status=in.(scheduled,active)` +
-      `&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
+      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026` +
+      `&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
       `&order=game_date.asc`,
       { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
         signal: _gameListAbort.signal }
@@ -1013,12 +1013,18 @@ async function loadTodaysGames(){
     list.innerHTML = '<div style="font-size:13px;color:var(--dim);padding:8px 0">No scheduled games found for today.</div>';
     return;
   }
-  list.innerHTML = games.map(g => `
+  list.innerHTML = games.map(g => {
+    const statusBadge = g.status === 'active'
+      ? `<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);border-radius:4px;padding:1px 5px;margin-left:6px">LIVE</span>`
+      : g.status === 'final'
+      ? `<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:6px">FINAL</span>`
+      : '';
+    return `
     <div class="game-pick-row" onclick="selectGame('${g.id}','${g.home_team_id}','${g.away_team_id}','${g.home_team?.school_name||'Home'}','${g.away_team?.school_name||'Away'}','${g.location||''}')">
-      <div style="font-weight:600;font-size:14px">${g.away_team?.school_name||'Away'} @ ${g.home_team?.school_name||'Home'}</div>
+      <div style="font-weight:600;font-size:14px;display:flex;align-items:center">${g.away_team?.school_name||'Away'} @ ${g.home_team?.school_name||'Home'}${statusBadge}</div>
       ${g.location?`<div style="font-size:11px;color:var(--dim)">${g.location}</div>`:''}
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function selectGame(id, homeId, awayId, homeName, awayName, loc){
@@ -1937,6 +1943,10 @@ function confirmEndGame(){
   }
   // Push player stats to Supabase
   pushPlayerStats().catch(e => console.warn("Player stat push failed:", e));
+  // Auto-generate PDF game report and upload to Supabase Storage
+  if(G_game_id && !G_test_mode){
+    autoUploadGameReport().catch(e => console.warn("Auto game report failed:", e));
+  }
   closeOv("ovEndGame");
   document.getElementById("ovHalfTitle").textContent = "Game Final";
   document.getElementById("ovHalfSummary").textContent =
@@ -3195,7 +3205,48 @@ async function loadImgBase64(url){
   });
 }
 
-async function generatePDF(){
+async function autoUploadGameReport(){
+  // Silently generate PDF blob and upload to Supabase Storage, then patch games.report_url
+  if(!G_game_id) return;
+  try {
+    const blob = await generatePDF({ returnBlob: true });
+    if(!blob) return;
+    const away = G.teams.away.name.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-]/g,'');
+    const home = G.teams.home.name.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-]/g,'');
+    const d = G.date || (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
+    const filename = `${d}_${away}_vs_${home}_${G_game_id.slice(0,8)}.pdf`;
+    const path = `game-reports/${filename}`;
+
+    // Upload to Supabase Storage bucket "game-reports"
+    const uploadRes = await fetch(`${SB_URL}/storage/v1/object/game-reports/${encodeURIComponent(filename)}`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/pdf',
+        'x-upsert': 'true',
+      },
+      body: blob,
+    });
+    if(!uploadRes.ok){
+      const t = await uploadRes.text();
+      console.warn('Game report upload failed:', uploadRes.status, t);
+      return;
+    }
+    // Build the public URL and patch games.report_url
+    const reportUrl = `${SB_URL}/storage/v1/object/public/game-reports/${encodeURIComponent(filename)}`;
+    await fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method: 'PATCH',
+      headers: { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ report_url: reportUrl }),
+    });
+    console.log('Game report uploaded:', reportUrl);
+  } catch(e){
+    console.warn('autoUploadGameReport error:', e);
+  }
+}
+
+async function generatePDF({ returnBlob = false } = {}){
   const { jsPDF } = window.jspdf;
 
   // Fetch logos by school name if not already stored on G.teams
@@ -3445,6 +3496,9 @@ async function generatePDF(){
   const away=G.teams.away.name.replace(/\s+/g,'-');
   const home=G.teams.home.name.replace(/\s+/g,'-');
   const d=G.date||(()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
+  if(returnBlob){
+    return doc.output('blob');
+  }
   doc.save(d+'_'+away+'_vs_'+home+'.pdf');
 }
 

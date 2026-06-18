@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MBR Game Reports</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #f0f2f8;
+  --surface: #fff;
+  --border: #d0d3e8;
+  --text: #0f1117;
+  --dim: #6b7280;
+  --ldim: #9ca3af;
+  --green: #16a34a;
+  --green-bg: #dcfce7;
+  --green-border: #86efac;
+  --blue: #2563eb;
+  --blue-bg: #dbeafe;
+  --blue-border: #93c5fd;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Barlow', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+.bc { font-family: 'Barlow Condensed', sans-serif; }
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.header-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.header-sub {
+  font-size: 12px;
+  color: var(--dim);
+  margin-top: 1px;
+}
+.refresh-status {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--ldim);
+  text-align: right;
+  flex-shrink: 0;
+}
+.refresh-status .dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ldim);
+  margin-right: 5px;
+  vertical-align: middle;
+  transition: background .2s;
+}
+.refresh-status.live .dot { background: var(--green); }
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filter-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: 'Barlow', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.filter-select:focus { outline: none; border-color: var(--blue); }
+
+#reportList { display: flex; flex-direction: column; gap: 8px; }
+
+.report-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: fadeIn .25s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.report-info { flex: 1; min-width: 0; }
+.report-matchup {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.report-meta {
+  font-size: 12px;
+  color: var(--dim);
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.report-score {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .5px;
+  flex-shrink: 0;
+  color: var(--text);
+}
+.pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
+  border-radius: 6px;
+  color: var(--blue);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.pdf-btn:hover { background: #bfdbfe; }
+.pdf-icon { font-size: 13px; }
+
+.sport-pill {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--dim);
+}
+
+.empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--dim);
+  font-size: 14px;
+}
+.empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+.count-bar {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--ldim);
+  margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">MBR Game Reports</div>
+    <div class="header-sub">Finalized game PDFs — auto-refreshes every 30s</div>
+  </div>
+  <div class="refresh-status" id="refreshStatus">
+    <span class="dot"></span><span id="refreshLabel">Loading…</span>
+  </div>
+</header>
+
+<div class="container">
+  <div class="filter-row">
+    <select class="filter-select" id="sportFilter" onchange="applyFilters()">
+      <option value="">All sports</option>
+      <option value="baseball">Baseball</option>
+      <option value="softball">Softball</option>
+    </select>
+    <select class="filter-select" id="dateFilter" onchange="applyFilters()">
+      <option value="">All dates</option>
+    </select>
+  </div>
+  <div class="count-bar" id="countBar"></div>
+  <div id="reportList"></div>
+</div>
+
+<script>
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+const SPORT_NAMES = {
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0': 'Baseball',
+  '095c9841-7261-4cb1-824e-6304792b53d0': 'Softball',
+};
+const SPORT_FILTER_IDS = {
+  baseball: 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+  softball: '095c9841-7261-4cb1-824e-6304792b53d0',
+};
+
+let allGames = [];
+let refreshTimer = null;
+let countdown = 30;
+
+async function fetchReports() {
+  const statusEl = document.getElementById('refreshStatus');
+  const labelEl  = document.getElementById('refreshLabel');
+  statusEl.classList.remove('live');
+  labelEl.textContent = 'Refreshing…';
+
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/games?report_url=not.is.null&select=id,game_date,sport_id,home_score,away_score,report_url,location,` +
+      `home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
+      `&order=game_date.desc&limit=100`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    allGames = await r.json();
+    populateDateFilter();
+    applyFilters();
+    statusEl.classList.add('live');
+    startCountdown();
+  } catch(e) {
+    labelEl.textContent = 'Error — retrying';
+    console.warn('fetch failed', e);
+    setTimeout(fetchReports, 10000);
+  }
+}
+
+function startCountdown() {
+  clearInterval(refreshTimer);
+  countdown = 30;
+  document.getElementById('refreshLabel').textContent = `Next in ${countdown}s`;
+  refreshTimer = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      clearInterval(refreshTimer);
+      fetchReports();
+    } else {
+      document.getElementById('refreshLabel').textContent = `Next in ${countdown}s`;
+    }
+  }, 1000);
+}
+
+function populateDateFilter() {
+  const sel = document.getElementById('dateFilter');
+  const current = sel.value;
+  const dates = [...new Set(allGames.map(g => g.game_date))].sort((a,b) => b.localeCompare(a));
+  sel.innerHTML = '<option value="">All dates</option>' +
+    dates.map(d => {
+      const label = new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+      return `<option value="${d}"${d===current?' selected':''}>${label}</option>`;
+    }).join('');
+}
+
+function applyFilters() {
+  const sport = document.getElementById('sportFilter').value;
+  const date  = document.getElementById('dateFilter').value;
+  let games = allGames;
+  if (sport) games = games.filter(g => g.sport_id === SPORT_FILTER_IDS[sport]);
+  if (date)  games = games.filter(g => g.game_date === date);
+  renderList(games);
+}
+
+function renderList(games) {
+  const list = document.getElementById('reportList');
+  const countBar = document.getElementById('countBar');
+
+  countBar.textContent = games.length === 0 ? '' :
+    `${games.length} report${games.length !== 1 ? 's' : ''}`;
+
+  if (!games.length) {
+    list.innerHTML = `<div class="empty">
+      <div class="empty-icon">📋</div>
+      No game reports yet. They'll appear here automatically when a game is finalized.
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = games.map(g => {
+    const away = g.away_team?.school_name || 'Away';
+    const home = g.home_team?.school_name || 'Home';
+    const score = (g.away_score != null && g.home_score != null)
+      ? `${g.away_score}–${g.home_score}`
+      : '';
+    const dateLabel = g.game_date
+      ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+      : '';
+    const sportLabel = SPORT_NAMES[g.sport_id] || '';
+    const loc = g.location || '';
+
+    return `<div class="report-row">
+      <div class="report-info">
+        <div class="report-matchup">${away} @ ${home}</div>
+        <div class="report-meta">
+          ${dateLabel ? `<span>${dateLabel}</span>` : ''}
+          ${loc ? `<span>${loc}</span>` : ''}
+          ${sportLabel ? `<span class="sport-pill">${sportLabel}</span>` : ''}
+        </div>
+      </div>
+      ${score ? `<div class="report-score">${score}</div>` : ''}
+      <a class="pdf-btn" href="${g.report_url}" target="_blank" rel="noopener">
+        <span class="pdf-icon">⬇</span> PDF
+      </a>
+    </div>`;
+  }).join('');
+}
+
+fetchReports();
+</script>
+</body>
+</html>

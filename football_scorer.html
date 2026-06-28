@@ -92,7 +92,8 @@ input,select,button{font-family:inherit;}
 
 /* Field strip */
 .field-wrap{background:var(--turf);padding:0;}
-.field-wrap svg{width:100%;display:block;max-height:120px;}
+.field-wrap svg{width:100%;height:auto;display:block;max-height:340px;}
+@media (max-width:820px){ .field-wrap svg{max-height:240px;} }
 
 /* Play buttons */
 .play-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;padding:10px 12px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));}
@@ -295,7 +296,7 @@ input,select,button{font-family:inherit;}
 
   <!-- Field strip -->
   <div class="field-wrap">
-    <svg id="fieldSVG" viewBox="0 0 1000 160" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="fieldSVG" viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 
   <!-- Primary play buttons -->
@@ -376,7 +377,7 @@ input,select,button{font-family:inherit;}
       <div class="spot-gain" id="spotGain"></div>
     </div>
     <div class="spot-field" id="spotFieldWrap" onclick="spotFieldTap(event)">
-      <svg id="spotFieldSVG" viewBox="0 0 1000 120" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="spotFieldSVG" viewBox="0 0 1000 170" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="spot-step">
       <button class="stepbtn" onclick="spotNudge(-5)">−5</button>
@@ -647,11 +648,29 @@ function renderLU(side){
 function addPlayer(side){ G.teams[side].roster.push(newPlayer('','','')); renderLU(side); }
 function removePlayer(side,i){ G.teams[side].roster.splice(i,1); renderLU(side); }
 
+function rostersEmpty(){
+  const a=G.teams.away.roster.filter(p=>p.name&&p.name.trim());
+  const h=G.teams.home.roster.filter(p=>p.name&&p.name.trim());
+  return a.length===0 && h.length===0;
+}
+function buildTestRosters(){
+  const posSeq=['QB','RB','RB','WR','WR','TE','K','OL','DL','LB','DB'];
+  const mk=(names,base)=>names.map((n,i)=>newPlayer(base+i, n, posSeq[i%posSeq.length]));
+  G.teams.away.roster=mk(TEST_NAMES_A,10);
+  G.teams.home.roster=mk(TEST_NAMES_B,10);
+}
 function toggleTestMode(){
   G_test_mode=!G_test_mode;
   const p=document.getElementById('testModePill');
   p.textContent = G_test_mode?'🧪 Test Mode: ON':'🧪 Test Mode: OFF';
   p.style.opacity = G_test_mode?'1':'0.4';
+  // auto-fill sample teams + rosters so it's instantly playable
+  if(G_test_mode && rostersEmpty()){
+    if(!document.getElementById('awayNameInp').value){ document.getElementById('awayNameInp').value='Away Academy'; document.getElementById('awayAbbrInp').value='AWA'; }
+    if(!document.getElementById('homeNameInp').value){ document.getElementById('homeNameInp').value='Home High'; document.getElementById('homeAbbrInp').value='HOM'; }
+    buildTestRosters();
+    renderLU('away'); renderLU('home');
+  }
 }
 
 // ── Resolve football sport_id ──
@@ -760,6 +779,7 @@ async function startGame(){
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
   G.teams.away.abbr=(document.getElementById('awayAbbrInp').value||autoAbbr(G.teams.away.name)||'AWY').toUpperCase();
   G.teams.home.abbr=(document.getElementById('homeAbbrInp').value||autoAbbr(G.teams.home.name)||'HOM').toUpperCase();
+  if(G_test_mode && rostersEmpty()){ buildTestRosters(); }
   G.teams.away.roster = G.teams.away.roster.filter(p=>p.name && p.name.trim());
   G.teams.home.roster = G.teams.home.roster.filter(p=>p.name && p.name.trim());
 
@@ -920,52 +940,64 @@ function scoreSafety(side){
 // frame: team whose own goal sits at x=100 (left). Offense drives left→right.
 function buildFieldSVG(frame, ballOn, target, opts={}){
   const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900
+  const H = opts.h||250, midY = H/2;
   const leftEZ = abbr(frame), rightEZ = abbr(other(frame));
+  // scaled sizes
+  const numF = Math.round(H*0.145);          // yard-number font
+  const ezF  = Math.round(H*0.14);           // end-zone label font
+  const rx = Math.max(11, H*0.072), ry = Math.max(7, H*0.046);   // ball
+  const fdW = Math.max(3, H*0.014), losW = Math.max(2, H*0.012);
+  const yTop = Math.round(H*0.30), yBot = Math.round(H*0.74);
   let s = '';
-  // turf
-  s += `<rect x="0" y="0" width="1000" height="${opts.h||160}" fill="#3f7d4f"/>`;
-  // end zones
-  s += `<rect x="0" y="0" width="100" height="${opts.h||160}" fill="#2f5f3b"/>`;
-  s += `<rect x="900" y="0" width="100" height="${opts.h||160}" fill="#2f5f3b"/>`;
-  const H = opts.h||160, midY = H/2;
+  s += `<rect x="0" y="0" width="1000" height="${H}" fill="#3f7d4f"/>`;
+  s += `<rect x="0" y="0" width="100" height="${H}" fill="#2f5f3b"/>`;
+  s += `<rect x="900" y="0" width="100" height="${H}" fill="#2f5f3b"/>`;
   // yard lines every 5
   for(let y=0;y<=100;y+=5){
     const x=X(y);
-    s += `<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#ffffff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.85:0.45}"/>`;
+    s += `<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#ffffff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.85:0.4}"/>`;
   }
-  // yard numbers (10..50..10 conventional)
+  // hash marks
+  for(let y=1;y<100;y++){
+    if(y%5===0) continue;
+    const x=X(y);
+    s += `<line x1="${x}" y1="${H*0.34}" x2="${x}" y2="${H*0.40}" stroke="#ffffff" stroke-width="1" opacity="0.3"/>`;
+    s += `<line x1="${x}" y1="${H*0.60}" x2="${x}" y2="${H*0.66}" stroke="#ffffff" stroke-width="1" opacity="0.3"/>`;
+  }
+  // yard numbers — two rows like a real field
   for(let y=10;y<=90;y+=10){
     const conv = y<=50 ? y : 100-y;
-    s += `<text x="${X(y)}" y="${midY-10}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="20" font-weight="800" fill="#ffffff" opacity="0.6">${conv}</text>`;
+    s += `<text x="${X(y)}" y="${yTop}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.55">${conv}</text>`;
+    s += `<text x="${X(y)}" y="${yBot}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.55">${conv}</text>`;
   }
   // end zone labels
-  s += `<text x="50" y="${midY+6}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="20" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(-90 50 ${midY})">${leftEZ}</text>`;
-  s += `<text x="950" y="${midY+6}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="20" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(90 950 ${midY})">${rightEZ}</text>`;
+  s += `<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF}" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(-90 50 ${midY})">${leftEZ}</text>`;
+  s += `<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF}" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(90 950 ${midY})">${rightEZ}</text>`;
   // first down marker
   if(target!=null && target<100){
     const tx=X(target);
-    s += `<line x1="${tx}" y1="6" x2="${tx}" y2="${H-6}" stroke="#fbbf24" stroke-width="3"/>`;
-    s += `<polygon points="${tx-7},6 ${tx+7},6 ${tx},16" fill="#fbbf24"/>`;
+    s += `<line x1="${tx}" y1="6" x2="${tx}" y2="${H-6}" stroke="#fbbf24" stroke-width="${fdW}"/>`;
+    s += `<polygon points="${tx-9},6 ${tx+9},6 ${tx},20" fill="#fbbf24"/>`;
   }
   // line of scrimmage / ball
   if(ballOn!=null){
     const bx=X(clamp(ballOn,0,100));
-    s += `<line x1="${bx}" y1="6" x2="${bx}" y2="${H-6}" stroke="#1e3a8a" stroke-width="2" opacity="0.9"/>`;
-    s += `<ellipse cx="${bx}" cy="${midY}" rx="13" ry="8" fill="#a0522d" stroke="#ffffff" stroke-width="2"/>`;
-    s += `<line x1="${bx-6}" y1="${midY}" x2="${bx+6}" y2="${midY}" stroke="#ffffff" stroke-width="1.5"/>`;
+    s += `<line x1="${bx}" y1="6" x2="${bx}" y2="${H-6}" stroke="#1e3a8a" stroke-width="${losW}" opacity="0.9"/>`;
+    s += `<ellipse cx="${bx}" cy="${midY}" rx="${rx}" ry="${ry}" fill="#a0522d" stroke="#ffffff" stroke-width="2"/>`;
+    s += `<line x1="${bx-rx*0.5}" y1="${midY}" x2="${bx+rx*0.5}" y2="${midY}" stroke="#ffffff" stroke-width="1.5"/>`;
   }
   // drive direction arrow
-  if(opts.arrow!==false){
-    const ay=H-22;
-    s += `<line x1="${X(ballOn||0)+18}" y1="${ay}" x2="${X(ballOn||0)+60}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.8"/>`;
-    s += `<polygon points="${X(ballOn||0)+58},${ay-6} ${X(ballOn||0)+58},${ay+6} ${X(ballOn||0)+70},${ay}" fill="#fde68a" opacity="0.8"/>`;
+  if(opts.arrow!==false && ballOn!=null){
+    const ay=Math.round(H*0.88), ax=X(clamp(ballOn,0,100));
+    s += `<line x1="${ax+rx+6}" y1="${ay}" x2="${ax+rx+48}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.85"/>`;
+    s += `<polygon points="${ax+rx+46},${ay-7} ${ax+rx+46},${ay+7} ${ax+rx+58},${ay}" fill="#fde68a" opacity="0.85"/>`;
   }
   return s;
 }
 
 function renderField(){
   const svg = document.getElementById('fieldSVG');
-  if(svg) svg.innerHTML = buildFieldSVG(G.poss, G.ballOn, firstDownTarget(), {h:160});
+  if(svg) svg.innerHTML = buildFieldSVG(G.poss, G.ballOn, firstDownTarget(), {h:250});
 }
 // ═══════════════════════════════════════════════
 // OVERLAY HELPERS
@@ -1009,7 +1041,7 @@ function openSpotPicker(frame, start, cb, opts={}){
 }
 function renderSpotPicker(){
   const c=_spotCtx;
-  document.getElementById('spotFieldSVG').innerHTML=buildFieldSVG(c.frame, c.val, c.target, {h:120, arrow:false});
+  document.getElementById('spotFieldSVG').innerHTML=buildFieldSVG(c.frame, c.val, c.target, {h:170, arrow:false});
   document.getElementById('spotBig').textContent=spotLabel(c.val, c.frame);
   const g=document.getElementById('spotGain');
   if(c.showGain){ const gain=Math.round(c.val-c.base); g.textContent=(gain>=0?'+':'')+gain+' yd'; g.className='spot-gain '+(gain>=0?'pos':'neg'); }

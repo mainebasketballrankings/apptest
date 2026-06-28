@@ -75,8 +75,8 @@ input,select,button{font-family:inherit;}
 .sb-team.home{flex-direction:row-reverse;}
 .sb-abbr{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text);line-height:1;}
 .sb-score{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:900;line-height:.9;color:var(--text);background:var(--surface2);padding:1px 9px;border-radius:7px;min-width:54px;text-align:center;}
-.sb-poss{width:11px;height:11px;border-radius:50%;background:transparent;border:2px solid transparent;flex-shrink:0;}
-.sb-poss.on{background:#ee6730;border-color:#ee6730;}
+.sb-poss{min-width:18px;height:16px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;flex-shrink:0;}
+.sb-poss.on::before{content:"🏈";}
 .sb-center{display:flex;flex-direction:column;align-items:center;gap:1px;}
 .sb-qtr{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--green);letter-spacing:.5px;}
 .sb-clock{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;line-height:1;color:var(--text);cursor:pointer;}
@@ -279,6 +279,7 @@ input,select,button{font-family:inherit;}
         <div class="sb-clock" id="sbClock" onclick="openClock()">12:00</div>
         <div class="sb-dd" id="sbDD" onclick="openDD()">1st &amp; 10</div>
         <div class="sb-ballon" id="sbBallOn" onclick="openSpotEdit()">ball on —</div>
+        <div id="clockRunBtn" onclick="toggleClock()" style="margin-top:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:12px;letter-spacing:.5px;text-transform:uppercase;padding:3px 12px;border-radius:6px;background:var(--surface2);color:var(--dim)">▶ Start</div>
       </div>
       <div class="sb-team home">
         <div class="sb-poss" id="possHome"></div>
@@ -575,7 +576,8 @@ let G = {
   drives:[], curDrive:null,
   pbp:[],
   qb:{away:null, home:null},      // remembered starting/last passer per side
-  lineScore:{}, pendingPAT:false, kickoffPending:true,
+  tstat:{ away:{fd:0,pen:0,penyd:0}, home:{fd:0,pen:0,penyd:0} },  // team counters
+  lineScore:{}, pendingPAT:false, kickoffPending:true, clockRunning:false,
   // pending interaction state
   pend:null,
 };
@@ -793,6 +795,7 @@ async function startGame(){
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
   G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null};
+  G.tstat={away:{fd:0,pen:0,penyd:0}, home:{fd:0,pen:0,penyd:0}}; G.clockRunning=false;
   undoStack=[]; G_evt_id_stack=[]; G_evt_current_group=[]; _lastPbpLength=-1; _gameFinalized=false;
 
   // opening kickoff: receiving team starts on offense, but ball is a kickoff situation.
@@ -885,6 +888,7 @@ function commitPlay(newBallOn){
   if(newBallOn >= target){
     G.down = 1;
     G.distance = Math.min(10, 100 - newBallOn);
+    if(G.tstat&&G.tstat[G.poss]) G.tstat[G.poss].fd++;
   } else {
     G.down += 1;
     G.distance = Math.max(1, target - newBallOn);
@@ -903,6 +907,7 @@ function changePoss(newPoss, newBallOn, reason){
   G.down = 1;
   G.distance = Math.min(10, 100 - G.ballOn);
   startDrive();
+  stopClock();
 }
 
 function flipPossession(){
@@ -922,6 +927,7 @@ function scoreTD(side){
   // set up PAT: scoring team on offense at the 3 (Maine HS PAT spot ~3)
   G.poss = side; G.ballOn = 97; G.down = 1; G.distance = 3;
   G.pendingPAT = true;
+  stopClock();
 }
 function scoreFG(side){
   addScore(side, 3);
@@ -936,6 +942,42 @@ function scoreSafety(side){
   endDrive('Safety');
   addPBP(`<strong>SAFETY ${abbr(side)}</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
   changePoss(other(side), 25, 'free-kick');
+  stopClock();
+}
+
+// ── running game clock ──
+function stopClock(){ G.clockRunning=false; updateClockUI(); }
+function toggleClock(){ if(G.clock<=0) return; G.clockRunning=!G.clockRunning; updateClockUI(); }
+function updateClockUI(){
+  const btn=document.getElementById('clockRunBtn'); if(!btn) return;
+  btn.textContent = G.clockRunning ? '⏸ Running' : '▶ Start';
+  btn.style.background = G.clockRunning ? 'var(--green-bg)' : 'var(--surface2)';
+  btn.style.color = G.clockRunning ? 'var(--green)' : 'var(--dim)';
+}
+function tickClock(){
+  if(!G.clockRunning) return;
+  if(document.getElementById('gameScreen').style.display==='none') return;
+  if(_openOverlays>0) return;           // pause while entering a play / editing
+  if(G.clock<=0){ G.clockRunning=false; updateClockUI(); return; }
+  G.clock--;
+  const el=document.getElementById('sbClock'); if(el) el.textContent=fmtClock(G.clock);
+  if(G.clock<=0){ G.clockRunning=false; updateClockUI(); addPBP(`<strong>End of ${qtrLabel()}</strong> (clock 0:00)`, true); renderPBP(); }
+}
+
+// ── 2-point conversion (when a Run/Pass is logged during a pending PAT) ──
+function resolveConversion(good, player, desc){
+  const scorer=G.poss;
+  if(good){
+    addScore(scorer, 2);
+    addPBP(`2-pt conversion <strong>GOOD</strong> — ${desc} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
+    pushEvt('two_point',{player:player?.name,num:player?.number,points:2,side:scorer,detail:{good:true,via:desc}});
+  } else {
+    addPBP(`2-pt conversion failed — ${desc}`);
+    pushEvt('two_point',{player:player?.name,num:player?.number,side:scorer,detail:{good:false,via:desc}});
+  }
+  G.pendingPAT=false;
+  changePoss(other(scorer), 25, 'kickoff-pending');
+  G.kickoffPending=true; stopClock();
 }
 
 // ═══════════════════════════════════════════════
@@ -945,10 +987,10 @@ function scoreSafety(side){
 function buildFieldSVG(frame, ballOn, target, opts={}){
   const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900
   const H = opts.h||250, midY = H/2;
-  const leftEZ = abbr(frame), rightEZ = abbr(other(frame));
   // scaled sizes
   const numF = Math.round(H*0.145);          // yard-number font
-  const ezF  = Math.round(H*0.14);           // end-zone label font
+  const leftNm = (G.teams[frame]?.name)||abbr(frame), rightNm=(G.teams[other(frame)]?.name)||abbr(other(frame));
+  const ezF = n => clamp(Math.round((H-24)/(Math.max(4,n.length)*0.62)), 11, Math.round(H*0.13)); // fit to field height
   const rx = Math.max(11, H*0.072), ry = Math.max(7, H*0.046);   // ball
   const fdW = Math.max(3, H*0.014), losW = Math.max(2, H*0.012);
   const yTop = Math.round(H*0.30), yBot = Math.round(H*0.74);
@@ -974,9 +1016,10 @@ function buildFieldSVG(frame, ballOn, target, opts={}){
     s += `<text x="${X(y)}" y="${yTop}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.55">${conv}</text>`;
     s += `<text x="${X(y)}" y="${yBot}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.55">${conv}</text>`;
   }
-  // end zone labels
-  s += `<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF}" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(-90 50 ${midY})">${leftEZ}</text>`;
-  s += `<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF}" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(90 950 ${midY})">${rightEZ}</text>`;
+  // end zone labels (full team name, auto-fit)
+  const ezSafe = t => String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s += `<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(leftNm)}" font-weight="900" fill="#ffffff" opacity="0.9" transform="rotate(-90 50 ${midY})">${ezSafe(leftNm.toUpperCase())}</text>`;
+  s += `<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(rightNm)}" font-weight="900" fill="#ffffff" opacity="0.9" transform="rotate(90 950 ${midY})">${ezSafe(rightNm.toUpperCase())}</text>`;
   // first down marker
   if(target!=null && target<100){
     const tx=X(target);
@@ -1006,8 +1049,9 @@ function renderField(){
 // ═══════════════════════════════════════════════
 // OVERLAY HELPERS
 // ═══════════════════════════════════════════════
-function openOv(id){ document.getElementById(id).style.display='flex'; }
-function closeOv(id){ document.getElementById(id).style.display='none'; }
+let _openOverlays=0;
+function openOv(id){ const e=document.getElementById(id); if(e.style.display!=='flex'){ e.style.display='flex'; _openOverlays++; } }
+function closeOv(id){ const e=document.getElementById(id); if(e.style.display==='flex'){ e.style.display='none'; _openOverlays=Math.max(0,_openOverlays-1); } }
 function msg(title, body){ document.getElementById('msgTitle').textContent=title; document.getElementById('msgBody').innerHTML=body; openOv('ovMsg'); }
 
 function pselRow(lbl, player, onclick){
@@ -1064,7 +1108,7 @@ function confirmSpot(){ const c=_spotCtx; closeOv('ovSpot'); c.cb(c.val); }
 // ═══════════════════════════════════════════════
 function openRun(){
   saveSnapshot();
-  G.pend={type:'run', rusher:null, toSpot:G.ballOn, tackler:null, assist:null, fumble:false, fumRecover:'off',
+  G.pend={type:'run', rusher:null, toSpot:G.ballOn, tackler:null, assist:null, fumble:false, fumRecover:'off', oob:false,
           addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
   document.getElementById('ovPlayTitle').textContent='Run';
   renderRun(); openOv('ovPlay');
@@ -1077,7 +1121,7 @@ function renderRun(){
   h += `<div class="sec-lbl">Tackle (optional)</div>`;
   h += pselRow('Tackle', p.tackler, "pickFor('tackler','"+defSide()+"','Tackled by')");
   h += pselRow('Assist', p.assist, "pickFor('assist','"+defSide()+"','Assist')");
-  h += `<div class="res-row" style="margin-top:10px"><span class="toggle-pill ${p.fumble?'on':''}" onclick="G.pend.fumble=!G.pend.fumble;renderRun()">Fumble on play</span></div>`;
+  h += `<div class="res-row" style="margin-top:10px"><span class="toggle-pill ${p.fumble?'on':''}" onclick="G.pend.fumble=!G.pend.fumble;renderRun()">Fumble on play</span><span class="toggle-pill ${p.oob?'on':''}" onclick="G.pend.oob=!G.pend.oob;renderRun()">Out of bounds</span></div>`;
   if(p.fumble){
     h += `<div class="sec-lbl">Recovered by</div><div class="res-row">
       <span class="reschip ${p.fumRecover==='off'?'active':''}" onclick="G.pend.fumRecover='off';renderRun()">${abbr(G.poss)} (offense)</span>
@@ -1092,6 +1136,7 @@ function runSpot(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{ G.pend.toSpot=v; 
 function confirmRun(){
   const p=G.pend;
   if(!p.rusher){ msg('Pick a rusher','Tap Rusher to choose who carried the ball.'); return; }
+  if(G.pendingPAT){ closeOv('ovPlay'); resolveConversion(p.toSpot>=100, p.rusher, `${p.rusher.name} run`); G.pend=null; render(); return; }
   const gain=Math.round(p.toSpot-G.ballOn);
   const st=statFor(G.poss, p.rusher.name, p.rusher.number);
   st.ra++; st.ryd+=gain; if(gain>st.rlong) st.rlong=gain;
@@ -1119,6 +1164,7 @@ function confirmRun(){
     addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} yd rush${tackTxt}`);
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,tackler:p.tackler?.name||null}});
     commitPlay(p.toSpot);
+    if(p.oob) stopClock();
     applyPendPenalty(p);
   }
   G.pend=null; render();
@@ -1129,7 +1175,7 @@ function confirmRun(){
 // ═══════════════════════════════════════════════
 function openPass(){
   saveSnapshot();
-  G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, tackler:null, intSpot:100-G.ballOn,
+  G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, tackler:null, intSpot:100-G.ballOn, oob:false,
           addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
   document.getElementById('ovPlayTitle').textContent='Pass';
   renderPass(); openOv('ovPlay');
@@ -1161,6 +1207,7 @@ function renderPass(){
       h += `<div class="sec-lbl">Caught / ends at</div>`;
       h += spotRow(p.toSpot, G.ballOn, "passSpot()");
       h += pselRow('Tackle (optional)', p.tackler, "pickFor('tackler','"+defSide()+"','Tackled by')");
+      h += `<div class="res-row" style="margin-top:8px"><span class="toggle-pill ${p.oob?'on':''}" onclick="G.pend.oob=!G.pend.oob;renderPass()">Out of bounds</span></div>`;
     }
   }
   h += inlinePenaltyForm(p);
@@ -1175,12 +1222,20 @@ function confirmPass(){
   const p=G.pend;
   closeOv('ovPlay');
   if(p.passer) G.qb[G.poss]=p.passer;   // remember the QB for this side
+  if(G.pendingPAT){
+    let good=false, desc='pass';
+    if(p.sub==='comp'){ good=p.toSpot>=100; desc=`${p.passer?p.passer.name:'pass'}${p.receiver?' to '+p.receiver.name:''}`; }
+    else if(p.sub==='incomp'){ good=false; desc=`${p.passer?p.passer.name:''} pass incomplete`; }
+    else { good=false; desc=p.sub; }
+    resolveConversion(good, p.receiver||p.passer, desc); G.pend=null; render(); return;
+  }
   if(p.sub==='incomp'){
     if(!p.passer){ openOv('ovPlay'); msg('Pick a passer','Choose who threw the ball.'); return; }
     const st=statFor(G.poss,p.passer.name,p.passer.number); st.pa++;
     addPBP(`${p.passer.name} pass incomplete`);
     pushEvt('pass_incomp',{player:p.passer.name,num:p.passer.number});
     commitPlay(G.ballOn);
+    stopClock();
     applyPendPenalty(p);
   } else if(p.sub==='comp'){
     if(!p.passer||!p.receiver){ openOv('ovPlay'); msg('Missing player','Pick both passer and receiver.'); return; }
@@ -1199,6 +1254,7 @@ function confirmPass(){
       addPBP(`${p.passer.name} ${gain>=0?'+':''}${gain} pass to ${p.receiver.name}${p.tackler?` (${p.tackler.name})`:''}`);
       pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name}});
       commitPlay(p.toSpot);
+      if(p.oob) stopClock();
       applyPendPenalty(p);
     }
   } else if(p.sub==='int'){
@@ -1383,6 +1439,7 @@ function confirmKick(){
     changePoss(other(recvSide), 25, 'kickoff-pending');
     G.kickoffPending=true;
   }
+  stopClock();
   G.pend=null; render();
 }
 
@@ -1433,15 +1490,17 @@ function penDefaultTeam(t){ return t.side==='off'?G.poss : t.side==='def'?defSid
 function applyPenalty({team, yds, name, autoFirst, lossDown, replay}){
   const onDef = team!==G.poss;
   const oldTarget=firstDownTarget();
-  let nb;
-  if(onDef){ const half=Math.floor((100-G.ballOn)/2); nb=G.ballOn+Math.min(yds,half); }
-  else { const half=Math.floor(G.ballOn/2); nb=G.ballOn-Math.min(yds,half); }
+  let nb, capped=false;
+  if(onDef){ const half=Math.floor((100-G.ballOn)/2); const eff=Math.min(yds,half); capped=eff<yds; nb=G.ballOn+eff; }
+  else { const half=Math.floor(G.ballOn/2); const eff=Math.min(yds,half); capped=eff<yds; nb=G.ballOn-eff; }
   G.ballOn=clamp(nb,1,99);
-  if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); }
+  if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); if(G.tstat&&G.tstat[G.poss]) G.tstat[G.poss].fd++; }
   else { G.distance=Math.max(1, oldTarget-G.ballOn); if(lossDown && !replay) G.down=Math.min(4,G.down+1); }
+  if(G.tstat&&G.tstat[team]){ G.tstat[team].pen++; G.tstat[team].penyd+=yds; }
   const nm = (name && name!=='Other') ? name : 'Penalty';
-  addPBP(`Penalty — <strong>${nm}</strong> on ${abbr(team)}, ${yds} yd${autoFirst?', automatic 1st':''}${lossDown?', loss of down':''} — ${ddLabel()} at ${spotLabel()}`);
-  pushEvt('penalty',{side:team,detail:{name:nm, yds, on:abbr(team), autoFirst, lossDown, replay}});
+  addPBP(`Penalty — <strong>${nm}</strong> on ${abbr(team)}, ${yds} yd${capped?' (half-distance to goal)':''}${autoFirst?', automatic 1st':''}${lossDown?', loss of down':''} — ${ddLabel()} at ${spotLabel()}`);
+  pushEvt('penalty',{side:team,detail:{name:nm, yds, on:abbr(team), autoFirst, lossDown, replay, halfDistance:capped}});
+  stopClock();
 }
 
 // ── standalone Penalty button ──
@@ -1566,7 +1625,8 @@ function render(){
   else if(G_game_id){ bar.style.display='block'; bar.style.color='var(--green)'; bar.style.background='var(--green-bg)'; bar.textContent='● LIVE — linked to schedule'; }
   else { bar.style.display='block'; bar.style.color='var(--dim)'; bar.style.background='var(--surface2)'; bar.textContent='⚠ Manual game — not linked to schedule'; }
   // pat hint
-  if(G.pendingPAT){ bar.style.display='block'; bar.style.color='#b45309'; bar.style.background='#fef3c7'; bar.textContent='⚡ PAT pending — open Kick to log the try'; }
+  if(G.pendingPAT){ bar.style.display='block'; bar.style.color='#b45309'; bar.style.background='#fef3c7'; bar.textContent='⚡ PAT pending — Kick for XP, or Run/Pass for the 2-pt try'; }
+  updateClockUI();
   renderField();
   renderPBP();
   scheduleSave();
@@ -1584,6 +1644,7 @@ function cloneState(){
     curDrive:G.curDrive?JSON.parse(JSON.stringify(G.curDrive)):null,
     lineScore:JSON.parse(JSON.stringify(G.lineScore||{})),
     qb:{away:G.qb?.away||null, home:G.qb?.home||null},
+    tstat:JSON.parse(JSON.stringify(G.tstat||{away:{fd:0,pen:0,penyd:0},home:{fd:0,pen:0,penyd:0}})),
     pbpLen:G.pbp.length, pendingPAT:!!G.pendingPAT, kickoffPending:!!G.kickoffPending
   };
 }
@@ -1603,6 +1664,7 @@ function restoreState(s){
   G.curDrive=s.curDrive?JSON.parse(JSON.stringify(s.curDrive)):null;
   G.lineScore=s.lineScore?JSON.parse(JSON.stringify(s.lineScore)):{};
   if(s.qb) G.qb={away:s.qb.away||null, home:s.qb.home||null};
+  if(s.tstat) G.tstat=JSON.parse(JSON.stringify(s.tstat));
   G.pbp=G.pbp.slice(0,s.pbpLen);
   G.pendingPAT=s.pendingPAT; G.kickoffPending=s.kickoffPending; G.pend=null;
   _lastPbpLength=-1;
@@ -1686,11 +1748,13 @@ function confirmTimeout(side){
   G.timeouts[side]--;
   addPBP(`Timeout ${abbr(side)} (${G.timeouts[side]} left)`);
   pushEvt('timeout',{side,detail:{remaining:G.timeouts[side]}});
+  stopClock();
   closeOv('ovTimeout'); render();
 }
 
 function advanceQuarter(){
   saveSnapshot();
+  stopClock();
   if(G.quarter<4){
     G.quarter++;
     G.clock=G.qLen*60;
@@ -1736,16 +1800,47 @@ function _rows(side, filterFn, cols, mapFn){
   h+='</tbody></table>';
   return h;
 }
+function teamTotals(side){
+  const ps=Object.values(G.stats[side]);
+  const sum=(f)=>ps.reduce((a,p)=>a+(p[f]||0),0);
+  const rushYd=sum('ryd'), passYd=sum('pyd');
+  const t = (G.tstat&&G.tstat[side])||{fd:0,pen:0,penyd:0};
+  return {
+    firstDowns: t.fd,
+    totalYds: rushYd+passYd,
+    rush: `${sum('ra')}-${rushYd}`,
+    pass: `${sum('pc')}/${sum('pa')}, ${passYd}`,
+    sacksBy: sum('sack'),
+    turnovers: sum('pint')+sum('fumlost'),
+    penalties: `${t.pen}-${t.penyd}`
+  };
+}
+function buildTeamCompare(){
+  const a=teamTotals('away'), hh=teamTotals('home');
+  const rows=[
+    ['First downs', a.firstDowns, hh.firstDowns],
+    ['Total yards', a.totalYds, hh.totalYds],
+    ['Rushing (att-yds)', a.rush, hh.rush],
+    ['Passing (c/a, yds)', a.pass, hh.pass],
+    ['Sacks', a.sacksBy, hh.sacksBy],
+    ['Turnovers', a.turnovers, hh.turnovers],
+    ['Penalties (no-yds)', a.penalties, hh.penalties],
+  ];
+  let h=`<table class="box-table"><thead><tr><th>Team Stats</th><th>${abbr('away')}</th><th>${abbr('home')}</th></tr></thead><tbody>`;
+  h+=rows.map(r=>`<tr><td style="text-align:left">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+  h+='</tbody></table>';
+  return h;
+}
 function buildBoxScore(side){
   let h='';
   const sec=(title,tbl)=> tbl?`<div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:12px 0 4px">${title}</div>${tbl}`:'';
+  h+=sec('Team Totals', buildTeamCompare());
   h+=sec('Passing', _rows(side, p=>p.pa>0, ['C/A','Yds','TD','INT'], p=>[`${p.pc}/${p.pa}`,p.pyd,p.ptd,p.pint]));
   h+=sec('Rushing', _rows(side, p=>p.ra>0, ['Att','Yds','TD','Lng'], p=>[p.ra,p.ryd,p.rtd,p.rlong]));
   h+=sec('Receiving', _rows(side, p=>p.rec>0, ['Rec','Yds','TD','Lng'], p=>[p.rec,p.recyd,p.rectd,p.reclong]));
   h+=sec('Defense', _rows(side, p=>(p.tkl+p.ast+p.sack+p.dint+p.ff+p.fr)>0, ['Tkl','Ast','Sk','INT'], p=>[p.tkl,p.ast,p.sack,p.dint]));
   h+=sec('Kicking', _rows(side, p=>(p.fga+p.xpa)>0, ['FG','XP'], p=>[`${p.fgm}/${p.fga}`,`${p.xpm}/${p.xpa}`]));
   h+=sec('Punting / Returns', _rows(side, p=>(p.punts+p.kret+p.pret)>0, ['Punts','PYds','KR','PR'], p=>[p.punts,p.puntyd,p.kretyd,p.pretyd]));
-  if(!h) h='<div style="font-size:13px;color:var(--dim);padding:10px">No stats recorded yet for '+abbr(side)+'.</div>';
   return h;
 }
 
@@ -1873,6 +1968,27 @@ async function generatePDF(opts={}){
   lineScoreRow(abbr('home'), 'home');
   rule();
 
+  // team totals
+  line('Team Stats', 12, 'bold', [20,20,20], 6);
+  {
+    const a=teamTotals('away'), hh=teamTotals('home');
+    const trows=[
+      ['First downs', a.firstDowns, hh.firstDowns],
+      ['Total yards', a.totalYds, hh.totalYds],
+      ['Rushing (att-yds)', a.rush, hh.rush],
+      ['Passing (c/a, yds)', a.pass, hh.pass],
+      ['Sacks', a.sacksBy, hh.sacksBy],
+      ['Turnovers', a.turnovers, hh.turnovers],
+      ['Penalties (no-yds)', a.penalties, hh.penalties],
+    ];
+    const lx=M, ax=M+220, hx=M+320;
+    need(16); doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(110);
+    doc.text('', lx, y); doc.text(abbr('away'), ax, y, {align:'center'}); doc.text(abbr('home'), hx, y, {align:'center'}); y+=14;
+    trows.forEach(r=>{ need(14); doc.setFont(F,'normal'); doc.setFontSize(9.5); doc.setTextColor(40);
+      doc.text(String(r[0]), lx, y); doc.text(String(r[1]), ax, y, {align:'center'}); doc.text(String(r[2]), hx, y, {align:'center'}); y+=13; });
+  }
+  rule();
+
   // individual stats
   function statBlock(side){
     line(G.teams[side].name+' — Individual Stats', 12, 'bold', [20,20,20], 6);
@@ -1996,6 +2112,7 @@ function init(){
   switchTab('away');
   setQueueStatus();
   flushQueue();
+  setInterval(tickClock, 1000);   // running game clock
   // URL ?game_id=
   const params=new URLSearchParams(location.search);
   const gid=params.get('game_id');

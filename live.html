@@ -257,26 +257,31 @@ body.sport-football .fb-only{display:block !important;}
 body.sport-football .bball-only{display:none !important;}
 body.sport-football .bb-only{display:none !important;}
 body.sport-football #court-col,body.sport-football #bb-col{display:none !important;}
-body.sport-football #home-panel,body.sport-football #away-panel{display:none !important;}
+body.sport-football #home-panel,body.sport-football #away-panel{display:flex !important;flex-direction:column;}
 body.sport-football #fb-col{display:flex !important;flex-direction:column;gap:10px;grid-area:centre;}
-body.sport-football #main{grid-template-columns:1fr;grid-template-areas:"centre";max-width:760px;margin:0 auto;}
 #fb-col{display:none;}
-.fb-status{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--paper);border-bottom:1px solid var(--rule2);width:100%;box-sizing:border-box;}
+.fb-laststrip{font-family:'DM Mono',monospace;font-size:12px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;flex:1;}
+.fb-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:var(--paper);border-bottom:1px solid var(--rule2);width:100%;box-sizing:border-box;}
 .fb-dd{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(16px,4vw,22px);color:var(--ink);line-height:1;}
 .fb-spot{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
 .fb-clockblk{text-align:center;}
 .fb-clock{font-family:'DM Mono',monospace;font-size:clamp(20px,5vw,26px);font-weight:700;color:var(--ink);line-height:1;}
 .fb-qtr{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-top:2px;}
-.fb-possblk{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ink);}
+.fb-possblk{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;flex-shrink:0;}
 .fb-poss-ball{font-size:15px;}
 #fb-field-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;width:100%;box-sizing:border-box;}
-#fb-field-wrap svg{width:100%;height:auto;display:block;max-height:260px;}
+#fb-field-wrap svg{width:100%;height:auto;display:block;}
 .fb-stat-tbl{border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11px;width:100%;}
 .fb-stat-tbl th{color:var(--ink3);font-weight:700;padding:3px 6px;border-bottom:1px solid var(--rule2);text-transform:uppercase;letter-spacing:.04em;font-size:9px;}
 .fb-stat-tbl td{padding:3px 6px;text-align:center;border-bottom:1px solid var(--rule2);}
 .fb-stat-tbl td.lbl{text-align:left;color:var(--ink2);}
 .fb-stat-tbl td.av{color:var(--away);font-weight:600;}
 .fb-stat-tbl td.hv{color:var(--home);font-weight:600;}
+/* football player panel rows */
+.fb-pl-grp{padding:5px 10px 3px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);background:var(--paper);border-bottom:1px solid var(--rule2);}
+.fb-pl-row{padding:4px 10px;border-bottom:1px solid var(--rule2);display:flex;justify-content:space-between;gap:6px;font-size:11px;}
+.fb-pl-nm{font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fb-pl-ln{font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);flex-shrink:0;}
 </style>
 </head>
 <body class="sport-baseball" style="display:flex;flex-direction:column;min-height:100dvh;">
@@ -662,10 +667,10 @@ body.sport-football #main{grid-template-columns:1fr;grid-template-areas:"centre"
     <div id="fb-field-wrap">
       <div class="fb-status">
         <div class="fb-possblk"><span class="fb-poss-ball" id="fb-poss-ball">🏈</span><span id="fb-poss-team">—</span> ball</div>
-        <div class="fb-spot" id="fb-status-dd" style="font-size:13px;color:var(--ink)">1st &amp; 10 · — ball</div>
+        <div class="fb-laststrip" id="fb-last-play">—</div>
       </div>
       <div style="padding:6px 6px 4px;">
-        <svg id="fb-fsvg" viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg id="fb-fsvg" viewBox="0 0 1000 430" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
     </div>
 
@@ -1228,7 +1233,7 @@ function initView(home,away){
   if(SPORT==='basketball'){ updScoreboard(); updPanels(); updFeed(); }
   else if(SPORT==='football'){
     ['home','away'].forEach(s=>{ const t=s==='home'?home:away; FB[s].name=t.name; FB[s].short=t.short; });
-    fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats();
+    fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels();
   }
   else {
     ['home','away'].forEach(s=>{ const t=s==='home'?home:away; BB[s].name=t.name; BB[s].short=t.short; });
@@ -1291,7 +1296,7 @@ async function connectGame(gameId){
   const rowToEvt = FB_MODE ? fbRowToEvt : sbRowToEvt;
   const onEvt    = FB_MODE ? fbOnEvent  : bbOnEvent;
   const setReplay= v => { if(FB_MODE) FB._replaying=v; else BB._replaying=v; };
-  const renderAll= () => { if(FB_MODE){ fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); }
+  const renderAll= () => { if(FB_MODE){ fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels(); }
                            else { bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField(); } };
 
   LIVE_home_team_id = game.home_team_id;
@@ -2290,39 +2295,51 @@ function fbOnEvent(e){
   fbAccumulate(e);
   fbEvts.unshift(e); if(fbEvts.length>150) fbEvts.pop();
   if(!FB._replaying){
-    fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats();
+    fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels();
     if(e.key==='game_over'){ const pill=document.getElementById('live-pill'); if(pill) pill.classList.add('final'); const lbl=document.getElementById('live-lbl'); if(lbl) lbl.textContent='FINAL'; }
   }
 }
 
+function fbSpotLabel(){
+  const b=Math.round(FB.ballOn);
+  if(b===50) return '50';
+  return b<50 ? `${fbAbbr(FB.poss)} ${b}` : `${fbAbbr(fbOther(FB.poss))} ${100-b}`;
+}
+const FB_FIELD_H = 430;   // ~53 yd tall vs 100 yd field (8 units/yd both axes)
 function fbBuildField(){
   const frame=FB.poss, ballOn=FB.ballOn, target=FB.ballOn+FB.distance;
-  const X = y => 100 + y*8, H=250, midY=H/2;
+  const X = y => 100 + y*8, H=FB_FIELD_H, midY=H/2;
   const leftNm=(FB[frame]?.name)||fbAbbr(frame), rightNm=(FB[fbOther(frame)]?.name)||fbAbbr(fbOther(frame));
-  const numF=Math.round(H*0.145), rx=Math.max(11,H*0.072), ry=Math.max(7,H*0.046);
-  const fdW=Math.max(3,H*0.014), losW=Math.max(2,H*0.012), yTop=Math.round(H*0.30), yBot=Math.round(H*0.74);
-  const ezF=n=>Math.max(11,Math.min(Math.round(H*0.13), Math.round((H-24)/(Math.max(4,n.length)*0.62))));
+  const numF=34, rx=20, ry=12, fdW=3.5, losW=2.5;
+  const yTop=Math.round(H*0.24), yBot=Math.round(H*0.80);
+  const ezF=n=>Math.max(16,Math.min(60, Math.round((H-50)/(Math.max(4,n.length)*0.60))));
   const sf=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
   let s='';
   s+=`<rect x="0" y="0" width="1000" height="${H}" fill="#3f7d4f"/>`;
   s+=`<rect x="0" y="0" width="100" height="${H}" fill="#2f5f3b"/><rect x="900" y="0" width="100" height="${H}" fill="#2f5f3b"/>`;
-  for(let y=0;y<=100;y+=5){ const x=X(y); s+=`<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#fff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.85:0.4}"/>`; }
+  // goal lines
+  s+=`<line x1="100" y1="0" x2="100" y2="${H}" stroke="#fff" stroke-width="3" opacity="0.9"/><line x1="900" y1="0" x2="900" y2="${H}" stroke="#fff" stroke-width="3" opacity="0.9"/>`;
+  for(let y=0;y<=100;y+=5){ const x=X(y); s+=`<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#fff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.8:0.38}"/>`; }
+  // hash marks (two interior rows)
+  for(let y=1;y<100;y++){ if(y%5===0) continue; const x=X(y);
+    s+=`<line x1="${x}" y1="${H*0.36}" x2="${x}" y2="${H*0.41}" stroke="#fff" stroke-width="1" opacity="0.3"/>`;
+    s+=`<line x1="${x}" y1="${H*0.59}" x2="${x}" y2="${H*0.64}" stroke="#fff" stroke-width="1" opacity="0.3"/>`; }
   for(let y=10;y<=90;y+=10){ const c=y<=50?y:100-y;
-    s+=`<text x="${X(y)}" y="${yTop}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#fff" opacity="0.55">${c}</text>`;
-    s+=`<text x="${X(y)}" y="${yBot}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#fff" opacity="0.55">${c}</text>`; }
-  s+=`<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(leftNm)}" font-weight="900" fill="#fff" opacity="0.9" transform="rotate(-90 50 ${midY})">${sf(leftNm.toUpperCase())}</text>`;
-  s+=`<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(rightNm)}" font-weight="900" fill="#fff" opacity="0.9" transform="rotate(90 950 ${midY})">${sf(rightNm.toUpperCase())}</text>`;
-  if(target!=null && target<100){ const tx=X(target); s+=`<line x1="${tx}" y1="6" x2="${tx}" y2="${H-6}" stroke="#fbbf24" stroke-width="${fdW}"/><polygon points="${tx-9},6 ${tx+9},6 ${tx},20" fill="#fbbf24"/>`; }
+    s+=`<text x="${X(y)}" y="${yTop}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#fff" opacity="0.5">${c}</text>`;
+    s+=`<text x="${X(y)}" y="${yBot}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#fff" opacity="0.5" transform="rotate(180 ${X(y)} ${yBot-numF*0.35})">${c}</text>`; }
+  s+=`<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(leftNm)}" font-weight="900" fill="#fff" opacity="0.92" transform="rotate(-90 50 ${midY})">${sf(leftNm.toUpperCase())}</text>`;
+  s+=`<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(rightNm)}" font-weight="900" fill="#fff" opacity="0.92" transform="rotate(90 950 ${midY})">${sf(rightNm.toUpperCase())}</text>`;
+  if(target!=null && target<100){ const tx=X(target); s+=`<line x1="${tx}" y1="6" x2="${tx}" y2="${H-6}" stroke="#fbbf24" stroke-width="${fdW}"/><polygon points="${tx-10},6 ${tx+10},6 ${tx},22" fill="#fbbf24"/>`; }
   if(ballOn!=null){ const bx=X(clamp(ballOn,0,100));
     s+=`<line x1="${bx}" y1="6" x2="${bx}" y2="${H-6}" stroke="#1e3a8a" stroke-width="${losW}" opacity="0.9"/>`;
     s+=`<ellipse cx="${bx}" cy="${midY}" rx="${rx}" ry="${ry}" fill="#a0522d" stroke="#fff" stroke-width="2"/>`;
     s+=`<line x1="${bx-rx*0.5}" y1="${midY}" x2="${bx+rx*0.5}" y2="${midY}" stroke="#fff" stroke-width="1.5"/>`;
-    const ay=Math.round(H*0.88); s+=`<line x1="${bx+rx+6}" y1="${ay}" x2="${bx+rx+48}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.85"/><polygon points="${bx+rx+46},${ay-7} ${bx+rx+46},${ay+7} ${bx+rx+58},${ay}" fill="#fde68a" opacity="0.85"/>`;
+    const ay=Math.round(H*0.90); s+=`<line x1="${bx+rx+6}" y1="${ay}" x2="${bx+rx+50}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.85"/><polygon points="${bx+rx+48},${ay-7} ${bx+rx+48},${ay+7} ${bx+rx+60},${ay}" fill="#fde68a" opacity="0.85"/>`;
   }
   return s;
 }
-function fbUpdField(){ if(FB._replaying) return; const el=document.getElementById('fb-fsvg'); if(el) el.innerHTML=fbBuildField(); }
+function fbUpdField(){ if(FB._replaying) return; const el=document.getElementById('fb-fsvg'); if(el){ el.setAttribute('viewBox','0 0 1000 '+FB_FIELD_H); el.innerHTML=fbBuildField(); } }
 
 function fbUpdScoreboard(){
   if(FB._replaying) return;
@@ -2331,9 +2348,11 @@ function fbUpdScoreboard(){
   const setT=(id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
   setT('fb-clock', FB.clock); setT('fb-qtr', fbQtrLabel(FB.quarter));
   const dd=document.getElementById('fb-dd'); if(dd) dd.innerHTML=(FB.dd||'').replace(/&/g,'&amp;');
-  setT('fb-spot', FB.spot ? ('Ball on '+FB.spot) : '—');
+  setT('fb-spot', 'Ball on '+fbSpotLabel());
   setT('fb-poss-team', fbAbbr(FB.poss));
-  const sdd=document.getElementById('fb-status-dd'); if(sdd) sdd.innerHTML=((FB.dd||'')+' · '+(FB.spot?FB.spot:'—')).replace(/&/g,'&amp;');
+  // last play in the field's top strip
+  const lp=document.getElementById('fb-last-play');
+  if(lp){ const last=fbEvts.find(e=>!['roster_set','player_final_stats'].includes(e.key)); lp.innerHTML = last ? fbFeedDesc(last) : '—'; }
 }
 
 function fbUpdLinescore(){
@@ -2403,6 +2422,27 @@ function fbUpdStats(){
   ];
   tb.innerHTML = `<tr><th style="text-align:left">&nbsp;</th><th>${fbAbbr('away')}</th><th>${fbAbbr('home')}</th></tr>`+
     rows.map(r=>`<tr><td class="lbl">${r[0]}</td><td class="av">${r[1]}</td><td class="hv">${r[2]}</td></tr>`).join('');
+}
+
+function fbUpdPanels(){
+  if(FB._replaying) return;
+  ['home','away'].forEach(side=>{
+    const nameEl=document.getElementById(side+'-panel-name'); if(nameEl) nameEl.textContent=FB[side].name||fbAbbr(side);
+    const box=document.getElementById(side+'-pl-rows'); if(!box) return;
+    const players=Object.values(FB.players[side]||{});
+    const grp=(title, filt, fmt, sortKey)=>{
+      const rows=players.filter(filt).sort((a,b)=>(b[sortKey]||0)-(a[sortKey]||0));
+      if(!rows.length) return '';
+      return `<div class="fb-pl-grp">${title}</div>`+rows.map(p=>
+        `<div class="fb-pl-row"><div class="fb-pl-nm">${p.num?'#'+p.num+' ':''}${p.name}</div><div class="fb-pl-ln">${fmt(p)}</div></div>`).join('');
+    };
+    let h='';
+    h+=grp('Passing', p=>p.pa>0, p=>`${p.pc}/${p.pa}, ${p.py} yd${p.ptd?', '+p.ptd+' TD':''}`, 'py');
+    h+=grp('Rushing', p=>p.ra>0, p=>`${p.ra} att, ${p.ry} yd${p.rtd?', '+p.rtd+' TD':''}`, 'ry');
+    h+=grp('Receiving', p=>p.rec>0, p=>`${p.rec} rec, ${p.recy} yd${p.rectd?', '+p.rectd+' TD':''}`, 'recy');
+    h+=grp('Defense', p=>(p.sack>0||p.dint>0), p=>`${p.sack?p.sack+' sk':''}${p.sack&&p.dint?', ':''}${p.dint?p.dint+' INT':''}`, 'sack');
+    box.innerHTML = h || `<div class="fb-pl-row"><div class="fb-pl-nm" style="color:var(--ink3)">No stats yet</div></div>`;
+  });
 }
 
 // ── Football demo (no game_id) ──

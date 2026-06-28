@@ -1215,6 +1215,13 @@ function runSim(){
 }
 
 // ── INIT ──────────────────────────────────────────────
+const R2_LOGO_BASE = 'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/';
+function normalizeLogoUrl(url){
+  if(!url) return url;
+  // Rewrite Cloudinary mbr-logos URLs to the Cloudflare R2 logo bucket (same filename).
+  const m = String(url).match(/cloudinary\.com\/.*\/upload\/(?:.*\/)?mbr-logos\/(.+)$/i);
+  return m ? (R2_LOGO_BASE + m[1]) : url;
+}
 function initView(home,away){
   ['home','away'].forEach(s=>{
     const t=s==='home'?home:away;
@@ -1224,9 +1231,10 @@ function initView(home,away){
     if(SPORT==='basketball') document.getElementById(s==='home'?'qhl':'qal').textContent=GAME[s].short2;
     document.getElementById(s+'-logo').textContent=t.name.charAt(0);
     if(t.logoUrl){
-      const img=document.createElement('img');
-      img.src=t.logoUrl; img.alt=t.name; img.onerror=()=>{};
       const el=document.getElementById(s+'-logo');
+      const img=document.createElement('img');
+      img.src=normalizeLogoUrl(t.logoUrl); img.alt=t.name;
+      img.onerror=()=>{ el.innerHTML=''; el.textContent=t.name.charAt(0); };   // fall back to letter
       el.textContent=''; el.appendChild(img);
     }
   });
@@ -1245,8 +1253,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.className = document.body.className.replace(/sport-\w+/,'') + ' sport-'+SPORT;
   if(SPORT==='basketball'){
     initView(
-      {name:'Camden Hills',  short:'CAM', short2:'CHILLS', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/camden-hills.png'},
-      {name:'Cape Elizabeth',short:'CAP', short2:'CAPE',   logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/cape-elizabeth.png'}
+      {name:'Camden Hills',  short:'CAM', short2:'CHILLS', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/camden-hills.png'},
+      {name:'Cape Elizabeth',short:'CAP', short2:'CAPE',   logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/cape-elizabeth.png'}
     );
     setTimeout(runSim, 1000);
   } else {
@@ -1256,14 +1264,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if(SPORT==='football'){
       LIVE_away_team_id='A'; LIVE_home_team_id='B';
       initView(
-        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
-        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/oceanside.png'}
+        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/medomak-valley.png'},
+        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/oceanside.png'}
       );
       setTimeout(fbRunSim, 1000);
     } else {
       initView(
-        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
-        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/oceanside.png'}
+        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/medomak-valley.png'},
+        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/oceanside.png'}
       );
       setTimeout(bbRunSim, 1000);
     }

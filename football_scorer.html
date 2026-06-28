@@ -92,8 +92,8 @@ input,select,button{font-family:inherit;}
 
 /* Field strip */
 .field-wrap{background:var(--turf);padding:0;}
-.field-wrap svg{width:100%;height:auto;display:block;max-height:340px;}
-@media (max-width:820px){ .field-wrap svg{max-height:240px;} }
+.field-wrap svg{width:100%;height:auto;display:block;max-height:480px;}
+@media (max-width:820px){ .field-wrap svg{max-height:300px;} }
 
 /* Play buttons */
 .play-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;padding:10px 12px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));}
@@ -297,7 +297,7 @@ input,select,button{font-family:inherit;}
 
   <!-- Field strip -->
   <div class="field-wrap">
-    <svg id="fieldSVG" viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="fieldSVG" viewBox="0 0 1000 430" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 
   <!-- Primary play buttons -->
@@ -380,7 +380,7 @@ input,select,button{font-family:inherit;}
       <div class="spot-gain" id="spotGain"></div>
     </div>
     <div class="spot-field" id="spotFieldWrap" onclick="spotFieldTap(event)">
-      <svg id="spotFieldSVG" viewBox="0 0 1000 170" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="spotFieldSVG" viewBox="0 0 1000 280" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="spot-step">
       <button class="stepbtn" onclick="spotNudge(-5)">−5</button>
@@ -984,46 +984,46 @@ function resolveConversion(good, player, desc){
 // ═══════════════════════════════════════════════
 // frame: team whose own goal sits at x=100 (left). Offense drives left→right.
 function buildFieldSVG(frame, ballOn, target, opts={}){
-  const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900
-  const H = opts.h||250, midY = H/2;
-  // scaled sizes
-  const numF = Math.round(H*0.145);          // yard-number font
+  const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900 (8 units/yd)
+  const H = opts.h||430, midY = H/2;        // ~53yd tall vs 100yd field — proportional
+  const numF = 34, rx = 20, ry = 12, fdW = 3.5, losW = 2.5;
+  const yTop = Math.round(H*0.24), yBot = Math.round(H*0.80);
   const leftNm = (G.teams[frame]?.name)||abbr(frame), rightNm=(G.teams[other(frame)]?.name)||abbr(other(frame));
-  const ezF = n => clamp(Math.round((H-24)/(Math.max(4,n.length)*0.62)), 11, Math.round(H*0.13)); // fit to field height
-  const rx = Math.max(11, H*0.072), ry = Math.max(7, H*0.046);   // ball
-  const fdW = Math.max(3, H*0.014), losW = Math.max(2, H*0.012);
-  const yTop = Math.round(H*0.30), yBot = Math.round(H*0.74);
+  const ezF = n => clamp(Math.round((H-50)/(Math.max(4,n.length)*0.60)), 16, 60); // fit to field height
+  const ezSafe = t => String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   let s = '';
   s += `<rect x="0" y="0" width="1000" height="${H}" fill="#3f7d4f"/>`;
   s += `<rect x="0" y="0" width="100" height="${H}" fill="#2f5f3b"/>`;
   s += `<rect x="900" y="0" width="100" height="${H}" fill="#2f5f3b"/>`;
+  // goal lines
+  s += `<line x1="100" y1="0" x2="100" y2="${H}" stroke="#ffffff" stroke-width="3" opacity="0.9"/>`;
+  s += `<line x1="900" y1="0" x2="900" y2="${H}" stroke="#ffffff" stroke-width="3" opacity="0.9"/>`;
   // yard lines every 5
   for(let y=0;y<=100;y+=5){
     const x=X(y);
-    s += `<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#ffffff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.85:0.4}"/>`;
+    s += `<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#ffffff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.8:0.38}"/>`;
   }
-  // hash marks
+  // hash marks (two interior rows)
   for(let y=1;y<100;y++){
     if(y%5===0) continue;
     const x=X(y);
-    s += `<line x1="${x}" y1="${H*0.34}" x2="${x}" y2="${H*0.40}" stroke="#ffffff" stroke-width="1" opacity="0.3"/>`;
-    s += `<line x1="${x}" y1="${H*0.60}" x2="${x}" y2="${H*0.66}" stroke="#ffffff" stroke-width="1" opacity="0.3"/>`;
+    s += `<line x1="${x}" y1="${H*0.36}" x2="${x}" y2="${H*0.41}" stroke="#ffffff" stroke-width="1" opacity="0.3"/>`;
+    s += `<line x1="${x}" y1="${H*0.59}" x2="${x}" y2="${H*0.64}" stroke="#ffffff" stroke-width="1" opacity="0.3"/>`;
   }
-  // yard numbers — two rows like a real field
+  // yard numbers — two rows, bottom rotated 180° like a real field
   for(let y=10;y<=90;y+=10){
     const conv = y<=50 ? y : 100-y;
-    s += `<text x="${X(y)}" y="${yTop}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.55">${conv}</text>`;
-    s += `<text x="${X(y)}" y="${yBot}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.55">${conv}</text>`;
+    s += `<text x="${X(y)}" y="${yTop}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.5">${conv}</text>`;
+    s += `<text x="${X(y)}" y="${yBot}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#ffffff" opacity="0.5" transform="rotate(180 ${X(y)} ${yBot-numF*0.35})">${conv}</text>`;
   }
   // end zone labels (full team name, auto-fit)
-  const ezSafe = t => String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  s += `<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(leftNm)}" font-weight="900" fill="#ffffff" opacity="0.9" transform="rotate(-90 50 ${midY})">${ezSafe(leftNm.toUpperCase())}</text>`;
-  s += `<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(rightNm)}" font-weight="900" fill="#ffffff" opacity="0.9" transform="rotate(90 950 ${midY})">${ezSafe(rightNm.toUpperCase())}</text>`;
+  s += `<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(leftNm)}" font-weight="900" fill="#ffffff" opacity="0.92" transform="rotate(-90 50 ${midY})">${ezSafe(leftNm.toUpperCase())}</text>`;
+  s += `<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(rightNm)}" font-weight="900" fill="#ffffff" opacity="0.92" transform="rotate(90 950 ${midY})">${ezSafe(rightNm.toUpperCase())}</text>`;
   // first down marker
   if(target!=null && target<100){
     const tx=X(target);
     s += `<line x1="${tx}" y1="6" x2="${tx}" y2="${H-6}" stroke="#fbbf24" stroke-width="${fdW}"/>`;
-    s += `<polygon points="${tx-9},6 ${tx+9},6 ${tx},20" fill="#fbbf24"/>`;
+    s += `<polygon points="${tx-10},6 ${tx+10},6 ${tx},22" fill="#fbbf24"/>`;
   }
   // line of scrimmage / ball
   if(ballOn!=null){
@@ -1034,16 +1034,16 @@ function buildFieldSVG(frame, ballOn, target, opts={}){
   }
   // drive direction arrow
   if(opts.arrow!==false && ballOn!=null){
-    const ay=Math.round(H*0.88), ax=X(clamp(ballOn,0,100));
-    s += `<line x1="${ax+rx+6}" y1="${ay}" x2="${ax+rx+48}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.85"/>`;
-    s += `<polygon points="${ax+rx+46},${ay-7} ${ax+rx+46},${ay+7} ${ax+rx+58},${ay}" fill="#fde68a" opacity="0.85"/>`;
+    const ay=Math.round(H*0.90), ax=X(clamp(ballOn,0,100));
+    s += `<line x1="${ax+rx+6}" y1="${ay}" x2="${ax+rx+50}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.85"/>`;
+    s += `<polygon points="${ax+rx+48},${ay-7} ${ax+rx+48},${ay+7} ${ax+rx+60},${ay}" fill="#fde68a" opacity="0.85"/>`;
   }
   return s;
 }
 
 function renderField(){
   const svg = document.getElementById('fieldSVG');
-  if(svg) svg.innerHTML = buildFieldSVG(G.poss, G.ballOn, firstDownTarget(), {h:250});
+  if(svg) svg.innerHTML = buildFieldSVG(G.poss, G.ballOn, firstDownTarget(), {h:430});
 }
 // ═══════════════════════════════════════════════
 // OVERLAY HELPERS
@@ -1088,7 +1088,7 @@ function openSpotPicker(frame, start, cb, opts={}){
 }
 function renderSpotPicker(){
   const c=_spotCtx;
-  document.getElementById('spotFieldSVG').innerHTML=buildFieldSVG(c.frame, c.val, c.target, {h:170, arrow:false});
+  document.getElementById('spotFieldSVG').innerHTML=buildFieldSVG(c.frame, c.val, c.target, {h:280, arrow:false});
   document.getElementById('spotBig').textContent=spotLabel(c.val, c.frame);
   const g=document.getElementById('spotGain');
   if(c.showGain){ const gain=Math.round(c.val-c.base); g.textContent=(gain>=0?'+':'')+gain+' yd'; g.className='spot-gain '+(gain>=0?'pos':'neg'); }

@@ -251,6 +251,32 @@ body.sport-baseball .bball-only{display:none !important;}
 #home-panel{grid-area:home;}
 #away-panel{grid-area:away;}
 #court-col, #bb-col{grid-area:centre;}
+/* ── FOOTBALL ───────────────────────────────────────── */
+.fb-only{display:none !important;}
+body.sport-football .fb-only{display:block !important;}
+body.sport-football .bball-only{display:none !important;}
+body.sport-football .bb-only{display:none !important;}
+body.sport-football #court-col,body.sport-football #bb-col{display:none !important;}
+body.sport-football #home-panel,body.sport-football #away-panel{display:none !important;}
+body.sport-football #fb-col{display:flex !important;flex-direction:column;gap:10px;grid-area:centre;}
+body.sport-football #main{grid-template-columns:1fr;grid-template-areas:"centre";max-width:760px;margin:0 auto;}
+#fb-col{display:none;}
+.fb-status{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--paper);border-bottom:1px solid var(--rule2);width:100%;box-sizing:border-box;}
+.fb-dd{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(16px,4vw,22px);color:var(--ink);line-height:1;}
+.fb-spot{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+.fb-clockblk{text-align:center;}
+.fb-clock{font-family:'DM Mono',monospace;font-size:clamp(20px,5vw,26px);font-weight:700;color:var(--ink);line-height:1;}
+.fb-qtr{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-top:2px;}
+.fb-possblk{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ink);}
+.fb-poss-ball{font-size:15px;}
+#fb-field-wrap{background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;width:100%;box-sizing:border-box;}
+#fb-field-wrap svg{width:100%;height:auto;display:block;max-height:260px;}
+.fb-stat-tbl{border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11px;width:100%;}
+.fb-stat-tbl th{color:var(--ink3);font-weight:700;padding:3px 6px;border-bottom:1px solid var(--rule2);text-transform:uppercase;letter-spacing:.04em;font-size:9px;}
+.fb-stat-tbl td{padding:3px 6px;text-align:center;border-bottom:1px solid var(--rule2);}
+.fb-stat-tbl td.lbl{text-align:left;color:var(--ink2);}
+.fb-stat-tbl td.av{color:var(--away);font-weight:600;}
+.fb-stat-tbl td.hv{color:var(--home);font-weight:600;}
 </style>
 </head>
 <body class="sport-baseball" style="display:flex;flex-direction:column;min-height:100dvh;">
@@ -325,6 +351,28 @@ body.sport-baseball .bball-only{display:none !important;}
               <tbody>
                 <tr id="bb-ls-away"></tr>
                 <tr id="bb-ls-home"></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- FOOTBALL — quarter/clock + down & distance line score -->
+        <div class="fb-only" style="width:100%;padding:2px 0;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:18px;">
+            <div class="fb-clockblk">
+              <div class="fb-clock" id="fb-clock">12:00</div>
+              <div class="fb-qtr" id="fb-qtr">1ST QTR</div>
+            </div>
+            <div style="text-align:center;">
+              <div class="fb-dd" id="fb-dd">1st &amp; 10</div>
+              <div class="fb-spot" id="fb-spot">— · — ball</div>
+            </div>
+          </div>
+          <div class="ls-wrap">
+            <table class="ls-tbl" id="fb-linescore">
+              <thead><tr id="fb-ls-hdr"></tr></thead>
+              <tbody>
+                <tr id="fb-ls-away"></tr>
+                <tr id="fb-ls-home"></tr>
               </tbody>
             </table>
           </div>
@@ -609,6 +657,31 @@ body.sport-baseball .bball-only{display:none !important;}
 
   </div>
 
+  <!-- FOOTBALL CENTRE COLUMN -->
+  <div id="fb-col" class="fb-only">
+    <div id="fb-field-wrap">
+      <div class="fb-status">
+        <div class="fb-possblk"><span class="fb-poss-ball" id="fb-poss-ball">🏈</span><span id="fb-poss-team">—</span> ball</div>
+        <div class="fb-spot" id="fb-status-dd" style="font-size:13px;color:var(--ink)">1st &amp; 10 · — ball</div>
+      </div>
+      <div style="padding:6px 6px 4px;">
+        <svg id="fb-fsvg" viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+
+    <!-- Team stats compare -->
+    <div style="background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;">
+      <div class="feed-hdr">Team Stats</div>
+      <table class="fb-stat-tbl" id="fb-team-stats"><tbody></tbody></table>
+    </div>
+
+    <!-- Play by Play -->
+    <div id="fb-feed-wrap" style="background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;max-height:300px;">
+      <div class="feed-hdr">Play by Play</div>
+      <div id="fb-feed-list" style="overflow-y:auto;flex:1;"></div>
+    </div>
+  </div>
+
   <!-- AWAY STATS (right) -->
   <div class="stat-panel away" id="away-panel">
     <div class="panel-hdr ah">
@@ -633,9 +706,14 @@ body.sport-baseball .bball-only{display:none !important;}
 // ══════════════════════════════════════════════════════
 
 // ── SPORT CONSTANT — set before any init runs ─────────
-// 'basketball' | 'baseball'
-// In production: derive from URL param or Supabase game row
-const SPORT = 'baseball';
+// 'basketball' | 'baseball' | 'football'
+// Resolved from ?sport= param, then corrected from the game's sport_id in connectGame.
+let SPORT = (new URLSearchParams(location.search).get('sport') || 'baseball').toLowerCase();
+const SPORT_BY_ID = {
+  'b31ab283-b28e-4ba8-9684-b1cf30cea219':'basketball',
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0':'baseball',
+  'fa905ca5-f416-409b-81ac-777179ee5576':'football',
+};
 
 const GAME = {
   home:{ name:'Camden Hills', short:'CAM', short2:'CHILLS', score:0, fouls:0, tof:3, to3:2 },
@@ -1148,6 +1226,10 @@ function initView(home,away){
     }
   });
   if(SPORT==='basketball'){ updScoreboard(); updPanels(); updFeed(); }
+  else if(SPORT==='football'){
+    ['home','away'].forEach(s=>{ const t=s==='home'?home:away; FB[s].name=t.name; FB[s].short=t.short; });
+    fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats();
+  }
   else {
     ['home','away'].forEach(s=>{ const t=s==='home'?home:away; BB[s].name=t.name; BB[s].short=t.short; });
     bbUpdScoreboard(); bbUpdPanels(); bbUpdFeed(); bbUpdLinescore(); bbUpdField();
@@ -1166,6 +1248,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameId = new URLSearchParams(window.location.search).get('game_id');
     if(gameId){
       connectGame(gameId);
+    } else if(SPORT==='football'){
+      LIVE_away_team_id='A'; LIVE_home_team_id='B';
+      initView(
+        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
+        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/oceanside.png'}
+      );
+      setTimeout(fbRunSim, 1000);
     } else {
       initView(
         {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://res.cloudinary.com/dulfssb6y/image/upload/mbr-logos/medomak-valley.png'},
@@ -1186,12 +1275,24 @@ let LIVE_away_team_id = null;
 async function connectGame(gameId){
   // 1. Fetch game info
   const gRes = await fetch(
-    `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,home_team_id,away_team_id,venue,location,game_date,stream_url,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
+    `${LIVE_SB_URL}/rest/v1/games?id=eq.${gameId}&select=id,sport_id,home_team_id,away_team_id,venue,location,game_date,stream_url,home_team:home_team_id(school_name,logo_url),away_team:away_team_id(school_name,logo_url)`,
     { headers:{ apikey:LIVE_SB_KEY, Authorization:`Bearer ${LIVE_SB_KEY}` } }
   );
   const games = await gRes.json();
   const game = games[0];
   if(!game){ console.error('Game not found'); return; }
+
+  // Resolve sport from the game row and re-apply body class
+  if(game.sport_id && SPORT_BY_ID[game.sport_id]){
+    SPORT = SPORT_BY_ID[game.sport_id];
+    document.body.className = document.body.className.replace(/sport-\w+/,'') + ' sport-'+SPORT;
+  }
+  const FB_MODE = SPORT==='football';
+  const rowToEvt = FB_MODE ? fbRowToEvt : sbRowToEvt;
+  const onEvt    = FB_MODE ? fbOnEvent  : bbOnEvent;
+  const setReplay= v => { if(FB_MODE) FB._replaying=v; else BB._replaying=v; };
+  const renderAll= () => { if(FB_MODE){ fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); }
+                           else { bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField(); } };
 
   LIVE_home_team_id = game.home_team_id;
   LIVE_away_team_id = game.away_team_id;
@@ -1233,16 +1334,16 @@ async function connectGame(gameId){
     if(row.created_at && (!_lastEventTime || row.created_at > _lastEventTime)){
       _lastEventTime = row.created_at;
     }
-    const evt = sbRowToEvt(row);
+    const evt = rowToEvt(row);
     if(isReplay) evt._replay = true;
-    bbOnEvent(evt);
+    onEvt(evt);
   };
 
   // Fix 1+4: suppress toasts and DOM rebuilds during replay; do one render pass at end
-  BB._replaying = true;
+  setReplay(true);
   existing.forEach(row => _trackEvent(row, true));
-  BB._replaying = false;
-  bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
+  setReplay(false);
+  renderAll();
 
   // 3. WebSocket for live events with reconnect
   let _ws = null;
@@ -2103,6 +2204,224 @@ function bbOnEvent(e){
   // ── Render ───────────────────────────────────────────────
   bbEvts.unshift(e);
   bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField();
+}
+
+// ══════════════════════════════════════════════════════
+//  FOOTBALL ENGINE
+//  Reads game_events written by football_scorer.html.
+//  Each event's notes JSON carries a full state snapshot:
+//  {down,distance,ballOn,poss,spot,dd,clock,qtr,score:{away,home}, ...detail}
+// ══════════════════════════════════════════════════════
+const FB = {
+  home:{name:'',short:'',score:0},
+  away:{name:'',short:'',score:0},
+  quarter:1, clockSec:720, clock:'12:00',
+  down:1, distance:10, ballOn:35, poss:'home',
+  spot:'', dd:'1st & 10',
+  line:{ home:[], away:[] },
+  tstat:{ home:{fd:0,ra:0,ry:0,pa:0,pc:0,py:0,sack:0,to:0,pen:0,penyd:0},
+          away:{fd:0,ra:0,ry:0,pa:0,pc:0,py:0,sack:0,to:0,pen:0,penyd:0} },
+  players:{ home:{}, away:{} },
+  _replaying:false, _prevPoss:null, _prevDown:1,
+};
+let fbEvts = [];
+
+const FB_KLBL = {
+  run:'Run', pass_comp:'Pass', pass_incomp:'Incomplete', interception:'Interception',
+  sack:'Sack', touchdown:'Touchdown', field_goal:'Field goal', extra_point:'Extra point',
+  two_point:'2-pt conversion', kickoff:'Kickoff', punt:'Punt', kick_return_td:'Kick return TD',
+  penalty:'Penalty', timeout:'Timeout', safety:'Safety', game_over:'Final',
+};
+
+const fbFmt = s => (s==null?'':`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`);
+const fbAbbr = side => FB[side].short || (FB[side].name||side).slice(0,3).toUpperCase();
+const fbOther = s => s==='home'?'away':'home';
+function fbQtrLabel(q){ return q>4 ? 'OT'+(q-4) : ({1:'1ST QTR',2:'2ND QTR',3:'3RD QTR',4:'4TH QTR'}[q]||'1ST QTR'); }
+
+function fbRowToEvt(row){
+  const side = row.team_id===LIVE_home_team_id ? 'home':'away';
+  let notes={}; try{ notes = row.notes ? (typeof row.notes==='string'?JSON.parse(row.notes):row.notes):{}; }catch(e){ notes={}; }
+  return { side, key:row.event_type, quarter:row.period||1, clockSec:(row.clock_seconds??null),
+           points:row.runs||0, pnum:row.player_num||'', plast:row.player_name||'',
+           ballOn:(row.x??notes.ballOn??null), notes, id:row.id };
+}
+
+function fbPlayer(side,name,num){
+  if(!name) return null;
+  const m=FB.players[side];
+  if(!m[name]) m[name]={name,num:num||'',ra:0,ry:0,pa:0,pc:0,py:0,ptd:0,rec:0,recy:0,rectd:0,sack:0,dint:0};
+  if(num && !m[name].num) m[name].num=num;
+  return m[name];
+}
+function fbCheckFirstDown(e, forceAuto){
+  const n=e.notes||{};
+  if(forceAuto){ FB.tstat[e.side].fd++; return; }
+  if(n.down===1 && FB._prevPoss===e.side && (FB._prevDown||1)>1) FB.tstat[e.side].fd++;
+}
+function fbAccumulate(e){
+  const off=e.side, def=fbOther(off), T=FB.tstat, d=e.notes||{};
+  switch(e.key){
+    case 'run': { const g=d.gain||0; T[off].ra++; T[off].ry+=g; const pl=fbPlayer(off,e.plast,e.pnum); if(pl){pl.ra++;pl.ry+=g;} fbCheckFirstDown(e); break; }
+    case 'pass_comp': { const g=d.gain||0; T[off].pa++; T[off].pc++; T[off].py+=g;
+      const ps=fbPlayer(off,e.plast,e.pnum); if(ps){ps.pa++;ps.pc++;ps.py+=g;if(d.td)ps.ptd++;}
+      if(d.receiver){ const rc=fbPlayer(off,d.receiver,null); if(rc){rc.rec++;rc.recy+=g;if(d.td)rc.rectd++;} }
+      fbCheckFirstDown(e); break; }
+    case 'pass_incomp': { T[off].pa++; const ps=fbPlayer(off,e.plast,e.pnum); if(ps)ps.pa++; break; }
+    case 'sack': { T[def].sack+=1; const ds=fbPlayer(def,e.plast,e.pnum); if(ds)ds.sack+=(d.half?0.5:1); if(d.with){ const d2=fbPlayer(def,d.with,null); if(d2)d2.sack+=0.5; } break; }
+    case 'interception': { T[off].to++; const ds=fbPlayer(def,e.plast,e.pnum); if(ds)ds.dint++; break; }
+    case 'penalty': { const on=e.side; T[on].pen++; T[on].penyd+=(d.yds||0); if(d.autoFirst) fbCheckFirstDown(e,true); break; }
+  }
+  if(['run','pass_comp','pass_incomp','sack'].includes(e.key)){ FB._prevPoss=e.side; FB._prevDown=(e.notes||{}).down; }
+}
+
+function fbOnEvent(e){
+  const n=e.notes||{};
+  if(e.key==='roster_set' || e.key==='player_final_stats') return;
+  if(n.poss) FB.poss=n.poss;
+  if(n.down!=null) FB.down=n.down;
+  if(n.distance!=null) FB.distance=n.distance;
+  if(n.ballOn!=null) FB.ballOn=n.ballOn;
+  if(n.dd) FB.dd=n.dd;
+  if(n.spot) FB.spot=n.spot;
+  if(e.quarter) FB.quarter=e.quarter;
+  if(e.clockSec!=null){ FB.clockSec=e.clockSec; FB.clock=n.clock||fbFmt(e.clockSec); } else if(n.clock) FB.clock=n.clock;
+  if(n.score){ FB.home.score=n.score.home; FB.away.score=n.score.away; }
+  if(e.points>0){ const q=(e.quarter||1)-1; if(!FB.line[e.side]) FB.line[e.side]=[]; FB.line[e.side][q]=(FB.line[e.side][q]||0)+e.points; }
+  fbAccumulate(e);
+  fbEvts.unshift(e); if(fbEvts.length>150) fbEvts.pop();
+  if(!FB._replaying){
+    fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats();
+    if(e.key==='game_over'){ const pill=document.getElementById('live-pill'); if(pill) pill.classList.add('final'); const lbl=document.getElementById('live-lbl'); if(lbl) lbl.textContent='FINAL'; }
+  }
+}
+
+function fbBuildField(){
+  const frame=FB.poss, ballOn=FB.ballOn, target=FB.ballOn+FB.distance;
+  const X = y => 100 + y*8, H=250, midY=H/2;
+  const leftNm=(FB[frame]?.name)||fbAbbr(frame), rightNm=(FB[fbOther(frame)]?.name)||fbAbbr(fbOther(frame));
+  const numF=Math.round(H*0.145), rx=Math.max(11,H*0.072), ry=Math.max(7,H*0.046);
+  const fdW=Math.max(3,H*0.014), losW=Math.max(2,H*0.012), yTop=Math.round(H*0.30), yBot=Math.round(H*0.74);
+  const ezF=n=>Math.max(11,Math.min(Math.round(H*0.13), Math.round((H-24)/(Math.max(4,n.length)*0.62))));
+  const sf=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  let s='';
+  s+=`<rect x="0" y="0" width="1000" height="${H}" fill="#3f7d4f"/>`;
+  s+=`<rect x="0" y="0" width="100" height="${H}" fill="#2f5f3b"/><rect x="900" y="0" width="100" height="${H}" fill="#2f5f3b"/>`;
+  for(let y=0;y<=100;y+=5){ const x=X(y); s+=`<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#fff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.85:0.4}"/>`; }
+  for(let y=10;y<=90;y+=10){ const c=y<=50?y:100-y;
+    s+=`<text x="${X(y)}" y="${yTop}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#fff" opacity="0.55">${c}</text>`;
+    s+=`<text x="${X(y)}" y="${yBot}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="${numF}" font-weight="800" fill="#fff" opacity="0.55">${c}</text>`; }
+  s+=`<text x="50" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(leftNm)}" font-weight="900" fill="#fff" opacity="0.9" transform="rotate(-90 50 ${midY})">${sf(leftNm.toUpperCase())}</text>`;
+  s+=`<text x="950" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-family="Barlow Condensed,sans-serif" font-size="${ezF(rightNm)}" font-weight="900" fill="#fff" opacity="0.9" transform="rotate(90 950 ${midY})">${sf(rightNm.toUpperCase())}</text>`;
+  if(target!=null && target<100){ const tx=X(target); s+=`<line x1="${tx}" y1="6" x2="${tx}" y2="${H-6}" stroke="#fbbf24" stroke-width="${fdW}"/><polygon points="${tx-9},6 ${tx+9},6 ${tx},20" fill="#fbbf24"/>`; }
+  if(ballOn!=null){ const bx=X(clamp(ballOn,0,100));
+    s+=`<line x1="${bx}" y1="6" x2="${bx}" y2="${H-6}" stroke="#1e3a8a" stroke-width="${losW}" opacity="0.9"/>`;
+    s+=`<ellipse cx="${bx}" cy="${midY}" rx="${rx}" ry="${ry}" fill="#a0522d" stroke="#fff" stroke-width="2"/>`;
+    s+=`<line x1="${bx-rx*0.5}" y1="${midY}" x2="${bx+rx*0.5}" y2="${midY}" stroke="#fff" stroke-width="1.5"/>`;
+    const ay=Math.round(H*0.88); s+=`<line x1="${bx+rx+6}" y1="${ay}" x2="${bx+rx+48}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.85"/><polygon points="${bx+rx+46},${ay-7} ${bx+rx+46},${ay+7} ${bx+rx+58},${ay}" fill="#fde68a" opacity="0.85"/>`;
+  }
+  return s;
+}
+function fbUpdField(){ if(FB._replaying) return; const el=document.getElementById('fb-fsvg'); if(el) el.innerHTML=fbBuildField(); }
+
+function fbUpdScoreboard(){
+  if(FB._replaying) return;
+  const hs=document.getElementById('home-score'), as=document.getElementById('away-score');
+  if(hs) hs.textContent=FB.home.score; if(as) as.textContent=FB.away.score;
+  const setT=(id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
+  setT('fb-clock', FB.clock); setT('fb-qtr', fbQtrLabel(FB.quarter));
+  const dd=document.getElementById('fb-dd'); if(dd) dd.innerHTML=(FB.dd||'').replace(/&/g,'&amp;');
+  setT('fb-spot', FB.spot ? ('Ball on '+FB.spot) : '—');
+  setT('fb-poss-team', fbAbbr(FB.poss));
+  const sdd=document.getElementById('fb-status-dd'); if(sdd) sdd.innerHTML=((FB.dd||'')+' · '+(FB.spot?FB.spot:'—')).replace(/&/g,'&amp;');
+}
+
+function fbUpdLinescore(){
+  if(FB._replaying) return;
+  const maxQ=Math.max(4, FB.quarter, (FB.line.home||[]).length, (FB.line.away||[]).length);
+  const cols=[]; for(let i=1;i<=maxQ;i++) cols.push(i);
+  const hdr=document.getElementById('fb-ls-hdr'); if(!hdr) return;
+  hdr.innerHTML='<th class="ls-tn"></th>'+cols.map(q=>`<th${q===FB.quarter?' class="ls-cur"':''}>${q>4?'OT'+(q-4):'Q'+q}</th>`).join('')+'<th class="ls-sep ls-tot">T</th>';
+  const row=(side)=>{ const arr=FB.line[side]||[]; const tot=(side==='home'?FB.home.score:FB.away.score);
+    return `<td class="ls-tn">${fbAbbr(side)}</td>`+cols.map((q,i)=>`<td${q===FB.quarter?' class="ls-cur"':''}>${arr[i]!=null?arr[i]:'·'}</td>`).join('')+`<td class="ls-sep ls-tot">${tot}</td>`; };
+  document.getElementById('fb-ls-away').innerHTML=row('away');
+  document.getElementById('fb-ls-home').innerHTML=row('home');
+}
+
+function fbFeedDesc(e){
+  const d=e.notes||{}, who=e.plast?`<b>${e.pnum?'#'+e.pnum+' ':''}${e.plast}</b>`:'';
+  switch(e.key){
+    case 'run': return `${who} — ${d.gain>=0?'+':''}${d.gain||0} yd run${d.tackler?` (${d.tackler})`:''}`;
+    case 'pass_comp': return `${who} — ${d.gain>=0?'+':''}${d.gain||0} yd pass${d.receiver?` to ${d.receiver}`:''}${d.td?' <b style="color:var(--green)">TD</b>':''}`;
+    case 'pass_incomp': return `${who} — incomplete`;
+    case 'interception': return `<b style="color:var(--away)">INTERCEPTED</b> by ${who||fbAbbr(e.side)}`;
+    case 'sack': return `${who} — sack${d.with?` & ${d.with} (½)`:''}${d.loss?` (${d.loss} yd)`:''}`;
+    case 'touchdown': return `<b style="color:var(--green)">TOUCHDOWN</b>${who?` — ${who}`:` ${fbAbbr(e.side)}`}`;
+    case 'field_goal': return `Field goal ${fbAbbr(e.side)} — <b>${d.good?'GOOD':'missed'}</b>${who?` (${e.plast})`:''}`;
+    case 'extra_point': return `Extra point ${fbAbbr(e.side)} — ${d.good?'good':'no good'}`;
+    case 'two_point': return `2-pt conversion ${fbAbbr(e.side)} — ${d.good?'<b>GOOD</b>':'failed'}`;
+    case 'kickoff': return `Kickoff${d.touchback?', touchback':''} — ${fbAbbr(e.side)}`;
+    case 'punt': return `Punt — ${who||fbAbbr(e.side)}${d.touchback?', touchback':''}`;
+    case 'kick_return_td': return `<b style="color:var(--green)">KICK RETURN TD</b> — ${who||fbAbbr(e.side)}`;
+    case 'penalty': return `Penalty — <b>${d.name||'Penalty'}</b> on ${fbAbbr(e.side)}, ${d.yds||0} yd${d.autoFirst?', auto 1st':''}`;
+    case 'timeout': return `Timeout ${fbAbbr(e.side)}`;
+    case 'safety': return `<b style="color:var(--green)">SAFETY</b> ${fbAbbr(e.side)}`;
+    case 'game_over': return `<b>FINAL</b>`;
+    default: return `${who} — ${FB_KLBL[e.key]||e.key}`;
+  }
+}
+function fbUpdFeed(){
+  if(FB._replaying) return;
+  const list=document.getElementById('fb-feed-list'); if(!list) return;
+  list.innerHTML='';
+  fbEvts.slice(0,60).forEach((e,i)=>{
+    if(e.key==='roster_set'||e.key==='player_final_stats') return;
+    const row=document.createElement('div'); row.className='fr'+(i===0?' new':'');
+    const dot=document.createElement('div'); dot.className='fr-dot'; dot.style.background=e.side==='home'?'var(--home)':'var(--away)';
+    const body=document.createElement('div'); body.className='fr-body';
+    const n=e.notes||{}; const qlbl=(e.quarter>4?'OT'+(e.quarter-4):'Q'+e.quarter)+' '+(n.clock||fbFmt(e.clockSec));
+    body.innerHTML=`<div class="fr-desc">${fbFeedDesc(e)}</div><div class="fr-meta">${qlbl}</div>`;
+    const sc=document.createElement('div'); sc.className='fr-score'; sc.style.color=e.side==='home'?'var(--home)':'var(--away)';
+    if(n.score) sc.textContent=`${n.score.away}–${n.score.home}`;
+    row.appendChild(dot); row.appendChild(body); row.appendChild(sc); list.appendChild(row);
+    if(i===0) setTimeout(()=>row.classList.remove('new'),1800);
+  });
+}
+
+function fbUpdStats(){
+  if(FB._replaying) return;
+  const tb=document.querySelector('#fb-team-stats tbody'); if(!tb) return;
+  const A=FB.tstat.away, Hh=FB.tstat.home;
+  const rows=[
+    ['First downs', A.fd, Hh.fd],
+    ['Total yards', A.ry+A.py, Hh.ry+Hh.py],
+    ['Rushing (att-yds)', `${A.ra}-${A.ry}`, `${Hh.ra}-${Hh.ry}`],
+    ['Passing (c/a, yds)', `${A.pc}/${A.pa}, ${A.py}`, `${Hh.pc}/${Hh.pa}, ${Hh.py}`],
+    ['Sacks', A.sack, Hh.sack],
+    ['Turnovers', A.to, Hh.to],
+    ['Penalties (no-yds)', `${A.pen}-${A.penyd}`, `${Hh.pen}-${Hh.penyd}`],
+  ];
+  tb.innerHTML = `<tr><th style="text-align:left">&nbsp;</th><th>${fbAbbr('away')}</th><th>${fbAbbr('home')}</th></tr>`+
+    rows.map(r=>`<tr><td class="lbl">${r[0]}</td><td class="av">${r[1]}</td><td class="hv">${r[2]}</td></tr>`).join('');
+}
+
+// ── Football demo (no game_id) ──
+const FB_SIM=[
+  {team_id:'A',event_type:'kickoff',period:1,clock_seconds:720,runs:0,player_name:'Smith',player_num:5,x:25,notes:JSON.stringify({down:1,distance:10,ballOn:25,poss:'away',spot:'AWA 25',dd:'1st & 10',clock:'12:00',qtr:'1ST QTR',score:{away:0,home:0},touchback:true})},
+  {team_id:'A',event_type:'run',period:1,clock_seconds:700,runs:0,player_name:'Jones',player_num:22,x:31,notes:JSON.stringify({down:2,distance:4,ballOn:31,poss:'away',spot:'AWA 31',dd:'2nd & 4',clock:'11:40',qtr:'1ST QTR',score:{away:0,home:0},gain:6,tackler:'Pratt'})},
+  {team_id:'A',event_type:'pass_comp',period:1,clock_seconds:680,runs:0,player_name:'Allen',player_num:7,x:48,notes:JSON.stringify({down:1,distance:10,ballOn:48,poss:'away',spot:'AWA 48',dd:'1st & 10',clock:'11:20',qtr:'1ST QTR',score:{away:0,home:0},gain:17,receiver:'Carter'})},
+  {team_id:'A',event_type:'pass_incomp',period:1,clock_seconds:660,runs:0,player_name:'Allen',player_num:7,x:48,notes:JSON.stringify({down:2,distance:10,ballOn:48,poss:'away',spot:'AWA 48',dd:'2nd & 10',clock:'11:00',qtr:'1ST QTR',score:{away:0,home:0}})},
+  {team_id:'A',event_type:'run',period:1,clock_seconds:640,runs:0,player_name:'Jones',player_num:22,x:97,notes:JSON.stringify({down:2,distance:10,ballOn:97,poss:'away',spot:'HOM 3',dd:'2nd & 10',clock:'10:40',qtr:'1ST QTR',score:{away:0,home:0},gain:49})},
+  {team_id:'A',event_type:'touchdown',period:1,clock_seconds:638,runs:6,player_name:'Jones',player_num:22,x:97,notes:JSON.stringify({down:1,distance:3,ballOn:97,poss:'away',spot:'HOM 3',dd:'PAT',clock:'10:38',qtr:'1ST QTR',score:{away:6,home:0}})},
+  {team_id:'A',event_type:'extra_point',period:1,clock_seconds:636,runs:1,player_name:'Reed',player_num:9,x:97,notes:JSON.stringify({down:1,distance:3,ballOn:97,poss:'away',spot:'HOM 3',dd:'PAT',clock:'10:38',qtr:'1ST QTR',score:{away:7,home:0},good:true})},
+];
+let fbSimIdx=0, fbSimTmr=null;
+function fbRunSim(){
+  if(fbSimIdx>=FB_SIM.length){ const pill=document.getElementById('live-pill'); if(pill) pill.classList.add('final'); const lbl=document.getElementById('live-lbl'); if(lbl) lbl.textContent='DEMO'; return; }
+  const row=FB_SIM[fbSimIdx++];
+  LIVE_away_team_id='A'; LIVE_home_team_id='B';
+  fbOnEvent(fbRowToEvt(row));
+  fbSimTmr=setTimeout(fbRunSim, 1800+Math.random()*700);
 }
 
 </script>

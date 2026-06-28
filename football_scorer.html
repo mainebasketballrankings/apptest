@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<title>MBR Football Scorer v0.1</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
+<meta name="theme-color" content="#0f1117"/>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
+  });
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#f0f2f8; --surface:#fff; --surface2:#e8eaf2; --border:#d0d3e8;
+  --text:#0f1117; --dim:#6b7280; --ldim:#9ca3af;
+  --green:#16a34a; --green-bg:#dcfce7; --green-border:#86efac;
+  --red:#dc2626; --red-bg:#fee2e2; --red-border:#fca5a5;
+  --yellow:#d97706; --yellow-bg:#fef3c7; --yellow-border:#fcd34d;
+  --blue:#2563eb; --blue-bg:#dbeafe; --blue-border:#93c5fd;
+  --purple:#9333ea; --purple-bg:#f3e8ff; --purple-border:#d8b4fe;
+  --turf:#3f7d4f; --turf-dark:#356a43; --turf-line:#ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+.bc{font-family:'Barlow Condensed',sans-serif;}
+input,select,button{font-family:inherit;}
+
+/* ══ SETUP ══ */
+#setupScreen{display:flex;flex-direction:column;align-items:center;padding:20px 16px 48px;}
+.setup-logo{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+.setup-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:var(--text);margin-bottom:20px;}
+.setup-card{width:100%;max-width:560px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
+.setup-card-title{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.srow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.srow:last-child{margin-bottom:0;}
+.slabel{font-size:13px;color:var(--dim);min-width:80px;}
+.sinput{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:14px;}
+.sinput:focus{outline:none;border-color:var(--blue);}
+.sselect{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:14px;}
+.ttabs{display:flex;gap:8px;margin-bottom:14px;}
+.ttab{flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-align:center;}
+.ttab.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+.lu-row{display:grid;grid-template-columns:24px 1fr 48px 54px 24px;gap:5px;align-items:center;margin-bottom:6px;}
+.lu-num{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);text-align:center;}
+.lu-input{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 5px;color:var(--text);font-size:13px;width:100%;}
+.lu-input:focus{outline:none;border-color:var(--blue);}
+.lu-del{background:none;border:none;color:var(--ldim);font-size:15px;cursor:pointer;padding:2px;}
+.lu-del:hover{color:var(--red);}
+.add-btn{width:100%;padding:7px;background:none;border:1px dashed var(--border);border-radius:6px;color:var(--dim);font-size:13px;cursor:pointer;margin-top:4px;}
+.add-btn:hover{border-color:var(--green);color:var(--green);}
+.pill{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.5px;cursor:pointer;}
+.pill.on{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+.start-btn{width:100%;max-width:560px;padding:14px;background:var(--green);border:none;border-radius:10px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:8px;}
+.game-pick-row{padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;}
+.game-pick-row:active{opacity:.7;}
+.game-pick-row.selected{border-color:var(--green);background:var(--green-bg);}
+
+/* ══ GAME ══ */
+#gameScreen{display:none;flex-direction:column;min-height:100vh;}
+
+/* Scoreboard */
+.sb{background:var(--surface);border-bottom:1px solid var(--border);}
+.sb-top{display:grid;grid-template-columns:1fr 132px 1fr;align-items:center;padding:8px 12px;padding-right:max(12px,env(safe-area-inset-right));padding-left:max(12px,env(safe-area-inset-left));}
+.sb-team{display:flex;align-items:center;gap:9px;}
+.sb-team.home{flex-direction:row-reverse;}
+.sb-abbr{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text);line-height:1;}
+.sb-score{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:900;line-height:.9;color:var(--text);background:var(--surface2);padding:1px 9px;border-radius:7px;min-width:54px;text-align:center;}
+.sb-poss{width:11px;height:11px;border-radius:50%;background:transparent;border:2px solid transparent;flex-shrink:0;}
+.sb-poss.on{background:#ee6730;border-color:#ee6730;}
+.sb-center{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.sb-qtr{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--green);letter-spacing:.5px;}
+.sb-clock{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;line-height:1;color:var(--text);cursor:pointer;}
+.sb-dd{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--text);cursor:pointer;}
+.sb-ballon{font-family:'Barlow',sans-serif;font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:var(--dim);cursor:pointer;}
+.sb-to{display:flex;align-items:center;justify-content:space-between;padding:3px 14px 5px;border-top:1px solid var(--border);}
+.to-side{display:flex;align-items:center;gap:4px;}
+.to-lbl{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.to-pip{width:9px;height:9px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;}
+.to-pip.on{background:var(--yellow);border-color:var(--yellow);}
+
+#gameIdBar{padding:3px 14px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-align:center;display:none;}
+
+/* Field strip */
+.field-wrap{background:var(--turf);padding:0;}
+.field-wrap svg{width:100%;display:block;max-height:120px;}
+
+/* Play buttons */
+.play-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;padding:10px 12px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));}
+.playbtn{padding:18px 4px;border:none;border-radius:9px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:17px;letter-spacing:.5px;cursor:pointer;text-transform:uppercase;transition:opacity .12s,transform .1s;}
+.playbtn:active{opacity:.75;transform:scale(.97);}
+.playbtn.run{background:var(--green-bg);color:var(--green);border:2px solid var(--green-border);}
+.playbtn.pass{background:var(--blue-bg);color:var(--blue);border:2px solid var(--blue-border);}
+.playbtn.kick{background:var(--yellow-bg);color:var(--yellow);border:2px solid var(--yellow-border);}
+.playbtn.pen{background:var(--purple-bg);color:var(--purple);border:2px solid var(--purple-border);}
+
+/* Action bar */
+.action-bar{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:6px 12px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));border-bottom:1px solid var(--border);background:var(--surface);}
+.abtn{padding:8px 4px;min-height:42px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;text-align:center;}
+.abtn:active{opacity:.7;}
+.abtn.hi{border-color:var(--green-border);color:var(--green);background:var(--green-bg);}
+.abtn.danger{border-color:var(--red-border);color:var(--red);background:var(--red-bg);}
+.abtn.blue{border-color:var(--blue-border);color:var(--blue);background:var(--blue-bg);}
+
+/* PBP */
+.pbp{flex:1;overflow-y:auto;background:var(--surface);padding-bottom:env(safe-area-inset-bottom,60px);}
+.pbp-entry{display:flex;gap:8px;padding:7px 14px;border-bottom:1px solid var(--border);align-items:flex-start;}
+.pbp-q{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--dim);min-width:48px;flex-shrink:0;}
+.pbp-txt{font-size:13px;color:var(--text);flex:1;line-height:1.35;}
+.pbp-txt strong{font-weight:600;}
+.pbp-score{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--green);}
+.drive-head{padding:6px 14px;background:var(--surface2);border-bottom:1px solid var(--border);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between;}
+
+/* ══ OVERLAYS ══ */
+.overlay{position:fixed;inset:0;background:rgba(15,17,23,.6);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+.ocard{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:540px;padding:18px 16px 28px;border-top:1px solid var(--border);max-height:92vh;overflow-y:auto;}
+.otitle{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+.otitle .ox{color:var(--dim);font-size:14px;cursor:pointer;font-weight:700;}
+.oactions{display:flex;gap:8px;margin-top:16px;}
+.oconfirm{flex:1;padding:13px;background:var(--green);border:none;border-radius:9px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+.ocancel{padding:13px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;cursor:pointer;}
+
+/* Play-type tabs (Recep/Incomp...) */
+.ptabs{display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:3px;margin-bottom:14px;}
+.ptab{flex:1;padding:9px 4px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.3px;color:var(--dim);text-align:center;cursor:pointer;}
+.ptab.active{background:var(--green);color:#fff;}
+
+/* Player select row */
+.psel-row{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;}
+.psel-row:active{opacity:.7;}
+.psel-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.psel-val{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--text);}
+.psel-val.empty{color:var(--ldim);font-weight:400;}
+
+/* Roster picker list */
+.sub-list{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto;}
+.sub-player{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;}
+.sub-player:active{opacity:.7;}
+.sub-num{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--dim);min-width:30px;text-align:center;}
+.sub-name{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;}
+.sub-pos{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--dim);margin-left:auto;}
+
+/* Spot picker field */
+.spot-readout{text-align:center;margin-bottom:10px;}
+.spot-big{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:900;color:var(--text);line-height:1;}
+.spot-gain{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;}
+.spot-gain.pos{color:var(--green);} .spot-gain.neg{color:var(--red);}
+.spot-field{position:relative;width:100%;background:var(--turf);border-radius:10px;overflow:hidden;margin-bottom:10px;cursor:pointer;}
+.spot-field svg{width:100%;display:block;}
+.spot-step{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;}
+.stepbtn{padding:11px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:var(--text);cursor:pointer;}
+.stepbtn:active{opacity:.7;}
+.quick-chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+.qchip{padding:7px 12px;border-radius:18px;border:1px solid var(--border);background:var(--surface2);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:var(--dim);cursor:pointer;}
+.qchip:active{opacity:.7;}
+
+/* Result chips */
+.res-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 4px;}
+.reschip{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;}
+.reschip.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+.reschip.td.active{background:#fef3c7;border-color:#fcd34d;color:#b45309;}
+
+.toggle-pill{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;}
+.toggle-pill.on{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+
+.sec-lbl{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ldim);margin:12px 0 6px;}
+.num-input{width:70px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:16px;font-family:'Barlow Condensed',sans-serif;text-align:center;}
+
+/* Box score */
+.box-tabs{display:flex;gap:6px;margin-bottom:10px;}
+.box-tab{flex:1;padding:8px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;cursor:pointer;text-align:center;}
+.box-tab.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+.box-table{width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:12px;}
+.box-table th{color:var(--dim);font-weight:700;padding:4px 5px;text-align:right;border-bottom:1px solid var(--border);}
+.box-table th:first-child{text-align:left;}
+.box-table td{padding:4px 5px;text-align:right;border-bottom:1px solid var(--border);}
+.box-table td:first-child{text-align:left;font-weight:600;}
+.box-section-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);margin:12px 0 4px;}
+
+@media(max-width:480px){
+  .sb-score{font-size:32px;padding:1px 6px;min-width:46px;}
+  .playbtn{padding:15px 4px;font-size:15px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP ══ -->
+<div id="setupScreen">
+  <div class="setup-logo">Maine Basketball Rankings</div>
+  <div class="setup-title">Football Scorer <span style="font-size:12px;font-weight:400;color:var(--dim);font-family:'Barlow Condensed',sans-serif">v0.1</span></div>
+
+  <div class="setup-card">
+    <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
+    <div id="gamePickerList"><div style="font-size:13px;color:var(--dim)">Loading today's football games…</div></div>
+    <div id="gamePickerStatus" style="font-size:12px;margin-top:6px"></div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-title">Game Info</div>
+    <div class="srow"><span class="slabel">Level</span>
+      <select class="sselect" id="levelSel">
+        <option value="varsity">Varsity</option>
+        <option value="jv">JV / Sub-varsity</option>
+      </select></div>
+    <div class="srow"><span class="slabel">Date</span>
+      <input type="date" class="sinput" id="gameDateInp"/></div>
+    <div class="srow"><span class="slabel">Location</span>
+      <input type="text" class="sinput" id="gameLocInp" placeholder="Field / School"/></div>
+    <div class="srow"><span class="slabel">Qtr Length</span>
+      <select class="sselect" id="qlenSel">
+        <option value="12">12 min (Maine HS)</option>
+        <option value="10">10 min</option>
+        <option value="8">8 min</option>
+      </select></div>
+    <div class="srow"><span class="slabel">Recv 1st Half</span>
+      <select class="sselect" id="openKickSel">
+        <option value="away">Away receives</option>
+        <option value="home">Home receives</option>
+      </select></div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-title">Teams & Rosters</div>
+    <div class="ttabs">
+      <div class="ttab active" id="tabAway" onclick="switchTab('away')">Away</div>
+      <div class="ttab" id="tabHome" onclick="switchTab('home')">Home</div>
+    </div>
+    <div id="awaySetup">
+      <div class="srow"><span class="slabel">Team Name</span>
+        <div style="position:relative;flex:1"><input type="text" class="sinput" style="width:100%" id="awayNameInp" placeholder="Visiting Team" autocomplete="off" oninput="schoolAC(this,'away')" onblur="closeAC('away')"/><div id="awayAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
+      <div class="srow"><span class="slabel">Abbrev</span>
+        <input type="text" class="sinput" id="awayAbbrInp" placeholder="e.g. CNY" maxlength="4" style="text-transform:uppercase"/></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px">#&nbsp;·&nbsp;Name&nbsp;·&nbsp;Pos</div>
+      <div id="awayLU"></div>
+      <button class="add-btn" onclick="addPlayer('away')">+ Add Player</button>
+    </div>
+    <div id="homeSetup" style="display:none">
+      <div class="srow"><span class="slabel">Team Name</span>
+        <div style="position:relative;flex:1"><input type="text" class="sinput" style="width:100%" id="homeNameInp" placeholder="Home Team" autocomplete="off" oninput="schoolAC(this,'home')" onblur="closeAC('home')"/><div id="homeAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
+      <div class="srow"><span class="slabel">Abbrev</span>
+        <input type="text" class="sinput" id="homeAbbrInp" placeholder="e.g. TA" maxlength="4" style="text-transform:uppercase"/></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:10px 0 6px">#&nbsp;·&nbsp;Name&nbsp;·&nbsp;Pos</div>
+      <div id="homeLU"></div>
+      <button class="add-btn" onclick="addPlayer('home')">+ Add Player</button>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">
+    <button id="testModePill" class="pill" onclick="toggleTestMode()" style="background:#f59e0b;border-color:#f59e0b;color:#fff;font-size:13px;padding:8px 18px;border-radius:20px;font-weight:700;opacity:0.4">🧪 Test Mode: OFF</button>
+    <span style="font-size:12px;color:var(--dim);max-width:200px;line-height:1.4">Test games won't appear on the scoreboard</span>
+  </div>
+
+  <button class="start-btn" onclick="startGame()">Start Game</button>
+</div>
+
+<!-- ══ GAME SCREEN ══ -->
+<div id="gameScreen">
+  <!-- Scoreboard -->
+  <div class="sb">
+    <div class="sb-top">
+      <div class="sb-team away">
+        <div class="sb-poss" id="possAway"></div>
+        <div class="sb-abbr" id="sbAwayAbbr">AWY</div>
+        <div class="sb-score" id="sbAwayScore">0</div>
+      </div>
+      <div class="sb-center">
+        <div class="sb-qtr" id="sbQtr">1ST QTR</div>
+        <div class="sb-clock" id="sbClock" onclick="openClock()">12:00</div>
+        <div class="sb-dd" id="sbDD" onclick="openDD()">1st &amp; 10</div>
+        <div class="sb-ballon" id="sbBallOn" onclick="openSpotEdit()">ball on —</div>
+      </div>
+      <div class="sb-team home">
+        <div class="sb-poss" id="possHome"></div>
+        <div class="sb-abbr" id="sbHomeAbbr">HOM</div>
+        <div class="sb-score" id="sbHomeScore">0</div>
+      </div>
+    </div>
+    <div class="sb-to">
+      <div class="to-side" id="toAway"></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ldim)">Timeouts</div>
+      <div class="to-side" id="toHome"></div>
+    </div>
+  </div>
+  <div id="gameIdBar"></div>
+
+  <!-- Field strip -->
+  <div class="field-wrap">
+    <svg id="fieldSVG" viewBox="0 0 1000 160" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <!-- Primary play buttons -->
+  <div class="play-grid">
+    <button class="playbtn run"  onclick="openRun()">Run</button>
+    <button class="playbtn pass" onclick="openPass()">Pass</button>
+    <button class="playbtn kick" onclick="openKick()">Kick</button>
+    <button class="playbtn pen"  onclick="openPenalty()">Penalty</button>
+  </div>
+
+  <!-- Action bar -->
+  <div class="action-bar">
+    <button class="abtn blue"   onclick="openTimeout()">Timeout</button>
+    <button class="abtn"        onclick="advanceQuarter()">End Qtr</button>
+    <button class="abtn"        onclick="openSpotEdit()">Set Spot</button>
+    <button class="abtn"        onclick="flipPossession()">Flip Poss</button>
+    <button class="abtn"        style="grid-column:span 2" onclick="openBoxScore()">Box Score</button>
+    <button class="abtn danger" onclick="doUndo()">Undo</button>
+    <button class="abtn" style="background:#1a7a4a;color:#fff;border-color:#1a7a4a" onclick="generatePDF().catch(e=>alert('PDF error: '+e.message))">Report</button>
+    <button class="abtn danger" style="grid-column:span 4" onclick="openEndGame()">End Game</button>
+  </div>
+
+  <!-- PBP log -->
+  <div class="pbp" id="pbpLog"></div>
+</div>
+
+<!-- ══ OVERLAYS ══ -->
+
+<!-- Main play overlay (Run / Pass / Kick share this shell) -->
+<div class="overlay" id="ovPlay">
+  <div class="ocard">
+    <div class="otitle"><span id="ovPlayTitle">Play</span><span class="ox" onclick="closeOv('ovPlay')">Cancel</span></div>
+    <div id="ovPlayBody"></div>
+  </div>
+</div>
+
+<!-- Reusable player picker -->
+<div class="overlay" id="ovPicker">
+  <div class="ocard">
+    <div class="otitle"><span id="ovPickerTitle">Select Player</span><span class="ox" onclick="closeOv('ovPicker')">Cancel</span></div>
+    <input type="text" class="sinput" id="pickerSearch" placeholder="Search name or #" style="width:100%;margin-bottom:10px" oninput="renderPicker()"/>
+    <div class="sub-list" id="pickerList"></div>
+    <div style="margin-top:10px"><button class="ocancel" style="width:100%" onclick="pickerChoose(null)">Clear / None</button></div>
+  </div>
+</div>
+
+<!-- Penalty -->
+<div class="overlay" id="ovPenalty">
+  <div class="ocard">
+    <div class="otitle"><span>Penalty</span><span class="ox" onclick="closeOv('ovPenalty')">Cancel</span></div>
+    <div class="sec-lbl">On Team</div>
+    <div class="res-row" id="penTeamRow"></div>
+    <div class="sec-lbl">Yards</div>
+    <div class="quick-chip-row">
+      <span class="qchip" onclick="setPenYds(5)">5</span>
+      <span class="qchip" onclick="setPenYds(10)">10</span>
+      <span class="qchip" onclick="setPenYds(15)">15</span>
+      <input type="number" class="num-input" id="penYds" value="5" style="margin-left:4px"/>
+    </div>
+    <div class="sec-lbl">Options</div>
+    <div class="res-row">
+      <span class="toggle-pill" id="penAutoFirst" onclick="this.classList.toggle('on')">Automatic 1st down</span>
+      <span class="toggle-pill" id="penLossDown" onclick="this.classList.toggle('on')">Loss of down</span>
+      <span class="toggle-pill on" id="penReplay" onclick="this.classList.toggle('on')">Replay down</span>
+    </div>
+    <div class="oactions">
+      <button class="oconfirm" onclick="confirmPenalty()">Apply Penalty</button>
+    </div>
+  </div>
+</div>
+
+<!-- Spot editor -->
+<div class="overlay" id="ovSpot">
+  <div class="ocard">
+    <div class="otitle"><span id="ovSpotTitle">Set Ball Spot</span><span class="ox" onclick="closeOv('ovSpot')">Cancel</span></div>
+    <div class="spot-readout">
+      <div class="spot-big" id="spotBig">—</div>
+      <div class="spot-gain" id="spotGain"></div>
+    </div>
+    <div class="spot-field" id="spotFieldWrap" onclick="spotFieldTap(event)">
+      <svg id="spotFieldSVG" viewBox="0 0 1000 120" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="spot-step">
+      <button class="stepbtn" onclick="spotNudge(-5)">−5</button>
+      <button class="stepbtn" onclick="spotNudge(-1)">−1</button>
+      <button class="stepbtn" onclick="spotNudge(1)">+1</button>
+      <button class="stepbtn" onclick="spotNudge(5)">+5</button>
+    </div>
+    <div class="oactions">
+      <button class="oconfirm" onclick="confirmSpot()">Set Spot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clock editor -->
+<div class="overlay" id="ovClock">
+  <div class="ocard">
+    <div class="otitle"><span>Game Clock</span><span class="ox" onclick="closeOv('ovClock')">Cancel</span></div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0 14px">
+      <input type="number" class="num-input" id="clkMin" min="0" max="15" style="width:80px;font-size:24px"/>
+      <span style="font-size:26px;font-weight:900;font-family:'Barlow Condensed',sans-serif">:</span>
+      <input type="number" class="num-input" id="clkSec" min="0" max="59" style="width:80px;font-size:24px"/>
+    </div>
+    <div class="oactions">
+      <button class="oconfirm" onclick="confirmClock()">Set Clock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Down & distance editor -->
+<div class="overlay" id="ovDD">
+  <div class="ocard">
+    <div class="otitle"><span>Down &amp; Distance</span><span class="ox" onclick="closeOv('ovDD')">Cancel</span></div>
+    <div class="sec-lbl">Down</div>
+    <div class="res-row" id="ddDownRow"></div>
+    <div class="sec-lbl">Yards To Go</div>
+    <div class="quick-chip-row">
+      <input type="number" class="num-input" id="ddDist" min="0" max="99"/>
+      <span class="qchip" onclick="document.getElementById('ddDist').value=10">10</span>
+      <span class="qchip" onclick="document.getElementById('ddDist').value=1">Inches/1</span>
+      <span class="qchip" id="ddGoalChip" onclick="setGoalToGo()">Goal</span>
+    </div>
+    <div class="oactions">
+      <button class="oconfirm" onclick="confirmDD()">Set</button>
+    </div>
+  </div>
+</div>
+
+<!-- Timeout -->
+<div class="overlay" id="ovTimeout">
+  <div class="ocard">
+    <div class="otitle"><span>Timeout</span><span class="ox" onclick="closeOv('ovTimeout')">Cancel</span></div>
+    <div class="res-row" id="toTeamRow"></div>
+  </div>
+</div>
+
+<!-- Box score -->
+<div class="overlay" id="ovBox">
+  <div class="ocard" style="max-width:560px">
+    <div class="otitle"><span>Box Score</span><span class="ox" onclick="closeOv('ovBox')">Close</span></div>
+    <div class="box-tabs">
+      <div class="box-tab active" id="boxTabAway" onclick="setBoxTab('away')">Away</div>
+      <div class="box-tab" id="boxTabHome" onclick="setBoxTab('home')">Home</div>
+    </div>
+    <div id="boxBody"></div>
+  </div>
+</div>
+
+<!-- End game -->
+<div class="overlay" id="ovEnd">
+  <div class="ocard">
+    <div class="otitle"><span>End Game</span><span class="ox" onclick="closeOv('ovEnd')">Cancel</span></div>
+    <div id="endSummary" style="font-size:15px;color:var(--text);margin-bottom:8px;line-height:1.6"></div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:8px">Finalize will push the score, save player stats, and generate the game report.</div>
+    <div class="oactions">
+      <button class="ocancel" onclick="closeOv('ovEnd')">Not yet</button>
+      <button class="oconfirm" style="background:var(--red)" onclick="confirmEndGame()">Finalize</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic message -->
+<div class="overlay" id="ovMsg">
+  <div class="ocard">
+    <div class="otitle"><span id="msgTitle">—</span><span class="ox" onclick="closeOv('ovMsg')">Close</span></div>
+    <div id="msgBody" style="font-size:15px;color:var(--text);line-height:1.6"></div>
+    <div class="oactions"><button class="oconfirm" onclick="closeOv('ovMsg')">OK</button></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// SUPABASE + LIVE PUSH   (ported from baseball_scorer)
+// ═══════════════════════════════════════════════
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+// ⚠️ CONFIRM THIS: full football sport_id UUID. Memory has the short prefix fa905ca5.
+// Paste the full UUID here once confirmed; otherwise the app tries to resolve it at runtime.
+let FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';   // confirmed
+const FOOTBALL_PREFIX = 'fa905ca5';
+
+let G_game_id = null;
+let G_home_team_id = null;
+let G_away_team_id = null;
+let G_test_mode = false;
+let G_evt_id_stack = [];        // [[id1,id2],[id3],...] — undo groups
+let G_evt_current_group = [];   // ids accumulating for the action in progress
+const MAX_UNDO = 40;
+let undoStack = [];
+let _gameFinalized = false;
+let _gameListVersion = 0, _gameListAbort = null;
+let _rosterVersion = 0;
+let _saveStateTimer = null;
+let _lastPbpLength = -1;
+
+function scheduleSave(){ clearTimeout(_saveStateTimer); _saveStateTimer = setTimeout(saveState, 1500); }
+
+async function sbFetch(path){
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
+  });
+  return r.json();
+}
+
+// ── Push queue (offline resilience) ──
+const QUEUE_KEY = 'mbr_fb_push_queue';
+let _flushing = false;
+function queueLoad(){ try { return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); } catch(e){ return []; } }
+function queueSave(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e){} }
+function setQueueStatus(){
+  const q = queueLoad();
+  let el = document.getElementById('push-queue-status');
+  if(!el){ el = document.createElement('div'); el.id='push-queue-status';
+    el.style.cssText='position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
+    document.body.appendChild(el); }
+  el.innerHTML = q.length===0 ? '' : `<span>🟡</span><span style="color:#888">${q.length} event${q.length>1?'s':''} queued</span>`;
+}
+async function flushQueue(){
+  if(_flushing) return; _flushing=true;
+  let q = queueLoad();
+  while(q.length>0){
+    const {table,row}=q[0];
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+        method:'POST',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+        body: JSON.stringify(row)
+      });
+      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
+      q.shift(); queueSave(q); setQueueStatus();
+    } catch(e){ console.warn('flush failed, retry later', e); break; }
+  }
+  _flushing=false;
+}
+window.addEventListener('online', ()=>flushQueue());
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && navigator.onLine) flushQueue(); });
+setInterval(()=>{ if(navigator.onLine && !document.hidden) flushQueue(); }, 30000);
+
+async function sbInsert(table, row){
+  if(G_test_mode) return;
+  if(navigator.onLine){
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+        method:'POST',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+        body: JSON.stringify(row)
+      });
+      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
+      await flushQueue(); return;
+    } catch(e){ console.warn('sbInsert failed, queuing', e); }
+  }
+  const q=queueLoad(); q.push({table,row}); queueSave(q); setQueueStatus();
+}
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const POSITIONS = ['QB','RB','WR','TE','OL','DL','LB','DB','K','P','ATH'];
+const TEST_NAMES_A = ['Adams','Baker','Clark','Davis','Evans','Foster','Green','Hall','Ingram','Jones','King'];
+const TEST_NAMES_B = ['Lewis','Moore','Nash','Owen','Price','Quinn','Reed','Stone','Turner','Vance','West'];
+
+let G = {
+  level:'varsity', date:'', loc:'', qLen:12, maxQ:4, openKick:'away',
+  teams:{
+    away:{ name:'Away', abbr:'AWY', roster:[] },
+    home:{ name:'Home', abbr:'HOM', roster:[] },
+  },
+  quarter:1, clock:720, poss:'away',
+  ballOn:35, down:1, distance:10,
+  score:{away:0,home:0},
+  timeouts:{away:3,home:3},
+  stats:{ away:{}, home:{} },     // keyed by player name
+  drives:[], curDrive:null,
+  pbp:[],
+  // pending interaction state
+  pend:null,
+};
+
+function newPlayer(num, name, pos){ return { number:String(num||''), name:name||'', pos:pos||'' }; }
+
+// blank football stat line
+function blankStat(name, number){
+  return { name, number:number||'',
+    pa:0,pc:0,pyd:0,ptd:0,pint:0,                 // passing
+    ra:0,ryd:0,rtd:0,rlong:0,                      // rushing
+    rec:0,recyd:0,rectd:0,reclong:0,               // receiving
+    tkl:0,ast:0,sack:0,dint:0,ff:0,fr:0,           // defense
+    fgm:0,fga:0,xpm:0,xpa:0,                        // kicking
+    punts:0,puntyd:0,                              // punting
+    kret:0,kretyd:0,pret:0,pretyd:0,               // returns
+    fum:0,fumlost:0 };
+}
+function statFor(side, name, number){
+  if(!name) return null;
+  if(!G.stats[side][name]) G.stats[side][name] = blankStat(name, number);
+  if(number && !G.stats[side][name].number) G.stats[side][name].number = number;
+  return G.stats[side][name];
+}
+
+// ── helpers ──
+function other(side){ return side==='away'?'home':'away'; }
+function offSide(){ return G.poss; }
+function defSide(){ return other(G.poss); }
+function abbr(side){ return (G.teams[side].abbr||G.teams[side].name||side).toString().toUpperCase().slice(0,4); }
+function firstDownTarget(){ return Math.min(100, G.ballOn + G.distance); }
+
+// label a 0-100 absolute spot (from poss team's own goal) as "TEAM yardline"
+function spotLabel(ballOn=G.ballOn, poss=G.poss){
+  ballOn = Math.round(ballOn);
+  if(ballOn>=100) return abbr(other(poss))+' goal';
+  if(ballOn<=0)   return abbr(poss)+' goal';
+  if(ballOn===50) return '50';
+  if(ballOn<50)   return abbr(poss)+' '+ballOn;
+  return abbr(other(poss))+' '+(100-ballOn);
+}
+function ddLabel(){
+  const ord = {1:'1st',2:'2nd',3:'3rd',4:'4th'}[G.down]||G.down+'th';
+  if(firstDownTarget()>=100) return ord+' & Goal';
+  return ord+' & '+G.distance;
+}
+function qtrLabel(){
+  if(G.quarter<=4) return ({1:'1ST',2:'2ND',3:'3RD',4:'4TH'}[G.quarter])+' QTR';
+  return 'OT'+(G.quarter-4);
+}
+function fmtClock(s){ const m=Math.floor(s/60), ss=s%60; return m+':'+String(ss).padStart(2,'0'); }
+// ═══════════════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════════════
+function switchTab(side){
+  document.getElementById('tabAway').classList.toggle('active', side==='away');
+  document.getElementById('tabHome').classList.toggle('active', side==='home');
+  document.getElementById('awaySetup').style.display = side==='away'?'':'none';
+  document.getElementById('homeSetup').style.display = side==='home'?'':'none';
+}
+function renderLU(side){
+  const el = document.getElementById(side+'LU');
+  el.innerHTML = G.teams[side].roster.map((p,i)=>`
+    <div class="lu-row">
+      <input class="lu-input" style="text-align:center" value="${p.number||''}" placeholder="#" oninput="G.teams['${side}'].roster[${i}].number=this.value"/>
+      <input class="lu-input" value="${(p.name||'').replace(/"/g,'&quot;')}" placeholder="Player name" oninput="G.teams['${side}'].roster[${i}].name=this.value"/>
+      <select class="lu-input" onchange="G.teams['${side}'].roster[${i}].pos=this.value">
+        <option value="">—</option>
+        ${POSITIONS.map(pos=>`<option value="${pos}" ${p.pos===pos?'selected':''}>${pos}</option>`).join('')}
+      </select>
+      <button class="lu-del" onclick="removePlayer('${side}',${i})">✕</button>
+    </div>`).join('');
+}
+function addPlayer(side){ G.teams[side].roster.push(newPlayer('','','')); renderLU(side); }
+function removePlayer(side,i){ G.teams[side].roster.splice(i,1); renderLU(side); }
+
+function toggleTestMode(){
+  G_test_mode=!G_test_mode;
+  const p=document.getElementById('testModePill');
+  p.textContent = G_test_mode?'🧪 Test Mode: ON':'🧪 Test Mode: OFF';
+  p.style.opacity = G_test_mode?'1':'0.4';
+}
+
+// ── Resolve football sport_id ──
+async function resolveFootballSport(){
+  if(FOOTBALL_SPORT_ID) return FOOTBALL_SPORT_ID;
+  for(const tbl of ['sports','sport']){
+    try {
+      const rows = await sbFetch(`${tbl}?or=(name.ilike.*football*,slug.ilike.*football*)&select=id,name&limit=1`);
+      if(Array.isArray(rows) && rows[0]?.id){ FOOTBALL_SPORT_ID = rows[0].id; return FOOTBALL_SPORT_ID; }
+    } catch(e){ /* table may not exist; try next */ }
+  }
+  return null;
+}
+
+// ── Schedule loader ──
+async function loadTodaysGames(){
+  if(_gameListAbort) _gameListAbort.abort();
+  _gameListAbort = new AbortController();
+  const myV = ++_gameListVersion;
+  const sportId = await resolveFootballSport();
+  const list = document.getElementById('gamePickerList');
+  if(!sportId){
+    list.innerHTML = `<div style="font-size:13px;color:var(--red);line-height:1.5">⚠️ Football sport_id not set. Paste the full UUID (prefix <b>${FOOTBALL_PREFIX}</b>) into <code>FOOTBALL_SPORT_ID</code> at the top of the script, then reload. You can still run a manual game below.</div>`;
+    return;
+  }
+  const today = (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
+  let games;
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026` +
+      `&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)&order=game_date.asc`,
+      { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, signal:_gameListAbort.signal });
+    games = await r.json();
+  } catch(e){ if(e.name==='AbortError') return; console.warn('game list failed', e); return; }
+  if(myV !== _gameListVersion) return;
+  if(!Array.isArray(games) || !games.length){
+    list.innerHTML = '<div style="font-size:13px;color:var(--dim);padding:8px 0">No scheduled football games found for today. Enter teams manually below.</div>';
+    return;
+  }
+  list.innerHTML = games.map(g=>{
+    const badge = g.status==='active'
+      ? '<span style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);border-radius:4px;padding:1px 5px;margin-left:6px">LIVE</span>'
+      : g.status==='final'
+      ? '<span style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--dim);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:6px">FINAL</span>' : '';
+    const esc = s => (s||'').replace(/'/g,"\\x27");
+    return `<div class="game-pick-row" onclick="selectGame('${g.id}','${g.home_team_id}','${g.away_team_id}','${esc(g.home_team?.school_name)||'Home'}','${esc(g.away_team?.school_name)||'Away'}','${esc(g.location)}')">
+      <div style="font-weight:600;font-size:14px;display:flex;align-items:center">${g.away_team?.school_name||'Away'} @ ${g.home_team?.school_name||'Home'}${badge}</div>
+      ${g.location?`<div style="font-size:11px;color:var(--dim)">${g.location}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function loadGameById(gameId){
+  const sportId = await resolveFootballSport();
+  const games = await sbFetch(`games?id=eq.${gameId}&select=id,home_team_id,away_team_id,location,home_team:home_team_id(school_name),away_team:away_team_id(school_name)`);
+  const g = games[0];
+  if(!g){ document.getElementById('gamePickerList').innerHTML='<div style="font-size:13px;color:var(--red)">Game not found.</div>'; return; }
+  selectGame(g.id, g.home_team_id, g.away_team_id, g.home_team?.school_name||'Home', g.away_team?.school_name||'Away', g.location||'');
+  document.getElementById('gamePickerList').innerHTML =
+    `<div class="game-pick-row selected"><div style="font-weight:600;font-size:14px">${g.away_team?.school_name||'Away'} @ ${g.home_team?.school_name||'Home'}</div>${g.location?`<div style="font-size:11px;color:var(--dim)">${g.location}</div>`:''}</div>`;
+}
+
+function autoAbbr(name){
+  if(!name) return '';
+  const words = name.trim().split(/\s+/);
+  if(words.length===1) return words[0].slice(0,3).toUpperCase();
+  return words.map(w=>w[0]).join('').slice(0,4).toUpperCase();
+}
+
+function selectGame(id, homeId, awayId, homeName, awayName, loc){
+  G_game_id=id; G_home_team_id=homeId; G_away_team_id=awayId; _gameFinalized=false;
+  document.getElementById('awayNameInp').value=awayName;
+  document.getElementById('homeNameInp').value=homeName;
+  document.getElementById('awayAbbrInp').value=autoAbbr(awayName);
+  document.getElementById('homeAbbrInp').value=autoAbbr(homeName);
+  if(loc) document.getElementById('gameLocInp').value=loc;
+  document.querySelectorAll('.game-pick-row').forEach(r=>r.classList.remove('selected'));
+  if(window.event && event.currentTarget && event.currentTarget.classList) event.currentTarget.classList.add('selected');
+  document.getElementById('gamePickerStatus').textContent = `✓ ${awayName} @ ${homeName}`;
+  document.getElementById('gamePickerStatus').style.color = 'var(--green)';
+  // fetch rosters
+  const myV = ++_rosterVersion;
+  const fetchRoster = async (teamId, side) => {
+    try {
+      const sportId = await resolveFootballSport();
+      const q = sportId
+        ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`
+        : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`;
+      const players = await sbFetch(q);
+      if(myV !== _rosterVersion) return;
+      if(!Array.isArray(players) || !players.length) return;
+      G.teams[side].roster = players.map(p=>newPlayer(p.number?String(parseInt(p.number)):'', p.name||'', p.position||''));
+      renderLU(side);
+    } catch(e){ console.warn('roster fetch failed', side, e); }
+  };
+  fetchRoster(awayId,'away'); fetchRoster(homeId,'home');
+}
+
+async function startGame(){
+  G.level=document.getElementById('levelSel').value;
+  G.date=document.getElementById('gameDateInp').value;
+  G.loc=document.getElementById('gameLocInp').value;
+  G.qLen=parseInt(document.getElementById('qlenSel').value);
+  G.openKick=document.getElementById('openKickSel').value;
+  G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
+  G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
+  G.teams.away.abbr=(document.getElementById('awayAbbrInp').value||autoAbbr(G.teams.away.name)||'AWY').toUpperCase();
+  G.teams.home.abbr=(document.getElementById('homeAbbrInp').value||autoAbbr(G.teams.home.name)||'HOM').toUpperCase();
+  G.teams.away.roster = G.teams.away.roster.filter(p=>p.name && p.name.trim());
+  G.teams.home.roster = G.teams.home.roster.filter(p=>p.name && p.name.trim());
+
+  if(!G_test_mode && !G_game_id){ msg('No game selected','Pick a game from the schedule, or enable Test Mode to score without saving.'); return; }
+
+  // reset game state
+  G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
+  G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true;
+  undoStack=[]; G_evt_id_stack=[]; G_evt_current_group=[]; _lastPbpLength=-1; _gameFinalized=false;
+
+  // opening kickoff: receiving team starts on offense, but ball is a kickoff situation.
+  // We set possession to the receiving team and a typical post-kickoff spot; the user logs the
+  // opening kickoff via the Kick button for accuracy, but state is sane if they skip it.
+  G.poss=G.openKick;
+  G.ballOn=25; G.down=1; G.distance=10;
+  startDrive();
+
+  document.getElementById('setupScreen').style.display='none';
+  document.getElementById('gameScreen').style.display='flex';
+  document.getElementById('gameScreen').style.flexDirection='column';
+  localStorage.removeItem('mbr_fb_game');
+
+  addPBP(`<strong>${G.teams.away.name}</strong> at <strong>${G.teams.home.name}</strong> — kickoff`, true);
+
+  if(G_game_id && !G_test_mode){
+    // wipe old events for clean restart
+    await fetch(`${SB_URL}/rest/v1/game_events?game_id=eq.${G_game_id}`, {
+      method:'DELETE', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, Prefer:'return=minimal' }
+    }).catch(e=>console.warn('event cleanup failed', e));
+    ['away','home'].forEach(side=>{
+      sbInsert('game_events', {
+        game_id:G_game_id, team_id: side==='home'?G_home_team_id:G_away_team_id,
+        event_type:'roster_set', period:1, clock_seconds:G.clock, runs:0,
+        notes: JSON.stringify(G.teams[side].roster)
+      });
+    });
+    fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ status:'active', home_score_live:0, away_score_live:0 })
+    }).catch(e=>console.warn('status patch failed', e));
+  }
+  render();
+}
+// ═══════════════════════════════════════════════
+// EVENT PUSH
+// ═══════════════════════════════════════════════
+async function pushEvt(key, extras={}){
+  if(!G_game_id) return;
+  const evtId = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  G_evt_current_group.push(evtId);
+  const sideForTeam = extras.side || G.poss;
+  const row = {
+    id: evtId, game_id: G_game_id,
+    team_id: sideForTeam==='home' ? G_home_team_id : G_away_team_id,
+    event_type: key,
+    period: G.quarter, clock_seconds: G.clock,
+    inning: G.quarter, half:'top', outs:0, balls:0, strikes:0, bases:null, rbi:0,
+    runs: extras.points || 0,
+    player_name: extras.player || null,
+    player_num: (extras.num!=null && extras.num!=='') ? (parseInt(extras.num)||null) : null,
+    x: (extras.ballOn!=null ? Math.round(extras.ballOn) : Math.round(G.ballOn)),
+    notes: JSON.stringify(Object.assign({
+      down:G.down, distance:G.distance, ballOn:Math.round(G.ballOn), poss:G.poss,
+      spot:spotLabel(), dd:ddLabel(), clock:fmtClock(G.clock), qtr:qtrLabel(),
+      score:{away:G.score.away, home:G.score.home}
+    }, extras.detail||{}))
+  };
+  await sbInsert('game_events', row);
+  if(extras.points){
+    fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ home_score_live:G.score.home, away_score_live:G.score.away })
+    }).catch(()=>{});
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DRIVES
+// ═══════════════════════════════════════════════
+function startDrive(){
+  G.curDrive = { team:G.poss, startQtr:G.quarter, startClock:G.clock, startBallOn:G.ballOn, plays:0, yards:0, result:null };
+}
+function endDrive(result){
+  if(G.curDrive){ G.curDrive.result=result; G.curDrive.endBallOn=G.ballOn; G.drives.push(G.curDrive); G.curDrive=null; }
+}
+
+// ═══════════════════════════════════════════════
+// FIELD MATH / TRANSITIONS
+// ═══════════════════════════════════════════════
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+
+// Move ball within the current possession to absolute spot (poss own-goal frame), handle down/distance.
+function commitPlay(newBallOn){
+  newBallOn = clamp(newBallOn, 0, 100);
+  if(G.curDrive){ G.curDrive.plays++; G.curDrive.yards += (newBallOn - G.curDrive.startBallOn) - (G.ballOn - G.curDrive.startBallOn); }
+  const target = firstDownTarget();
+  G.ballOn = newBallOn;
+  if(newBallOn >= target){
+    G.down = 1;
+    G.distance = Math.min(10, 100 - newBallOn);
+  } else {
+    G.down += 1;
+    G.distance = Math.max(1, target - newBallOn);
+    if(G.down > 4){
+      addPBP(`<strong>Turnover on downs</strong> — ${abbr(other(G.poss))} takes over`);
+      changePoss(other(G.poss), 100 - G.ballOn, 'downs');
+    }
+  }
+}
+
+// Flip possession to newPoss; newBallOn is already in newPoss own-goal frame.
+function changePoss(newPoss, newBallOn, reason){
+  endDrive(reason||'change');
+  G.poss = newPoss;
+  G.ballOn = clamp(newBallOn, 1, 99);
+  G.down = 1;
+  G.distance = Math.min(10, 100 - G.ballOn);
+  startDrive();
+}
+
+function flipPossession(){
+  saveSnapshot();
+  addPBP(`Possession → ${abbr(other(G.poss))} (manual)`);
+  changePoss(other(G.poss), 100 - G.ballOn, 'manual');
+  render();
+}
+
+// ── Scoring ──
+function addScore(side, pts){ G.score[side] += pts; }
+
+function scoreTD(side){
+  addScore(side, 6);
+  endDrive('TD');
+  addPBP(`<strong>TOUCHDOWN ${abbr(side)}!</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
+  // set up PAT: scoring team on offense at the 3 (Maine HS PAT spot ~3)
+  G.poss = side; G.ballOn = 97; G.down = 1; G.distance = 3;
+  G.pendingPAT = true;
+}
+function scoreFG(side){
+  addScore(side, 3);
+  endDrive('FG');
+  addPBP(`<strong>FIELD GOAL ${abbr(side)} — good</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
+  // kickoff: scoring team kicks off; receiving team takes over ~25
+  changePoss(other(side), 25, 'kickoff-pending');
+}
+function scoreSafety(side){
+  // side = team that SCORES the safety (the defense). The offense was tackled in own EZ.
+  addScore(side, 2);
+  endDrive('Safety');
+  addPBP(`<strong>SAFETY ${abbr(side)}</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
+  changePoss(other(side), 25, 'free-kick');
+}
+
+// ═══════════════════════════════════════════════
+// FIELD RENDERING (shared by strip + spot picker)
+// ═══════════════════════════════════════════════
+// frame: team whose own goal sits at x=100 (left). Offense drives left→right.
+function buildFieldSVG(frame, ballOn, target, opts={}){
+  const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900
+  const leftEZ = abbr(frame), rightEZ = abbr(other(frame));
+  let s = '';
+  // turf
+  s += `<rect x="0" y="0" width="1000" height="${opts.h||160}" fill="#3f7d4f"/>`;
+  // end zones
+  s += `<rect x="0" y="0" width="100" height="${opts.h||160}" fill="#2f5f3b"/>`;
+  s += `<rect x="900" y="0" width="100" height="${opts.h||160}" fill="#2f5f3b"/>`;
+  const H = opts.h||160, midY = H/2;
+  // yard lines every 5
+  for(let y=0;y<=100;y+=5){
+    const x=X(y);
+    s += `<line x1="${x}" y1="14" x2="${x}" y2="${H-14}" stroke="#ffffff" stroke-width="${y%10===0?2:1}" opacity="${y%10===0?0.85:0.45}"/>`;
+  }
+  // yard numbers (10..50..10 conventional)
+  for(let y=10;y<=90;y+=10){
+    const conv = y<=50 ? y : 100-y;
+    s += `<text x="${X(y)}" y="${midY-10}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="20" font-weight="800" fill="#ffffff" opacity="0.6">${conv}</text>`;
+  }
+  // end zone labels
+  s += `<text x="50" y="${midY+6}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="20" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(-90 50 ${midY})">${leftEZ}</text>`;
+  s += `<text x="950" y="${midY+6}" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="20" font-weight="900" fill="#ffffff" opacity="0.85" transform="rotate(90 950 ${midY})">${rightEZ}</text>`;
+  // first down marker
+  if(target!=null && target<100){
+    const tx=X(target);
+    s += `<line x1="${tx}" y1="6" x2="${tx}" y2="${H-6}" stroke="#fbbf24" stroke-width="3"/>`;
+    s += `<polygon points="${tx-7},6 ${tx+7},6 ${tx},16" fill="#fbbf24"/>`;
+  }
+  // line of scrimmage / ball
+  if(ballOn!=null){
+    const bx=X(clamp(ballOn,0,100));
+    s += `<line x1="${bx}" y1="6" x2="${bx}" y2="${H-6}" stroke="#1e3a8a" stroke-width="2" opacity="0.9"/>`;
+    s += `<ellipse cx="${bx}" cy="${midY}" rx="13" ry="8" fill="#a0522d" stroke="#ffffff" stroke-width="2"/>`;
+    s += `<line x1="${bx-6}" y1="${midY}" x2="${bx+6}" y2="${midY}" stroke="#ffffff" stroke-width="1.5"/>`;
+  }
+  // drive direction arrow
+  if(opts.arrow!==false){
+    const ay=H-22;
+    s += `<line x1="${X(ballOn||0)+18}" y1="${ay}" x2="${X(ballOn||0)+60}" y2="${ay}" stroke="#fde68a" stroke-width="3" opacity="0.8"/>`;
+    s += `<polygon points="${X(ballOn||0)+58},${ay-6} ${X(ballOn||0)+58},${ay+6} ${X(ballOn||0)+70},${ay}" fill="#fde68a" opacity="0.8"/>`;
+  }
+  return s;
+}
+
+function renderField(){
+  const svg = document.getElementById('fieldSVG');
+  if(svg) svg.innerHTML = buildFieldSVG(G.poss, G.ballOn, firstDownTarget(), {h:160});
+}
+// ═══════════════════════════════════════════════
+// OVERLAY HELPERS
+// ═══════════════════════════════════════════════
+function openOv(id){ document.getElementById(id).style.display='flex'; }
+function closeOv(id){ document.getElementById(id).style.display='none'; }
+function msg(title, body){ document.getElementById('msgTitle').textContent=title; document.getElementById('msgBody').innerHTML=body; openOv('ovMsg'); }
+
+function pselRow(lbl, player, onclick){
+  const v = player ? `#${player.number||'?'} ${player.name}` : 'Tap to select';
+  return `<div class="psel-row" onclick="${onclick}"><span class="psel-lbl">${lbl}</span><span class="psel-val ${player?'':'empty'}">${v}</span></div>`;
+}
+function spotRow(toSpot, base, onclick){
+  const gain = Math.round(toSpot - base);
+  return `<div class="psel-row" onclick="${onclick}"><span class="psel-lbl">Ball ends at</span><span class="psel-val">${spotLabel(toSpot)} <span style="color:${gain>=0?'var(--green)':'var(--red)'};font-size:13px">(${gain>=0?'+':''}${gain})</span></span></div>`;
+}
+
+// ── Reusable player picker ──
+let _pickerCtx=null;
+function openPicker(side, title, cb){ _pickerCtx={side,cb}; document.getElementById('ovPickerTitle').textContent=title; document.getElementById('pickerSearch').value=''; renderPicker(); openOv('ovPicker'); }
+function renderPicker(){
+  const q=(document.getElementById('pickerSearch').value||'').toLowerCase();
+  const roster=G.teams[_pickerCtx.side].roster;
+  const items=roster.map((p,i)=>({p,i})).filter(({p})=>p.name && (!q || p.name.toLowerCase().includes(q) || String(p.number).includes(q)));
+  const list=document.getElementById('pickerList');
+  list.innerHTML = items.length ? items.map(({p,i})=>`
+    <div class="sub-player" onclick="pickerChoose(${i})">
+      <div class="sub-num">${p.number?'#'+p.number:'—'}</div>
+      <div class="sub-name">${p.name}</div>
+      <div class="sub-pos">${p.pos||''}</div>
+    </div>`).join('') : '<div style="font-size:13px;color:var(--dim);padding:8px">No players match. Add players in setup.</div>';
+}
+function pickerChoose(i){ const cb=_pickerCtx.cb, side=_pickerCtx.side; closeOv('ovPicker'); cb(i==null?null:G.teams[side].roster[i]); }
+
+// ── Reusable spot picker ──
+let _spotCtx=null;
+function openSpotPicker(frame, start, cb, opts={}){
+  _spotCtx={frame, val:Math.round(start), base:Math.round(opts.base!=null?opts.base:start), cb, showGain:opts.showGain!==false, target:opts.target};
+  document.getElementById('ovSpotTitle').textContent=opts.title||'Set Spot';
+  renderSpotPicker(); openOv('ovSpot');
+}
+function renderSpotPicker(){
+  const c=_spotCtx;
+  document.getElementById('spotFieldSVG').innerHTML=buildFieldSVG(c.frame, c.val, c.target, {h:120, arrow:false});
+  document.getElementById('spotBig').textContent=spotLabel(c.val, c.frame);
+  const g=document.getElementById('spotGain');
+  if(c.showGain){ const gain=Math.round(c.val-c.base); g.textContent=(gain>=0?'+':'')+gain+' yd'; g.className='spot-gain '+(gain>=0?'pos':'neg'); }
+  else g.textContent='';
+}
+function spotNudge(d){ _spotCtx.val=clamp(_spotCtx.val+d,0,100); renderSpotPicker(); }
+function spotFieldTap(e){
+  const wrap=document.getElementById('spotFieldWrap'); const r=wrap.getBoundingClientRect();
+  const xView=((e.clientX-r.left)/r.width)*1000;
+  _spotCtx.val=clamp(Math.round((xView-100)/8),0,100); renderSpotPicker();
+}
+function confirmSpot(){ const c=_spotCtx; closeOv('ovSpot'); c.cb(c.val); }
+
+// ═══════════════════════════════════════════════
+// RUN PLAY
+// ═══════════════════════════════════════════════
+function openRun(){
+  saveSnapshot();
+  G.pend={type:'run', rusher:null, toSpot:G.ballOn, tackler:null, assist:null, fumble:false, fumRecover:'off'};
+  document.getElementById('ovPlayTitle').textContent='Run';
+  renderRun(); openOv('ovPlay');
+}
+function renderRun(){
+  const p=G.pend;
+  let h = pselRow('Rusher', p.rusher, "pickFor('rusher','"+G.poss+"','Select Rusher')");
+  h += `<div class="sec-lbl">Result</div>`;
+  h += spotRow(p.toSpot, G.ballOn, "runSpot()");
+  h += `<div class="sec-lbl">Tackle (optional)</div>`;
+  h += pselRow('Tackle', p.tackler, "pickFor('tackler','"+defSide()+"','Tackled by')");
+  h += pselRow('Assist', p.assist, "pickFor('assist','"+defSide()+"','Assist')");
+  h += `<div class="res-row" style="margin-top:10px"><span class="toggle-pill ${p.fumble?'on':''}" onclick="G.pend.fumble=!G.pend.fumble;renderRun()">Fumble on play</span></div>`;
+  if(p.fumble){
+    h += `<div class="sec-lbl">Recovered by</div><div class="res-row">
+      <span class="reschip ${p.fumRecover==='off'?'active':''}" onclick="G.pend.fumRecover='off';renderRun()">${abbr(G.poss)} (offense)</span>
+      <span class="reschip ${p.fumRecover==='def'?'active':''}" onclick="G.pend.fumRecover='def';renderRun()">${abbr(defSide())} (defense)</span></div>`;
+  }
+  h += `<div class="oactions"><button class="oconfirm" onclick="confirmRun()">Save Play</button></div>`;
+  document.getElementById('ovPlayBody').innerHTML=h;
+}
+function runSpot(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{ G.pend.toSpot=v; renderRun(); }, {base:G.ballOn, target:firstDownTarget(), title:'Ball ends at'}); }
+
+function confirmRun(){
+  const p=G.pend;
+  if(!p.rusher){ msg('Pick a rusher','Tap Rusher to choose who carried the ball.'); return; }
+  const gain=Math.round(p.toSpot-G.ballOn);
+  const st=statFor(G.poss, p.rusher.name, p.rusher.number);
+  st.ra++; st.ryd+=gain; if(gain>st.rlong) st.rlong=gain;
+  if(p.tackler){ const d=statFor(defSide(), p.tackler.name, p.tackler.number); d.tkl++; }
+  if(p.assist){ const d=statFor(defSide(), p.assist.name, p.assist.number); d.ast++; }
+  if(p.fumble){ st.fum++; }
+  closeOv('ovPlay');
+  const td = p.toSpot>=100 && !(p.fumble && p.fumRecover==='def');
+  const tackTxt = p.tackler?` (${p.tackler.name}${p.assist?', '+p.assist.name:''})`:'';
+  if(td){
+    st.rtd++;
+    addPBP(`${p.rusher.name} ${gain} yd rush ${tackTxt}`);
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,td:true}});
+    const tdSide=G.poss;
+    scoreTD(tdSide);
+    pushEvt('touchdown',{player:p.rusher.name,num:p.rusher.number,points:6,side:tdSide});
+  } else if(p.fumble && p.fumRecover==='def'){
+    st.fumlost++;
+    addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — ${abbr(defSide())} ball`);
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,fumbleLost:true}});
+    // ball at fumble spot, defense takes over (mirror)
+    G.ballOn=clamp(p.toSpot,0,100);
+    changePoss(other(G.poss), 100-G.ballOn, 'fumble');
+  } else {
+    addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} yd rush${tackTxt}`);
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,tackler:p.tackler?.name||null}});
+    commitPlay(p.toSpot);
+  }
+  G.pend=null; render();
+}
+
+// ═══════════════════════════════════════════════
+// PASS PLAY
+// ═══════════════════════════════════════════════
+function openPass(){
+  saveSnapshot();
+  G.pend={type:'pass', sub:'comp', passer:null, receiver:null, defender:null, toSpot:G.ballOn, tackler:null, intSpot:100-G.ballOn};
+  document.getElementById('ovPlayTitle').textContent='Pass';
+  renderPass(); openOv('ovPlay');
+}
+function passTab(s){ G.pend.sub=s; renderPass(); }
+function renderPass(){
+  const p=G.pend;
+  let h = `<div class="ptabs">
+    <div class="ptab ${p.sub==='comp'?'active':''}" onclick="passTab('comp')">Complete</div>
+    <div class="ptab ${p.sub==='incomp'?'active':''}" onclick="passTab('incomp')">Incomplete</div>
+    <div class="ptab ${p.sub==='int'?'active':''}" onclick="passTab('int')">INT</div>
+    <div class="ptab ${p.sub==='sack'?'active':''}" onclick="passTab('sack')">Sack</div>
+  </div>`;
+  if(p.sub==='sack'){
+    h += pselRow('Sacked QB', p.passer, "pickFor('passer','"+G.poss+"','QB / Passer')");
+    h += pselRow('Sack by', p.defender, "pickFor('defender','"+defSide()+"','Sack by')");
+    h += `<div class="sec-lbl">Tackled at</div>`;
+    h += spotRow(p.toSpot, G.ballOn, "passSpotBack()");
+  } else {
+    h += pselRow('Passer', p.passer, "pickFor('passer','"+G.poss+"','QB / Passer')");
+    if(p.sub==='comp' || p.sub==='int') h += pselRow(p.sub==='int'?'Targeted':'Receiver', p.receiver, "pickFor('receiver','"+G.poss+"','Receiver')");
+    if(p.sub==='int'){
+      h += pselRow('Intercepted by', p.defender, "pickFor('defender','"+defSide()+"','Intercepted by')");
+      h += `<div class="sec-lbl">${abbr(defSide())} ball at</div>`;
+      h += `<div class="psel-row" onclick="intSpot()"><span class="psel-lbl">Return to</span><span class="psel-val">${spotLabel(p.intSpot, defSide())}</span></div>`;
+    }
+    if(p.sub==='comp'){
+      h += `<div class="sec-lbl">Caught / ends at</div>`;
+      h += spotRow(p.toSpot, G.ballOn, "passSpot()");
+      h += pselRow('Tackle (optional)', p.tackler, "pickFor('tackler','"+defSide()+"','Tackled by')");
+    }
+  }
+  h += `<div class="oactions"><button class="oconfirm" onclick="confirmPass()">Save Play</button></div>`;
+  document.getElementById('ovPlayBody').innerHTML=h;
+}
+function passSpot(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{G.pend.toSpot=v;renderPass();}, {base:G.ballOn, target:firstDownTarget(), title:'Caught / ends at'}); }
+function passSpotBack(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{G.pend.toSpot=v;renderPass();}, {base:G.ballOn, title:'Tackled at'}); }
+function intSpot(){ openSpotPicker(defSide(), G.pend.intSpot, v=>{G.pend.intSpot=v;renderPass();}, {showGain:false, title:abbr(defSide())+' takes over at'}); }
+
+function confirmPass(){
+  const p=G.pend;
+  closeOv('ovPlay');
+  if(p.sub==='incomp'){
+    if(!p.passer){ openOv('ovPlay'); msg('Pick a passer','Choose who threw the ball.'); return; }
+    const st=statFor(G.poss,p.passer.name,p.passer.number); st.pa++;
+    addPBP(`${p.passer.name} pass incomplete`);
+    pushEvt('pass_incomp',{player:p.passer.name,num:p.passer.number});
+    commitPlay(G.ballOn);
+  } else if(p.sub==='comp'){
+    if(!p.passer||!p.receiver){ openOv('ovPlay'); msg('Missing player','Pick both passer and receiver.'); return; }
+    const gain=Math.round(p.toSpot-G.ballOn);
+    const ps=statFor(G.poss,p.passer.name,p.passer.number); ps.pa++; ps.pc++; ps.pyd+=gain;
+    const rs=statFor(G.poss,p.receiver.name,p.receiver.number); rs.rec++; rs.recyd+=gain; if(gain>rs.reclong) rs.reclong=gain;
+    if(p.tackler){ const d=statFor(defSide(),p.tackler.name,p.tackler.number); d.tkl++; }
+    const td=p.toSpot>=100;
+    if(td){
+      ps.ptd++; rs.rectd++;
+      addPBP(`${p.passer.name} ${gain} yd TD pass to ${p.receiver.name}`);
+      pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name,td:true}});
+      const tdSide=G.poss; scoreTD(tdSide);
+      pushEvt('touchdown',{player:p.receiver.name,num:p.receiver.number,points:6,side:tdSide});
+    } else {
+      addPBP(`${p.passer.name} ${gain>=0?'+':''}${gain} pass to ${p.receiver.name}${p.tackler?` (${p.tackler.name})`:''}`);
+      pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name}});
+      commitPlay(p.toSpot);
+    }
+  } else if(p.sub==='int'){
+    if(!p.passer||!p.defender){ openOv('ovPlay'); msg('Missing player','Pick the passer and the defender who intercepted.'); return; }
+    const ps=statFor(G.poss,p.passer.name,p.passer.number); ps.pa++; ps.pint++;
+    const ds=statFor(defSide(),p.defender.name,p.defender.number); ds.dint++;
+    addPBP(`<strong>INTERCEPTED</strong> by ${p.defender.name} (${abbr(defSide())})`);
+    pushEvt('interception',{player:p.defender.name,num:p.defender.number,side:defSide(),detail:{passer:p.passer.name}});
+    changePoss(defSide(), p.intSpot, 'interception');
+  } else if(p.sub==='sack'){
+    if(!p.passer||!p.defender){ openOv('ovPlay'); msg('Missing player','Pick the QB and who made the sack.'); return; }
+    const loss=Math.round(p.toSpot-G.ballOn);
+    const ds=statFor(defSide(),p.defender.name,p.defender.number); ds.sack++;
+    addPBP(`${p.passer.name} sacked by ${p.defender.name} (${loss} yд)`.replace('yд','yd'));
+    pushEvt('sack',{player:p.defender.name,num:p.defender.number,side:defSide(),detail:{loss,qb:p.passer.name}});
+    if(p.toSpot<=0){ scoreSafety(defSide()); }
+    else commitPlay(p.toSpot);
+  }
+  G.pend=null; render();
+}
+
+// shared picker dispatch for pending play
+function pickFor(field, side, title){ openPicker(side, title, pl=>{ if(G.pend){ G.pend[field]=pl; rerenderPend(); } }); }
+function rerenderPend(){ if(!G.pend) return; if(G.pend.type==='run') renderRun(); else if(G.pend.type==='pass') renderPass(); else if(G.pend.type==='kick') renderKick(); }
+
+// ═══════════════════════════════════════════════
+// KICK PLAY  (Kickoff / Punt / FG / PAT)
+// ═══════════════════════════════════════════════
+function defaultKickTab(){
+  if(G.pendingPAT) return 'pat';
+  if(G.kickoffPending) return 'kickoff';
+  if(G.down>=4) return 'punt';
+  return 'fg';
+}
+function openKick(){
+  saveSnapshot();
+  const recv=G.poss, kicking=defSide();
+  G.pend={ type:'kick', sub:defaultKickTab(),
+    // kickoff
+    koKicker:null, koReturner:null, koRecAt:0, koAdvTo:25, koTouchback:false,
+    // punt
+    puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
+    // fg
+    fgKicker:null, fgGood:true,
+    // pat
+    patMode:'kick', patKicker:null, patGood:true, patPlayer:null, patConverted:false
+  };
+  document.getElementById('ovPlayTitle').textContent='Kick';
+  renderKick(); openOv('ovPlay');
+}
+function kickTab(s){ G.pend.sub=s; renderKick(); }
+function renderKick(){
+  const p=G.pend, recv=G.poss, kicking=defSide();
+  let h = `<div class="ptabs">
+    <div class="ptab ${p.sub==='kickoff'?'active':''}" onclick="kickTab('kickoff')">Kickoff</div>
+    <div class="ptab ${p.sub==='punt'?'active':''}" onclick="kickTab('punt')">Punt</div>
+    <div class="ptab ${p.sub==='fg'?'active':''}" onclick="kickTab('fg')">FG</div>
+    <div class="ptab ${p.sub==='pat'?'active':''}" onclick="kickTab('pat')">PAT</div>
+  </div>`;
+
+  if(p.sub==='kickoff'){
+    h += `<div class="sec-lbl">${abbr(kicking)} kicks · ${abbr(recv)} returns</div>`;
+    h += pselRow('Kicker', p.koKicker, "pickFor('koKicker','"+kicking+"','Kicker')");
+    h += pselRow('Returner', p.koReturner, "pickFor('koReturner','"+recv+"','Returner')");
+    h += `<div class="res-row" style="margin:6px 0"><span class="toggle-pill ${p.koTouchback?'on':''}" onclick="G.pend.koTouchback=!G.pend.koTouchback;renderKick()">Touchback (start at 20)</span></div>`;
+    if(!p.koTouchback){
+      h += `<div class="sec-lbl">Return ends at (${abbr(recv)} drive starts)</div>`;
+      h += `<div class="psel-row" onclick="koSpot()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.koAdvTo, recv)}</span></div>`;
+    }
+  } else if(p.sub==='punt'){
+    h += `<div class="sec-lbl">${abbr(recv)} punts · ${abbr(kicking)} receives</div>`;
+    h += pselRow('Punter', p.puntPunter, "pickFor('puntPunter','"+recv+"','Punter')");
+    h += `<div class="res-row" style="margin:6px 0"><span class="toggle-pill ${p.puntTouchback?'on':''}" onclick="G.pend.puntTouchback=!G.pend.puntTouchback;renderKick()">Touchback (downs at 20)</span></div>`;
+    if(!p.puntTouchback){
+      h += `<div class="sec-lbl">Punt caught / lands at</div>`;
+      h += `<div class="psel-row" onclick="puntLandSpot()"><span class="psel-lbl">Lands at</span><span class="psel-val">${spotLabel(p.puntLand, recv)}</span></div>`;
+      h += pselRow('Returner (optional)', p.puntReturner, "pickFor('puntReturner','"+kicking+"','Returner')");
+      h += `<div class="sec-lbl">Play ends at</div>`;
+      h += `<div class="psel-row" onclick="puntEndSpot()"><span class="psel-lbl">Ends at</span><span class="psel-val">${spotLabel(p.puntEnd, recv)}</span></div>`;
+    }
+  } else if(p.sub==='fg'){
+    const dist=(100-G.ballOn)+17;
+    h += `<div class="sec-lbl">${abbr(recv)} field goal · ${dist} yd attempt</div>`;
+    h += pselRow('Kicker', p.fgKicker, "pickFor('fgKicker','"+recv+"','Kicker')");
+    h += `<div class="sec-lbl">Result</div>`;
+    h += `<div class="res-row">
+      <span class="reschip ${p.fgGood?'active':''}" onclick="G.pend.fgGood=true;renderKick()">Good (+3)</span>
+      <span class="reschip ${!p.fgGood?'active':''}" onclick="G.pend.fgGood=false;renderKick()">Missed</span></div>`;
+  } else if(p.sub==='pat'){
+    h += `<div class="sec-lbl">${abbr(recv)} point(s) after</div>`;
+    h += `<div class="res-row" style="margin-bottom:8px">
+      <span class="reschip ${p.patMode==='kick'?'active':''}" onclick="G.pend.patMode='kick';renderKick()">Kick (XP)</span>
+      <span class="reschip ${p.patMode==='two'?'active':''}" onclick="G.pend.patMode='two';renderKick()">2-pt Try</span></div>`;
+    if(p.patMode==='kick'){
+      h += pselRow('Kicker', p.patKicker, "pickFor('patKicker','"+recv+"','Kicker')");
+      h += `<div class="sec-lbl">Result</div>`;
+      h += `<div class="res-row">
+        <span class="reschip ${p.patGood?'active':''}" onclick="G.pend.patGood=true;renderKick()">Good (+1)</span>
+        <span class="reschip ${!p.patGood?'active':''}" onclick="G.pend.patGood=false;renderKick()">No good</span></div>`;
+    } else {
+      h += pselRow('Ball carrier (optional)', p.patPlayer, "pickFor('patPlayer','"+recv+"','2-pt by')");
+      h += `<div class="sec-lbl">Result</div>`;
+      h += `<div class="res-row">
+        <span class="reschip ${p.patConverted?'active':''}" onclick="G.pend.patConverted=true;renderKick()">Converted (+2)</span>
+        <span class="reschip ${!p.patConverted?'active':''}" onclick="G.pend.patConverted=false;renderKick()">Failed</span></div>`;
+    }
+  }
+  h += `<div class="oactions"><button class="oconfirm" onclick="confirmKick()">Save Play</button></div>`;
+  document.getElementById('ovPlayBody').innerHTML=h;
+}
+function koSpot(){ openSpotPicker(G.poss, G.pend.koAdvTo, v=>{G.pend.koAdvTo=v;renderKick();}, {showGain:false, title:'Return ends at'}); }
+function puntLandSpot(){ openSpotPicker(G.poss, G.pend.puntLand, v=>{G.pend.puntLand=v; if(G.pend.puntEnd>v)G.pend.puntEnd=v; renderKick();}, {base:G.ballOn, title:'Punt lands at'}); }
+function puntEndSpot(){ openSpotPicker(G.poss, G.pend.puntEnd, v=>{G.pend.puntEnd=v;renderKick();}, {showGain:false, title:'Play ends at'}); }
+
+function confirmKick(){
+  const p=G.pend, recv=G.poss, kicking=defSide();
+  closeOv('ovPlay');
+
+  if(p.sub==='kickoff'){
+    const advTo = p.koTouchback ? 20 : p.koAdvTo;
+    if(p.koKicker){ statFor(kicking,p.koKicker.name,p.koKicker.number); }
+    if(p.koReturner && !p.koTouchback){ const rs=statFor(recv,p.koReturner.name,p.koReturner.number); rs.kret++; rs.kretyd += Math.max(0,advTo-p.koRecAt); }
+    if(advTo>=100 && !p.koTouchback){
+      addPBP(`<strong>KICK RETURN TD</strong> — ${p.koReturner?p.koReturner.name:abbr(recv)} (${abbr(recv)})`);
+      pushEvt('kick_return_td',{player:p.koReturner?.name,num:p.koReturner?.number,side:recv,detail:{}});
+      const tdSide=recv; scoreTD(tdSide);
+      pushEvt('touchdown',{player:p.koReturner?.name,num:p.koReturner?.number,points:6,side:tdSide});
+    } else {
+      G.ballOn=clamp(advTo,1,99); G.down=1; G.distance=Math.min(10,100-G.ballOn);
+      if(G.curDrive) G.curDrive.startBallOn=G.ballOn;
+      G.kickoffPending=false;
+      addPBP(`Kickoff${p.koTouchback?', touchback':''} — ${abbr(recv)} ball at ${spotLabel()}`);
+      pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{advTo:spotLabel(advTo,recv),touchback:p.koTouchback}});
+    }
+  } else if(p.sub==='punt'){
+    if(p.puntPunter){ const ps=statFor(recv,p.puntPunter.name,p.puntPunter.number); ps.punts++; ps.puntyd += Math.max(0,(p.puntTouchback?80:p.puntLand)-G.ballOn); }
+    let F = p.puntTouchback ? 80 : p.puntEnd;
+    if(p.puntReturner && !p.puntTouchback && p.puntEnd!==p.puntLand){ const rs=statFor(kicking,p.puntReturner.name,p.puntReturner.number); rs.pret++; rs.pretyd += Math.max(0,p.puntLand-p.puntEnd); }
+    addPBP(`${p.puntPunter?p.puntPunter.name+' ':''}punt${p.puntTouchback?', touchback':''} — ${abbr(kicking)} ball`);
+    pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{lands:spotLabel(p.puntLand,recv),touchback:p.puntTouchback}});
+    if(F<=0){
+      addPBP(`<strong>PUNT RETURN TD</strong> — ${p.puntReturner?p.puntReturner.name:abbr(kicking)} (${abbr(kicking)})`);
+      const tdSide=kicking;
+      G.poss=kicking;                 // scoreTD ends the punting team's drive, then sets PAT for returner's team
+      scoreTD(tdSide);
+      pushEvt('touchdown',{player:p.puntReturner?.name,num:p.puntReturner?.number,points:6,side:tdSide});
+    } else {
+      G.kickoffPending=false;
+      changePoss(kicking, 100-F, 'punt');
+    }
+  } else if(p.sub==='fg'){
+    const recvSide=recv;
+    if(p.fgKicker){ const ks=statFor(recvSide,p.fgKicker.name,p.fgKicker.number); ks.fga++; if(p.fgGood) ks.fgm++; }
+    if(p.fgGood){
+      pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,points:3,side:recvSide,detail:{good:true}});
+      scoreFG(recvSide);
+      G.kickoffPending=true;
+    } else {
+      addPBP(`Field goal ${abbr(recvSide)} — <strong>missed</strong>`);
+      pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{good:false}});
+      changePoss(defSide(), 100-G.ballOn, 'missed-fg');
+    }
+  } else if(p.sub==='pat'){
+    const recvSide=recv;
+    if(p.patMode==='kick'){
+      if(p.patKicker){ const ks=statFor(recvSide,p.patKicker.name,p.patKicker.number); ks.xpa++; if(p.patGood) ks.xpm++; }
+      if(p.patGood){ addScore(recvSide,1); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true}}); }
+      else { addPBP(`Extra point ${abbr(recvSide)} — no good`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,side:recvSide,detail:{good:false}}); }
+    } else {
+      if(p.patConverted){ addScore(recvSide,2); addPBP(`2-pt conversion ${abbr(recvSide)} — good${p.patPlayer?` (${p.patPlayer.name})`:''} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,points:2,side:recvSide,detail:{good:true}}); }
+      else { addPBP(`2-pt conversion ${abbr(recvSide)} — failed`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,side:recvSide,detail:{good:false}}); }
+    }
+    G.pendingPAT=false;
+    // scoring team kicks off to the other team
+    changePoss(other(recvSide), 25, 'kickoff-pending');
+    G.kickoffPending=true;
+  }
+  G.pend=null; render();
+}
+
+// ═══════════════════════════════════════════════
+// PENALTY
+// ═══════════════════════════════════════════════
+let _penTeam=null;
+function openPenalty(){
+  saveSnapshot();
+  _penTeam=defSide();
+  document.getElementById('penYds').value=5;
+  document.getElementById('penAutoFirst').classList.remove('on');
+  document.getElementById('penLossDown').classList.remove('on');
+  document.getElementById('penReplay').classList.add('on');
+  renderPenTeam();
+  openOv('ovPenalty');
+}
+function renderPenTeam(){
+  document.getElementById('penTeamRow').innerHTML = ['away','home'].map(s=>
+    `<span class="reschip ${_penTeam===s?'active':''}" onclick="_penTeam='${s}';renderPenTeam()">${abbr(s)}${s===G.poss?' (off)':' (def)'}</span>`).join('');
+}
+function setPenYds(y){ document.getElementById('penYds').value=y; }
+function confirmPenalty(){
+  const yds=parseInt(document.getElementById('penYds').value)||0;
+  const autoFirst=document.getElementById('penAutoFirst').classList.contains('on');
+  const lossDown=document.getElementById('penLossDown').classList.contains('on');
+  const replay=document.getElementById('penReplay').classList.contains('on');
+  const team=_penTeam;
+  closeOv('ovPenalty');
+  const onDef = team!==G.poss;
+  const oldTarget=firstDownTarget();
+  let nb;
+  if(onDef){ const half=Math.floor((100-G.ballOn)/2); nb=G.ballOn+Math.min(yds,half); }
+  else { const half=Math.floor(G.ballOn/2); nb=G.ballOn-Math.min(yds,half); }
+  G.ballOn=clamp(nb,1,99);
+  if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); }
+  else { G.distance=Math.max(1, oldTarget-G.ballOn); if(lossDown) G.down=Math.min(4,G.down+1); }
+  addPBP(`Penalty on ${abbr(team)}, ${yds} yd${autoFirst?', automatic first down':''}${lossDown?', loss of down':''} — ${ddLabel()} at ${spotLabel()}`);
+  pushEvt('penalty',{side:team,detail:{yds,on:abbr(team),autoFirst,lossDown,replay}});
+  G.pend=null; render();
+}
+
+// ═══════════════════════════════════════════════
+// PLAY-BY-PLAY + RENDER
+// ═══════════════════════════════════════════════
+function addPBP(text, isDriveHead){
+  G.pbp.push({ qtr:qtrLabel(), clock:fmtClock(G.clock), text, drive:!!isDriveHead });
+}
+function renderPBP(){
+  if(G.pbp.length===_lastPbpLength) return;
+  _lastPbpLength=G.pbp.length;
+  const el=document.getElementById('pbpLog');
+  if(!el) return;
+  // newest first
+  el.innerHTML = G.pbp.slice().reverse().map(e=>{
+    if(e.drive) return `<div class="drive-head"><span>${e.text}</span><span>${e.qtr} ${e.clock}</span></div>`;
+    return `<div class="pbp-entry"><div class="pbp-q">${e.qtr}<br>${e.clock}</div><div class="pbp-txt">${e.text}</div></div>`;
+  }).join('');
+  el.scrollTop=0;
+}
+function renderTimeouts(side){
+  const n=G.timeouts[side];
+  return [0,1,2].map(i=>`<span class="to-pip ${i<n?'on':''}"></span>`).join('');
+}
+function render(){
+  // scoreboard
+  document.getElementById('sbAwayAbbr').textContent=abbr('away');
+  document.getElementById('sbHomeAbbr').textContent=abbr('home');
+  document.getElementById('sbAwayScore').textContent=G.score.away;
+  document.getElementById('sbHomeScore').textContent=G.score.home;
+  document.getElementById('possAway').classList.toggle('on', G.poss==='away');
+  document.getElementById('possHome').classList.toggle('on', G.poss==='home');
+  document.getElementById('sbQtr').textContent=qtrLabel();
+  document.getElementById('sbClock').textContent=fmtClock(G.clock);
+  document.getElementById('sbDD').innerHTML=ddLabel().replace('&','&amp;');
+  document.getElementById('sbBallOn').textContent='ball on '+spotLabel();
+  document.getElementById('toAway').innerHTML=renderTimeouts('away');
+  document.getElementById('toHome').innerHTML=renderTimeouts('home');
+  // game id bar
+  const bar=document.getElementById('gameIdBar');
+  if(G_test_mode){ bar.style.display='block'; bar.style.color='#b45309'; bar.style.background='#fef3c7'; bar.textContent='🧪 TEST MODE — nothing is being saved'; }
+  else if(G_game_id){ bar.style.display='block'; bar.style.color='var(--green)'; bar.style.background='var(--green-bg)'; bar.textContent='● LIVE — linked to schedule'; }
+  else { bar.style.display='block'; bar.style.color='var(--dim)'; bar.style.background='var(--surface2)'; bar.textContent='⚠ Manual game — not linked to schedule'; }
+  // pat hint
+  if(G.pendingPAT){ bar.style.display='block'; bar.style.color='#b45309'; bar.style.background='#fef3c7'; bar.textContent='⚡ PAT pending — open Kick to log the try'; }
+  renderField();
+  renderPBP();
+  scheduleSave();
+}
+
+// ═══════════════════════════════════════════════
+// UNDO
+// ═══════════════════════════════════════════════
+function cloneState(){
+  return {
+    quarter:G.quarter, clock:G.clock, poss:G.poss, ballOn:G.ballOn, down:G.down, distance:G.distance,
+    score:{...G.score}, timeouts:{...G.timeouts},
+    stats:JSON.parse(JSON.stringify(G.stats)),
+    drives:JSON.parse(JSON.stringify(G.drives)),
+    curDrive:G.curDrive?JSON.parse(JSON.stringify(G.curDrive)):null,
+    lineScore:JSON.parse(JSON.stringify(G.lineScore||{})),
+    pbpLen:G.pbp.length, pendingPAT:!!G.pendingPAT, kickoffPending:!!G.kickoffPending
+  };
+}
+function saveSnapshot(){
+  if(undoStack.length && G_evt_current_group.length){
+    undoStack[undoStack.length-1].evtIds.push(...G_evt_current_group);
+  }
+  G_evt_current_group=[];
+  undoStack.push({ state:cloneState(), evtIds:[] });
+  if(undoStack.length>MAX_UNDO) undoStack.shift();
+}
+function restoreState(s){
+  G.quarter=s.quarter; G.clock=s.clock; G.poss=s.poss; G.ballOn=s.ballOn; G.down=s.down; G.distance=s.distance;
+  G.score={...s.score}; G.timeouts={...s.timeouts};
+  G.stats=JSON.parse(JSON.stringify(s.stats));
+  G.drives=JSON.parse(JSON.stringify(s.drives));
+  G.curDrive=s.curDrive?JSON.parse(JSON.stringify(s.curDrive)):null;
+  G.lineScore=s.lineScore?JSON.parse(JSON.stringify(s.lineScore)):{};
+  G.pbp=G.pbp.slice(0,s.pbpLen);
+  G.pendingPAT=s.pendingPAT; G.kickoffPending=s.kickoffPending; G.pend=null;
+  _lastPbpLength=-1;
+}
+function doUndo(){
+  if(undoStack.length && G_evt_current_group.length){
+    undoStack[undoStack.length-1].evtIds.push(...G_evt_current_group);
+    G_evt_current_group=[];
+  }
+  if(!undoStack.length){ msg('Nothing to undo','No earlier play recorded to undo.'); return; }
+  const entry=undoStack.pop();
+  if(entry.evtIds.length && G_game_id && !G_test_mode){
+    fetch(`${SB_URL}/rest/v1/game_events?id=in.(${entry.evtIds.join(',')})`, {
+      method:'DELETE', headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,Prefer:'return=minimal'}
+    }).catch(e=>console.warn('undo delete failed',e));
+    const q=queueLoad().filter(item=>!(item.row&&entry.evtIds.includes(item.row.id))); queueSave(q); setQueueStatus();
+    // re-sync live score after undo
+    fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH', headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},
+      body:JSON.stringify({home_score_live:entry.state.score.home, away_score_live:entry.state.score.away})
+    }).catch(()=>{});
+  }
+  restoreState(entry.state);
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// EDITORS  (clock / down&dist / spot / timeout / quarter)
+// ═══════════════════════════════════════════════
+function openClock(){
+  document.getElementById('clkMin').value=Math.floor(G.clock/60);
+  document.getElementById('clkSec').value=G.clock%60;
+  openOv('ovClock');
+}
+function confirmClock(){
+  saveSnapshot();
+  const m=parseInt(document.getElementById('clkMin').value)||0;
+  const s=clamp(parseInt(document.getElementById('clkSec').value)||0,0,59);
+  G.clock=m*60+s; closeOv('ovClock'); render();
+}
+
+let _ddDown=1;
+function openDD(){
+  _ddDown=G.down;
+  document.getElementById('ddDist').value=G.distance;
+  renderDDDown(); openOv('ovDD');
+}
+function renderDDDown(){
+  document.getElementById('ddDownRow').innerHTML=[1,2,3,4].map(d=>{
+    const lbl={1:'1st',2:'2nd',3:'3rd',4:'4th'}[d];
+    return `<span class="reschip ${_ddDown===d?'active':''}" onclick="_ddDown=${d};renderDDDown()">${lbl}</span>`;
+  }).join('');
+}
+function setGoalToGo(){ document.getElementById('ddDist').value=Math.max(1,100-G.ballOn); }
+function confirmDD(){
+  saveSnapshot();
+  G.down=_ddDown;
+  G.distance=clamp(parseInt(document.getElementById('ddDist').value)||10,1,99);
+  closeOv('ovDD'); render();
+}
+
+function openSpotEdit(){
+  const oldTarget=firstDownTarget();
+  openSpotPicker(G.poss, G.ballOn, v=>{
+    saveSnapshot();
+    G.ballOn=clamp(v,0,100);
+    G.distance=Math.max(1, oldTarget-G.ballOn);
+    if(G.distance>=100-G.ballOn) G.distance=Math.max(1,100-G.ballOn);
+    render();
+  }, {base:G.ballOn, target:oldTarget, showGain:true, title:'Correct ball spot'});
+}
+
+function openTimeout(){ renderTOTeam(); openOv('ovTimeout'); }
+function renderTOTeam(){
+  document.getElementById('toTeamRow').innerHTML=['away','home'].map(s=>
+    `<span class="reschip ${G.timeouts[s]>0?'':'reschip'}" style="${G.timeouts[s]<=0?'opacity:.4':''}" onclick="confirmTimeout('${s}')">${abbr(s)} — ${G.timeouts[s]} left</span>`).join('');
+}
+function confirmTimeout(side){
+  if(G.timeouts[side]<=0){ return; }
+  saveSnapshot();
+  G.timeouts[side]--;
+  addPBP(`Timeout ${abbr(side)} (${G.timeouts[side]} left)`);
+  pushEvt('timeout',{side,detail:{remaining:G.timeouts[side]}});
+  closeOv('ovTimeout'); render();
+}
+
+function advanceQuarter(){
+  saveSnapshot();
+  if(G.quarter<4){
+    G.quarter++;
+    G.clock=G.qLen*60;
+    if(G.quarter===3){
+      // halftime: second-half receiving team = the team that kicked off to open
+      endDrive('half');
+      G.poss=other(G.openKick); G.ballOn=25; G.down=1; G.distance=10; G.kickoffPending=true; G.pendingPAT=false;
+      startDrive();
+      addPBP(`<strong>Halftime.</strong> ${abbr(G.poss)} receives 2nd-half kickoff`, true);
+    } else {
+      addPBP(`<strong>End of ${({1:'1st',2:'2nd',3:'3rd'}[G.quarter-1])} quarter</strong>`, true);
+    }
+  } else {
+    // into / through overtime
+    G.quarter++;
+    G.clock=0;
+    endDrive('end-reg');
+    addPBP(`<strong>${G.quarter===5?'Overtime':'OT'+(G.quarter-4)}</strong> — set possession & spot manually`, true);
+    G.kickoffPending=false; G.pendingPAT=false;
+  }
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// BOX SCORE
+// ═══════════════════════════════════════════════
+let _boxTab='away';
+function openBoxScore(){ _boxTab='away'; setBoxTab('away'); openOv('ovBox'); }
+function setBoxTab(side){
+  _boxTab=side;
+  document.getElementById('boxTabAway').classList.toggle('active', side==='away');
+  document.getElementById('boxTabHome').classList.toggle('active', side==='home');
+  document.getElementById('boxTabAway').textContent=abbr('away');
+  document.getElementById('boxTabHome').textContent=abbr('home');
+  document.getElementById('boxBody').innerHTML=buildBoxScore(side);
+}
+function _rows(side, filterFn, cols, mapFn){
+  const players=Object.values(G.stats[side]).filter(filterFn);
+  if(!players.length) return '';
+  players.sort((a,b)=>(b._sort||0)-(a._sort||0));
+  let h=`<table class="box-table"><thead><tr><th>Player</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+  h+=players.map(p=>`<tr><td>${p.number?'#'+p.number+' ':''}${p.name}</td>${mapFn(p).map(v=>`<td>${v}</td>`).join('')}</tr>`).join('');
+  h+='</tbody></table>';
+  return h;
+}
+function buildBoxScore(side){
+  let h='';
+  const sec=(title,tbl)=> tbl?`<div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:12px 0 4px">${title}</div>${tbl}`:'';
+  h+=sec('Passing', _rows(side, p=>p.pa>0, ['C/A','Yds','TD','INT'], p=>[`${p.pc}/${p.pa}`,p.pyd,p.ptd,p.pint]));
+  h+=sec('Rushing', _rows(side, p=>p.ra>0, ['Att','Yds','TD','Lng'], p=>[p.ra,p.ryd,p.rtd,p.rlong]));
+  h+=sec('Receiving', _rows(side, p=>p.rec>0, ['Rec','Yds','TD','Lng'], p=>[p.rec,p.recyd,p.rectd,p.reclong]));
+  h+=sec('Defense', _rows(side, p=>(p.tkl+p.ast+p.sack+p.dint+p.ff+p.fr)>0, ['Tkl','Ast','Sk','INT'], p=>[p.tkl,p.ast,p.sack,p.dint]));
+  h+=sec('Kicking', _rows(side, p=>(p.fga+p.xpa)>0, ['FG','XP'], p=>[`${p.fgm}/${p.fga}`,`${p.xpm}/${p.xpa}`]));
+  h+=sec('Punting / Returns', _rows(side, p=>(p.punts+p.kret+p.pret)>0, ['Punts','PYds','KR','PR'], p=>[p.punts,p.puntyd,p.kretyd,p.pretyd]));
+  if(!h) h='<div style="font-size:13px;color:var(--dim);padding:10px">No stats recorded yet for '+abbr(side)+'.</div>';
+  return h;
+}
+
+// ═══════════════════════════════════════════════
+// AUTOSAVE / RESTORE
+// ═══════════════════════════════════════════════
+function saveState(){
+  try{
+    const data={ G:Object.assign({},G,{pend:null}), gid:G_game_id, hid:G_home_team_id, aid:G_away_team_id, test:G_test_mode, fin:_gameFinalized, ts:Date.now() };
+    localStorage.setItem('mbr_fb_game', JSON.stringify(data));
+  }catch(e){}
+}
+function checkRestore(){
+  let data; try{ data=JSON.parse(localStorage.getItem('mbr_fb_game')||'null'); }catch(e){ data=null; }
+  if(!data||!data.G||!data.G.teams) return;
+  const a=data.G.teams.away?.abbr||'AWY', hh=data.G.teams.home?.abbr||'HOM';
+  const q=data.G.quarter? (data.G.quarter<=4?('Q'+data.G.quarter):('OT'+(data.G.quarter-4))):'';
+  const banner=document.createElement('div');
+  banner.id='restoreBanner';
+  banner.style.cssText='background:var(--green-bg);border:1px solid var(--green-border);border-radius:10px;padding:12px;margin:0 0 14px;font-size:14px;color:var(--text);width:100%;max-width:540px';
+  banner.innerHTML=`<div style="font-weight:600;margin-bottom:6px">Resume in-progress game?</div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:10px">${a} ${data.G.score?.away||0} · ${hh} ${data.G.score?.home||0} — ${q} · saved ${new Date(data.ts).toLocaleTimeString()}</div>
+    <div style="display:flex;gap:8px">
+      <button class="oconfirm" style="flex:1;padding:10px" onclick="restoreGame()">Resume</button>
+      <button class="ocancel" onclick="discardSave()">Discard</button></div>`;
+  const sc=document.getElementById('setupScreen');
+  sc.insertBefore(banner, sc.children[2]);
+}
+function restoreGame(){
+  let data; try{ data=JSON.parse(localStorage.getItem('mbr_fb_game')||'null'); }catch(e){ return; }
+  if(!data||!data.G) return;
+  G=Object.assign(G, data.G); G.pend=null;
+  G_game_id=data.gid; G_home_team_id=data.hid; G_away_team_id=data.aid; G_test_mode=!!data.test; _gameFinalized=!!data.fin;
+  undoStack=[]; G_evt_id_stack=[]; G_evt_current_group=[]; _lastPbpLength=-1;
+  document.getElementById('setupScreen').style.display='none';
+  document.getElementById('gameScreen').style.display='flex';
+  document.getElementById('gameScreen').style.flexDirection='column';
+  render();
+}
+function discardSave(){ localStorage.removeItem('mbr_fb_game'); const b=document.getElementById('restoreBanner'); if(b) b.remove(); }
+
+// ═══════════════════════════════════════════════
+// SCHOOL AUTOCOMPLETE
+// ═══════════════════════════════════════════════
+let _schools=null;
+async function loadSchools(){
+  if(_schools) return _schools;
+  try{
+    const rows=await sbFetch(`teams?select=school_name&order=school_name.asc&limit=2000`);
+    const set=new Set(); (rows||[]).forEach(r=>{ if(r.school_name) set.add(r.school_name); });
+    _schools=[...set];
+  }catch(e){ _schools=[]; }
+  return _schools;
+}
+function schoolAC(inp, side){
+  const v=(inp.value||'').toLowerCase().trim();
+  const box=document.getElementById(side+'AC');
+  if(!v){ box.style.display='none'; return; }
+  loadSchools().then(list=>{
+    const m=list.filter(s=>s.toLowerCase().includes(v)).slice(0,8);
+    if(!m.length){ box.style.display='none'; return; }
+    box.innerHTML=m.map(s=>`<div style="padding:8px 10px;cursor:pointer;font-size:14px;color:#1a1a1a;border-bottom:1px solid #eee" onmousedown="pickSchool('${s.replace(/'/g,"\\x27").replace(/"/g,'&quot;')}','${side}')">${s}</div>`).join('');
+    box.style.display='block';
+  });
+}
+function pickSchool(name, side){
+  document.getElementById(side+'NameInp').value=name;
+  document.getElementById(side+'AbbrInp').value=autoAbbr(name);
+  document.getElementById(side+'AC').style.display='none';
+}
+function closeAC(side){ setTimeout(()=>{ const b=document.getElementById(side+'AC'); if(b) b.style.display='none'; }, 150); }
+
+// ═══════════════════════════════════════════════
+// LINE SCORE (override addScore to track by quarter)
+// ═══════════════════════════════════════════════
+function addScore(side, pts){
+  G.score[side]+=pts;
+  if(!G.lineScore) G.lineScore={};
+  const qi=G.quarter;
+  if(!G.lineScore[qi]) G.lineScore[qi]={away:0,home:0};
+  G.lineScore[qi][side]+=pts;
+}
+
+// ═══════════════════════════════════════════════
+// PDF GAME REPORT
+// ═══════════════════════════════════════════════
+async function generatePDF(opts={}){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'letter'});
+  const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+  const M=44; let y=M;
+  const F='helvetica';
+  function need(h){ if(y+h>PH-M){ doc.addPage(); y=M; } }
+  function line(txt, size=10, style='normal', color=[30,30,30], gap=4){
+    need(size+gap); doc.setFont(F,style); doc.setFontSize(size); doc.setTextColor(...color);
+    doc.text(String(txt), M, y); y+=size+gap;
+  }
+  function rule(){ need(8); doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(M,y,PW-M,y); y+=8; }
+
+  // header
+  doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(120);
+  doc.text('MAINE BASKETBALL RANKINGS', M, y); y+=14;
+  doc.setFontSize(18); doc.setTextColor(20); doc.text('Football Game Report', M, y); y+=22;
+  doc.setFontSize(15); doc.setTextColor(20);
+  doc.text(`${G.teams.away.name}  ${G.score.away}  —  ${G.score.home}  ${G.teams.home.name}`, M, y); y+=18;
+  doc.setFont(F,'normal'); doc.setFontSize(10); doc.setTextColor(90);
+  const meta=[G.date||'', G.loc||'', (G.level==='jv'?'JV':'Varsity')].filter(Boolean).join('  ·  ');
+  doc.text(meta, M, y); y+=8; rule();
+
+  // line score
+  const qs=Object.keys(G.lineScore||{}).map(Number).sort((a,b)=>a-b);
+  const maxQ=Math.max(4, ...(qs.length?qs:[4]));
+  const cols=[]; for(let i=1;i<=maxQ;i++) cols.push(i);
+  const cellW=34, x0=M+120;
+  function lineScoreRow(label, side){
+    need(16); doc.setFont(F, side?'normal':'bold'); doc.setFontSize(10); doc.setTextColor(30);
+    doc.text(label, M, y);
+    let tot=0;
+    cols.forEach((q,i)=>{ const v=side?((G.lineScore[q]&&G.lineScore[q][side])||0):''; if(side){tot+=v;} doc.text(String(side?v:('Q'+q)), x0+i*cellW, y, {align:'center'}); });
+    doc.text(side?String(tot):'T', x0+cols.length*cellW+8, y, {align:'center'});
+    y+=16;
+  }
+  lineScoreRow('', null);
+  lineScoreRow(abbr('away'), 'away');
+  lineScoreRow(abbr('home'), 'home');
+  rule();
+
+  // individual stats
+  function statBlock(side){
+    line(G.teams[side].name+' — Individual Stats', 12, 'bold', [20,20,20], 6);
+    const groups=[
+      ['Passing', p=>p.pa>0, p=>`${p.name}: ${p.pc}/${p.pa}, ${p.pyd} yds, ${p.ptd} TD, ${p.pint} INT`],
+      ['Rushing', p=>p.ra>0, p=>`${p.name}: ${p.ra} att, ${p.ryd} yds, ${p.rtd} TD, lng ${p.rlong}`],
+      ['Receiving', p=>p.rec>0, p=>`${p.name}: ${p.rec} rec, ${p.recyd} yds, ${p.rectd} TD, lng ${p.reclong}`],
+      ['Defense', p=>(p.tkl+p.ast+p.sack+p.dint)>0, p=>`${p.name}: ${p.tkl} tkl, ${p.ast} ast, ${p.sack} sk, ${p.dint} INT`],
+      ['Kicking', p=>(p.fga+p.xpa)>0, p=>`${p.name}: FG ${p.fgm}/${p.fga}, XP ${p.xpm}/${p.xpa}`],
+      ['Punting/Returns', p=>(p.punts+p.kret+p.pret)>0, p=>`${p.name}: ${p.punts} punts ${p.puntyd} yds, KR ${p.kretyd}, PR ${p.pretyd}`],
+    ];
+    const players=Object.values(G.stats[side]);
+    groups.forEach(([title,filt,fmt])=>{
+      const rows=players.filter(filt);
+      if(!rows.length) return;
+      line(title, 9, 'bold', [110,110,110], 3);
+      rows.forEach(p=>line('  '+fmt(p), 9, 'normal', [40,40,40], 3));
+      y+=2;
+    });
+    y+=6;
+  }
+  statBlock('away'); statBlock('home'); rule();
+
+  // drive chart
+  if(G.drives.length){
+    line('Drive Summary', 12, 'bold', [20,20,20], 6);
+    G.drives.forEach((d,i)=>{
+      line(`${i+1}. ${abbr(d.team)} — ${d.result||'—'} (${d.plays||0} plays)`, 9, 'normal', [40,40,40], 3);
+    });
+    rule();
+  }
+
+  // play by play
+  line('Play-by-Play', 12, 'bold', [20,20,20], 6);
+  G.pbp.forEach(e=>{
+    const txt=(e.text||'').replace(/<[^>]+>/g,'');
+    if(e.drive){ y+=2; line(txt, 9, 'bold', [90,90,90], 3); }
+    else line(`${e.qtr} ${e.clock}  ${txt}`, 8.5, 'normal', [55,55,55], 2.5);
+  });
+
+  if(opts.returnBlob) return doc.output('blob');
+  doc.save(`MBR_Football_${abbr('away')}_at_${abbr('home')}_${(G.date||'').replace(/-/g,'')}.pdf`);
+}
+
+async function autoUploadGameReport(){
+  if(!G_game_id || G_test_mode) return;
+  try{
+    const blob=await generatePDF({returnBlob:true});
+    const path=`${G_game_id}.pdf`;
+    const up=await fetch(`${SB_URL}/storage/v1/object/game-reports/${path}`, {
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/pdf', 'x-upsert':'true' },
+      body:blob
+    });
+    if(!up.ok){ console.warn('report upload failed', up.status); return; }
+    const url=`${SB_URL}/storage/v1/object/public/game-reports/${path}`;
+    await fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body:JSON.stringify({ report_url:url })
+    });
+  }catch(e){ console.warn('autoUploadGameReport error', e); }
+}
+
+// ═══════════════════════════════════════════════
+// END GAME
+// ═══════════════════════════════════════════════
+function openEndGame(){
+  const w = G.score.away===G.score.home ? 'Tied' :
+    (G.score.away>G.score.home ? `${G.teams.away.name} win` : `${G.teams.home.name} win`);
+  document.getElementById('endSummary').innerHTML=
+    `<strong>${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</strong> — ${w}<br>
+     <span style="font-size:13px;color:var(--dim)">${qtrLabel()} · ${fmtClock(G.clock)}</span>`;
+  openOv('ovEnd');
+}
+async function confirmEndGame(){
+  if(_gameFinalized){ closeOv('ovEnd'); msg('Already finalized','This game has already been finalized.'); return; }
+  _gameFinalized=true;
+  closeOv('ovEnd');
+  endDrive('final');
+  addPBP(`<strong>FINAL — ${abbr('away')} ${G.score.away}, ${abbr('home')} ${G.score.home}</strong>`, true);
+  render();
+  if(G_game_id && !G_test_mode){
+    pushEvt('game_over',{points:0,detail:{final:{away:G.score.away,home:G.score.home}}});
+    // final score + status
+    await fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body:JSON.stringify({ status:'final', home_score:G.score.home, away_score:G.score.away, home_score_live:G.score.home, away_score_live:G.score.away })
+    }).catch(e=>console.warn('final patch failed', e));
+    // push per-player final stats as schema-free JSON events
+    ['away','home'].forEach(side=>{
+      Object.values(G.stats[side]).forEach(p=>{
+        sbInsert('game_events', {
+          id:(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)),
+          game_id:G_game_id, team_id: side==='home'?G_home_team_id:G_away_team_id,
+          event_type:'player_final_stats', period:G.quarter, clock_seconds:0, runs:0,
+          inning:G.quarter, half:'top', outs:0, balls:0, strikes:0, bases:null, rbi:0,
+          player_name:p.name, player_num:(p.number?parseInt(p.number)||null:null),
+          notes:JSON.stringify(p)
+        });
+      });
+    });
+    await autoUploadGameReport();
+  }
+  msg('Game finalized', G_test_mode
+    ? 'Test game ended. Nothing was saved.'
+    : 'Final score saved, player stats pushed, and the game report was generated and uploaded.');
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+function init(){
+  // default date = today
+  const d=new Date();
+  const today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const di=document.getElementById('gameDateInp'); if(di) di.value=today;
+  // seed one empty roster row each so the UI isn't blank
+  if(!G.teams.away.roster.length) G.teams.away.roster.push(newPlayer('','',''));
+  if(!G.teams.home.roster.length) G.teams.home.roster.push(newPlayer('','',''));
+  renderLU('away'); renderLU('home');
+  switchTab('away');
+  setQueueStatus();
+  flushQueue();
+  // URL ?game_id=
+  const params=new URLSearchParams(location.search);
+  const gid=params.get('game_id');
+  if(gid){ loadGameById(gid).catch(e=>console.warn(e)); }
+  else { loadTodaysGames().catch(e=>console.warn(e)); }
+  checkRestore();
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+</script>
+</body>
+</html>

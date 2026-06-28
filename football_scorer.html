@@ -957,7 +957,6 @@ function updateClockUI(){
 function tickClock(){
   if(!G.clockRunning) return;
   if(document.getElementById('gameScreen').style.display==='none') return;
-  if(_openOverlays>0) return;           // pause while entering a play / editing
   if(G.clock<=0){ G.clockRunning=false; updateClockUI(); return; }
   G.clock--;
   const el=document.getElementById('sbClock'); if(el) el.textContent=fmtClock(G.clock);

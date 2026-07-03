@@ -834,7 +834,7 @@ body{
             </div>
             <div class="su-field su-field-xs">
               <label>B / G</label>
-              <select id="su-home-gender" class="su-select">
+              <select id="su-home-gender" class="su-select" onchange="suGenderChange('home')">
                 <option value="boys">Boys</option>
                 <option value="girls">Girls</option>
               </select>
@@ -864,7 +864,7 @@ body{
             </div>
             <div class="su-field su-field-xs">
               <label>B / G</label>
-              <select id="su-away-gender" class="su-select">
+              <select id="su-away-gender" class="su-select" onchange="suGenderChange('away')">
                 <option value="boys">Boys</option>
                 <option value="girls">Girls</option>
               </select>
@@ -981,10 +981,8 @@ const SWPX=28;
 const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
-// Basketball sport_id — memory has the short prefix b31ab283; resolve the full
-// UUID at runtime (like the football scorer does) so this keeps working even if
-// the UUID is never pasted in.
-let BASKETBALL_SPORT_ID = null;
+// Basketball sport_id — confirmed from the database.
+let BASKETBALL_SPORT_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const BASKETBALL_PREFIX = 'b31ab283';
 
 let G_game_id = null;
@@ -1125,10 +1123,25 @@ async function loadSchools(){
   }catch(e){ _schools=[]; }
   return _schools;
 }
-async function fetchTeamIdByName(name){
+// Resolve a team_id by school name — scoped to BASKETBALL and the given gender,
+// because teams has one row per (school, sport, gender). Without this scope the
+// lookup can return a baseball/softball/wrong-gender team_id whose basketball
+// roster is empty (that was the "no roster" bug).
+async function fetchTeamIdByName(name, gender){
   try{
-    const rows=await sbFetch(`teams?school_name=eq.${encodeURIComponent(name)}&select=id&limit=1`);
-    return rows&&rows[0]?rows[0].id:null;
+    const sportId = await resolveBasketballSport();
+    const g = (gender==='girls' || gender==='Girls') ? 'girls' : 'boys';
+    let q = `teams?school_name=eq.${encodeURIComponent(name)}&select=id,gender,sport_id&limit=1`;
+    if(sportId) q += `&sport_id=eq.${sportId}`;
+    q += `&gender=ilike.${g}`;
+    let rows = await sbFetch(q);
+    if((!rows || !rows.length)){
+      // fallback: basketball team of either gender (school may only field one)
+      let q2 = `teams?school_name=eq.${encodeURIComponent(name)}&select=id,gender&limit=1`;
+      if(sportId) q2 += `&sport_id=eq.${sportId}`;
+      rows = await sbFetch(q2);
+    }
+    return rows && rows[0] ? rows[0].id : null;
   }catch(e){ return null; }
 }
 
@@ -2047,7 +2060,7 @@ async function loadTodaysGames(){
   try{
     const r = await fetch(
       `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026` +
-      `&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)&order=game_date.asc`,
+      `&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name,gender),away_team:away_team_id(school_name,gender)&order=game_date.asc`,
       { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, signal:_gameListAbort.signal });
     games = await r.json();
   }catch(e){ if(e.name==='AbortError') return; console.warn('game list failed', e); cont.innerHTML='<div style="color:#c0392b;font-size:13px;padding:12px 0">Couldn\'t load games. Use New Game.</div>'; return; }
@@ -2055,8 +2068,8 @@ async function loadTodaysGames(){
   SCHED_GAMES = (Array.isArray(games)?games:[]).map(g=>({
     id:g.id, homeId:g.home_team_id, awayId:g.away_team_id, status:g.status,
     venue:g.location||'', date:today,
-    home:{ id:g.home_team_id, name:g.home_team?.school_name||'Home' },
-    away:{ id:g.away_team_id, name:g.away_team?.school_name||'Away' }
+    home:{ id:g.home_team_id, name:g.home_team?.school_name||'Home', gender:(g.home_team?.gender||'Boys') },
+    away:{ id:g.away_team_id, name:g.away_team?.school_name||'Away', gender:(g.away_team?.gender||'Boys') }
   }));
   suRenderGamesList();
 }
@@ -2065,14 +2078,14 @@ async function loadTodaysGames(){
 async function loadGameById(gameId){
   const sportId = await resolveBasketballSport();
   let games;
-  try{ games = await sbFetch(`games?id=eq.${gameId}&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)`); }
+  try{ games = await sbFetch(`games?id=eq.${gameId}&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name,gender),away_team:away_team_id(school_name,gender)`); }
   catch(e){ return; }
   const g=games&&games[0]; if(!g) return;
   SCHED_GAMES = [{
     id:g.id, homeId:g.home_team_id, awayId:g.away_team_id, status:g.status,
     venue:g.location||'', date:(g.game_date||''),
-    home:{ id:g.home_team_id, name:g.home_team?.school_name||'Home' },
-    away:{ id:g.away_team_id, name:g.away_team?.school_name||'Away' }
+    home:{ id:g.home_team_id, name:g.home_team?.school_name||'Home', gender:(g.home_team?.gender||'Boys') },
+    away:{ id:g.away_team_id, name:g.away_team?.school_name||'Away', gender:(g.away_team?.gender||'Boys') }
   }];
   suRenderGamesList();
   suSelectGame(g.id);
@@ -2091,6 +2104,8 @@ async function suSelectGame(id) {
   document.getElementById('su-away-name').value  = g.away.name;
   document.getElementById('su-home-short').value = autoShort(g.home.name);
   document.getElementById('su-away-short').value = autoShort(g.away.name);
+  document.getElementById('su-home-gender').value = /girl/i.test(g.home.gender||'') ? 'girls' : 'boys';
+  document.getElementById('su-away-gender').value = /girl/i.test(g.away.gender||'') ? 'girls' : 'boys';
   document.getElementById('su-event').value = '';
   document.getElementById('su-venue').value = g.venue || '';
   if(g.date) document.getElementById('su-date').value = g.date;
@@ -2304,9 +2319,11 @@ function suTipOff() {
   });
 
   // A manually-created game may still match a scheduled DB game if the user picked
-  // one first; otherwise try to resolve team_ids by name so events can still be linked.
+  // one first; otherwise try to resolve team_ids by name (scoped to basketball +
+  // the selected gender) so events can still be linked.
   if(!G_game_id && !G_test_mode){
-    Promise.all([fetchTeamIdByName(homeName), fetchTeamIdByName(awayName)]).then(([hid,aid])=>{
+    const hg=document.getElementById('su-home-gender').value, ag=document.getElementById('su-away-gender').value;
+    Promise.all([fetchTeamIdByName(homeName,hg), fetchTeamIdByName(awayName,ag)]).then(([hid,aid])=>{
       if(hid) G_home_team_id=hid; if(aid) G_away_team_id=aid;
     });
   }
@@ -2500,13 +2517,31 @@ async function suAcPick(e, side) {
   document.getElementById(`su-${side}-ac`).style.display='none';
   const errEl = document.getElementById('su-error');
   errEl.style.color = '#6b7280'; errEl.textContent = `Loading ${name} roster…`;
-  // Pull this team's roster from Supabase straight into the setup form.
-  const teamId = await fetchTeamIdByName(name);
-  if(!teamId){ errEl.style.color='#c0392b'; errEl.textContent=`Couldn't find "${name}" in the database — enter the roster manually.`; return; }
+  // Pull this team's roster from Supabase straight into the setup form,
+  // scoped to the gender currently selected for this side.
+  const gender = document.getElementById(`su-${side}-gender`).value;
+  const teamId = await fetchTeamIdByName(name, gender);
+  if(!teamId){ errEl.style.color='#c0392b'; errEl.textContent=`Couldn't find "${name}" (${gender}) basketball team in the database — enter the roster manually.`; return; }
   if(side==='home') G_home_team_id=teamId; else G_away_team_id=teamId;
   const n = await fetchRosterIntoForm(teamId, side);
-  if(n>0){ errEl.style.color='#16a34a'; errEl.textContent=`✓ Loaded ${n} ${side} players for ${name}.`; }
-  else { errEl.style.color='#c0392b'; errEl.textContent=`No roster found for ${name} in the database — add players manually.`; }
+  if(n>0){ errEl.style.color='#16a34a'; errEl.textContent=`✓ Loaded ${n} ${name} ${gender} players.`; }
+  else { errEl.style.color='#c0392b'; errEl.textContent=`No ${gender} basketball roster found for ${name} — add players manually.`; }
+}
+
+// Re-fetch a side's roster when its Boys/Girls toggle changes (team rows are
+// per-gender, so the correct roster depends on this dropdown).
+async function suGenderChange(side){
+  const name = document.getElementById(`su-${side}-name`).value.trim();
+  if(!name) return;
+  const gender = document.getElementById(`su-${side}-gender`).value;
+  const errEl = document.getElementById('su-error');
+  errEl.style.color = '#6b7280'; errEl.textContent = `Loading ${name} ${gender} roster…`;
+  const teamId = await fetchTeamIdByName(name, gender);
+  if(!teamId){ errEl.style.color='#c0392b'; errEl.textContent=`No ${gender} basketball team found for ${name}.`; return; }
+  if(side==='home') G_home_team_id=teamId; else G_away_team_id=teamId;
+  const n = await fetchRosterIntoForm(teamId, side);
+  if(n>0){ errEl.style.color='#16a34a'; errEl.textContent=`✓ Loaded ${n} ${name} ${gender} players.`; }
+  else { errEl.style.color='#c0392b'; errEl.textContent=`No ${gender} roster found for ${name}.`; }
 }
 
 function suAcKey(e, side) {

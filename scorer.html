@@ -783,7 +783,10 @@ body{
     <!-- PICK SCHEDULED GAME -->
     <div id="su-pick-panel">
       <div class="su-card">
-        <div class="su-card-title">Scheduled Games</div>
+        <div class="su-card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Scheduled Games — Today</span>
+          <button onclick="loadTodaysGames()" style="border:1px solid #d0d3e8;background:#fff;border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer">↻ Refresh</button>
+        </div>
         <div id="su-games-list">
           <!-- Dummy games — swap for Supabase fetch later -->
         </div>
@@ -879,6 +882,7 @@ body{
     </div><!-- /su-new-panel -->
 
     <div id="su-error"></div>
+    <button id="su-test-btn" class="su-mode-btn" style="width:100%;margin-bottom:10px;padding:10px" onclick="toggleTestMode()">🧪 Test Mode: OFF</button>
     <button id="su-tipoff-btn" onclick="suTipOff()">🏀 TIP OFF</button>
 
   </div><!-- /setup-box -->
@@ -969,6 +973,247 @@ let evts=[],dots=[];
 let clkInt=null,holdTmr=null,subTgt=null,logOpen=false,flashTmr=null;
 let tSX=0,tSY=0,tMoving=false,tOvShown=false;
 const SWPX=28;
+
+// ══ BACKEND / SYNC ════════════════════════════
+// Ported from the baseball + football scorers: real Supabase game loading,
+// per-event push, offline queue, crash-recovery autosave, undo, test mode,
+// and automatic PDF report upload on finalize.
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+// Basketball sport_id — memory has the short prefix b31ab283; resolve the full
+// UUID at runtime (like the football scorer does) so this keeps working even if
+// the UUID is never pasted in.
+let BASKETBALL_SPORT_ID = null;
+const BASKETBALL_PREFIX = 'b31ab283';
+
+let G_game_id = null;
+let G_home_team_id = null;
+let G_away_team_id = null;
+let G_test_mode = false;
+let _gameFinalized = false;
+let _gameListVersion = 0, _gameListAbort = null;
+let _rosterVersion = 0;
+let _saveStateTimer = null;
+let SCHED_GAMES = [];              // scheduled games fetched from Supabase
+
+function scheduleSave(){ clearTimeout(_saveStateTimer); _saveStateTimer = setTimeout(saveState, 1200); }
+
+async function sbFetch(path){
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
+  });
+  return r.json();
+}
+function sbPatch(table, filter, body){
+  return fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
+    method:'PATCH',
+    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+    body: JSON.stringify(body)
+  });
+}
+
+async function resolveBasketballSport(){
+  if(BASKETBALL_SPORT_ID) return BASKETBALL_SPORT_ID;
+  for(const tbl of ['sports','sport']){
+    try{
+      const rows = await sbFetch(`${tbl}?or=(name.ilike.*basketball*,slug.ilike.*basketball*)&select=id,name&limit=1`);
+      if(Array.isArray(rows) && rows[0]?.id){ BASKETBALL_SPORT_ID = rows[0].id; return BASKETBALL_SPORT_ID; }
+    }catch(e){/* try next */}
+  }
+  return null;
+}
+
+// ── Push queue (offline resilience) ──
+const QUEUE_KEY = 'mbr_bb_push_queue';
+let _flushing = false;
+function queueLoad(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); }catch(e){ return []; } }
+function queueSave(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch(e){} }
+function setQueueStatus(){
+  const q = queueLoad();
+  let el = document.getElementById('push-queue-status');
+  if(!el){ el = document.createElement('div'); el.id='push-queue-status';
+    el.style.cssText='position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
+    document.body.appendChild(el); }
+  el.innerHTML = q.length===0 ? '' : `<span>🟡</span><span style="color:#888">${q.length} event${q.length>1?'s':''} queued</span>`;
+}
+async function flushQueue(){
+  if(_flushing) return; _flushing=true;
+  let q = queueLoad();
+  while(q.length>0){
+    const {table,row}=q[0];
+    try{
+      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+        method:'POST',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+        body: JSON.stringify(row)
+      });
+      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
+      q.shift(); queueSave(q); setQueueStatus();
+    }catch(e){ console.warn('flush failed, retry later', e); break; }
+  }
+  _flushing=false;
+}
+window.addEventListener('online', ()=>flushQueue());
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && navigator.onLine) flushQueue(); });
+setInterval(()=>{ if(navigator.onLine && !document.hidden) flushQueue(); }, 30000);
+
+async function sbInsert(table, row){
+  if(G_test_mode) return;
+  if(navigator.onLine){
+    try{
+      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+        method:'POST',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+        body: JSON.stringify(row)
+      });
+      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
+      await flushQueue(); return;
+    }catch(e){ console.warn('sbInsert failed, queuing', e); }
+  }
+  const q=queueLoad(); q.push({table,row}); queueSave(q); setQueueStatus();
+}
+
+// Push one basketball scoring/stat event to game_events. Mirrors the football
+// row shape (baseball-flavoured columns are nullable placeholders); basketball
+// puts shot coords in x/y and everything descriptive in notes JSON.
+function sbPushEvent(e){
+  if(!G_game_id || G_test_mode) return;
+  const sbid = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  e.sbid = sbid;
+  const row = {
+    id: sbid, game_id: G_game_id,
+    team_id: e.side==='home' ? G_home_team_id : G_away_team_id,
+    event_type: e.key,
+    period: e.period, clock_seconds: e.clk,
+    inning: e.period, half:'top', outs:0, balls:0, strikes:0, bases:null, rbi:0,
+    runs: e.pts || 0,
+    player_name: (e.plast ? ((e.pfirst&&e.pfirst.length>1?e.pfirst:(e.pfi?e.pfi+'.':''))+' '+e.plast).trim() : null),
+    player_num: (e.pnum!=null && e.pnum!=='') ? (parseInt(e.pnum)||null) : null,
+    x: e.pt ? Math.round(e.pt.x) : null,
+    y: e.pt ? Math.round(e.pt.y) : null,
+    notes: JSON.stringify({
+      label:getLabel(e.key,e.side), three:!!e.three, side:e.side,
+      clock:fmt(e.clk), period:PERIOD_LBL(e.period),
+      score:{home:GAME.home.score, away:GAME.away.score}
+    })
+  };
+  sbInsert('game_events', row);
+  if(e.pts>0) patchLiveScore();
+}
+function patchLiveScore(){
+  if(!G_game_id || G_test_mode) return;
+  sbPatch('games','id=eq.'+G_game_id,{ home_score_live:GAME.home.score, away_score_live:GAME.away.score }).catch(()=>{});
+}
+
+// ── School autocomplete source (DB, with the hardcoded list as fallback) ──
+let _schools=null;
+async function loadSchools(){
+  if(_schools) return _schools;
+  try{
+    const rows=await sbFetch(`teams?select=school_name&order=school_name.asc&limit=2000`);
+    const set=new Set(); (rows||[]).forEach(r=>{ if(r.school_name) set.add(r.school_name); });
+    _schools=[...set];
+  }catch(e){ _schools=[]; }
+  return _schools;
+}
+async function fetchTeamIdByName(name){
+  try{
+    const rows=await sbFetch(`teams?school_name=eq.${encodeURIComponent(name)}&select=id&limit=1`);
+    return rows&&rows[0]?rows[0].id:null;
+  }catch(e){ return null; }
+}
+// Pull a roster from Supabase into the new-game setup form for one side.
+async function fetchRosterIntoForm(teamId, side){
+  if(!teamId) return;
+  const myV = ++_rosterVersion;
+  try{
+    const sportId = await resolveBasketballSport();
+    const q = sportId
+      ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`
+      : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`;
+    const players = await sbFetch(q);
+    if(myV!==_rosterVersion) return;
+    if(!Array.isArray(players) || !players.length) return;
+    SU[side].players = [];
+    players.forEach((p,i)=> suAddPlayer(side, p.number!=null?String(parseInt(p.number)):'', p.name||'', i<5));
+  }catch(e){ console.warn('roster fetch failed', side, e); }
+}
+
+// ── Autosave / crash recovery ──
+// Rebuild the shot chart overlay from the event log after a restore.
+function rebuildDotsFromEvents(){
+  const g=document.getElementById('shot-dots'); if(g) g.innerHTML='';
+  dots=[];
+  // events are newest-first; draw oldest-first so ids line up
+  [...evts].reverse().forEach(e=>{
+    if(!e.pt) return;
+    const made = e.key==='2pt_made'||e.key==='3pt_made'||e.key==='putback_made';
+    const three = !!e.three;
+    const isPb = e.key==='putback_made'||e.key==='putback_miss';
+    addDot(e.pt, made, three, isPb);
+    const d=dots.find(x=>x.pend); if(d){ d.eid=e.id; delete d.pend; }
+  });
+}
+function saveState(){
+  try{
+    const data={
+      GAME, PL, evts,
+      gid:G_game_id, hid:G_home_team_id, aid:G_away_team_id,
+      test:G_test_mode, fin:_gameFinalized, ts:Date.now()
+    };
+    localStorage.setItem('mbr_bb_game', JSON.stringify(data));
+  }catch(e){}
+}
+function checkRestore(){
+  let data; try{ data=JSON.parse(localStorage.getItem('mbr_bb_game')||'null'); }catch(e){ data=null; }
+  if(!data||!data.GAME||!data.PL) return;
+  const hs=data.GAME.home, as=data.GAME.away;
+  const per = data.GAME.period ? PERIOD_LBL(data.GAME.period) : '';
+  const banner=document.createElement('div');
+  banner.id='restoreBanner';
+  banner.style.cssText='background:#e6f4ea;border:1px solid #b6e0c2;border-radius:10px;padding:12px;margin:0 0 14px;font-size:14px;color:#0f1117;';
+  banner.innerHTML=`<div style="font-weight:600;margin-bottom:6px">Resume in-progress game?</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:10px">${(hs.short||hs.name||'HOME')} ${hs.score||0} · ${(as.short||as.name||'AWAY')} ${as.score||0} — ${per} · saved ${new Date(data.ts).toLocaleTimeString()}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="restoreGame()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-weight:600;cursor:pointer">Resume</button>
+      <button onclick="discardSave()" style="padding:10px 16px;border:1px solid #d0d3e8;border-radius:8px;background:#fff;cursor:pointer">Discard</button></div>`;
+  const box=document.getElementById('setup-box');
+  const hdr=box?box.querySelector('.su-header'):null;
+  if(box){ box.insertBefore(banner, hdr?hdr.nextSibling:box.firstChild); }
+}
+function restoreGame(){
+  let data; try{ data=JSON.parse(localStorage.getItem('mbr_bb_game')||'null'); }catch(e){ return; }
+  if(!data||!data.GAME) return;
+  Object.assign(GAME, data.GAME);
+  PL.home = data.PL.home; PL.away = data.PL.away;
+  evts = data.evts || [];
+  G_game_id=data.gid; G_home_team_id=data.hid; G_away_team_id=data.aid;
+  G_test_mode=!!data.test; _gameFinalized=!!data.fin;
+  clearInterval(clkInt); GAME.running=false;
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('scorer-ui').style.display='flex';
+  const gLabel = g => `${g.name} ${g.gender==='girls'?'Girls':'Boys'}`;
+  document.getElementById('home-tname').textContent = gLabel(GAME.home);
+  document.getElementById('away-tname').textContent = gLabel(GAME.away);
+  document.getElementById('home-score').textContent = GAME.home.score;
+  document.getElementById('away-score').textContent = GAME.away.score;
+  renderPl(); renderBtns(); updClk(); updPoss();
+  updFoulsDisplay('home'); updFoulsDisplay('away');
+  rebuildDotsFromEvents();
+  renderFeed(); renderLog(); updRun();
+}
+function discardSave(){ localStorage.removeItem('mbr_bb_game'); const b=document.getElementById('restoreBanner'); if(b) b.remove(); }
+
+// ── Test mode ──
+function toggleTestMode(){
+  G_test_mode = !G_test_mode;
+  const btn=document.getElementById('su-test-btn');
+  if(btn){
+    btn.classList.toggle('active', G_test_mode);
+    btn.textContent = G_test_mode ? '🧪 Test Mode: ON (nothing saved)' : '🧪 Test Mode: OFF';
+  }
+}
 
 // ══ CLOCK ═════════════════════════════════════
 const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
@@ -1438,8 +1683,10 @@ function pushEvt(p,side,key,pt,three){
   evts.unshift(e);
   const pend=dots.find(d=>d.pend);
   if(pend){pend.eid=e.id;delete pend.pend;}
+  sbPushEvent(e);            // → game_events (no-op in test mode / offline queues)
   renderFeed();renderLog();
   if(e.pts>0) updRun();
+  scheduleSave();
   return e;
 }
 
@@ -1547,8 +1794,18 @@ function delEvt(id){
   }
   const dot=dots.find(d=>d.eid===id);
   if(dot){document.getElementById(dot.id)?.remove();dots=dots.filter(d=>d.eid!==id);}
+  // remove from Supabase (or from the offline queue if it never made it up)
+  if(e.sbid && !G_test_mode){
+    fetch(`${SB_URL}/rest/v1/game_events?id=eq.${e.sbid}`, {
+      method:'DELETE', headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,Prefer:'return=minimal'}
+    }).catch(err=>console.warn('event delete failed',err));
+    const q=queueLoad().filter(item=>!(item.row&&item.row.id===e.sbid)); queueSave(q); setQueueStatus();
+    if(e.pts>0) patchLiveScore();
+  }
   evts=evts.filter(x=>x.id!==id);
   renderFeed();renderLog();renderPl();
+  updRun();
+  scheduleSave();
 }
 function findP(pid,side){return PL[side]?.find(p=>p.id===pid);}
 
@@ -1699,28 +1956,7 @@ function flash(msg,type){
 }
 
 // ══ SETUP SCREEN ══════════════════════════════
-const DUMMY_GAMES = [
-  { id:'g1', date:'2026-03-08', event:'Class A Gold Ball', venue:'Cross Insurance Arena',
-    home:{ name:'Portland', short:'PORT', gender:'boys',
-      roster:[{num:0,name:'Loic Ramazani'},{num:1,name:'Cordell Jones'},{num:10,name:'Lucas LeGage'},
-              {num:11,name:'Maddox Meas'},{num:20,name:'Benilson Lumani'}],
-      starters:[0,1,10,11,20] },
-    away:{ name:'Camden Hills', short:'CHILLS', gender:'boys',
-      roster:[{num:35,name:'Nolan Ames'},{num:12,name:'Hollis Schwalm'},{num:21,name:'Tucker Whitley'},
-              {num:15,name:'Thomas Leadbetter'},{num:2,name:'Kiefer Healey'}],
-      starters:[35,12,21,15,2] }
-  },
-  { id:'g2', date:'2026-03-07', event:'Class A South Quarterfinal', venue:'Augusta Civic Center',
-    home:{ name:'Camden Hills', short:'CHILLS', gender:'boys',
-      roster:[{num:4,name:'Henry Stewart'},{num:10,name:'Sam Johnson'},{num:11,name:'Kyle Melquist'},
-              {num:12,name:'Hunter Schwalm'},{num:15,name:'Tyler Leadbetter'},{num:22,name:'Eli Stearns'},{num:3,name:'Max Webb'}],
-      starters:[4,10,11,12,15] },
-    away:{ name:'Cape Elizabeth', short:'CAPE', gender:'boys',
-      roster:[{num:10,name:'Luca Lombardo'},{num:11,name:'Cole Wannemacher'},{num:14,name:'Jake Rosen'},
-              {num:20,name:'Evan Morse'},{num:23,name:'Owen Beaureguard'},{num:5,name:'Finn Casey'},{num:33,name:'Dylan Park'}],
-      starters:[10,11,14,20,23] }
-  },
-];
+// (scheduled games are now loaded live from Supabase — see loadTodaysGames)
 
 const SU_PLACEHOLDERS = {
   home: ['Loic Ramazani','Cordell Jones','Lucas LeGage','Maddox Meas','Benilson Lumani'],
@@ -1740,30 +1976,99 @@ function suSetMode(mode) {
   document.getElementById('su-error').textContent = '';
 }
 
+// Renders whatever is currently in SCHED_GAMES (populated by loadTodaysGames).
 function suRenderGamesList() {
   const cont = document.getElementById('su-games-list');
-  if (!DUMMY_GAMES.length) {
-    cont.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:20px 0;">No scheduled games found.<br>Use <strong>New Game</strong> to create one.</div>';
+  if (!SCHED_GAMES.length) {
+    cont.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:20px 0;">No scheduled basketball games found for today.<br>Use <strong>New Game</strong> to create one.</div>';
     return;
   }
-  cont.innerHTML = DUMMY_GAMES.map(g => `
+  cont.innerHTML = SCHED_GAMES.map(g => {
+    const live = g.status==='active' ? ' · 🔴 LIVE' : (g.status==='final' ? ' · FINAL' : '');
+    return `
     <div class="su-game-row${suSelectedGameId===g.id?' selected':''}" onclick="suSelectGame('${g.id}')">
       <div style="flex:1">
-        <div class="su-game-teams">${g.home.name} vs ${g.away.name}</div>
-        <div class="su-game-meta">${g.date} · ${g.venue}</div>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <span class="su-game-badge${g.home.gender==='girls'?' girls':''}">${g.home.gender==='girls'?'Girls':'Boys'}</span>
-        <span class="su-game-meta">${g.event}</span>
+        <div class="su-game-teams">${g.away.name} @ ${g.home.name}</div>
+        <div class="su-game-meta">${g.date || ''}${g.venue?' · '+g.venue:''}${live}</div>
       </div>
     </div>
-  `).join('');
+  `;}).join('');
+}
+
+// Fetch today's scheduled basketball games from Supabase.
+async function loadTodaysGames(){
+  const cont = document.getElementById('su-games-list');
+  if(_gameListAbort) _gameListAbort.abort();
+  _gameListAbort = new AbortController();
+  const myV = ++_gameListVersion;
+  const sportId = await resolveBasketballSport();
+  if(!sportId){
+    cont.innerHTML = '<div style="color:#c0392b;font-size:13px;padding:12px 0">⚠️ Couldn\'t resolve the basketball sport_id. You can still start a game with <strong>New Game</strong>.</div>';
+    return;
+  }
+  const d=new Date();
+  const today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  cont.innerHTML = '<div style="color:#888;font-size:13px;padding:12px 0">Loading today\'s games…</div>';
+  let games;
+  try{
+    const r = await fetch(
+      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026` +
+      `&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)&order=game_date.asc`,
+      { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, signal:_gameListAbort.signal });
+    games = await r.json();
+  }catch(e){ if(e.name==='AbortError') return; console.warn('game list failed', e); cont.innerHTML='<div style="color:#c0392b;font-size:13px;padding:12px 0">Couldn\'t load games. Use New Game.</div>'; return; }
+  if(myV !== _gameListVersion) return;
+  SCHED_GAMES = (Array.isArray(games)?games:[]).map(g=>({
+    id:g.id, homeId:g.home_team_id, awayId:g.away_team_id, status:g.status,
+    venue:g.location||'', date:today,
+    home:{ id:g.home_team_id, name:g.home_team?.school_name||'Home' },
+    away:{ id:g.away_team_id, name:g.away_team?.school_name||'Away' }
+  }));
+  suRenderGamesList();
+}
+
+// Deep-link support: ?game_id=UUID
+async function loadGameById(gameId){
+  const sportId = await resolveBasketballSport();
+  let games;
+  try{ games = await sbFetch(`games?id=eq.${gameId}&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)`); }
+  catch(e){ return; }
+  const g=games&&games[0]; if(!g) return;
+  SCHED_GAMES = [{
+    id:g.id, homeId:g.home_team_id, awayId:g.away_team_id, status:g.status,
+    venue:g.location||'', date:(g.game_date||''),
+    home:{ id:g.home_team_id, name:g.home_team?.school_name||'Home' },
+    away:{ id:g.away_team_id, name:g.away_team?.school_name||'Away' }
+  }];
+  suRenderGamesList();
+  suSelectGame(g.id);
 }
 
 function suSelectGame(id) {
   suSelectedGameId = id;
   suRenderGamesList();
+  // pre-fetch rosters so tip-off is instant
+  const g = SCHED_GAMES.find(x=>x.id===id);
+  if(g){
+    G_game_id=g.id; G_home_team_id=g.homeId; G_away_team_id=g.awayId; _gameFinalized=(g.status==='final');
+    // prefetch rosters (cached on the game object) so tip-off is instant
+    fetchTeamRoster(g.homeId).then(r=>{ g.home.roster=r; });
+    fetchTeamRoster(g.awayId).then(r=>{ g.away.roster=r; });
+  }
   document.getElementById('su-error').textContent = '';
+}
+
+async function fetchTeamRoster(teamId){
+  if(!teamId) return [];
+  try{
+    const sportId = await resolveBasketballSport();
+    const q = sportId
+      ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`
+      : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`;
+    const players = await sbFetch(q);
+    if(!Array.isArray(players)) return [];
+    return players.map(p=>({ num:p.number!=null?String(parseInt(p.number)):'', name:p.name||'' }));
+  }catch(e){ return []; }
 }
 
 function suAutoShort(side) {
@@ -1875,36 +2180,39 @@ function suTipOff() {
 
   if (suMode === 'pick') {
     if (!suSelectedGameId) { errEl.textContent = 'Select a game to continue.'; return; }
-    const g = DUMMY_GAMES.find(g=>g.id===suSelectedGameId);
+    const g = SCHED_GAMES.find(x=>x.id===suSelectedGameId);
+    if(!g){ errEl.textContent = 'That game is no longer available — reload the list.'; return; }
+
+    G_game_id=g.id; G_home_team_id=g.homeId; G_away_team_id=g.awayId; _gameFinalized=(g.status==='final');
 
     GAME.home.name   = g.home.name;
-    GAME.home.short  = g.home.short || g.home.name.substring(0,6).toUpperCase();
-    GAME.home.gender = g.home.gender;
+    GAME.home.short  = autoShort(g.home.name);
+    GAME.home.gender = 'boys';
     GAME.away.name   = g.away.name;
-    GAME.away.short  = g.away.short || g.away.name.substring(0,6).toUpperCase();
-    GAME.away.gender = g.away.gender;
-    GAME.meta = { event: g.event||'', venue: g.venue||'', date: g.date||'' };
+    GAME.away.short  = autoShort(g.away.name);
+    GAME.away.gender = 'boys';
+    GAME.meta = { event:'', venue: g.venue||'', date: g.date||'' };
 
-    ['home','away'].forEach(side => {
-      const pfx = side==='home'?'h':'a';
-      PL[side] = g[side].roster.map((r,i) => {
+    errEl.textContent = 'Loading rosters…';
+    Promise.all([
+      g.home.roster ? Promise.resolve(g.home.roster) : fetchTeamRoster(g.homeId),
+      g.away.roster ? Promise.resolve(g.away.roster) : fetchTeamRoster(g.awayId)
+    ]).then(([hr, ar])=>{
+      const build = (roster, pfx) => (roster||[]).map((r,i)=>{
         const n = parseName(r.name);
-        return {
-          id:`${pfx}${i+1}`,
-          fi: n.fi, first: n.first, last: n.last,
-          num: parseInt(r.num)||0,
-          pts:0, reb:0, ast:0, fouls:0, on: g[side].starters.includes(r.num), starter: g[side].starters.includes(r.num),
-          fgm:0, fga:0, tpm:0, tpa:0
-        };
+        return { id:`${pfx}${i+1}`, fi:n.fi, first:n.first, last:n.last, num:parseInt(r.num)||0,
+          pts:0, reb:0, ast:0, fouls:0, on:i<5, starter:i<5, fgm:0, fga:0, tpm:0, tpa:0 };
       });
-    });
-
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('scorer-ui').style.display = 'flex';
-    const gLabel = g => `${g.name} ${g.gender==='girls'?'Girls':'Boys'}`;
-    document.getElementById('home-tname').textContent = gLabel(GAME.home);
-    document.getElementById('away-tname').textContent = gLabel(GAME.away);
-    renderPl(); renderBtns(); updClk(); updPoss();
+      PL.home = build(hr,'h');
+      PL.away = build(ar,'a');
+      if(!PL.home.length || !PL.away.length){
+        errEl.textContent = 'No roster found for one team in the database. Use New Game to enter players manually.';
+        return;
+      }
+      errEl.textContent = '';
+      enterScorer();
+      startGameBackend();
+    }).catch(()=>{ errEl.textContent = 'Roster load failed. Use New Game to enter players manually.'; });
     return;
   }
 
@@ -1946,12 +2254,55 @@ function suTipOff() {
     }));
   });
 
+  // A manually-created game may still match a scheduled DB game if the user picked
+  // one first; otherwise try to resolve team_ids by name so events can still be linked.
+  if(!G_game_id && !G_test_mode){
+    Promise.all([fetchTeamIdByName(homeName), fetchTeamIdByName(awayName)]).then(([hid,aid])=>{
+      if(hid) G_home_team_id=hid; if(aid) G_away_team_id=aid;
+    });
+  }
+  enterScorer();
+  if(G_game_id) startGameBackend();
+  else scheduleSave();   // local/manual game — still crash-safe
+}
+
+// ── Shared setup helpers ──
+function autoShort(name){
+  if(!name) return '';
+  const w=name.trim().split(/\s+/);
+  return (w.length===1 ? w[0].slice(0,6) : w.map(x=>x[0]).join('').slice(0,6)).toUpperCase();
+}
+function enterScorer(){
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('scorer-ui').style.display = 'flex';
   const gLabel = g => `${g.name} ${g.gender==='girls'?'Girls':'Boys'}`;
   document.getElementById('home-tname').textContent = gLabel(GAME.home);
   document.getElementById('away-tname').textContent = gLabel(GAME.away);
+  document.getElementById('home-score').textContent = GAME.home.score;
+  document.getElementById('away-score').textContent = GAME.away.score;
   renderPl(); renderBtns(); updClk(); updPoss();
+  updFoulsDisplay('home'); updFoulsDisplay('away');
+  renderFeed(); renderLog();
+  scheduleSave();
+}
+// For a real DB game: clean prior events, flag active, push roster snapshots.
+async function startGameBackend(){
+  if(!G_game_id || G_test_mode) return;
+  try{
+    await fetch(`${SB_URL}/rest/v1/game_events?game_id=eq.${G_game_id}`, {
+      method:'DELETE', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, Prefer:'return=minimal' }
+    });
+  }catch(e){ console.warn('event cleanup failed', e); }
+  ['home','away'].forEach(side=>{
+    sbInsert('game_events', {
+      id:(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)),
+      game_id:G_game_id, team_id: side==='home'?G_home_team_id:G_away_team_id,
+      event_type:'roster_set', period:1, clock_seconds:PERIOD_SECS(1), runs:0,
+      inning:1, half:'top', outs:0, balls:0, strikes:0, bases:null, rbi:0,
+      notes: JSON.stringify(PL[side].map(p=>({num:p.num,name:pName(p),starter:!!p.starter})))
+    });
+  });
+  sbPatch('games','id=eq.'+G_game_id,{ status:'active', home_score_live:0, away_score_live:0 }).catch(()=>{});
 }
 
 // ── Team autocomplete ──
@@ -2070,11 +2421,15 @@ function suAcShow(side) {
   const val = document.getElementById(`su-${side}-name`).value.trim().toLowerCase();
   const ac  = document.getElementById(`su-${side}-ac`);
   if (!val) { ac.style.display='none'; return; }
-  const matches = MAINE_TEAMS.filter(t => t.name.toLowerCase().includes(val)).slice(0,8);
+  // Prefer the live DB school list; fall back to the built-in MAINE_TEAMS list.
+  const source = (_schools && _schools.length)
+    ? _schools.map(n=>({name:n, short:autoShort(n)}))
+    : MAINE_TEAMS;
+  const matches = source.filter(t => t.name.toLowerCase().includes(val)).slice(0,8);
   if (!matches.length) { ac.style.display='none'; return; }
   suAcIdx[side] = -1;
   ac.innerHTML = matches.map((t,i) =>
-    `<div class="su-ac-item" data-idx="${i}" data-name="${t.name}" data-short="${t.short}"
+    `<div class="su-ac-item" data-idx="${i}" data-name="${t.name.replace(/"/g,'&quot;')}" data-short="${t.short}"
       onmousedown="suAcPick(event,'${side}')">
       ${t.name}
       <span class="su-ac-badge boys">${t.short}</span>
@@ -2087,14 +2442,19 @@ function suAcHide(side) {
   setTimeout(()=>{ document.getElementById(`su-${side}-ac`).style.display='none'; }, 150);
 }
 
-function suAcPick(e, side) {
+async function suAcPick(e, side) {
   e.preventDefault();
   const item = e.currentTarget;
-  document.getElementById(`su-${side}-name`).value = item.dataset.name;
-  // auto-set short name from master list default (always overwrite — it's the known good value)
+  const name = item.dataset.name;
+  document.getElementById(`su-${side}-name`).value = name;
   document.getElementById(`su-${side}-short`).value = item.dataset.short;
   document.getElementById(`su-${side}-ac`).style.display='none';
-  // TODO: pull roster from Supabase for this team
+  // Pull this team's roster from Supabase straight into the setup form.
+  const teamId = await fetchTeamIdByName(name);
+  if(teamId){
+    if(side==='home') G_home_team_id=teamId; else G_away_team_id=teamId;
+    await fetchRosterIntoForm(teamId, side);
+  }
 }
 
 function suAcKey(e, side) {
@@ -2119,13 +2479,25 @@ function suAcKey(e, side) {
 }
 
 
-document.getElementById('su-date').valueAsDate = new Date();
-suRenderGamesList();
-// pre-populate 5 blank rows for new-game mode
-for (let i=0;i<5;i++) { suAddPlayer('home'); suAddPlayer('away'); }
-
 // ══ INIT ══════════════════════════════════════
-// (scorer initialises after tip-off via suTipOff)
+function init(){
+  document.getElementById('su-date').valueAsDate = new Date();
+  // pre-populate 5 blank rows for new-game mode
+  for (let i=0;i<5;i++) { suAddPlayer('home'); suAddPlayer('away'); }
+  suRenderGamesList();
+  setQueueStatus();
+  flushQueue();
+  loadSchools();                       // warm the autocomplete cache
+  // periodic autosave backstop while a game is live
+  setInterval(()=>{ if(document.getElementById('scorer-ui').style.display!=='none') saveState(); }, 5000);
+  // deep-link ?game_id=UUID, else load today's schedule
+  const gid = new URLSearchParams(location.search).get('game_id');
+  if(gid){ loadGameById(gid).catch(e=>console.warn(e)); }
+  else { loadTodaysGames().catch(e=>console.warn(e)); }
+  checkRestore();
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+else init();
 
 
 function resetStarters(side){
@@ -2140,11 +2512,41 @@ function resetStarters(side){
 
 // ══ REPORT GENERATION ══════════════════════════════════════════
 
-function endGame(){
+async function endGame(){
   qendClose();
   GAME.running=false;clearInterval(clkInt);
+  // Always give the scorer the local downloads.
   generateCSV();
   setTimeout(()=>generatePDF(),400);
+  scheduleSave();
+
+  if(G_game_id && !G_test_mode && !_gameFinalized){
+    _gameFinalized=true;
+    // final score + status
+    await sbPatch('games','id=eq.'+G_game_id,{
+      status:'final',
+      home_score:GAME.home.score, away_score:GAME.away.score,
+      home_score_live:GAME.home.score, away_score_live:GAME.away.score
+    }).catch(e=>console.warn('final patch failed', e));
+    // per-player final stat lines (schema-free JSON events, like football/baseball)
+    ['home','away'].forEach(side=>{
+      boxStats(side).forEach(s=>{
+        sbInsert('game_events', {
+          id:(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)),
+          game_id:G_game_id, team_id: side==='home'?G_home_team_id:G_away_team_id,
+          event_type:'player_final_stats', period:GAME.period, clock_seconds:0, runs:s.pts||0,
+          inning:GAME.period, half:'top', outs:0, balls:0, strikes:0, bases:null, rbi:0,
+          player_name:s.name||null, player_num:(s.num!=null?parseInt(s.num)||null:null),
+          notes:JSON.stringify(s)
+        });
+      });
+    });
+    await autoUploadGameReport();
+    flash('Final saved · report uploaded','made');
+    localStorage.removeItem('mbr_bb_game');
+  } else if(G_test_mode){
+    flash('Test game ended — nothing saved','');
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -2315,7 +2717,7 @@ function generateCSV(){
 }
 
 // ── PDF ───────────────────────────────────────────────────────
-function generatePDF(){
+function generatePDF(opts={}){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   const PW=215.9,PH=279.4;
@@ -2699,9 +3101,27 @@ function generatePDF(){
     y+=4;
   });
 
-  // Save
+  // Save (or hand back a blob for auto-upload)
+  if(opts.returnBlob) return doc.output('blob');
   const fn=`${GAME.home.name}_vs_${GAME.away.name}_report.pdf`.replace(/\s+/g,'_');
   doc.save(fn);
+}
+
+// Upload the finalized report to Supabase storage and link it on the games row.
+async function autoUploadGameReport(){
+  if(!G_game_id || G_test_mode) return;
+  try{
+    const blob = generatePDF({returnBlob:true});
+    const path = `${G_game_id}.pdf`;
+    const up = await fetch(`${SB_URL}/storage/v1/object/game-reports/${path}`, {
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/pdf', 'x-upsert':'true' },
+      body: blob
+    });
+    if(!up.ok){ console.warn('report upload failed', up.status); return; }
+    const url = `${SB_URL}/storage/v1/object/public/game-reports/${path}`;
+    await sbPatch('games','id=eq.'+G_game_id,{ report_url:url });
+  }catch(e){ console.warn('autoUploadGameReport error', e); }
 }
 </script>
 </body>

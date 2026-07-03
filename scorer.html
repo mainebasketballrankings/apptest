@@ -1017,9 +1017,17 @@ async function resolveBasketballSport(){
   if(BASKETBALL_SPORT_ID) return BASKETBALL_SPORT_ID;
   for(const tbl of ['sports','sport']){
     try{
-      const rows = await sbFetch(`${tbl}?or=(name.ilike.*basketball*,slug.ilike.*basketball*)&select=id,name&limit=1`);
-      if(Array.isArray(rows) && rows[0]?.id){ BASKETBALL_SPORT_ID = rows[0].id; return BASKETBALL_SPORT_ID; }
-    }catch(e){/* try next */}
+      const rows = await sbFetch(`${tbl}?select=*&limit=100`);
+      if(!Array.isArray(rows) || !rows.length) continue;
+      const idOf = r => String(r.id || r.sport_id || r.uuid || '').toLowerCase();
+      const nameOf = r => String(r.name || r.sport_name || r.slug || r.title || '').toLowerCase();
+      // 1) most reliable: match the known basketball id prefix (memory: b31ab283…)
+      let hit = rows.find(r => idOf(r).startsWith(BASKETBALL_PREFIX));
+      // 2) fall back to an exact/space-safe name match, avoiding other sports
+      if(!hit) hit = rows.find(r => nameOf(r)==='basketball');
+      if(!hit) hit = rows.find(r => /\bbasketball\b/.test(nameOf(r)));
+      if(hit){ BASKETBALL_SPORT_ID = hit.id || hit.sport_id || hit.uuid; return BASKETBALL_SPORT_ID; }
+    }catch(e){/* try next table */}
   }
   return null;
 }
@@ -1124,18 +1132,16 @@ async function fetchTeamIdByName(name){
   }catch(e){ return null; }
 }
 
-// Robust roster loader. Tries the strict query first, then progressively drops
-// sport_id / season_year filters (basketball rows may store these differently or
-// leave sport_id null), and maps whatever name/number columns exist.
+// Robust roster loader. ALWAYS scopes to the basketball sport_id so another
+// sport's roster (e.g. softball) can never leak in; only the season_year filter
+// is relaxed as a fallback. If the sport can't be resolved, returns nothing
+// rather than guessing (guessing is what pulled the wrong sport before).
 async function loadTeamRoster(teamId){
   if(!teamId) return [];
   const sportId = await resolveBasketballSport();
-  const base = `players?team_id=eq.${teamId}&order=number.asc&limit=120&select=*`;
-  const attempts = [];
-  if(sportId) attempts.push(`${base}&sport_id=eq.${sportId}&season_year=eq.2026`);
-  attempts.push(`${base}&season_year=eq.2026`);
-  if(sportId) attempts.push(`${base}&sport_id=eq.${sportId}`);
-  attempts.push(base);
+  if(!sportId){ console.warn('basketball sport_id unresolved — not loading a roster to avoid pulling the wrong sport'); return []; }
+  const base = `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&order=number.asc&limit=120&select=*`;
+  const attempts = [ `${base}&season_year=eq.2026`, base ];
   for(const q of attempts){
     try{
       const rows = await sbFetch(q);

@@ -993,7 +993,7 @@ let G_away_team_id = null;
 let G_test_mode = false;
 let _gameFinalized = false;
 let _gameListVersion = 0, _gameListAbort = null;
-let _rosterVersion = 0;
+let _rosterVersion = {home:0, away:0};
 let _saveStateTimer = null;
 let SCHED_GAMES = [];              // scheduled games fetched from Supabase
 
@@ -1123,21 +1123,49 @@ async function fetchTeamIdByName(name){
     return rows&&rows[0]?rows[0].id:null;
   }catch(e){ return null; }
 }
+
+// Robust roster loader. Tries the strict query first, then progressively drops
+// sport_id / season_year filters (basketball rows may store these differently or
+// leave sport_id null), and maps whatever name/number columns exist.
+async function loadTeamRoster(teamId){
+  if(!teamId) return [];
+  const sportId = await resolveBasketballSport();
+  const base = `players?team_id=eq.${teamId}&order=number.asc&limit=120&select=*`;
+  const attempts = [];
+  if(sportId) attempts.push(`${base}&sport_id=eq.${sportId}&season_year=eq.2026`);
+  attempts.push(`${base}&season_year=eq.2026`);
+  if(sportId) attempts.push(`${base}&sport_id=eq.${sportId}`);
+  attempts.push(base);
+  for(const q of attempts){
+    try{
+      const rows = await sbFetch(q);
+      if(Array.isArray(rows) && rows.length){
+        const mapped = rows.map(p=>{
+          const rawNum = p.number ?? p.jersey_number ?? p.jersey ?? p.num;
+          const num = (rawNum!=null && rawNum!=='' && !isNaN(parseInt(rawNum))) ? String(parseInt(rawNum)) : '';
+          const name = p.name || p.player_name || p.full_name ||
+                       [p.first_name,p.last_name].filter(Boolean).join(' ') || '';
+          return { num, name };
+        }).filter(r=>r.name);
+        if(mapped.length) return mapped;
+      }
+    }catch(e){ /* try next fallback */ }
+  }
+  return [];
+}
+
 // Pull a roster from Supabase into the new-game setup form for one side.
+// Returns how many players were loaded.
 async function fetchRosterIntoForm(teamId, side){
-  if(!teamId) return;
-  const myV = ++_rosterVersion;
-  try{
-    const sportId = await resolveBasketballSport();
-    const q = sportId
-      ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`
-      : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`;
-    const players = await sbFetch(q);
-    if(myV!==_rosterVersion) return;
-    if(!Array.isArray(players) || !players.length) return;
-    SU[side].players = [];
-    players.forEach((p,i)=> suAddPlayer(side, p.number!=null?String(parseInt(p.number)):'', p.name||'', i<5));
-  }catch(e){ console.warn('roster fetch failed', side, e); }
+  if(!teamId) return 0;
+  const myV = ++_rosterVersion[side];
+  const roster = await loadTeamRoster(teamId);
+  if(myV!==_rosterVersion[side]) return roster.length;
+  if(!roster.length) return 0;
+  SU[side].players = [];
+  roster.forEach((p,i)=> suAddPlayer(side, p.num, p.name, i<5));
+  suRenderRoster(side);
+  return roster.length;
 }
 
 // ── Autosave / crash recovery ──
@@ -2044,31 +2072,46 @@ async function loadGameById(gameId){
   suSelectGame(g.id);
 }
 
-function suSelectGame(id) {
+async function suSelectGame(id) {
   suSelectedGameId = id;
   suRenderGamesList();
-  // pre-fetch rosters so tip-off is instant
   const g = SCHED_GAMES.find(x=>x.id===id);
-  if(g){
-    G_game_id=g.id; G_home_team_id=g.homeId; G_away_team_id=g.awayId; _gameFinalized=(g.status==='final');
-    // prefetch rosters (cached on the game object) so tip-off is instant
-    fetchTeamRoster(g.homeId).then(r=>{ g.home.roster=r; });
-    fetchTeamRoster(g.awayId).then(r=>{ g.away.roster=r; });
+  if(!g) return;
+  G_game_id=g.id; G_home_team_id=g.homeId; G_away_team_id=g.awayId; _gameFinalized=(g.status==='final');
+
+  // Pre-fill the editable New Game form and reveal it so the roster is visible
+  // and correctable before tip-off (mirrors how football/baseball show the roster).
+  document.getElementById('su-home-name').value  = g.home.name;
+  document.getElementById('su-away-name').value  = g.away.name;
+  document.getElementById('su-home-short').value = autoShort(g.home.name);
+  document.getElementById('su-away-short').value = autoShort(g.away.name);
+  document.getElementById('su-event').value = '';
+  document.getElementById('su-venue').value = g.venue || '';
+  if(g.date) document.getElementById('su-date').value = g.date;
+
+  suSetMode('new');                 // reveal the roster editor (this clears su-error)
+  const errEl = document.getElementById('su-error');
+  errEl.style.color = '#6b7280';
+  errEl.textContent = 'Loading rosters from the database…';
+
+  const [hc, ac] = await Promise.all([
+    fetchRosterIntoForm(g.homeId, 'home'),
+    fetchRosterIntoForm(g.awayId, 'away')
+  ]);
+  g.home.roster = SU.home.players.map(p=>({num:p.num,name:p.first?p.first+' '+p.last:p.last}));
+  g.away.roster = SU.away.players.map(p=>({num:p.num,name:p.first?p.first+' '+p.last:p.last}));
+
+  if(hc===0 && ac===0){
+    errEl.style.color = '#c0392b';
+    errEl.textContent = 'Teams set, but no rosters were found in the database. Add players below, then tip off.';
+  } else {
+    errEl.style.color = '#16a34a';
+    errEl.textContent = `✓ Loaded ${g.home.name} (${hc}) and ${g.away.name} (${ac}). Review starters ★ and tip off.`;
   }
-  document.getElementById('su-error').textContent = '';
 }
 
 async function fetchTeamRoster(teamId){
-  if(!teamId) return [];
-  try{
-    const sportId = await resolveBasketballSport();
-    const q = sportId
-      ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`
-      : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number`;
-    const players = await sbFetch(q);
-    if(!Array.isArray(players)) return [];
-    return players.map(p=>({ num:p.number!=null?String(parseInt(p.number)):'', name:p.name||'' }));
-  }catch(e){ return []; }
+  return loadTeamRoster(teamId);
 }
 
 function suAutoShort(side) {
@@ -2449,12 +2492,15 @@ async function suAcPick(e, side) {
   document.getElementById(`su-${side}-name`).value = name;
   document.getElementById(`su-${side}-short`).value = item.dataset.short;
   document.getElementById(`su-${side}-ac`).style.display='none';
+  const errEl = document.getElementById('su-error');
+  errEl.style.color = '#6b7280'; errEl.textContent = `Loading ${name} roster…`;
   // Pull this team's roster from Supabase straight into the setup form.
   const teamId = await fetchTeamIdByName(name);
-  if(teamId){
-    if(side==='home') G_home_team_id=teamId; else G_away_team_id=teamId;
-    await fetchRosterIntoForm(teamId, side);
-  }
+  if(!teamId){ errEl.style.color='#c0392b'; errEl.textContent=`Couldn't find "${name}" in the database — enter the roster manually.`; return; }
+  if(side==='home') G_home_team_id=teamId; else G_away_team_id=teamId;
+  const n = await fetchRosterIntoForm(teamId, side);
+  if(n>0){ errEl.style.color='#16a34a'; errEl.textContent=`✓ Loaded ${n} ${side} players for ${name}.`; }
+  else { errEl.style.color='#c0392b'; errEl.textContent=`No roster found for ${name} in the database — add players manually.`; }
 }
 
 function suAcKey(e, side) {

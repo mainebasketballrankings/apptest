@@ -972,6 +972,7 @@ let selP=null,selSide=null;
 let evts=[],dots=[];
 let clkInt=null,holdTmr=null,subTgt=null,logOpen=false,flashTmr=null;
 let tSX=0,tSY=0,tMoving=false,tOvShown=false;
+let swDx=0,swDy=0,swPointerId=null;   // last committed swipe vector + captured pointer
 const SWPX=28;
 
 // ══ BACKEND / SYNC ════════════════════════════
@@ -1605,11 +1606,13 @@ function swDir(dx,dy,shotX,shotY){
   const swipeLen=Math.sqrt(dx*dx+dy*dy);
   const cosAngle=dot/swipeLen;
 
-  // Within ~60° of basket direction = make; opposite = putback miss; perpendicular = putback make
-  if(cosAngle > 0.5)  return 'make';       // toward basket
-  if(cosAngle < -0.5) return 'down';       // away from basket (cancel)
-  if(dx > 0)          return 'right';      // putback make
-  return 'left';                           // putback miss
+  // Within ~72° of basket direction = make (generous, since live-scoring swipes
+  // are quick and rarely dead-on); clearly opposite = cancel; the narrow
+  // perpendicular band left over = putback (right made / left missed).
+  if(cosAngle > 0.30)  return 'make';       // toward basket
+  if(cosAngle < -0.55) return 'down';       // away from basket (cancel)
+  if(dx > 0)           return 'right';      // putback make
+  return 'left';                            // putback miss
 }
 function litDir(dir){
   // map internal directions to UI labels
@@ -1622,7 +1625,11 @@ function litDir(dir){
 
 svg.addEventListener('pointerdown',e=>{
   if(!selP)return;e.preventDefault();
-  const pt=svgP(e);tSX=pt.x;tSY=pt.y;tMoving=false;tOvShown=false;
+  const pt=svgP(e);tSX=pt.x;tSY=pt.y;tMoving=false;tOvShown=false;swDx=0;swDy=0;
+  // Capture the pointer so the swipe keeps tracking even when the finger leaves
+  // the court (a "make" swipe goes UP toward the basket, off the top edge).
+  swPointerId=e.pointerId;
+  try{ svg.setPointerCapture(e.pointerId); }catch(_){}
   tring.setAttribute('cx',pt.x);tring.setAttribute('cy',pt.y);tring.setAttribute('opacity','.5');
   // Position overlay at touch point in container pixel space
   const cont=svg.parentElement.getBoundingClientRect();
@@ -1639,39 +1646,43 @@ svg.addEventListener('pointerdown',e=>{
 },{passive:false});
 
 svg.addEventListener('pointermove',e=>{
-  if(!selP)return;e.preventDefault();
+  if(!selP||swPointerId===null)return;e.preventDefault();
   const pt=svgP(e);
   const dx=pt.x-tSX,dy=pt.y-tSY;
   tring.setAttribute('cx',pt.x);tring.setAttribute('cy',pt.y);
   if(Math.sqrt(dx*dx+dy*dy)>SWPX){
     tMoving=true;
+    swDx=dx;swDy=dy;                       // remember the committed swipe vector
     if(!tOvShown){swOv.classList.add('show');tOvShown=true;}
     litDir(swDir(dx,dy,tSX,tSY));
   }
 },{passive:false});
 
 svg.addEventListener('pointerup',e=>{
-  if(!selP)return;e.preventDefault();
+  if(!selP||swPointerId===null)return;e.preventDefault();
+  try{ svg.releasePointerCapture(swPointerId); }catch(_){}
+  swPointerId=null;
   tring.setAttribute('opacity','0');
   swOv.classList.remove('show');
-  const pt=svgP(e);
-  const dx=pt.x-tSX,dy=pt.y-tSY;
-  const dist=Math.sqrt(dx*dx+dy*dy);
   const sp={x:tSX,y:tSY};
-  if(!tMoving||dist<SWPX){recShot(sp,false,'norm');}
+  // Use the committed swipe vector tracked during the move — not the release
+  // point, which can drift back toward the start on a curved/overshoot swipe.
+  if(!tMoving){recShot(sp,false,'norm');}         // no real swipe = miss
   else{
-    const d=swDir(dx,dy,tSX,tSY);
-    if(d==='make')   recShot(sp,true,'norm');
+    const d=swDir(swDx,swDy,tSX,tSY);
+    if(d==='make')       recShot(sp,true,'norm');
     else if(d==='right') recShot(sp,true,'pb');
     else if(d==='left')  recShot(sp,false,'pb');
     else flash('Cancelled','cfl');
   }
-  tMoving=false;tOvShown=false;
+  tMoving=false;tOvShown=false;swDx=0;swDy=0;
 },{passive:false});
 
 svg.addEventListener('pointercancel',()=>{
+  if(swPointerId!==null){ try{ svg.releasePointerCapture(swPointerId); }catch(_){} }
+  swPointerId=null;
   tring.setAttribute('opacity','0');swOv.classList.remove('show');
-  tMoving=false;tOvShown=false;
+  tMoving=false;tOvShown=false;swDx=0;swDy=0;
 });
 
 function recShot(pt,made,type){

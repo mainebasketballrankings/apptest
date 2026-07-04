@@ -988,7 +988,31 @@ function toast(html){
 // ── MAIN EVENT INTAKE ─────────────────────────────────
 function onEvent(e){
   const s=e.side, opp=s==='home'?'away':'home';
-  const p=e.pid?findP(e.pid,s):null;
+
+  // Roster snapshot pushed by the scorer at game start — (re)build this side's
+  // player list so the panels and per-player stats reflect the real teams.
+  if(e.key==='roster_set'){
+    try{
+      const roster = JSON.parse(e.notes||'[]');
+      if(Array.isArray(roster) && roster.length){
+        PL[s] = roster.map((r,i)=>{
+          const parts = String(r.name||'').trim().split(/\s+/);
+          const fi   = (parts[0]||'').replace(/\./g,'').charAt(0);
+          const last = parts.length>1 ? parts.slice(1).join(' ') : (parts[0]||'');
+          return { id:s+'_'+(r.num!=null?r.num:i), fi, last,
+                   num:(parseInt(r.num)||r.num||''), on:!!r.starter,
+                   pts:0,reb:0,ast:0,fouls:0,fgm:0,fga:0,tpm:0,tpa:0 };
+        });
+      }
+    }catch(err){ console.warn('roster_set parse error', err); }
+    updPanels();
+    return;
+  }
+  // Final per-player snapshot at game end — running totals already reflect it.
+  if(e.key==='player_final_stats') return;
+
+  // Scorer sends no player id, so match on jersey number.
+  const p = e.pid ? findP(e.pid,s) : PL[s].find(x=>String(x.num)===String(e.pnum));
   const ts=GAME.ts[s];
   const qi=e.period-1; // quarter index 0-3
   GAME.clockSec=e.clk; GAME.period=e.period;
@@ -1251,30 +1275,31 @@ function initView(home,away){
 
 document.addEventListener('DOMContentLoaded', () => {
   document.body.className = document.body.className.replace(/sport-\w+/,'') + ' sport-'+SPORT;
+  const gameId = new URLSearchParams(window.location.search).get('game_id');
+
+  // A real game_id always wins — connectGame resolves the actual sport from the
+  // game row and routes to the right engine. The demos only run with no game_id.
+  if(gameId){ connectGame(gameId); return; }
+
   if(SPORT==='basketball'){
     initView(
       {name:'Camden Hills',  short:'CAM', short2:'CHILLS', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/camden-hills.png'},
       {name:'Cape Elizabeth',short:'CAP', short2:'CAPE',   logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/cape-elizabeth.png'}
     );
     setTimeout(runSim, 1000);
+  } else if(SPORT==='football'){
+    LIVE_away_team_id='A'; LIVE_home_team_id='B';
+    initView(
+      {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/medomak-valley.png'},
+      {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/oceanside.png'}
+    );
+    setTimeout(fbRunSim, 1000);
   } else {
-    const gameId = new URLSearchParams(window.location.search).get('game_id');
-    if(gameId){
-      connectGame(gameId);
-    } else if(SPORT==='football'){
-      LIVE_away_team_id='A'; LIVE_home_team_id='B';
-      initView(
-        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/medomak-valley.png'},
-        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/oceanside.png'}
-      );
-      setTimeout(fbRunSim, 1000);
-    } else {
-      initView(
-        {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/medomak-valley.png'},
-        {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/oceanside.png'}
-      );
-      setTimeout(bbRunSim, 1000);
-    }
+    initView(
+      {name:'Medomak Valley', short:'MED', short2:'MED', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/medomak-valley.png'},
+      {name:'Oceanside',      short:'OCE', short2:'OCE', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/oceanside.png'}
+    );
+    if(typeof bbRunSim==='function') setTimeout(bbRunSim, 1000); // baseball has no built-in demo sim
   }
 });
 
@@ -1301,11 +1326,16 @@ async function connectGame(gameId){
     document.body.className = document.body.className.replace(/sport-\w+/,'') + ' sport-'+SPORT;
   }
   const FB_MODE = SPORT==='football';
-  const rowToEvt = FB_MODE ? fbRowToEvt : sbRowToEvt;
-  const onEvt    = FB_MODE ? fbOnEvent  : bbOnEvent;
-  const setReplay= v => { if(FB_MODE) FB._replaying=v; else BB._replaying=v; };
-  const renderAll= () => { if(FB_MODE){ fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels(); }
-                           else { bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField(); } };
+  const BK_MODE = SPORT==='basketball';
+  // Route to the correct engine: football, basketball, or baseball.
+  const rowToEvt = FB_MODE ? fbRowToEvt : BK_MODE ? bballRowToEvt : sbRowToEvt;
+  const onEvt    = FB_MODE ? fbOnEvent  : BK_MODE ? onEvent       : bbOnEvent;
+  const setReplay= v => { if(FB_MODE) FB._replaying=v; else BB._replaying=v; }; // toast() gates on BB._replaying for basketball too
+  const renderAll= () => {
+    if(FB_MODE){ fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels(); }
+    else if(BK_MODE){ updScoreboard(); updPanels(); updFeed(); }
+    else { bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField(); }
+  };
 
   LIVE_home_team_id = game.home_team_id;
   LIVE_away_team_id = game.away_team_id;
@@ -1423,6 +1453,29 @@ async function connectGame(gameId){
       openSocket();
     }
   });
+}
+
+// Basketball row (game_events, written by scorer.html) -> the shape onEvent() expects.
+function bballRowToEvt(row){
+  const side = row.team_id === LIVE_home_team_id ? 'home' : 'away';
+  // Scorer stores full display name in player_name ("Kyle Melquist" or "K. Melquist").
+  let pfi='', plast='';
+  if(row.player_name){
+    const parts = String(row.player_name).trim().split(/\s+/);
+    if(parts.length===1){ plast=parts[0]; pfi=parts[0].charAt(0); }
+    else { pfi=parts[0].replace(/\./g,'').charAt(0); plast=parts.slice(1).join(' '); }
+  }
+  return {
+    side,
+    key:    row.event_type,
+    period: row.period || 1,
+    clk:    (row.clock_seconds != null ? row.clock_seconds : 0),
+    pt:     (row.x!=null && row.y!=null) ? { x:Number(row.x), y:Number(row.y) } : null,
+    pnum:   (row.player_num!=null ? row.player_num : ''),
+    pfi, plast,
+    pid:    null,               // scorer sends no player id -- onEvent matches by number
+    notes:  row.notes || null
+  };
 }
 
 function sbRowToEvt(row){

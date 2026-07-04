@@ -110,7 +110,19 @@ body{
 }
 
 /* ── MIDDLE: panels + court ── */
-#middle{display:grid;grid-template-columns:162px 1fr 162px;flex:1;min-height:0;overflow:hidden;}
+#middle{display:grid;grid-template-columns:186px 1fr 186px;flex:1;min-height:0;overflow:hidden;}
+
+/* Cap + center the whole game screen so it reads as an intentional app on
+   desktop instead of a stretched, ballooning court. On phones/tablets (narrower
+   than the cap) it fills the screen exactly as before. */
+#scorer-ui{
+  width:100%;max-width:1180px;align-self:center;
+  border-left:1px solid var(--border);border-right:1px solid var(--border);
+  box-shadow:0 0 0 1px rgba(0,0,0,.02), 0 8px 40px rgba(15,17,23,.06);
+}
+/* Keep the court from growing absurdly tall on big screens; center it in its cell. */
+#court-wrap{align-items:center;justify-content:center;}
+#csvg{max-height:100%;margin:auto;}
 
 /* Player panels */
 .ppanel{
@@ -649,7 +661,7 @@ body{
         (x-230)²+(18-40)²=34² → (x-230)²=1156-484=672 → x=230±26 → x=204,256
         Arc sweeps DOWN into court = sweep=1, large-arc=0
     -->
-    <svg id="csvg" viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet">
+    <svg id="csvg" viewBox="0 0 460 315" preserveAspectRatio="xMidYMid meet">
       <!--
         LOCKED COURT GEOMETRY (do not change):
         Playable area: x=15–445 (430px wide), y=10–372 (362px tall).
@@ -718,6 +730,7 @@ body{
     <div id="ghint">TAP = miss · SWIPE ↑ = make · → putback ✓ · ← putback ✗ · ↓ cancel</div>
 
     <div id="court-btns">
+      <button class="cbtn" onclick="undoLast()">↶ UNDO</button>
       <button class="cbtn" onclick="toggleLog()">LOG ▾</button>
       <button class="cbtn" onclick="openBoxScore()">BOX ▾</button>
     </div>
@@ -1408,7 +1421,9 @@ function renderPl(){
   ['home','away'].forEach(side=>{
     const panel=document.getElementById(`${side}-panel`);
     panel.innerHTML='';
-    PL[side].filter(p=>p.on).forEach(p=>panel.appendChild(mkCard(p,side)));
+    PL[side].filter(p=>p.on)
+      .slice().sort((a,b)=>(parseInt(a.num)||0)-(parseInt(b.num)||0))
+      .forEach(p=>panel.appendChild(mkCard(p,side)));
     const ss=document.createElement('div');
     ss.className='shoot-stats';ss.id=`${side}-sstats`;
     panel.appendChild(ss);
@@ -1584,7 +1599,15 @@ const swOv=document.getElementById('swipe-ov');
 function svgP(e){
   const r=svg.getBoundingClientRect(),vb=svg.viewBox.baseVal;
   const s=e.touches?e.touches[0]:e;
-  return{x:((s.clientX-r.left)/r.width)*vb.width,y:((s.clientY-r.top)/r.height)*vb.height};
+  // Account for xMidYMid "meet" letterboxing: the drawn court is centered inside
+  // the element box, so map against the actual content rect, not the raw element.
+  const scale=Math.min(r.width/vb.width, r.height/vb.height);
+  const dw=vb.width*scale, dh=vb.height*scale;
+  const offX=(r.width-dw)/2, offY=(r.height-dh)/2;
+  return{
+    x:((s.clientX-r.left-offX)/dw)*vb.width,
+    y:((s.clientY-r.top -offY)/dh)*vb.height
+  };
 }
 // Arc: centre (230,55.9), r=176.1. Corner zones: x<60 or x>400, y<232.
 function is3(pt){
@@ -1822,6 +1845,13 @@ function getPts(k){
 }
 function getLabel(k,side){if(k==='possession_flip'){return (side?GAME[side].name:'')+' ball';}return KLBL[k]||(([...SDEFS,...SDEFS_MORE].find(s=>s.key===k))?.lbl)||k;}
 
+function undoLast(){
+  if(!evts.length){ flash('Nothing to undo'); return; }
+  const e=evts[0];
+  const who = e.plast ? ` #${e.pnum}` : '';
+  delEvt(e.id);
+  flash(`Undid last${who}`,'cfl');
+}
 function delEvt(id){
   const e=evts.find(x=>x.id===id);if(!e)return;
   if(e.pts>0&&e.side){
@@ -1980,7 +2010,7 @@ function closeBoxScore(){document.getElementById('bs-modal').classList.remove('s
 
 // ══ SUB ═══════════════════════════════════════
 function openSub(p,side){
-  const bench=PL[side].filter(x=>!x.on);
+  const bench=PL[side].filter(x=>!x.on).slice().sort((a,b)=>(parseInt(a.num)||0)-(parseInt(b.num)||0));
   if(!bench.length){flash('No bench players');return;}
   subTgt={p,side};
   document.getElementById('sub-title').textContent=`Sub out #${p.num} ${pName(p)}`;

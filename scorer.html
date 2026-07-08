@@ -151,16 +151,16 @@ body{
 .pcard.sel{border-color:var(--gold)!important;background:rgba(243,156,18,.18)!important;box-shadow:0 0 14px rgba(243,156,18,.35);}
 .pcard:active{transform:scale(.97);}
 
-.pnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:38px;line-height:1;flex-shrink:0;}
+.pnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:44px;line-height:1;flex-shrink:0;}
 .hp .pnum{color:var(--hl);}
 .ap .pnum{color:var(--al);}
 .pinfo{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;}
-.pname{font-size:15px;font-weight:700;color:var(--text);line-height:1.12;
+.pname{font-size:18px;font-weight:700;color:var(--text);line-height:1.12;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.pstats{display:flex;gap:8px;}
+.pstats{display:flex;gap:16px;}
 .ps{display:flex;flex-direction:column;align-items:center;}
-.psv{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;line-height:1;color:var(--text);}
-.psl{font-size:8px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;}
+.psv{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;line-height:1;color:var(--text);}
+.psl{font-size:10px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;}
 .fdots{display:flex;gap:2px;margin-top:2px;}
 .fd{width:7px;height:7px;border-radius:50%;background:var(--border);}
 .fd.on{background:var(--gold);}
@@ -2839,7 +2839,8 @@ function qStatLine(pe,label){
   const oreb=c('o_reb')+c('putback_made')+c('putback_miss');
   const treb=oreb+c('d_reb');
   const to=c('turnover');
-  return {label,fgm,fga,tpm,tpa,ftm,fta,oreb,treb,to};
+  const pts=2*c('2pt_made')+3*c('3pt_made')+2*c('putback_made')+c('ft_made');
+  return {label,fgm,fga,tpm,tpa,ftm,fta,oreb,treb,to,pts};
 }
 function quarterBreakdown(side){
   const sideEvts=evts.filter(e=>e.side===side);
@@ -2925,8 +2926,8 @@ function generateCSV(){
 // ── PDF ───────────────────────────────────────────────────────
 async function generatePDF(opts={}){
   const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
-  const PW=215.9,PH=279.4;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'letter'});
+  const PW=279.4,PH=215.9;
   const ML=14,MR=14,MT=14;
   let y=MT;
 
@@ -3068,51 +3069,49 @@ async function generatePDF(opts={}){
     const teamName=GAME[side].name.toUpperCase();
     sectionTitle(`${teamName} — BOX SCORE`);
     const stats=boxStats(side);
-    // Columns: #, Player, MIN, PTS, FG, FG%, 3PT, 3P%, FT, FT%, OR, DR, AST, STL, TO, PF, +/-, EFF, TS%
-    // Skinny # and MIN, wide Player name.
-    const cols=[ML,ML+5,ML+46,ML+56,ML+66,ML+78,ML+89,ML+100,ML+110,ML+120,ML+129,ML+137,ML+146,ML+155,ML+163,ML+170,ML+178,ML+186,ML+194];
-    const hdrs=['#','Player','MIN','PTS','FG','FG%','3PT','3P%','FT','FT%','OR','DR','AST','STL','TO','PF','+/-','EFF','TS%'];
-    doc.setFont('helvetica','bold');doc.setFontSize(5.8);doc.setTextColor(...DIM);
+    // #, Player, MIN, PTS, FG, FG%, 3PT, 3P%, FT, FT%, OR, TOT, AST, STL, BLK, TO, PF, +/-, EFF, TS%
+    const cols=[ML,ML+6,ML+48,ML+60,ML+71,ML+84,ML+96,ML+109,ML+121,ML+134,ML+145,ML+155,ML+166,ML+177,ML+188,ML+198,ML+208,ML+218,ML+229,ML+241];
+    const hdrs=['#','Player','MIN','PTS','FG','FG%','3PT','3P%','FT','FT%','OR','TOT','AST','STL','BLK','TO','PF','+/-','EFF','TS%'];
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...DIM);
     hdrs.forEach((h,i)=>doc.text(h,cols[i],y,i>1?{align:'center'}:{}));
-    y+=3.5;
-    doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2;
+    y+=4;
+    doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2.5;
 
     const tot={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,oreb:0,dreb:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0,eff:0};
     stats.forEach((p,ri)=>{
-      checkY(6);
-      if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.2,PW-ML-MR,5.2,'F');}
+      checkY(7);
+      if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.6,PW-ML-MR,5.8,'F');}
       const pct=(m,a)=>a?Math.round(100*m/a)+'%':'—';
       const pm=(p.plusMinus>=0?'+':'')+p.plusMinus;
-      const cells=[p.num,p.name.length>24?p.name.slice(0,24)+'…':p.name,
+      const cells=[p.num,p.name.length>26?p.name.slice(0,26)+'…':p.name,
         p.mins,p.pts,`${p.fgm}/${p.fga}`,pct(p.fgm,p.fga),`${p.tpm}/${p.tpa}`,pct(p.tpm,p.tpa),
-        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.oreb,p.dreb,p.ast,p.stl,p.to,p.fls,pm,p.eff,p.ts];
-      doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(...NAVY);
+        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.oreb,p.reb,p.ast,p.stl,p.blk,p.to,p.fls,pm,p.eff,p.ts];
+      doc.setFont('helvetica','normal');doc.setFontSize(7.2);doc.setTextColor(...NAVY);
       cells.forEach((c,i)=>{
         if(i===0)doc.text(String(c),cols[i],y);
         else if(i===1){doc.setFont('helvetica','bold');doc.text(String(c),cols[i],y);doc.setFont('helvetica','normal');}
         else {
-          // Color +/- 
-          if(i===16){doc.setTextColor(p.plusMinus>0?22:p.plusMinus<0?180:120,p.plusMinus>0?163:p.plusMinus<0?30:130,p.plusMinus>0?74:p.plusMinus<0?30:150);}
+          if(i===17){doc.setTextColor(p.plusMinus>0?22:p.plusMinus<0?180:120,p.plusMinus>0?163:p.plusMinus<0?30:130,p.plusMinus>0?74:p.plusMinus<0?30:150);}
           doc.text(String(c),cols[i],y,{align:'center'});
           doc.setTextColor(...NAVY);
         }
       });
       ['pts','fgm','fga','tpm','tpa','ftm','fta','oreb','dreb','reb','ast','stl','blk','to','fls','eff'].forEach(k=>tot[k]+=p[k]);
-      y+=5;
+      y+=5.5;
     });
 
     // Totals row
     checkY(7);
-    doc.setFillColor(...LIGHT);doc.rect(ML,y-3.2,PW-ML-MR,5.5,'F');
+    doc.setFillColor(...LIGHT);doc.rect(ML,y-3.6,PW-ML-MR,6,'F');
     const pct=(m,a)=>a?Math.round(100*m/a)+'%':'—';
     const tsDenom=2*(tot.fga+0.44*tot.fta);
     const totTs=tsDenom>0?Math.round(100*tot.pts/tsDenom)+'%':'—';
     const tcells=['','TOTALS','—',tot.pts,`${tot.fgm}/${tot.fga}`,pct(tot.fgm,tot.fga),
       `${tot.tpm}/${tot.tpa}`,pct(tot.tpm,tot.tpa),`${tot.ftm}/${tot.fta}`,pct(tot.ftm,tot.fta),
-      tot.oreb,tot.dreb,tot.ast,tot.stl,tot.to,tot.fls,'—',tot.eff,totTs];
-    doc.setFont('helvetica','bold');doc.setFontSize(6.2);doc.setTextColor(...NAVY);
+      tot.oreb,tot.reb,tot.ast,tot.stl,tot.blk,tot.to,tot.fls,'—',tot.eff,totTs];
+    doc.setFont('helvetica','bold');doc.setFontSize(7.2);doc.setTextColor(...NAVY);
     tcells.forEach((c,i)=>doc.text(String(c),cols[i],y,i>1?{align:'center'}:{}));
-    y+=7;
+    y+=8;
   }
 
   drawBoxScore('home');
@@ -3121,30 +3120,32 @@ async function generatePDF(opts={}){
 
   // ── Per-quarter team breakdown (FG, 3P, FT, rebounding, turnovers) ──
   function drawQuarterBreakdown(side){
-    checkY(14);
+    checkY(16);
     sectionTitle(`${GAME[side].name.toUpperCase()} — BY QUARTER`);
-    const qcols=[ML, ML+22, ML+44, ML+66, ML+86, ML+108, ML+128, ML+152];
-    const qhdrs=['Quarter','FG','FG%','3PT','3P%','FT','REB O/T','TO'];
-    // second measure line under FT? keep compact: FT with % appended
-    doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(...DIM);
+    const qcols=[ML, ML+26, ML+50, ML+74, ML+100, ML+124, ML+150, ML+174, ML+200, ML+228];
+    const qhdrs=['Quarter','FG','FG%','eFG%','3PT','3P%','FT','REB O/T','TO','TS%'];
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...DIM);
     qhdrs.forEach((h,i)=>doc.text(h,qcols[i],y,i>0?{align:'center'}:{}));
-    y+=3.5;
+    y+=4;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2.5;
     const pct=(m,a)=>a?Math.round(100*m/a)+'%':'—';
     const rows=quarterBreakdown(side);
     rows.forEach((r,ri)=>{
-      checkY(6);
+      checkY(7);
       const isTot=r.label==='Game';
-      if(isTot){doc.setFillColor(...LIGHT);doc.rect(ML,y-3.2,PW-ML-MR,5.2,'F');}
-      else if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.2,PW-ML-MR,5.2,'F');}
+      if(isTot){doc.setFillColor(...LIGHT);doc.rect(ML,y-3.6,PW-ML-MR,5.8,'F');}
+      else if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.6,PW-ML-MR,5.8,'F');}
+      const efg = r.fga?Math.round(100*(r.fgm+0.5*r.tpm)/r.fga)+'%':'—';
+      const tsD = 2*(r.fga+0.44*r.fta);
+      const ts  = tsD>0?Math.round(100*r.pts/tsD)+'%':'—';
       const ftCell = `${r.ftm}/${r.fta}${r.fta?' '+pct(r.ftm,r.fta):''}`;
-      const cells=[r.label,`${r.fgm}/${r.fga}`,pct(r.fgm,r.fga),`${r.tpm}/${r.tpa}`,pct(r.tpm,r.tpa),ftCell,`${r.oreb}/${r.treb}`,r.to];
-      doc.setFont('helvetica',isTot?'bold':'normal');doc.setFontSize(6.4);doc.setTextColor(...NAVY);
+      const cells=[r.label,`${r.fgm}/${r.fga}`,pct(r.fgm,r.fga),efg,`${r.tpm}/${r.tpa}`,pct(r.tpm,r.tpa),ftCell,`${r.oreb}/${r.treb}`,r.to,ts];
+      doc.setFont('helvetica',isTot?'bold':'normal');doc.setFontSize(7.2);doc.setTextColor(...NAVY);
       cells.forEach((c,i)=>{
         if(i===0)doc.text(String(c),qcols[i],y);
         else doc.text(String(c),qcols[i],y,{align:'center'});
       });
-      y+=5;
+      y+=5.5;
     });
     y+=5;
   }

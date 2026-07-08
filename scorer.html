@@ -2817,8 +2817,17 @@ function boxStats(side){
     const entered = !!p.starter || allEvts.some(e=>e.side===side&&e.pid===p.id&&e.key==='sub_in');
 
     return{num:p.num,name:pName(p),pts:p.pts,oreb,dreb,reb,ast:p.ast,fls:p.fouls,
-           fgm,fga,tpm,tpa,ftm,fta,stl,blk,to,mins:minsStr,plusMinus,eff,ts,entered};
+           fgm,fga,tpm,tpa,ftm,fta,stl,blk,to,mins:minsStr,plusMinus,eff,ts,entered,starter:!!p.starter};
   }).filter(p=>p.entered||p.fga>0||p.pts>0||p.reb>0||p.ast>0||p.stl>0||p.blk>0||p.to>0||p.fls>0);
+}
+// Sum a side's box stats into team totals (used by leaders, comparison, bench split).
+function teamTotals(side){
+  const t={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,oreb:0,dreb:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0,starterPts:0,benchPts:0};
+  boxStats(side).forEach(p=>{
+    ['pts','fgm','fga','tpm','tpa','ftm','fta','oreb','dreb','reb','ast','stl','blk','to','fls'].forEach(k=>t[k]+=p[k]||0);
+    if(p.starter) t.starterPts+=p.pts; else t.benchPts+=p.pts;
+  });
+  return t;
 }
 
 function qtrScores(){
@@ -3042,7 +3051,37 @@ async function generatePDF(opts={}){
   doc.setFont('helvetica','bold');
   doc.setTextColor(...NAVY);
   doc.text(`${GAME.away.name}`,ax,y+5,{align:'right'});
-  y+=20;
+  // Game meta line: event · venue · date · status
+  const _m=GAME.meta||{};
+  let _dateStr=_m.date||'';
+  try{ if(/^\d{4}-\d{2}-\d{2}$/.test(_dateStr)){ const d=new Date(_dateStr+'T12:00:00'); _dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } }catch(e){}
+  const _status = _gameFinalized ? 'FINAL' : (G_test_mode ? 'TEST GAME' : `${PERIOD_LBL(GAME.period)} · ${fmt(GAME.clockSec)}`);
+  const _meta=[_m.event,_m.venue,_dateStr,_status].filter(Boolean).join('    ·    ');
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(...DIM);
+  doc.text(_meta,PW/2,y+19,{align:'center'});
+  y+=24;
+
+  // ── Game leaders (top performer per category across both teams) ──
+  function topLeader(cat){
+    let best=null;
+    ['home','away'].forEach(side=>{
+      boxStats(side).forEach(p=>{
+        const v=p[cat]||0;
+        if(v>0 && (!best || v>best.v)) best={name:p.name,short:GAME[side].short||GAME[side].name,v};
+      });
+    });
+    return best;
+  }
+  const leadDefs=[['PTS','pts'],['REB','reb'],['AST','ast'],['STL','stl'],['BLK','blk']];
+  const leadStrs=leadDefs.map(([lbl,cat])=>{const L=topLeader(cat);return L?`${lbl}: ${L.name} (${L.short}) ${L.v}`:null;}).filter(Boolean);
+  if(leadStrs.length){
+    doc.setFillColor(...LIGHT);doc.rect(ML,y-3.5,PW-ML-MR,6,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...GOLD);
+    doc.text('GAME LEADERS',ML+2,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(...NAVY);doc.setFontSize(7.2);
+    doc.text(leadStrs.join('      ·      '),ML+34,y);
+    y+=8;
+  }
 
   // Quarter scores table
   const qs=qtrScores();
@@ -3064,18 +3103,61 @@ async function generatePDF(opts={}){
   });
   y+=4;
 
+  // ── Team comparison (side-by-side on key rates; better side highlighted) ──
+  (function drawComparison(){
+    checkY(40);
+    sectionTitle('TEAM COMPARISON');
+    const H=teamTotals('home'), A=teamTotals('away');
+    const pctS=(m,a)=>a?Math.round(100*m/a)+'%':'—';
+    const rows=[
+      ['Points', H.pts, A.pts, H.pts>A.pts, A.pts>H.pts],
+      ['FG', `${H.fgm}/${H.fga} ${pctS(H.fgm,H.fga)}`, `${A.fgm}/${A.fga} ${pctS(A.fgm,A.fga)}`, (H.fga?H.fgm/H.fga:0)>(A.fga?A.fgm/A.fga:0), (A.fga?A.fgm/A.fga:0)>(H.fga?H.fgm/H.fga:0)],
+      ['3PT', `${H.tpm}/${H.tpa} ${pctS(H.tpm,H.tpa)}`, `${A.tpm}/${A.tpa} ${pctS(A.tpm,A.tpa)}`, (H.tpa?H.tpm/H.tpa:0)>(A.tpa?A.tpm/A.tpa:0), (A.tpa?A.tpm/A.tpa:0)>(H.tpa?H.tpm/H.tpa:0)],
+      ['FT', `${H.ftm}/${H.fta} ${pctS(H.ftm,H.fta)}`, `${A.ftm}/${A.fta} ${pctS(A.ftm,A.fta)}`, (H.fta?H.ftm/H.fta:0)>(A.fta?A.ftm/A.fta:0), (A.fta?A.ftm/A.fta:0)>(H.fta?H.ftm/H.fta:0)],
+      ['Rebounds', H.reb, A.reb, H.reb>A.reb, A.reb>H.reb],
+      ['Assists', H.ast, A.ast, H.ast>A.ast, A.ast>H.ast],
+      ['Turnovers', H.to, A.to, H.to<A.to, A.to<H.to], // fewer is better
+    ];
+    const cxH=ML+55, cxL=PW/2, cxA=PW-MR-55;
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...NAVY);
+    doc.text(GAME.home.name,cxH,y,{align:'center'});
+    doc.text(GAME.away.name,cxA,y,{align:'center'});
+    y+=5;doc.setDrawColor(...BORDER);doc.line(ML,y-2,PW-MR,y-2);
+    rows.forEach((r,ri)=>{
+      checkY(6);
+      if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.4,PW-ML-MR,5.6,'F');}
+      doc.setFontSize(7.6);
+      doc.setFont('helvetica',r[3]?'bold':'normal');doc.setTextColor(...(r[3]?BLUE:NAVY));
+      doc.text(String(r[1]),cxH,y,{align:'center'});
+      doc.setFont('helvetica','bold');doc.setTextColor(...DIM);doc.setFontSize(7.2);
+      doc.text(r[0].toUpperCase(),cxL,y,{align:'center'});
+      doc.setFont('helvetica',r[4]?'bold':'normal');doc.setTextColor(...(r[4]?RED:NAVY));doc.setFontSize(7.6);
+      doc.text(String(r[2]),cxA,y,{align:'center'});
+      y+=5.4;
+    });
+    y+=5;
+  })();
+
   // Box scores
   function drawBoxScore(side){
     const teamName=GAME[side].name.toUpperCase();
     sectionTitle(`${teamName} — BOX SCORE`);
     const stats=boxStats(side);
-    // #, Player, MIN, PTS, FG, FG%, 3PT, 3P%, FT, FT%, OR, TOT, AST, STL, BLK, TO, PF, +/-, EFF, TS%
-    const cols=[ML,ML+6,ML+48,ML+60,ML+71,ML+84,ML+96,ML+109,ML+121,ML+134,ML+145,ML+155,ML+166,ML+177,ML+188,ML+198,ML+208,ML+218,ML+229,ML+241];
-    const hdrs=['#','Player','MIN','PTS','FG','FG%','3PT','3P%','FT','FT%','OR','TOT','AST','STL','BLK','TO','PF','+/-','EFF','TS%'];
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...DIM);
+    // #, Player, MIN, PTS, FG, FG%, 3PT, 3P%, FT, FT%, OR, DR, TOT, AST, A/TO, STL, BLK, TO, PF, +/-, EFF, TS%
+    const cols=[ML,ML+5,ML+45,ML+56,ML+65,ML+77,ML+89,ML+101,ML+112,ML+123,ML+133,ML+141,ML+149,ML+158,ML+167,ML+177,ML+185,ML+193,ML+201,ML+210,ML+220,ML+230];
+    const hdrs=['#','Player','MIN','PTS','FG','FG%','3PT','3P%','FT','FT%','OR','DR','TOT','AST','A/TO','STL','BLK','TO','PF','+/-','EFF','TS%'];
+    const PM_I=19; // index of +/- column
+    // Group header: "REBOUNDS" spanning OR + DR + TOT
+    doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(...DIM);
+    doc.text('REBOUNDS',cols[11],y,{align:'center'});
+    doc.setDrawColor(...BORDER);doc.setLineWidth(0.2);
+    doc.line(cols[10]-3,y+1,cols[12]+3,y+1);
+    y+=3.2;
+    doc.setFont('helvetica','bold');doc.setFontSize(6.6);doc.setTextColor(...DIM);
     hdrs.forEach((h,i)=>doc.text(h,cols[i],y,i>1?{align:'center'}:{}));
     y+=4;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2.5;
+    const ato=(a,t)=>t>0?(a/t).toFixed(1):(a>0?a.toFixed(1):'—');
 
     const tot={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,oreb:0,dreb:0,reb:0,ast:0,stl:0,blk:0,to:0,fls:0,eff:0};
     stats.forEach((p,ri)=>{
@@ -3085,13 +3167,13 @@ async function generatePDF(opts={}){
       const pm=(p.plusMinus>=0?'+':'')+p.plusMinus;
       const cells=[p.num,p.name.length>26?p.name.slice(0,26)+'…':p.name,
         p.mins,p.pts,`${p.fgm}/${p.fga}`,pct(p.fgm,p.fga),`${p.tpm}/${p.tpa}`,pct(p.tpm,p.tpa),
-        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.oreb,p.reb,p.ast,p.stl,p.blk,p.to,p.fls,pm,p.eff,p.ts];
-      doc.setFont('helvetica','normal');doc.setFontSize(7.2);doc.setTextColor(...NAVY);
+        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.oreb,p.dreb,p.reb,p.ast,ato(p.ast,p.to),p.stl,p.blk,p.to,p.fls,pm,p.eff,p.ts];
+      doc.setFont('helvetica','normal');doc.setFontSize(6.8);doc.setTextColor(...NAVY);
       cells.forEach((c,i)=>{
         if(i===0)doc.text(String(c),cols[i],y);
         else if(i===1){doc.setFont('helvetica','bold');doc.text(String(c),cols[i],y);doc.setFont('helvetica','normal');}
         else {
-          if(i===17){doc.setTextColor(p.plusMinus>0?22:p.plusMinus<0?180:120,p.plusMinus>0?163:p.plusMinus<0?30:130,p.plusMinus>0?74:p.plusMinus<0?30:150);}
+          if(i===PM_I){doc.setTextColor(p.plusMinus>0?22:p.plusMinus<0?180:120,p.plusMinus>0?163:p.plusMinus<0?30:130,p.plusMinus>0?74:p.plusMinus<0?30:150);}
           doc.text(String(c),cols[i],y,{align:'center'});
           doc.setTextColor(...NAVY);
         }
@@ -3108,10 +3190,15 @@ async function generatePDF(opts={}){
     const totTs=tsDenom>0?Math.round(100*tot.pts/tsDenom)+'%':'—';
     const tcells=['','TOTALS','—',tot.pts,`${tot.fgm}/${tot.fga}`,pct(tot.fgm,tot.fga),
       `${tot.tpm}/${tot.tpa}`,pct(tot.tpm,tot.tpa),`${tot.ftm}/${tot.fta}`,pct(tot.ftm,tot.fta),
-      tot.oreb,tot.reb,tot.ast,tot.stl,tot.blk,tot.to,tot.fls,'—',tot.eff,totTs];
-    doc.setFont('helvetica','bold');doc.setFontSize(7.2);doc.setTextColor(...NAVY);
+      tot.oreb,tot.dreb,tot.reb,tot.ast,ato(tot.ast,tot.to),tot.stl,tot.blk,tot.to,tot.fls,'—',tot.eff,totTs];
+    doc.setFont('helvetica','bold');doc.setFontSize(6.8);doc.setTextColor(...NAVY);
     tcells.forEach((c,i)=>doc.text(String(c),cols[i],y,i>1?{align:'center'}:{}));
-    y+=8;
+    y+=6;
+    // Starters vs bench points
+    const tt=teamTotals(side);
+    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...DIM);
+    doc.text(`Starters: ${tt.starterPts}   ·   Bench: ${tt.benchPts}`,ML+45,y);
+    y+=6;
   }
 
   drawBoxScore('home');
@@ -3242,19 +3329,38 @@ async function generatePDF(opts={}){
   }
 
   // Team shot charts side by side
-  const COURT_W=82,COURT_H=68;
+  const COURT_W=95,COURT_H=79;
   const homeShots=evts.filter(e=>e.side==='home'&&e.pt);
   const awayShots=evts.filter(e=>e.side==='away'&&e.pt);
+  const shotSummary=shots=>{
+    const made=shots.filter(s=>['2pt_made','3pt_made','putback_made'].includes(s.key)).length;
+    return shots.length?`  (${made}/${shots.length} FG)`:'';
+  };
+  const cGap=14;
+  drawMiniCourt(ML,y,COURT_W,COURT_H,homeShots,GAME.home.name+shotSummary(homeShots));
+  drawMiniCourt(ML+COURT_W+cGap,y,COURT_W,COURT_H,awayShots,GAME.away.name+shotSummary(awayShots));
+  y+=COURT_H+8;
 
-  drawMiniCourt(ML,y,COURT_W,COURT_H,homeShots,GAME.home.name);
-  drawMiniCourt(ML+COURT_W+10,y,COURT_W,COURT_H,awayShots,GAME.away.name);
-  y+=COURT_H+12;
+  // Legend
+  (function legend(){
+    const items=[['circ','#27ae60','2pt made'],['circ','#f39c12','3pt made'],['circ','#a78bfa','Putback'],['x','#e05c52','Miss']];
+    let lx=ML+2;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    items.forEach(([type,color,lbl])=>{
+      if(type==='circ'){ doc.setFillColor(color); doc.circle(lx+1.6,y-1.1,1.6,'F'); }
+      else { doc.setTextColor(color); doc.setFont('helvetica','bold'); doc.text('×',lx+0.4,y+0.4); doc.setFont('helvetica','normal'); }
+      doc.setTextColor(...DIM);
+      doc.text(lbl,lx+5,y);
+      lx += 8 + doc.getTextWidth(lbl);
+    });
+    y+=8;
+  })();
 
   // Individual shot charts — 3 per row
-  const ICW=56,ICH=47;
-  const ICGAP=7;
-  const ICPER=3; // charts per row
-  const iCols=[ML, ML+ICW+ICGAP, ML+(ICW+ICGAP)*2];
+  const ICW=57,ICH=48;
+  const ICGAP=6;
+  const ICPER=4; // charts per row (landscape)
+  const iCols=[ML, ML+ICW+ICGAP, ML+(ICW+ICGAP)*2, ML+(ICW+ICGAP)*3];
 
   // Collect all players with shots
   const allShooters=[];

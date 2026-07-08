@@ -141,9 +141,9 @@ body{
 .ppanel.ap{border-left:2px solid var(--border);}
 
 .pcard{
-  border-radius:8px;padding:10px 9px;cursor:pointer;
-  border:2px solid transparent;flex-shrink:0;
-  display:flex;align-items:center;gap:8px;
+  border-radius:8px;padding:12px 11px;cursor:pointer;
+  border:2px solid transparent;flex:1 1 auto;min-height:66px;max-height:132px;
+  display:flex;align-items:center;gap:10px;
   transition:transform .1s;
 }
 .hp .pcard{background:rgba(45,125,210,.1);border-color:rgba(45,125,210,.2);}
@@ -151,11 +151,11 @@ body{
 .pcard.sel{border-color:var(--gold)!important;background:rgba(243,156,18,.18)!important;box-shadow:0 0 14px rgba(243,156,18,.35);}
 .pcard:active{transform:scale(.97);}
 
-.pnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:34px;line-height:1;flex-shrink:0;}
+.pnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:38px;line-height:1;flex-shrink:0;}
 .hp .pnum{color:var(--hl);}
 .ap .pnum{color:var(--al);}
 .pinfo{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;}
-.pname{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pname{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pstats{display:flex;gap:8px;}
 .ps{display:flex;flex-direction:column;align-items:center;}
 .psv{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;line-height:1;color:var(--text);}
@@ -1874,6 +1874,20 @@ function getPts(k){
   return 0;
 }
 function getLabel(k,side){if(k==='possession_flip'){return (side?GAME[side].name:'')+' ball';}return KLBL[k]||(([...SDEFS,...SDEFS_MORE].find(s=>s.key===k))?.lbl)||k;}
+// Fuller, plain-ASCII labels for the PDF play-by-play (no ✓/✗ which don't render
+// in the PDF base font and come out letter-spaced).
+function pbpLabel(k){
+  const M={
+    '2pt_made':'2-pt basket','2pt_miss':'missed 2','3pt_made':'3-pointer','3pt_miss':'missed 3',
+    'putback_made':'putback','putback_miss':'missed putback','ft_made':'free throw','ft_miss':'missed free throw',
+    'o_reb':'offensive rebound','d_reb':'defensive rebound','assist':'assist','steal':'steal','block':'block',
+    'turnover':'turnover','deflection':'deflection','charge_taken':'charge taken',
+    'foul_personal':'personal foul','foul_offensive':'offensive foul','foul_flagrant':'flagrant foul',
+    'foul_technical':'technical foul','foul_intentional':'intentional foul',
+    'timeout_full':'full timeout','timeout_30sec':'30-second timeout','possession_flip':'ball possession'
+  };
+  return M[k]||k.replace(/_/g,' ');
+}
 
 function undoLast(){
   if(!evts.length){ flash('Nothing to undo'); return; }
@@ -2173,8 +2187,8 @@ async function suSelectGame(id) {
   // and correctable before tip-off (mirrors how football/baseball show the roster).
   document.getElementById('su-home-name').value  = g.home.name;
   document.getElementById('su-away-name').value  = g.away.name;
-  document.getElementById('su-home-short').value = autoShort(g.home.name);
-  document.getElementById('su-away-short').value = autoShort(g.away.name);
+  document.getElementById('su-home-short').value = shortFor(g.home.name);
+  document.getElementById('su-away-short').value = shortFor(g.away.name);
   document.getElementById('su-home-gender').value = /girl/i.test(g.home.gender||'') ? 'girls' : 'boys';
   document.getElementById('su-away-gender').value = /girl/i.test(g.away.gender||'') ? 'girls' : 'boys';
   document.getElementById('su-event').value = '';
@@ -2321,10 +2335,10 @@ function suTipOff() {
     G_game_id=g.id; G_home_team_id=g.homeId; G_away_team_id=g.awayId; _gameFinalized=(g.status==='final');
 
     GAME.home.name   = g.home.name;
-    GAME.home.short  = autoShort(g.home.name);
+    GAME.home.short  = shortFor(g.home.name);
     GAME.home.gender = 'boys';
     GAME.away.name   = g.away.name;
-    GAME.away.short  = autoShort(g.away.name);
+    GAME.away.short  = shortFor(g.away.name);
     GAME.away.gender = 'boys';
     GAME.meta = { event:'', venue: g.venue||'', date: g.date||'' };
 
@@ -2404,6 +2418,12 @@ function suTipOff() {
 }
 
 // ── Shared setup helpers ──
+// Established short names (CHILLS, CAPE, SOPO…) live in MAINE_TEAMS; prefer those
+// over auto-generated initials.
+function shortFor(name){
+  const t=MAINE_TEAMS.find(t=>t.name.toLowerCase()===(name||'').trim().toLowerCase());
+  return t ? t.short : autoShort(name);
+}
 function autoShort(name){
   if(!name) return '';
   const w=name.trim().split(/\s+/);
@@ -2561,7 +2581,7 @@ function suAcShow(side) {
   if (!val) { ac.style.display='none'; return; }
   // Prefer the live DB school list; fall back to the built-in MAINE_TEAMS list.
   const source = (_schools && _schools.length)
-    ? _schools.map(n=>({name:n, short:autoShort(n)}))
+    ? _schools.map(n=>({name:n, short:shortFor(n)}))
     : MAINE_TEAMS;
   const matches = source.filter(t => t.name.toLowerCase().includes(val)).slice(0,8);
   if (!matches.length) { ac.style.display='none'; return; }
@@ -2676,7 +2696,7 @@ async function endGame(){
   GAME.running=false;clearInterval(clkInt);
   // Always give the scorer the local downloads.
   generateCSV();
-  setTimeout(()=>generatePDF(),400);
+  setTimeout(()=>{generatePDF().catch(e=>console.warn("pdf",e));},400);
   scheduleSave();
 
   if(G_game_id && !G_test_mode && !_gameFinalized){
@@ -2879,7 +2899,7 @@ function generateCSV(){
 }
 
 // ── PDF ───────────────────────────────────────────────────────
-function generatePDF(opts={}){
+async function generatePDF(opts={}){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   const PW=215.9,PH=279.4;
@@ -2896,6 +2916,29 @@ function generatePDF(opts={}){
   const LIGHT=[240,242,248];
   const BORDER=[200,205,220];
 
+  // ── Preload logos as data URLs (site + both teams); null on any failure ──
+  const SITE_LOGO_URL='https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png';
+  async function imgData(url){
+    if(!url) return null;
+    try{
+      const r=await fetch(url,{mode:'cors'}); if(!r.ok) return null;
+      const b=await r.blob();
+      return await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>res(null);fr.readAsDataURL(b);});
+    }catch(e){ return null; }
+  }
+  let siteLogo=null,homeLogo=null,awayLogo=null;
+  try{ siteLogo=await imgData(SITE_LOGO_URL); }catch(e){}
+  try{
+    if(G_home_team_id||G_away_team_id){
+      const rows=await sbFetch(`teams?or=(id.eq.${G_home_team_id},id.eq.${G_away_team_id})&select=id,logo_url`);
+      if(Array.isArray(rows)){
+        const hm=rows.find(r=>r.id===G_home_team_id), aw=rows.find(r=>r.id===G_away_team_id);
+        homeLogo=await imgData(hm&&hm.logo_url); awayLogo=await imgData(aw&&aw.logo_url);
+      }
+    }
+  }catch(e){}
+  function imgType(d){ return /^data:image\/jpe?g/.test(d||'')?'JPEG':'PNG'; }
+
   function newPage(){
     doc.addPage();
     y=MT;
@@ -2905,19 +2948,31 @@ function generatePDF(opts={}){
   function checkY(need){if(y+need>PH-14)newPage();}
 
   function drawHeader(){
-    // MBR branded header bar
-    doc.setFillColor(...NAVY);
-    doc.rect(0,0,PW,18,'F');
-    doc.setTextColor(...WHITE);
+    // Clean light header — a small navy chip holds the (white) MBR mark, wordmark
+    // and URL beside it, report label on the right, gold rule underneath.
+    doc.setFillColor(...WHITE);
+    doc.rect(0,0,PW,20,'F');
+    if(siteLogo){
+      doc.setFillColor(...NAVY);
+      doc.roundedRect(ML,4,12,12,1.5,1.5,'F');
+      try{ doc.addImage(siteLogo,imgType(siteLogo),ML+1.2,5.2,9.6,9.6); }catch(e){}
+    }
+    const tx=siteLogo?ML+16:ML;
+    doc.setTextColor(...NAVY);
     doc.setFont('helvetica','bold');
-    doc.setFontSize(11);
-    doc.text('MAINE BASKETBALL RANKINGS',ML,7.5);
+    doc.setFontSize(12);
+    doc.text('MAINE BASKETBALL RANKINGS',tx,10);
     doc.setFont('helvetica','normal');
     doc.setFontSize(8);
-    doc.text('app.mainebasketballrankings.com',ML,13);
+    doc.setTextColor(...DIM);
+    doc.text('mainebasketballrankings.com',tx,15);
+    doc.setFont('helvetica','bold');
     doc.setFontSize(8);
-    doc.text('LIVE SCORING REPORT',PW-MR,10,{align:'right'});
-    y=22;
+    doc.setTextColor(...GOLD);
+    doc.text('LIVE SCORING REPORT',PW-MR,11,{align:'right'});
+    doc.setDrawColor(...GOLD);doc.setLineWidth(0.6);
+    doc.line(ML,19,PW-MR,19);doc.setLineWidth(0.2);
+    y=25;
   }
 
   function sectionTitle(title){
@@ -2938,23 +2993,30 @@ function generatePDF(opts={}){
   const hs=GAME.home.score, as=GAME.away.score;
   const winner=hs>as?'home':as>hs?'away':'tie';
 
+  const LOGO=13;
+  // Home (left): optional logo, then name + score
+  let hx=ML;
+  if(homeLogo){ try{ doc.addImage(homeLogo,imgType(homeLogo),ML,y-1,LOGO,LOGO); }catch(e){} hx=ML+LOGO+3; }
   doc.setFontSize(16);
   doc.setFont('helvetica','bold');
   doc.setTextColor(...NAVY);
-  doc.text(`${GAME.home.name}`,ML,y+5);
+  doc.text(`${GAME.home.name}`,hx,y+5);
   doc.setFontSize(22);
   doc.setTextColor(...(winner==='home'?BLUE:DIM));
-  doc.text(`${hs}`,ML,y+14);
+  doc.text(`${hs}`,hx,y+14);
   doc.setFontSize(22);
   doc.setTextColor(...DIM);
   doc.text('vs',(PW/2),y+10,{align:'center'});
+  // Away (right): name + score, optional logo
+  let ax=PW-MR;
+  if(awayLogo){ try{ doc.addImage(awayLogo,imgType(awayLogo),PW-MR-LOGO,y-1,LOGO,LOGO); }catch(e){} ax=PW-MR-LOGO-3; }
   doc.setFontSize(22);
   doc.setTextColor(...(winner==='away'?RED:DIM));
-  doc.text(`${as}`,PW-MR,y+14,{align:'right'});
+  doc.text(`${as}`,ax,y+14,{align:'right'});
   doc.setFontSize(16);
   doc.setFont('helvetica','bold');
   doc.setTextColor(...NAVY);
-  doc.text(`${GAME.away.name}`,PW-MR,y+5,{align:'right'});
+  doc.text(`${GAME.away.name}`,ax,y+5,{align:'right'});
   y+=20;
 
   // Quarter scores table
@@ -3219,20 +3281,28 @@ function generatePDF(opts={}){
     const pEvts=[...evts].filter(e=>e.period===period&&!skipKeys.has(e.key)).reverse();
     pEvts.forEach((e,ri)=>{
       checkY(5);
-      if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3,PW-ML-MR,5,'F');}
-      const pn=e.pnum!=null?`#${e.pnum} ${e.plast||''}`:''
-      const lbl=getLabel(e.key,e.side);
+      const isMade=e.pts>0;
+      if(isMade){
+        // Highlight scoring plays with a team-tinted row
+        doc.setFillColor(e.side==='home'?226:255, e.side==='home'?237:234, e.side==='home'?251:234);
+        doc.rect(ML,y-3,PW-ML-MR,5,'F');
+      } else if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3,PW-ML-MR,5,'F');}
+      const first=e.pfirst||e.pfi||'';
+      const pn=e.pnum!=null?`#${e.pnum} ${first?first+' ':''}${e.plast||''}`.trim():'';
+      const lbl=pbpLabel(e.key);
       const desc=pn?`${pn} — ${lbl}`:lbl;
       const time=fmt(e.clk);
+      const maxLen=44;
+      const dtxt=desc.length>maxLen?desc.slice(0,maxLen)+'…':desc;
 
-      doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+      doc.setFont('helvetica',isMade?'bold':'normal');doc.setFontSize(6.5);
       const scoreStr=`${e.hScore??''}–${e.aScore??''}`;
       if(e.side==='home'){
         doc.setTextColor(...BLUE);
-        doc.text(desc.length>35?desc.slice(0,35)+'…':desc,ML,y);
+        doc.text(dtxt,ML,y);
       } else {
         doc.setTextColor(...RED);
-        doc.text(desc.length>35?desc.slice(0,35)+'…':desc,PW-MR,y,{align:'right'});
+        doc.text(dtxt,PW-MR,y,{align:'right'});
       }
       doc.setTextColor(...DIM);doc.setFont('helvetica','normal');
       doc.text(time,PW/2-16,y,{align:'center'});
@@ -3273,7 +3343,7 @@ function generatePDF(opts={}){
 async function autoUploadGameReport(){
   if(!G_game_id || G_test_mode) return;
   try{
-    const blob = generatePDF({returnBlob:true});
+    const blob = await generatePDF({returnBlob:true});
     const path = `${G_game_id}.pdf`;
     const up = await fetch(`${SB_URL}/storage/v1/object/game-reports/${path}`, {
       method:'POST',

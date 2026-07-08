@@ -3103,57 +3103,71 @@ async function generatePDF(opts={}){
   });
   y+=4;
 
-  // ── Team comparison (side-by-side on key rates; better side highlighted) ──
+  // ── Team comparison (own page; side-by-side on key rates) ──
+  newPage();
   (function drawComparison(){
-    checkY(40);
     sectionTitle('TEAM COMPARISON');
     const H=teamTotals('home'), A=teamTotals('away');
     const pctS=(m,a)=>a?Math.round(100*m/a)+'%':'—';
+    const efgR=t=>t.fga?(t.fgm+0.5*t.tpm)/t.fga:0;
+    const tsR=t=>{const d=2*(t.fga+0.44*t.fta);return d>0?t.pts/d:0;};
+    const rate=(m,a)=>a?m/a:0;
+    const efgS=t=>t.fga?Math.round(100*efgR(t))+'%':'—';
+    const tsS=t=>{const d=2*(t.fga+0.44*t.fta);return d>0?Math.round(100*tsR(t))+'%':'—';};
     const rows=[
       ['Points', H.pts, A.pts, H.pts>A.pts, A.pts>H.pts],
-      ['FG', `${H.fgm}/${H.fga} ${pctS(H.fgm,H.fga)}`, `${A.fgm}/${A.fga} ${pctS(A.fgm,A.fga)}`, (H.fga?H.fgm/H.fga:0)>(A.fga?A.fgm/A.fga:0), (A.fga?A.fgm/A.fga:0)>(H.fga?H.fgm/H.fga:0)],
-      ['3PT', `${H.tpm}/${H.tpa} ${pctS(H.tpm,H.tpa)}`, `${A.tpm}/${A.tpa} ${pctS(A.tpm,A.tpa)}`, (H.tpa?H.tpm/H.tpa:0)>(A.tpa?A.tpm/A.tpa:0), (A.tpa?A.tpm/A.tpa:0)>(H.tpa?H.tpm/H.tpa:0)],
-      ['FT', `${H.ftm}/${H.fta} ${pctS(H.ftm,H.fta)}`, `${A.ftm}/${A.fta} ${pctS(A.ftm,A.fta)}`, (H.fta?H.ftm/H.fta:0)>(A.fta?A.ftm/A.fta:0), (A.fta?A.ftm/A.fta:0)>(H.fta?H.ftm/H.fta:0)],
+      ['FG', `${H.fgm}/${H.fga} ${pctS(H.fgm,H.fga)}`, `${A.fgm}/${A.fga} ${pctS(A.fgm,A.fga)}`, rate(H.fgm,H.fga)>rate(A.fgm,A.fga), rate(A.fgm,A.fga)>rate(H.fgm,H.fga)],
+      ['3PT', `${H.tpm}/${H.tpa} ${pctS(H.tpm,H.tpa)}`, `${A.tpm}/${A.tpa} ${pctS(A.tpm,A.tpa)}`, rate(H.tpm,H.tpa)>rate(A.tpm,A.tpa), rate(A.tpm,A.tpa)>rate(H.tpm,H.tpa)],
+      ['FT', `${H.ftm}/${H.fta} ${pctS(H.ftm,H.fta)}`, `${A.ftm}/${A.fta} ${pctS(A.ftm,A.fta)}`, rate(H.ftm,H.fta)>rate(A.ftm,A.fta), rate(A.ftm,A.fta)>rate(H.ftm,H.fta)],
+      ['eFG%', efgS(H), efgS(A), efgR(H)>efgR(A), efgR(A)>efgR(H)],
+      ['TS%', tsS(H), tsS(A), tsR(H)>tsR(A), tsR(A)>tsR(H)],
       ['Rebounds', H.reb, A.reb, H.reb>A.reb, A.reb>H.reb],
+      ['Off. Rebounds', H.oreb, A.oreb, H.oreb>A.oreb, A.oreb>H.oreb],
       ['Assists', H.ast, A.ast, H.ast>A.ast, A.ast>H.ast],
-      ['Turnovers', H.to, A.to, H.to<A.to, A.to<H.to], // fewer is better
+      ['Steals', H.stl, A.stl, H.stl>A.stl, A.stl>H.stl],
+      ['Blocks', H.blk, A.blk, H.blk>A.blk, A.blk>H.blk],
+      ['Turnovers', H.to, A.to, H.to<A.to, A.to<H.to],   // fewer is better
+      ['Fouls', H.fls, A.fls, H.fls<A.fls, A.fls<H.fls], // fewer is better
+      ['Bench Pts', H.benchPts, A.benchPts, H.benchPts>A.benchPts, A.benchPts>H.benchPts],
     ];
-    const cxH=ML+55, cxL=PW/2, cxA=PW-MR-55;
-    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...NAVY);
+    const cxH=ML+60, cxL=PW/2, cxA=PW-MR-60;
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...NAVY);
     doc.text(GAME.home.name,cxH,y,{align:'center'});
     doc.text(GAME.away.name,cxA,y,{align:'center'});
-    y+=5;doc.setDrawColor(...BORDER);doc.line(ML,y-2,PW-MR,y-2);
+    y+=5.5;doc.setDrawColor(...BORDER);doc.line(ML,y-2,PW-MR,y-2);
     rows.forEach((r,ri)=>{
-      checkY(6);
-      if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.4,PW-ML-MR,5.6,'F');}
-      doc.setFontSize(7.6);
+      checkY(7);
+      if(ri%2===0){doc.setFillColor(248,249,252);doc.rect(ML,y-3.8,PW-ML-MR,6.4,'F');}
+      doc.setFontSize(8.5);
       doc.setFont('helvetica',r[3]?'bold':'normal');doc.setTextColor(...(r[3]?BLUE:NAVY));
       doc.text(String(r[1]),cxH,y,{align:'center'});
-      doc.setFont('helvetica','bold');doc.setTextColor(...DIM);doc.setFontSize(7.2);
+      doc.setFont('helvetica','bold');doc.setTextColor(...DIM);doc.setFontSize(8);
       doc.text(r[0].toUpperCase(),cxL,y,{align:'center'});
-      doc.setFont('helvetica',r[4]?'bold':'normal');doc.setTextColor(...(r[4]?RED:NAVY));doc.setFontSize(7.6);
+      doc.setFont('helvetica',r[4]?'bold':'normal');doc.setTextColor(...(r[4]?RED:NAVY));doc.setFontSize(8.5);
       doc.text(String(r[2]),cxA,y,{align:'center'});
-      y+=5.4;
+      y+=6.2;
     });
     y+=5;
   })();
 
-  // Box scores
+  // ── Box scores (own page) ──
+  newPage();
   function drawBoxScore(side){
     const teamName=GAME[side].name.toUpperCase();
     sectionTitle(`${teamName} — BOX SCORE`);
     const stats=boxStats(side);
-    // #, Player, MIN, PTS, FG, FG%, 3PT, 3P%, FT, FT%, OR, DR, TOT, AST, A/TO, STL, BLK, TO, PF, +/-, EFF, TS%
-    const cols=[ML,ML+5,ML+45,ML+56,ML+65,ML+77,ML+89,ML+101,ML+112,ML+123,ML+133,ML+141,ML+149,ML+158,ML+167,ML+177,ML+185,ML+193,ML+201,ML+210,ML+220,ML+230];
-    const hdrs=['#','Player','MIN','PTS','FG','FG%','3PT','3P%','FT','FT%','OR','DR','TOT','AST','A/TO','STL','BLK','TO','PF','+/-','EFF','TS%'];
+    // #, Player, MIN, PTS, FG, FG%, 3PT, 3P%, FT, FT%, OR, DR, TOT, AST, A/TO, STL, BLK, TO, PF, +/-, EFF, eFG%, TS%
+    const cols=[ML,ML+5,ML+43,ML+53,ML+62,ML+73,ML+84,ML+95,ML+106,ML+116,ML+126,ML+133,ML+140,ML+148,ML+156,ML+165,ML+173,ML+181,ML+188,ML+196,ML+205,ML+215,ML+227];
+    const hdrs=['#','Player','MIN','PTS','FG','FG%','3PT','3P%','FT','FT%','OR','DR','TOT','AST','A/TO','STL','BLK','TO','PF','+/-','EFF','eFG%','TS%'];
     const PM_I=19; // index of +/- column
+    const efg=(fgm,tpm,fga)=>fga?Math.round(100*(fgm+0.5*tpm)/fga)+'%':'—';
     // Group header: "REBOUNDS" spanning OR + DR + TOT
     doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(...DIM);
     doc.text('REBOUNDS',cols[11],y,{align:'center'});
     doc.setDrawColor(...BORDER);doc.setLineWidth(0.2);
     doc.line(cols[10]-3,y+1,cols[12]+3,y+1);
     y+=3.2;
-    doc.setFont('helvetica','bold');doc.setFontSize(6.6);doc.setTextColor(...DIM);
+    doc.setFont('helvetica','bold');doc.setFontSize(6.3);doc.setTextColor(...DIM);
     hdrs.forEach((h,i)=>doc.text(h,cols[i],y,i>1?{align:'center'}:{}));
     y+=4;
     doc.setDrawColor(...BORDER);doc.line(ML,y,PW-MR,y);y+=2.5;
@@ -3167,8 +3181,8 @@ async function generatePDF(opts={}){
       const pm=(p.plusMinus>=0?'+':'')+p.plusMinus;
       const cells=[p.num,p.name.length>26?p.name.slice(0,26)+'…':p.name,
         p.mins,p.pts,`${p.fgm}/${p.fga}`,pct(p.fgm,p.fga),`${p.tpm}/${p.tpa}`,pct(p.tpm,p.tpa),
-        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.oreb,p.dreb,p.reb,p.ast,ato(p.ast,p.to),p.stl,p.blk,p.to,p.fls,pm,p.eff,p.ts];
-      doc.setFont('helvetica','normal');doc.setFontSize(6.8);doc.setTextColor(...NAVY);
+        `${p.ftm}/${p.fta}`,pct(p.ftm,p.fta),p.oreb,p.dreb,p.reb,p.ast,ato(p.ast,p.to),p.stl,p.blk,p.to,p.fls,pm,p.eff,efg(p.fgm,p.tpm,p.fga),p.ts];
+      doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...NAVY);
       cells.forEach((c,i)=>{
         if(i===0)doc.text(String(c),cols[i],y);
         else if(i===1){doc.setFont('helvetica','bold');doc.text(String(c),cols[i],y);doc.setFont('helvetica','normal');}
@@ -3190,14 +3204,14 @@ async function generatePDF(opts={}){
     const totTs=tsDenom>0?Math.round(100*tot.pts/tsDenom)+'%':'—';
     const tcells=['','TOTALS','—',tot.pts,`${tot.fgm}/${tot.fga}`,pct(tot.fgm,tot.fga),
       `${tot.tpm}/${tot.tpa}`,pct(tot.tpm,tot.tpa),`${tot.ftm}/${tot.fta}`,pct(tot.ftm,tot.fta),
-      tot.oreb,tot.dreb,tot.reb,tot.ast,ato(tot.ast,tot.to),tot.stl,tot.blk,tot.to,tot.fls,'—',tot.eff,totTs];
-    doc.setFont('helvetica','bold');doc.setFontSize(6.8);doc.setTextColor(...NAVY);
+      tot.oreb,tot.dreb,tot.reb,tot.ast,ato(tot.ast,tot.to),tot.stl,tot.blk,tot.to,tot.fls,'—',tot.eff,efg(tot.fgm,tot.tpm,tot.fga),totTs];
+    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...NAVY);
     tcells.forEach((c,i)=>doc.text(String(c),cols[i],y,i>1?{align:'center'}:{}));
     y+=6;
     // Starters vs bench points
     const tt=teamTotals(side);
     doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...DIM);
-    doc.text(`Starters: ${tt.starterPts}   ·   Bench: ${tt.benchPts}`,ML+45,y);
+    doc.text(`Starters: ${tt.starterPts}   ·   Bench: ${tt.benchPts}`,ML+43,y);
     y+=6;
   }
 
@@ -3236,7 +3250,8 @@ async function generatePDF(opts={}){
     });
     y+=5;
   }
-  checkY(5);
+  // ── Per-quarter breakdown (own page) ──
+  newPage();
   drawQuarterBreakdown('home');
   drawQuarterBreakdown('away');
 

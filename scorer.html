@@ -124,6 +124,13 @@ body{
    stark black, so the letterbox above/below just reads as court apron. */
 #court-wrap{align-items:center;justify-content:center;background:#b8955a;}
 #csvg{max-height:100%;margin:auto;}
+/* Show only the active team's shots (both teams share one half-court). */
+#shot-dots.show-home .dot-away{display:none;}
+#shot-dots.show-away .dot-home{display:none;}
+#chart-side-toggle{position:absolute;top:8px;left:10px;z-index:6;display:flex;align-items:center;gap:6px;
+  background:rgba(10,12,20,.72);color:#fff;border:none;border-radius:20px;padding:5px 12px;
+  font:600 12px/'Barlow Condensed',sans-serif;letter-spacing:.04em;cursor:pointer;}
+#chart-side-toggle:active{transform:scale(.95);}
 
 /* Player panels */
 .ppanel{
@@ -735,6 +742,7 @@ body{
       <button class="cbtn" onclick="toggleLog()">LOG ▾</button>
       <button class="cbtn" onclick="openBoxScore()">BOX ▾</button>
     </div>
+    <button id="chart-side-toggle" onclick="toggleChartSide()">🔄 <span id="chart-side-lbl">HOME shots</span></button>
 
     <div id="log-panel">
       <div class="lhdr"><span>EVENT LOG</span><button onclick="toggleLog()">✕</button></div>
@@ -986,7 +994,8 @@ let selP=null,selSide=null;
 let evts=[],dots=[];
 let clkInt=null,holdTmr=null,subTgt=null,logOpen=false,flashTmr=null;
 let tSX=0,tSY=0,tMoving=false,tOvShown=false;
-let swDx=0,swDy=0,swPointerId=null;   // last committed swipe vector + captured pointer
+let swDx=0,swDy=0,swPointerId=null,swMaxDist=0,swThresh=28;   // committed swipe vector + captured pointer + furthest reach + adaptive threshold
+let chartSide='home';                              // which team's shot chart is visible
 const SWPX=28;
 
 // ══ BACKEND / SYNC ════════════════════════════
@@ -1213,7 +1222,7 @@ function rebuildDotsFromEvents(){
     const made = e.key==='2pt_made'||e.key==='3pt_made'||e.key==='putback_made';
     const three = !!e.three;
     const isPb = e.key==='putback_made'||e.key==='putback_miss';
-    addDot(e.pt, made, three, isPb);
+    addDot(e.pt, made, three, isPb, e.side);
     const d=dots.find(x=>x.pend); if(d){ d.eid=e.id; delete d.pend; }
   });
 }
@@ -1263,6 +1272,7 @@ function restoreGame(){
   renderPl(); renderBtns(); updClk(); updPoss();
   updFoulsDisplay('home'); updFoulsDisplay('away');
   rebuildDotsFromEvents();
+  setChartSide(chartSide||'home');
   renderFeed(); renderLog(); updRun();
 }
 function discardSave(){ localStorage.removeItem('mbr_bb_game'); const b=document.getElementById('restoreBanner'); if(b) b.remove(); }
@@ -1493,7 +1503,7 @@ function selPlayer(p,side){
   document.getElementById('home-tname').classList.remove('team-active');
   document.getElementById('away-tname').classList.remove('team-active');
   if(selP?.id===p.id){selP=null;selSide=null;}
-  else{selP=p;selSide=side;}
+  else{selP=p;selSide=side;setChartSide(side);}
   renderPl();updSel();updBtns();
 }
 function updSel(){
@@ -1517,7 +1527,7 @@ function setTeamMode(side){
     // tap same team again = cancel
     teamMode=false; selSide=null; selP=null;
   } else {
-    teamMode=true; selSide=side; selP=null;
+    teamMode=true; selSide=side; selP=null; setChartSide(side);
   }
   // update tname highlights
   document.getElementById('home-tname').classList.toggle('team-active', teamMode && selSide==='home');
@@ -1619,7 +1629,7 @@ function is3(pt){
 
 function swDir(dx,dy,shotX,shotY){
   const ax=Math.abs(dx),ay=Math.abs(dy);
-  if(ax<SWPX&&ay<SWPX)return null;
+  if(ax<2&&ay<2)return null;   // ignore only a near-zero vector; the caller already gated the real swipe length
 
   // Vector from shot location toward basket (230, 25)
   const bx=230-shotX, by=25-shotY;
@@ -1649,7 +1659,12 @@ function litDir(dir){
 
 svg.addEventListener('pointerdown',e=>{
   if(!selP)return;e.preventDefault();
-  const pt=svgP(e);tSX=pt.x;tSY=pt.y;tMoving=false;tOvShown=false;swDx=0;swDy=0;
+  const pt=svgP(e);tSX=pt.x;tSY=pt.y;tMoving=false;tOvShown=false;swDx=0;swDy=0;swMaxDist=0;
+  // Near the basket there's little room to swipe up toward the rim before hitting
+  // the top edge, so shrink the make/miss threshold there (the pointer-capture
+  // lets the finger keep tracking off-court, but the reach is still small).
+  const distBasket=Math.hypot(tSX-230, tSY-25);
+  swThresh = distBasket < 130 ? 12 : SWPX;
   // Capture the pointer so the swipe keeps tracking even when the finger leaves
   // the court (a "make" swipe goes UP toward the basket, off the top edge).
   swPointerId=e.pointerId;
@@ -1674,9 +1689,10 @@ svg.addEventListener('pointermove',e=>{
   const pt=svgP(e);
   const dx=pt.x-tSX,dy=pt.y-tSY;
   tring.setAttribute('cx',pt.x);tring.setAttribute('cy',pt.y);
-  if(Math.sqrt(dx*dx+dy*dy)>SWPX){
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist>swMaxDist){ swMaxDist=dist; swDx=dx; swDy=dy; }  // remember the furthest committed vector
+  if(dist>swThresh){
     tMoving=true;
-    swDx=dx;swDy=dy;                       // remember the committed swipe vector
     if(!tOvShown){swOv.classList.add('show');tOvShown=true;}
     litDir(swDir(dx,dy,tSX,tSY));
   }
@@ -1689,9 +1705,10 @@ svg.addEventListener('pointerup',e=>{
   tring.setAttribute('opacity','0');
   swOv.classList.remove('show');
   const sp={x:tSX,y:tSY};
-  // Use the committed swipe vector tracked during the move — not the release
-  // point, which can drift back toward the start on a curved/overshoot swipe.
-  if(!tMoving){recShot(sp,false,'norm');}         // no real swipe = miss
+  // Decide by the furthest reach of the swipe against the adaptive threshold —
+  // not the release point (which can drift back) and not tMoving (which used the
+  // fixed threshold). This makes short near-basket flicks register as makes.
+  if(swMaxDist < swThresh){recShot(sp,false,'norm');}   // essentially a tap = miss
   else{
     const d=swDir(swDx,swDy,tSX,tSY);
     if(d==='make')       recShot(sp,true,'norm');
@@ -1699,7 +1716,7 @@ svg.addEventListener('pointerup',e=>{
     else if(d==='left')  recShot(sp,false,'pb');
     else flash('Cancelled','cfl');
   }
-  tMoving=false;tOvShown=false;swDx=0;swDy=0;
+  tMoving=false;tOvShown=false;swDx=0;swDy=0;swMaxDist=0;
 },{passive:false});
 
 svg.addEventListener('pointercancel',()=>{
@@ -1728,13 +1745,14 @@ function recShot(pt,made,type){
     document.getElementById(`${selSide}-score`).textContent=GAME[selSide].score;
     GAME.possession=selSide==='home'?'away':'home';updPoss();
   }
-  addDot(pt,made,three,type==='pb');
+  addDot(pt,made,three,type==='pb',selSide);
   pushEvt(selP,selSide,key,pt,three);
   renderPl();flash(msg,ft);
 }
 
 // ══ DOTS ══════════════════════════════════════
-function addDot(pt,made,three,isPb){
+function addDot(pt,made,three,isPb,side){
+  side = side || selSide || chartSide;
   const g=document.getElementById('shot-dots');
   const id='d'+Date.now()+Math.random().toString(36).slice(2,4);
   if(made){
@@ -1742,15 +1760,26 @@ function addDot(pt,made,three,isPb){
     c.setAttribute('cx',pt.x);c.setAttribute('cy',pt.y);c.setAttribute('r','7');
     c.setAttribute('fill',isPb?'#a78bfa':three?'#f39c12':'#27ae60');
     c.setAttribute('fill-opacity','.85');c.setAttribute('stroke','rgba(255,255,255,.6)');c.setAttribute('stroke-width','1.5');
-    c.setAttribute('id',id);g.appendChild(c);
+    c.setAttribute('id',id);c.setAttribute('class','dot-'+side);g.appendChild(c);
   } else {
     const t=document.createElementNS('http://www.w3.org/2000/svg','text');
     t.setAttribute('x',pt.x);t.setAttribute('y',pt.y+5.5);t.setAttribute('text-anchor','middle');
     t.setAttribute('font-size','17');t.setAttribute('fill',isPb?'#a78bfa':'#e05c52');
-    t.setAttribute('font-weight','bold');t.setAttribute('id',id);t.textContent='×';g.appendChild(t);
+    t.setAttribute('font-weight','bold');t.setAttribute('id',id);t.setAttribute('class','dot-'+side);t.textContent='×';g.appendChild(t);
   }
-  dots.push({id,eid:null,pend:true});
+  dots.push({id,eid:null,pend:true,side});
 }
+// The scorer draws to one half-court, so both teams' shots would overlap. Show
+// only one team's chart at a time — follows whichever team you're scoring.
+function setChartSide(side){
+  if(!side) return;
+  chartSide=side;
+  const g=document.getElementById('shot-dots');
+  if(g) g.setAttribute('class','show-'+side);
+  const lbl=document.getElementById('chart-side-lbl');
+  if(lbl) lbl.textContent=(GAME[side].short||GAME[side].name||side.toUpperCase())+' shots';
+}
+function toggleChartSide(){ setChartSide(chartSide==='home'?'away':'home'); }
 
 // ══ EVENTS ════════════════════════════════════
 function pushEvt(p,side,key,pt,three){
@@ -2391,6 +2420,7 @@ function enterScorer(){
   renderPl(); renderBtns(); updClk(); updPoss();
   updFoulsDisplay('home'); updFoulsDisplay('away');
   renderFeed(); renderLog();
+  setChartSide('home');
   scheduleSave();
 }
 // For a real DB game: clean prior events, flag active, push roster snapshots.
@@ -2762,9 +2792,12 @@ function boxStats(side){
     const tsDenom=2*(fga+0.44*fta);
     const ts=tsDenom>0?Math.round(100*p.pts/tsDenom)+'%':'—';
 
+    // "Entered the game" = started OR was subbed in at some point.
+    const entered = !!p.starter || allEvts.some(e=>e.side===side&&e.pid===p.id&&e.key==='sub_in');
+
     return{num:p.num,name:pName(p),pts:p.pts,oreb,dreb,reb,ast:p.ast,fls:p.fouls,
-           fgm,fga,tpm,tpa,ftm,fta,stl,blk,to,mins:minsStr,plusMinus,eff,ts};
-  }).filter(p=>p.fga>0||p.pts>0||p.reb>0||p.ast>0||p.stl>0||p.blk>0||p.to>0||p.fls>0);
+           fgm,fga,tpm,tpa,ftm,fta,stl,blk,to,mins:minsStr,plusMinus,eff,ts,entered};
+  }).filter(p=>p.entered||p.fga>0||p.pts>0||p.reb>0||p.ast>0||p.stl>0||p.blk>0||p.to>0||p.fls>0);
 }
 
 function qtrScores(){

@@ -2729,7 +2729,8 @@ async function endGame(){
       });
     });
     await autoUploadGameReport();
-    flash('Final saved · report uploaded','made');
+    await emailGameReport();
+    flash('Final saved · report emailed','made');
     localStorage.removeItem('mbr_bb_game');
   } else if(G_test_mode){
     flash('Test game ended — nothing saved','');
@@ -3530,6 +3531,19 @@ async function generatePDF(opts={}){
 }
 
 // Upload the finalized report to Supabase storage and link it on the games row.
+// Ask the backend to email this game's report to matching subscribers (deduped
+// server-side). No-op for test/manual games with no game_id.
+async function emailGameReport(){
+  if(!G_game_id || G_test_mode) return;
+  try{
+    const r=await fetch(`${SB_URL}/functions/v1/email-game-report`,{
+      method:'POST',
+      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json'},
+      body:JSON.stringify({game_id:G_game_id})
+    });
+    console.log('email-game-report', await r.json().catch(()=>({status:r.status})));
+  }catch(e){ console.warn('email trigger failed', e); }
+}
 async function autoUploadGameReport(){
   if(!G_game_id || G_test_mode) return;
   try{

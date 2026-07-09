@@ -740,6 +740,7 @@ body{
 
     <div id="court-btns">
       <button class="cbtn" onclick="undoLast()">↶ UNDO</button>
+      <button class="cbtn" onclick="genCoachPDF()">📋 COACH PDF</button>
       <button class="cbtn" onclick="toggleLog()">LOG ▾</button>
       <button class="cbtn" onclick="openBoxScore()">BOX ▾</button>
     </div>
@@ -1890,6 +1891,12 @@ function pbpLabel(k){
   return M[k]||k.replace(/_/g,' ');
 }
 
+// Coach/halftime report: stats only (box, comparison, quarter breakdown, leaders) —
+// no shot charts or play-by-play. What a coach scans during a timeout.
+function genCoachPDF(){
+  flash('Building coach report…','');
+  generatePDF({coach:true}).catch(e=>{console.warn('coach pdf',e);flash('Report failed','mfl');});
+}
 function undoLast(){
   if(!evts.length){ flash('Nothing to undo'); return; }
   const e=evts[0];
@@ -3003,7 +3010,7 @@ async function generatePDF(opts={}){
     doc.setFont('helvetica','bold');
     doc.setFontSize(8);
     doc.setTextColor(...GOLD);
-    doc.text('LIVE SCORING REPORT',PW-MR,11,{align:'right'});
+    doc.text(opts.coach?'COACH REPORT':'LIVE SCORING REPORT',PW-MR,11,{align:'right'});
     doc.setDrawColor(...GOLD);doc.setLineWidth(0.6);
     doc.line(ML,19,PW-MR,19);doc.setLineWidth(0.2);
     y=25;
@@ -3255,6 +3262,8 @@ async function generatePDF(opts={}){
   drawQuarterBreakdown('home');
   drawQuarterBreakdown('away');
 
+  // ── Shot charts + game notes + play-by-play (full report only) ──
+  if(!opts.coach){
   // ── Shot charts page ──
   newPage();
   sectionTitle('SHOT CHARTS');
@@ -3512,10 +3521,11 @@ async function generatePDF(opts={}){
     });
     y+=4;
   });
+  } // end !coach (shot charts / notes / play-by-play)
 
   // Save (or hand back a blob for auto-upload)
   if(opts.returnBlob) return doc.output('blob');
-  const fn=`${GAME.home.name}_vs_${GAME.away.name}_report.pdf`.replace(/\s+/g,'_');
+  const fn=`${GAME.home.name}_vs_${GAME.away.name}_${opts.coach?'coach_report':'report'}.pdf`.replace(/\s+/g,'_');
   doc.save(fn);
 }
 

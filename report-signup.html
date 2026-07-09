@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Get the Game Report · Maine Basketball Rankings</title>
+<title>Get a Game Report · Maine Basketball Rankings</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -27,98 +27,92 @@
   }
   .eyebrow{font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.16em;text-transform:uppercase;}
 
-  /* Masthead */
-  .mast{width:100%;max-width:440px;display:flex;align-items:center;gap:10px;margin-bottom:18px;}
-  .mast .mark{width:34px;height:34px;border-radius:8px;background:var(--ink);color:#fff;
-    display:grid;place-items:center;font-family:'Playfair Display',serif;font-weight:900;font-size:19px;flex-shrink:0;}
-  .mast .wm{font-family:'Playfair Display',serif;font-weight:800;font-size:15px;line-height:1.05;letter-spacing:.01em;}
+  .mast{width:100%;max-width:460px;display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+  .mast .mark{width:34px;height:34px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:'Playfair Display',serif;font-weight:900;font-size:19px;flex-shrink:0;}
+  .mast .wm{font-family:'Playfair Display',serif;font-weight:800;font-size:15px;line-height:1.05;}
   .mast .sub{font-size:11px;letter-spacing:.14em;color:var(--gold-deep);}
 
-  /* Ticket */
-  .ticket{width:100%;max-width:440px;background:var(--surface);border-radius:18px;
-    box-shadow:var(--shadow);overflow:hidden;}
-  .stub{padding:22px 22px 20px;position:relative;}
-  .stub .status{position:absolute;top:16px;right:18px;font-size:11px;font-weight:700;
-    letter-spacing:.12em;padding:4px 9px;border-radius:999px;}
-  .status.final{background:#eef1f6;color:var(--ink-soft);}
-  .status.live{background:#fdecec;color:var(--away);}
-  .status.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
-    background:var(--away);margin-right:6px;vertical-align:middle;animation:pulse 1.6s infinite;}
+  .panel{width:100%;max-width:460px;}
+
+  .picker h1{font-family:'Playfair Display',serif;font-weight:800;font-size:23px;line-height:1.12;margin:0 0 4px;}
+  .picker .lede{color:var(--muted);font-size:14px;margin:0 0 18px;}
+  .daygroup{margin-bottom:16px;}
+  .dayhdr{font-size:11px;letter-spacing:.14em;color:var(--gold-deep);margin:0 2px 8px;}
+  .grow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.03);transition:transform .08s, border-color .12s, box-shadow .12s;}
+  .grow:hover{border-color:var(--line-strong);box-shadow:var(--shadow);}
+  .grow:active{transform:scale(.99);}
+  .gmini{flex:1;min-width:0;}
+  .gteams{font-family:'Playfair Display',serif;font-weight:700;font-size:15px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gsub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .gbadge{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em;padding:3px 8px;border-radius:999px;flex-shrink:0;}
+  .b-final{background:#eef1f6;color:var(--ink-soft);}
+  .b-live{background:#fdecec;color:var(--away);}
+  .b-live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--away);margin-right:5px;vertical-align:middle;animation:pulse 1.6s infinite;}
+  .b-up{background:#f3f1ea;color:var(--muted);}
+  .gscore{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;color:var(--ink-soft);flex-shrink:0;white-space:nowrap;}
+  .chev{color:var(--line-strong);flex-shrink:0;font-size:18px;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 
+  .ticket{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;}
+  .back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px;padding:0;margin:0 0 12px;}
+  .stub{padding:22px 22px 20px;position:relative;}
+  .stub .status{position:absolute;top:16px;right:18px;font-size:11px;font-weight:700;letter-spacing:.12em;padding:4px 9px;border-radius:999px;}
+  .status.final{background:#eef1f6;color:var(--ink-soft);}
+  .status.live{background:#fdecec;color:var(--away);}
+  .status.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--away);margin-right:6px;vertical-align:middle;animation:pulse 1.6s infinite;}
+  .status.up{background:#f3f1ea;color:var(--muted);}
   .matchup{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-top:6px;}
   .team{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;min-width:0;}
-  .crest{width:52px;height:52px;border-radius:50%;object-fit:contain;background:#f3f1ea;
-    border:1px solid var(--line);display:grid;place-items:center;
-    font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;color:var(--ink-soft);}
+  .crest{width:52px;height:52px;border-radius:50%;object-fit:contain;background:#f3f1ea;border:1px solid var(--line);display:grid;place-items:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;color:var(--ink-soft);overflow:hidden;}
   .team .tn{font-family:'Playfair Display',serif;font-weight:700;font-size:15px;line-height:1.15;}
   .team .sc{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:.9;}
   .team.h .sc{color:var(--home);} .team.a .sc{color:var(--away);}
   .vs{font-family:'Barlow Condensed',sans-serif;font-weight:600;color:var(--muted);font-size:15px;letter-spacing:.1em;}
-  .meta{margin-top:16px;text-align:center;font-size:12.5px;color:var(--muted);letter-spacing:.02em;}
+  .meta{margin-top:16px;text-align:center;font-size:12.5px;color:var(--muted);}
 
-  /* Perforation */
   .perf{position:relative;height:0;border-top:2px dashed var(--line-strong);margin:0 14px;}
-  .perf::before,.perf::after{content:"";position:absolute;top:-13px;width:26px;height:26px;
-    border-radius:50%;background:var(--paper);}
+  .perf::before,.perf::after{content:"";position:absolute;top:-13px;width:26px;height:26px;border-radius:50%;background:var(--paper);}
   .perf::before{left:-27px;} .perf::after{right:-27px;}
 
-  .body{padding:20px 22px 6px;}
-  h1{font-family:'Playfair Display',serif;font-weight:800;font-size:22px;line-height:1.15;margin:0 0 4px;}
-  .lede{color:var(--muted);font-size:14px;margin:0 0 18px;}
-
+  .fbody{padding:20px 22px 6px;}
+  .fbody h2{font-family:'Playfair Display',serif;font-weight:800;font-size:21px;line-height:1.15;margin:0 0 4px;}
+  .fbody .flede{color:var(--muted);font-size:14px;margin:0 0 18px;}
   label.fld{display:block;font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin:0 0 6px;}
-  input[type=email]{width:100%;font:500 16px/1.2 'Inter',sans-serif;color:var(--ink);
-    padding:14px 14px;border:1.5px solid var(--line-strong);border-radius:11px;background:#fcfbf8;
-    transition:border-color .12s, box-shadow .12s;}
+  input[type=email]{width:100%;font:500 16px/1.2 'Inter',sans-serif;color:var(--ink);padding:14px;border:1.5px solid var(--line-strong);border-radius:11px;background:#fcfbf8;transition:border-color .12s, box-shadow .12s;}
   input[type=email]:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,128,31,.16);}
-
   .opts{margin:18px 0 4px;display:flex;flex-direction:column;gap:2px;}
   .opts .cap{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin:0 0 6px;}
-  .opt{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:11px;cursor:pointer;
-    border:1.5px solid transparent;transition:background .12s,border-color .12s;}
+  .opt{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:11px;cursor:pointer;border:1.5px solid transparent;transition:background .12s,border-color .12s;}
   .opt:hover{background:#faf8f2;}
-  .opt input{appearance:none;-webkit-appearance:none;width:20px;height:20px;flex-shrink:0;margin-top:1px;
-    border:1.6px solid var(--line-strong);border-radius:6px;background:#fff;cursor:pointer;position:relative;transition:.12s;}
+  .opt input{appearance:none;-webkit-appearance:none;width:20px;height:20px;flex-shrink:0;margin-top:1px;border:1.6px solid var(--line-strong);border-radius:6px;background:#fff;cursor:pointer;position:relative;transition:.12s;}
   .opt input:checked{background:var(--gold);border-color:var(--gold);}
-  .opt input:checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;
-    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);}
+  .opt input:checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);}
   .opt input:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
   .opt:has(input:checked){background:#fbf7ee;border-color:#efe2c6;}
   .opt .ot{font-size:14px;font-weight:600;}
   .opt .od{font-size:12.5px;color:var(--muted);margin-top:1px;}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
   .dot.h{background:var(--home);} .dot.a{background:var(--away);}
-
-  button.go{width:100%;margin-top:18px;font-family:'Barlow Condensed',sans-serif;font-weight:700;
-    font-size:18px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--ink);
-    border:none;border-radius:12px;padding:15px;cursor:pointer;transition:transform .08s, background .12s;}
-  button.go:hover{background:#1e293b;} button.go:active{transform:scale(.985);}
-  button.go:disabled{opacity:.5;cursor:default;}
-
+  button.go{width:100%;margin-top:18px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--ink);border:none;border-radius:12px;padding:15px;cursor:pointer;transition:transform .08s, background .12s;}
+  button.go:hover{background:#1e293b;} button.go:active{transform:scale(.985);} button.go:disabled{opacity:.5;cursor:default;}
   .fine{font-size:11.5px;color:var(--muted);text-align:center;margin:12px 4px 0;line-height:1.5;}
   .fine a{color:var(--gold-deep);}
 
-  /* success */
   .done{padding:34px 24px 26px;text-align:center;display:none;}
-  .done .chk{width:56px;height:56px;border-radius:50%;background:#eaf5ee;color:var(--ok);
-    display:grid;place-items:center;margin:0 auto 14px;font-size:28px;}
+  .done .chk{width:56px;height:56px;border-radius:50%;background:#eaf5ee;color:var(--ok);display:grid;place-items:center;margin:0 auto 14px;font-size:28px;}
   .done h2{font-family:'Playfair Display',serif;font-weight:800;font-size:21px;margin:0 0 6px;}
   .done p{color:var(--muted);font-size:14px;margin:0 auto;max-width:300px;}
-  .done .again{margin-top:18px;background:none;border:none;color:var(--gold-deep);font-weight:600;
-    font-size:13px;cursor:pointer;text-decoration:underline;}
+  .done .again{margin-top:18px;background:none;border:none;color:var(--gold-deep);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline;}
 
-  /* footer + qr */
-  .foot{width:100%;max-width:440px;margin-top:18px;text-align:center;}
-  .qrwrap{display:none;margin:6px auto 14px;padding:14px;background:#fff;border-radius:14px;
-    border:1px solid var(--line);width:max-content;}
-  #qr img{display:block;} .qrcap{font-size:11px;color:var(--muted);margin-top:8px;letter-spacing:.06em;}
-  .qtoggle{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;
-    font-family:'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;}
+  .foot{width:100%;max-width:460px;margin-top:18px;text-align:center;}
+  .qrwrap{display:none;margin:6px auto 14px;padding:14px;background:#fff;border-radius:14px;border:1px solid var(--line);width:max-content;}
+  #qr img{display:block;} .qrcap{font-size:11px;color:var(--muted);margin-top:8px;}
+  .qtoggle{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;}
   .siteline{font-size:12px;color:var(--muted);margin-top:12px;}
   .siteline b{color:var(--ink-soft);font-weight:600;}
 
-  .loading,.err{max-width:440px;width:100%;text-align:center;color:var(--muted);padding:40px 10px;font-size:14px;}
+  .state{max-width:460px;width:100%;text-align:center;color:var(--muted);padding:40px 10px;font-size:14px;}
+  .state a{color:var(--gold-deep);}
   @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important;}}
 </style>
 </head>
@@ -126,139 +120,172 @@
 
   <div class="mast">
     <div class="mark">M</div>
-    <div>
-      <div class="wm">Maine Basketball Rankings</div>
-      <div class="eyebrow sub">Game Reports</div>
+    <div><div class="wm">Maine Basketball Rankings</div><div class="eyebrow sub">Game Reports</div></div>
+  </div>
+
+  <div class="panel picker" id="picker" style="display:none">
+    <h1>Get a game report</h1>
+    <p class="lede" id="pickerLede">Pick your game — we'll email you the full report.</p>
+    <div id="gameList"></div>
+  </div>
+
+  <div class="panel" id="ticketPanel" style="display:none">
+    <button class="back" id="back" style="display:none">← All games</button>
+    <div class="ticket">
+      <div class="stub">
+        <span class="status" id="status"></span>
+        <div class="matchup">
+          <div class="team a"><div class="crest" id="awayCrest">—</div><div class="tn" id="awayName">Away</div><div class="sc" id="awayScore"></div></div>
+          <div class="vs">AT</div>
+          <div class="team h"><div class="crest" id="homeCrest">—</div><div class="tn" id="homeName">Home</div><div class="sc" id="homeScore"></div></div>
+        </div>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="perf"></div>
+      <div class="fbody" id="form">
+        <h2>Get this game's report</h2>
+        <p class="flede" id="flede">Full box score, shot charts, and play-by-play — sent straight to your inbox.</p>
+        <label class="fld eyebrow" for="email">Your email</label>
+        <input type="email" id="email" inputmode="email" autocomplete="email" placeholder="you@email.com">
+        <div class="opts">
+          <div class="cap eyebrow">Want more? (optional)</div>
+          <label class="opt"><input type="checkbox" id="followHome"><span><span class="ot"><span class="dot h"></span><span id="followHomeName">this team</span></span><span class="od">Get every game report for them, all season.</span></span></label>
+          <label class="opt"><input type="checkbox" id="followAway"><span><span class="ot"><span class="dot a"></span><span id="followAwayName">this team</span></span><span class="od">Get every game report for them, all season.</span></span></label>
+          <label class="opt"><input type="checkbox" id="newsletter"><span><span class="ot">The MBR newsletter</span><span class="od">Rankings, podcast, and Maine hoops coverage.</span></span></label>
+        </div>
+        <button class="go" id="submit">Send me the report</button>
+        <p class="fine">We'll only email what you ask for. Unsubscribe anytime.<br>
+          Follow more teams, a region, or a venue at <a href="https://mainebasketballrankings.com">mainebasketballrankings.com</a>.</p>
+      </div>
+      <div class="done" id="done">
+        <div class="chk">✓</div>
+        <h2 id="doneTitle">You're all set</h2>
+        <p id="doneMsg"></p>
+        <button class="again" id="again">Sign up a different email</button>
+      </div>
     </div>
   </div>
 
-  <div class="ticket" id="ticket" style="display:none">
-    <div class="stub">
-      <span class="status" id="status"></span>
-      <div class="matchup">
-        <div class="team a" id="awayCol">
-          <div class="crest" id="awayCrest">—</div>
-          <div class="tn" id="awayName">Away</div>
-          <div class="sc" id="awayScore"></div>
-        </div>
-        <div class="vs">AT</div>
-        <div class="team h" id="homeCol">
-          <div class="crest" id="homeCrest">—</div>
-          <div class="tn" id="homeName">Home</div>
-          <div class="sc" id="homeScore"></div>
-        </div>
-      </div>
-      <div class="meta" id="meta"></div>
-    </div>
-
-    <div class="perf"></div>
-
-    <div class="body" id="form">
-      <h1>Get this game's report</h1>
-      <p class="lede">Full box score, shot charts, and play-by-play — sent straight to your inbox.</p>
-
-      <label class="fld eyebrow" for="email">Your email</label>
-      <input type="email" id="email" inputmode="email" autocomplete="email" placeholder="you@email.com">
-
-      <div class="opts">
-        <div class="cap eyebrow">Want more? (optional)</div>
-        <label class="opt">
-          <input type="checkbox" id="followHome">
-          <span><span class="ot"><span class="dot h"></span><span id="followHomeName">this team</span></span>
-          <span class="od">Get every game report for them, all season.</span></span>
-        </label>
-        <label class="opt">
-          <input type="checkbox" id="followAway">
-          <span><span class="ot"><span class="dot a"></span><span id="followAwayName">this team</span></span>
-          <span class="od">Get every game report for them, all season.</span></span>
-        </label>
-        <label class="opt">
-          <input type="checkbox" id="newsletter">
-          <span><span class="ot">The MBR newsletter</span>
-          <span class="od">Rankings, podcast, and Maine hoops coverage.</span></span>
-        </label>
-      </div>
-
-      <button class="go" id="submit">Send me the report</button>
-      <p class="fine">We'll only email what you ask for. Unsubscribe anytime.<br>
-        You can follow more teams, a region, or a venue at <a href="https://mainebasketballrankings.com">mainebasketballrankings.com</a>.</p>
-    </div>
-
-    <div class="done" id="done">
-      <div class="chk">✓</div>
-      <h2 id="doneTitle">You're all set</h2>
-      <p id="doneMsg"></p>
-      <button class="again" id="again">Sign up a different email</button>
-    </div>
-  </div>
-
-  <div class="loading" id="loading">Loading the game…</div>
-  <div class="err" id="error" style="display:none"></div>
+  <div class="state" id="loading">Loading games…</div>
+  <div class="state" id="error" style="display:none"></div>
 
   <div class="foot">
     <button class="qtoggle" id="qtoggle" style="display:none">◻ Show QR to share</button>
-    <div class="qrwrap" id="qrwrap"><div id="qr"></div><div class="qrcap eyebrow">Scan for this game's report</div></div>
+    <div class="qrwrap" id="qrwrap"><div id="qr"></div><div class="qrcap eyebrow">Scan to get a game report</div></div>
     <div class="siteline">A service of <b>mainebasketballrankings.com</b></div>
   </div>
 
 <script>
 const SB_URL='https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+const BASKETBALL='b31ab283-b28e-4ba8-9684-b1cf30cea219';
 
 const params=new URLSearchParams(location.search);
 const GAME_ID=params.get('game_id');
+const $=id=>document.getElementById(id);
+const SEL='id,game_date,location,status,home_score,away_score,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url,gender),away_team:away_team_id(school_name,logo_url,gender)';
+
 let GAME=null;
 
-const $=id=>document.getElementById(id);
-function initials(name){return (name||'').split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase();}
+function initials(n){return (n||'').split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase();}
+function gLabel(t){const g=(t&&t.gender)||'';return /girl/i.test(g)?' Girls':/boy/i.test(g)?' Boys':'';}
+function teamName(t){return (t&&t.school_name?t.school_name:'')+gLabel(t);}
 function crest(el,url,name){
-  if(url){const img=new Image();img.onload=()=>{el.innerHTML='';el.appendChild(img);img.className='';img.style.cssText='width:100%;height:100%;object-fit:contain;border-radius:50%;';};img.onerror=()=>{el.textContent=initials(name);};img.src=url;}
-  else el.textContent=initials(name);
+  el.textContent=initials(name);
+  if(url){const img=new Image();img.onload=()=>{el.innerHTML='';img.style.cssText='width:100%;height:100%;object-fit:contain;';el.appendChild(img);};img.onerror=()=>{};img.src=url;}
 }
+function localDate(d){d=d||new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function addDays(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return localDate(d);}
+function prettyDate(iso){const t=localDate();if(iso===t)return 'Today';if(iso===addDays(t,-1))return 'Yesterday';return new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});}
+async function sb(path){const r=await fetch(`${SB_URL}/rest/v1/${path}`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});return r.json();}
 
-async function loadGame(){
-  if(!GAME_ID){ return showError("No game specified.", "This link needs a game to sign up for."); }
+async function start(){
+  buildQR();
+  if(GAME_ID){
+    try{ const rows=await sb(`games?id=eq.${GAME_ID}&select=${SEL}`); const g=rows&&rows[0];
+      if(!g) return err("Game not found.","Try scanning again, or head to mainebasketballrankings.com.");
+      selectGame(g,false); return;
+    }catch(e){ return err("Couldn't load that game.","Check your connection and try again."); }
+  }
+  const today=params.get('date')||localDate();
+  const from=addDays(today,-2);
+  let games=[];
   try{
-    const r=await fetch(`${SB_URL}/rest/v1/games?id=eq.${GAME_ID}&select=id,game_date,location,status,home_score,away_score,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url,gender),away_team:away_team_id(school_name,logo_url,gender)`,
-      {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});
-    const rows=await r.json();
-    GAME=Array.isArray(rows)?rows[0]:null;
-    if(!GAME) return showError("Game not found.","This game may have been removed. Try mainebasketballrankings.com.");
-    render();
-  }catch(e){ showError("Couldn't load the game.","Check your connection and try again."); }
+    games=await sb(`games?sport_id=eq.${BASKETBALL}&game_date=gte.${from}&game_date=lte.${today}&select=${SEL}&order=game_date.desc,status.asc&limit=60`);
+    if(!Array.isArray(games)||!games.length){
+      games=await sb(`games?sport_id=eq.${BASKETBALL}&game_date=lte.${today}&select=${SEL}&order=game_date.desc&limit=12`);
+    }
+  }catch(e){ return err("Couldn't load the schedule.","Check your connection and try again."); }
+  games=Array.isArray(games)?games:[];
+  if(!games.length) return err("No recent games yet.","When games are scored they'll show up here. Meanwhile: mainebasketballrankings.com.");
+  if(games.length===1){ selectGame(games[0],false); return; }
+  renderPicker(games);
 }
 
-function gLabel(t){ const g=(t&&t.gender)||''; return /girl/i.test(g)?' Girls':/boy/i.test(g)?' Boys':''; }
+function statusInfo(g){
+  if(g.status==='final') return {cls:'final',bcls:'b-final',txt:'FINAL'};
+  if(g.status==='active') return {cls:'live',bcls:'b-live',txt:'LIVE'};
+  return {cls:'up',bcls:'b-up',txt:'UPCOMING'};
+}
+function scoreStr(g){ return (g.home_score!=null&&g.away_score!=null)?`${g.away_score}–${g.home_score}`:''; }
 
-function render(){
-  const h=GAME.home_team||{}, a=GAME.away_team||{};
-  const hName=(h.school_name||'Home')+gLabel(h), aName=(a.school_name||'Away')+gLabel(a);
+function renderPicker(games){
+  $('loading').style.display='none';
+  const groups={};
+  games.forEach(g=>{ (groups[g.game_date]=groups[g.game_date]||[]).push(g); });
+  const dates=Object.keys(groups).sort().reverse();
+  const wrap=$('gameList'); wrap.innerHTML='';
+  dates.forEach(date=>{
+    const gd=document.createElement('div'); gd.className='daygroup';
+    const hdr=document.createElement('div'); hdr.className='dayhdr eyebrow'; hdr.textContent=prettyDate(date); gd.appendChild(hdr);
+    groups[date].forEach(g=>{
+      const si=statusInfo(g), sc=scoreStr(g);
+      const row=document.createElement('button'); row.className='grow';
+      row.innerHTML=`<div class="gmini">
+          <div class="gteams">${teamName(g.away_team)} <span style="color:var(--muted);font-weight:500">at</span> ${teamName(g.home_team)}</div>
+          <div class="gsub">${g.location?g.location:'Maine high school basketball'}</div>
+        </div>
+        ${sc?`<div class="gscore">${sc}</div>`:''}
+        <span class="gbadge ${si.bcls}">${si.txt}</span>
+        <span class="chev">&#8250;</span>`;
+      row.addEventListener('click',()=>selectGame(g,true));
+      gd.appendChild(row);
+    });
+    wrap.appendChild(gd);
+  });
+  $('picker').style.display='';
+  $('ticketPanel').style.display='none';
+  $('qtoggle').style.display='';
+}
+
+function selectGame(g,fromPicker){
+  GAME=g;
+  const h=g.home_team||{}, a=g.away_team||{};
+  const hName=teamName(h), aName=teamName(a);
   $('homeName').textContent=hName; $('awayName').textContent=aName;
   crest($('homeCrest'),h.logo_url,h.school_name); crest($('awayCrest'),a.logo_url,a.school_name);
-  const final=GAME.status==='final';
-  const live=GAME.status==='active';
-  if(final||GAME.home_score!=null){ $('homeScore').textContent=GAME.home_score??''; $('awayScore').textContent=GAME.away_score??''; }
-  const st=$('status');
-  if(final){ st.className='status final'; st.textContent='FINAL'; }
-  else if(live){ st.className='status live'; st.textContent='LIVE'; }
-  else { st.className='status final'; st.textContent='UPCOMING'; }
-  const d=GAME.game_date? new Date(GAME.game_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : '';
-  $('meta').textContent=[d,GAME.location].filter(Boolean).join('  ·  ');
-
-  $('followHomeName').textContent=hName;
-  $('followAwayName').textContent=aName;
-  $('lede') && ($('lede').textContent = final
+  const si=statusInfo(g);
+  if(g.home_score!=null){ $('homeScore').textContent=g.home_score; $('awayScore').textContent=g.away_score; }
+  else { $('homeScore').textContent=''; $('awayScore').textContent=''; }
+  const st=$('status'); st.className='status '+si.cls; st.textContent=si.txt;
+  const d=g.game_date? new Date(g.game_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
+  $('meta').textContent=[d,g.location].filter(Boolean).join('  ·  ');
+  $('followHomeName').textContent=hName; $('followAwayName').textContent=aName;
+  $('flede').textContent = g.status==='final'
     ? 'Full box score, shot charts, and play-by-play — sent straight to your inbox.'
-    : "We'll email you the full report the moment this game goes final.");
-
-  $('loading').style.display='none';
-  $('ticket').style.display='';
+    : "We'll email you the full report the moment this game goes final.";
+  $('email').value=''; $('followHome').checked=$('followAway').checked=$('newsletter').checked=false;
+  $('form').style.display=''; $('done').style.display='none';
+  const btn=$('submit'); btn.disabled=false; btn.textContent='Send me the report';
+  $('back').style.display=fromPicker?'':'none';
+  $('loading').style.display='none'; $('picker').style.display='none'; $('ticketPanel').style.display='';
   $('qtoggle').style.display='';
-  buildQR();
 }
 
+$('back').addEventListener('click',()=>{ $('ticketPanel').style.display='none'; $('picker').style.display=''; window.scrollTo(0,0); });
+
 function buildQR(){
-  try{ new QRCode($('qr'),{text:location.href,width:180,height:180,colorDark:'#0f172a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+  try{ const base=location.origin+location.pathname; new QRCode($('qr'),{text:base,width:180,height:180,colorDark:'#0f172a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
 }
 $('qtoggle').addEventListener('click',()=>{
   const w=$('qrwrap'); const open=w.style.display==='block';
@@ -266,7 +293,7 @@ $('qtoggle').addEventListener('click',()=>{
   $('qtoggle').textContent=open?'◻ Show QR to share':'✕ Hide QR';
 });
 
-function showError(title,msg){
+function err(title,msg){
   $('loading').style.display='none';
   const e=$('error'); e.style.display='';
   e.innerHTML=`<div style="font-weight:600;color:var(--ink);margin-bottom:6px">${title}</div>${msg}`;
@@ -276,34 +303,18 @@ $('submit').addEventListener('click',async()=>{
   const email=$('email').value.trim();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ $('email').focus(); $('email').style.borderColor='var(--away)'; return; }
   $('email').style.borderColor='';
-  const payload={
-    email,
-    game_id:GAME_ID,
+  const payload={email,game_id:GAME.id,
     follow_team_ids:[ $('followHome').checked?GAME.home_team_id:null, $('followAway').checked?GAME.away_team_id:null ].filter(Boolean),
-    newsletter:$('newsletter').checked,
-    source:'game-qr'
-  };
+    newsletter:$('newsletter').checked, source:'game-qr'};
   const btn=$('submit'); btn.disabled=true; btn.textContent='Sending…';
-
-  // Targets the report-signup Edge Function (to be deployed). Until it's live,
-  // the confirmation still shows so the flow can be reviewed; payload is logged.
-  try{
-    const r=await fetch(`${SB_URL}/functions/v1/report-signup`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`},
-      body:JSON.stringify(payload)
-    });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-  }catch(e){ console.warn('signup endpoint not live yet — payload:',payload); }
-
-  const final=GAME.status==='final';
-  const follows=payload.follow_team_ids.length;
-  $('doneMsg').textContent = final
-    ? `The report for ${(GAME.away_team||{}).school_name} at ${(GAME.home_team||{}).school_name} is on its way to ${email}.`
+  try{ const r=await fetch(`${SB_URL}/functions/v1/report-signup`,{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`},body:JSON.stringify(payload)}); if(!r.ok) throw 0; }
+  catch(e){ console.warn('signup endpoint not live yet — payload:',payload); }
+  const final=GAME.status==='final', follows=payload.follow_team_ids.length;
+  let msg = final
+    ? `The report for ${teamName(GAME.away_team)} at ${teamName(GAME.home_team)} is on its way to ${email}.`
     : `We'll send the report to ${email} as soon as this game is final.`;
-  if(follows||payload.newsletter){
-    $('doneMsg').textContent += ` You're also set up for ${[follows?`${follows} team${follows>1?'s':''}`:'', payload.newsletter?'the newsletter':''].filter(Boolean).join(' and ')}.`;
-  }
+  if(follows||payload.newsletter){ msg+=` You're also set up for ${[follows?`${follows} team${follows>1?'s':''}`:'', payload.newsletter?'the newsletter':''].filter(Boolean).join(' and ')}.`; }
+  $('doneMsg').textContent=msg;
   $('form').style.display='none'; $('done').style.display='block';
 });
 
@@ -314,7 +325,7 @@ $('again').addEventListener('click',()=>{
   $('email').focus();
 });
 
-loadGame();
+start();
 </script>
 </body>
 </html>

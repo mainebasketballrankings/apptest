@@ -1184,24 +1184,32 @@
   }
   function periodLabel(p) { p = p||1; return p>4 ? `OT${p-4}` : `Q${p}`; }
 
-  function describeEvent(e, sport) {
+  function describeEvent(e, sport, game) {
     if (sport === 'basketball') {
       const lbl  = BBALL_LABEL[e.event_type] || (e.event_type||'').replace(/_/g,' ');
       const name = e.player_name || '';
-      let line = '';
+      const isFoul = (e.event_type||'').indexOf('foul_') === 0;
+      const isTO   = (e.event_type||'').indexOf('timeout_') === 0;
       const POS = ['2pt_made','3pt_made','putback_made','ft_made','o_reb','d_reb','assist','steal','block'];
-      if (name && POS.includes(e.event_type) && e.notes) {
-        try {
-          const n = typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes;
-          if (n && n.ln) {
-            const l = n.ln, parts = [`${l.pts||0}p`];
-            if (l.reb) parts.push(`${l.reb}r`);
-            if (l.ast) parts.push(`${l.ast}a`);
-            if (l.stl) parts.push(`${l.stl}s`);
-            if (l.blk) parts.push(`${l.blk}b`);
-            line = ` <span style="opacity:.55">(${parts.join(' ')})</span>`;
-          }
-        } catch (_) {}
+      let n = null;
+      try { n = e.notes ? (typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes) : null; } catch (_) {}
+      // Timeout: show which team and how many they have left.
+      if (isTO && n && n.tol) {
+        const left = (n.tol.full||0) + (n.tol.half||0);
+        const team = game ? (n.side === 'home' ? game.home_team : game.away_team) : null;
+        const who  = team && team.school_name ? team.school_name + ' ' : '';
+        return `${who}${lbl} <span style="opacity:.55">(${left} TO left)</span>`;
+      }
+      // Player line (points, rebounds, assists, steals, blocks, fouls) on scoring plays and fouls.
+      let line = '';
+      if (name && n && n.ln && (POS.includes(e.event_type) || isFoul)) {
+        const l = n.ln, parts = [`${l.pts||0}p`];
+        if (l.reb)   parts.push(`${l.reb}r`);
+        if (l.ast)   parts.push(`${l.ast}a`);
+        if (l.stl)   parts.push(`${l.stl}s`);
+        if (l.blk)   parts.push(`${l.blk}b`);
+        if (l.fouls) parts.push(`${l.fouls}f`);
+        line = ` <span style="opacity:.55">(${parts.join(' ')})</span>`;
       }
       return name ? `<strong>${name}</strong> — ${lbl}${line}` : lbl;
     }
@@ -1299,7 +1307,7 @@
       if (e) {
         const cardMetaEl = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
         if (cardMetaEl) {
-          const desc = describeEvent(e, sport);
+          const desc = describeEvent(e, sport, g);
           if (desc) {
             const prefix = sport === 'basketball'
               ? periodLabel(e.period)

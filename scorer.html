@@ -1126,7 +1126,7 @@ async function sbInsert(table, row){
 // Player's running line for the live ticker (mirrors baseball's pitcher-K count).
 function playerLine(pid){
   if(!pid) return null;
-  let pts=0,reb=0,ast=0,stl=0,blk=0;
+  let pts=0,reb=0,ast=0,stl=0,blk=0,fouls=0;
   for(const e of evts){
     if(e.pid!==pid) continue;
     pts += e.pts||0;
@@ -1134,8 +1134,9 @@ function playerLine(pid){
     else if(e.key==='assist') ast++;
     else if(e.key==='steal')  stl++;
     else if(e.key==='block')  blk++;
+    else if(e.key && e.key.indexOf('foul_')===0) fouls++;
   }
-  return {pts,reb,ast,stl,blk};
+  return {pts,reb,ast,stl,blk,fouls};
 }
 function sbPushEvent(e){
   if(!G_game_id || G_test_mode) return;
@@ -1156,7 +1157,9 @@ function sbPushEvent(e){
       label:getLabel(e.key,e.side), three:!!e.three, side:e.side,
       clock:fmt(e.clk), period:PERIOD_LBL(e.period),
       score:{home:GAME.home.score, away:GAME.away.score},
-      ln: playerLine(e.pid)   // player's running pts/reb/ast/stl/blk
+      ln: playerLine(e.pid),   // player's running pts/reb/ast/stl/blk/fouls
+      ...(e.key && e.key.indexOf('timeout_')===0
+          ? { tol:{ full:GAME[e.side].tof, half:GAME[e.side].to3 } } : {})  // timeouts remaining
     })
   };
   sbInsert('game_events', row);

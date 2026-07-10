@@ -1123,6 +1123,20 @@ async function sbInsert(table, row){
 // Push one basketball scoring/stat event to game_events. Mirrors the football
 // row shape (baseball-flavoured columns are nullable placeholders); basketball
 // puts shot coords in x/y and everything descriptive in notes JSON.
+// Player's running line for the live ticker (mirrors baseball's pitcher-K count).
+function playerLine(pid){
+  if(!pid) return null;
+  let pts=0,reb=0,ast=0,stl=0,blk=0;
+  for(const e of evts){
+    if(e.pid!==pid) continue;
+    pts += e.pts||0;
+    if(e.key==='o_reb'||e.key==='d_reb'||e.key==='putback_made'||e.key==='putback_miss') reb++;
+    else if(e.key==='assist') ast++;
+    else if(e.key==='steal')  stl++;
+    else if(e.key==='block')  blk++;
+  }
+  return {pts,reb,ast,stl,blk};
+}
 function sbPushEvent(e){
   if(!G_game_id || G_test_mode) return;
   const sbid = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
@@ -1141,7 +1155,8 @@ function sbPushEvent(e){
     notes: JSON.stringify({
       label:getLabel(e.key,e.side), three:!!e.three, side:e.side,
       clock:fmt(e.clk), period:PERIOD_LBL(e.period),
-      score:{home:GAME.home.score, away:GAME.away.score}
+      score:{home:GAME.home.score, away:GAME.away.score},
+      ln: playerLine(e.pid)   // player's running pts/reb/ast/stl/blk
     })
   };
   sbInsert('game_events', row);

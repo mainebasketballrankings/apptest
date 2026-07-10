@@ -1156,7 +1156,22 @@
     if (sport === 'basketball') {
       const lbl  = BBALL_LABEL[e.event_type] || (e.event_type||'').replace(/_/g,' ');
       const name = e.player_name || '';
-      return name ? `<strong>${name}</strong> — ${lbl}` : lbl;
+      let line = '';
+      const POS = ['2pt_made','3pt_made','putback_made','ft_made','o_reb','d_reb','assist','steal','block'];
+      if (name && POS.includes(e.event_type) && e.notes) {
+        try {
+          const n = typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes;
+          if (n && n.ln) {
+            const l = n.ln, parts = [`${l.pts||0}p`];
+            if (l.reb) parts.push(`${l.reb}r`);
+            if (l.ast) parts.push(`${l.ast}a`);
+            if (l.stl) parts.push(`${l.stl}s`);
+            if (l.blk) parts.push(`${l.blk}b`);
+            line = ` <span style="opacity:.55">(${parts.join(' ')})</span>`;
+          }
+        } catch (_) {}
+      }
+      return name ? `<strong>${name}</strong> — ${lbl}${line}` : lbl;
     }
     const isDP     = e.notes && e.notes.includes('(DP)');
     const evtLabel = isDP ? 'grounds into double play' : (EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' '));

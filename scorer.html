@@ -44,6 +44,20 @@ body{
   padding:4px 10px;border-right:1px solid var(--border);
 }
 .side-block.away-side{border-right:none;border-left:1px solid var(--border);}
+
+/* ── Home/away convention: AWAY on the left, HOME on the right ──
+   Matches the public scoreboard, the live page, and standard sports convention.
+   CSS-only (grid column placement) so the underlying home/away data is unchanged. */
+#topbar > .side-block:not(.away-side){ grid-column:5; border-right:none; border-left:1px solid var(--border); } /* home block → right */
+#topbar > .tscore.home{ grid-column:4; flex-direction:row-reverse; }
+#topbar > #clk-col{ grid-column:3; }
+#topbar > .tscore.away{ grid-column:2; flex-direction:row-reverse; }
+#topbar > .side-block.away-side{ grid-column:1; border-left:none; border-right:1px solid var(--border); } /* away block → left */
+#middle > #home-panel{ grid-column:3; }
+#middle > #court-wrap{ grid-column:2; }
+#middle > #away-panel{ grid-column:1; }
+.ppanel.hp{ border-right:none; border-left:2px solid var(--border); }
+.ppanel.ap{ border-left:none; border-right:2px solid var(--border); }
 .side-lbl{font-family:'Barlow Condensed',sans-serif;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
 .side-val{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;color:var(--text);}
 .side-to{display:flex;gap:4px;align-items:baseline;}
@@ -2962,11 +2976,16 @@ async function generatePDF(opts={}){
   const SITE_LOGO_URL='https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png';
   async function imgData(url){
     if(!url) return null;
-    try{
-      const r=await fetch(url,{mode:'cors'}); if(!r.ok) return null;
+    // R2 public URLs don't send CORS headers, so fetch them via our CORS-enabled
+    // proxy; fall back to a direct fetch if the proxy is unavailable.
+    const via = `${SB_URL}/functions/v1/img-proxy?url=${encodeURIComponent(url)}`;
+    async function load(u){
+      const r=await fetch(u,{headers:{apikey:SB_KEY}}); if(!r.ok) return null;
       const b=await r.blob();
       return await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>res(null);fr.readAsDataURL(b);});
-    }catch(e){ return null; }
+    }
+    try{ return await load(via); }
+    catch(e){ try{ return await load(url); }catch(e2){ return null; } }
   }
   let siteLogo=null,homeLogo=null,awayLogo=null;
   try{ siteLogo=await imgData(SITE_LOGO_URL); }catch(e){}

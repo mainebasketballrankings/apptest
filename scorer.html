@@ -3111,8 +3111,8 @@ async function generatePDF(opts={}){
   });
   y+=4;
 
-  // ── Team comparison (own page in full report; on page 1 with the summary in coach mode) ──
-  if(!opts.coach) newPage();
+  // ── Team comparison (flows under the summary; breaks only if the page is full) ──
+  checkY(52);
   (function drawComparison(){
     sectionTitle('TEAM COMPARISON');
     const H=teamTotals('home'), A=teamTotals('away');

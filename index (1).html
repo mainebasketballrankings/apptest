@@ -21,12 +21,7 @@
 </script>
 
   
-  <title>MBR Scoreboard Embed</title>
-  <!-- iframe embed — designed to be loaded inside an iframe on any site -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    html, body { margin: 0; padding: 0; overflow-x: hidden; }
-  </style>
+  <title>Maine Basketball Rankings — Scoreboard</title>
   <link rel="manifest" href="manifest-app.json"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -44,6 +39,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="nav.css" />
 
   <style>
     :root {
@@ -53,15 +49,14 @@
       --gray:   #555;
       --lgray:  #999;
       --border: #e2e2e2;
-      --bg:     #ffffff;
+      --bg:     #f0f0f0;
       --white:  #fff;
       --black:  #111;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body { margin: 0; padding: 0; overflow-x: hidden;
-  /* iframe embed */
+    body {
       font-family: 'Barlow', sans-serif;
       background: var(--bg);
       color: var(--black);
@@ -243,8 +238,7 @@
     }
 
     .game-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.09); }
-    .card-body { margin: 0; padding: 0; overflow-x: hidden;
-  /* iframe embed */ cursor: pointer; }
+    .card-body { cursor: pointer; }
 
     .game-card.live {
       border-color: var(--green2);
@@ -303,8 +297,7 @@
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
 
     /* teams */
-    .card-body { margin: 0; padding: 0; overflow-x: hidden;
-  /* iframe embed */ padding: 12px 14px 10px; }
+    .card-body { padding: 12px 14px 10px; }
 
     .team-row {
       display: grid;
@@ -341,7 +334,7 @@
       color: var(--lgray);
     }
 
-    .team-name-wrap { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .team-name-wrap { min-width: 0; }
 
     .team-name {
       font-family: 'Barlow', sans-serif;
@@ -489,8 +482,7 @@
       background: #ddd;
       border-bottom-color: #ccc;
     }
-    .game-card.postponed .card-body { margin: 0; padding: 0; overflow-x: hidden;
-  /* iframe embed */
+    .game-card.postponed .card-body {
       opacity: 0.45;
     }
     .game-card.postponed .card-footer {
@@ -869,12 +861,13 @@
 
     @media (max-width: 640px) {
       nav { display: none; }
-      /* Don't collapse to 1 column in embed — let auto-fill handle it */
+      .games-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
+<div id="mbr-header"></div>
 
 <div class="page">
   <div class="date-bar">
@@ -919,8 +912,14 @@
 
 <!-- EXPORT PANEL (bottom of page) -->
 <div class="export-trigger-wrap">
+  <button class="export-trigger" id="exportTrigger">export scores</button>
 </div>
-<div id="exportSections"></div>
+<div class="export-panel" id="exportPanel">
+  <div class="export-panel-header">
+    <span class="export-panel-title" id="exportPanelTitle">Score Export</span>
+    <span class="export-panel-hint">Drag-select a column, then Ctrl+C → paste into Excel</span>
+  </div>
+  <div id="exportSections"></div>
 </div>
 
 <script>
@@ -996,7 +995,6 @@
   let currentDate    = new Date();
   let allGames       = [];        // active sport's games (kept for submit handler)
   let allSportsGames = {};        // { sport: { games, notesMap } } — cached per date
-  let recordMap      = {};        // team_id -> 'W-L' string from latest snapshot
   let activeFilter   = 'all';
   let activeSport    = 'all';
   let activeSeason   = 2026;
@@ -1074,31 +1072,6 @@
   // ── LOAD GAMES ───────────────────────────────────────────────────────────
   // dateChanged=true  → clear cache, re-fetch for the new date
   // dateChanged=false → sport tab switch; use cache if available, fetch only if missing
-
-  // Fetch W-L records for all teams currently on the scoreboard
-  async function fetchRecords(teamIds) {
-    if (!teamIds.length) return;
-    const chunks = [];
-    for (let i = 0; i < teamIds.length; i += 50) chunks.push(teamIds.slice(i, i + 50));
-    for (const chunk of chunks) {
-      const { data } = await sb
-        .from('rankings_snapshots')
-        .select('team_id,wins,losses')
-        .in('team_id', chunk)
-        .eq('season_year', 2026)
-        .order('snapshot_date', { ascending: false })
-        .limit(chunk.length * 40);
-      if (!data) continue;
-      const seen = new Set();
-      for (const row of data) {
-        if (!seen.has(row.team_id)) {
-          seen.add(row.team_id);
-          recordMap[row.team_id] = `${row.wins ?? 0}-${row.losses ?? 0}`;
-        }
-      }
-    }
-  }
-
   async function loadGames(date, dateChanged = true) {
     const ds = toISO(date);
     document.getElementById('dateHeading').textContent = fmtHeading(date);
@@ -1150,10 +1123,6 @@
     buildFilterButtons();
     renderAllGames();
 
-    // Fetch records async — re-render once they arrive
-    const allTeamIds = [...new Set(allGames.flatMap(g => [g.home_team?.id, g.away_team?.id].filter(Boolean)))];
-    fetchRecords(allTeamIds).then(() => renderAllGames());
-
     const activeGames = allGames.filter(g => g.status === 'active');
     if (activeGames.length) await fetchLiveEvents(activeGames);
   }
@@ -1168,7 +1137,6 @@
     sub_batter:'pinch hit', sub_defense:'defensive sub',
   };
 
-  // Basketball live-ticker labels + clock helper.
   const BBALL_LABEL = {
     '2pt_made':'2-pt basket','2pt_miss':'missed 2','3pt_made':'3-pointer','3pt_miss':'missed 3',
     'putback_made':'putback','putback_miss':'missed putback','ft_made':'free throw','ft_miss':'missed free throw',
@@ -1201,6 +1169,22 @@
       } catch { return `Pitching change: ${e.pitcher_name}`; }
     }
 
+    if (e.event_type === 'sub_defense') {
+      try {
+        const info = JSON.parse(e.notes||'{}');
+        const incoming = info.name || e.player_name || '';
+        const outgoing = info.subFor || '';
+        const pos      = info.pos || '';
+        if (incoming && outgoing && pos) return `${incoming} replaces ${outgoing} at ${pos}`;
+        if (incoming && pos) return `${incoming} enters at ${pos}`;
+        return `Defensive sub: ${incoming}`;
+      } catch { return `Defensive sub: ${e.player_name||''}`; }
+    }
+
+    if (e.event_type === 'strikeout' && e.notes === 'dropped 3rd strike') {
+      return `<strong>${name}</strong> K (dropped 3rd strike) — reaches 1B`;
+    }
+
     if (e.event_type === 'runner_advance') {
       try {
         const info = typeof e.notes === 'string' ? JSON.parse(e.notes||'{}') : (e.notes||{});
@@ -1222,11 +1206,17 @@
     const rbi    = e.rbi && !e.runs ? ` · ${e.rbi} RBI` : '';
     const isOut  = ['groundout','flyout','lineout','popup','strikeout'].includes(e.event_type);
     const outNum = isDP ? ' · 2 outs' : (isOut && e.outs ? ` · ${e.outs} out${e.outs>1?'s':''}` : '');
+    // Fielding notation: notes holds e.g. "6-3" or "8" for outs
+    let fieldingNote = '';
+    if (isOut && !['strikeout'].includes(e.event_type) && e.notes && typeof e.notes === 'string' && !e.notes.startsWith('{')) {
+      const notation = e.notes.replace(/\s*\(DP\)\s*/,'').trim();
+      if (notation) fieldingNote = ` (${notation})`;
+    }
     let kDesc = '';
     if (e.event_type === 'strikeout' && e.notes) {
       try { const ni = JSON.parse(e.notes||'{}'); if (ni.pitcherK && ni.pitcherName) kDesc = ` (${ni.pitcherName.split(' ').pop()} ${ni.pitcherK}K)`; } catch {}
     }
-    return `<strong>${name}</strong> ${evtLabel}${scored}${rbi}${outNum}${kDesc}`;
+    return `<strong>${name}</strong> ${evtLabel}${fieldingNote}${scored}${rbi}${outNum}${kDesc}`;
   }
 
   function renderScoreBug(topLeftEl, se, sport) {
@@ -1279,14 +1269,13 @@
     activeGames.forEach(g => {
       const e  = lastEvt[g.id];
       const se = stateEvt[g.id] || e;
-      const sport = g._sport;
       if (!e && !se) return;
       if (e) {
         const cardMetaEl = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
         if (cardMetaEl) {
-          const desc = describeEvent(e, sport);
+          const desc = describeEvent(e, g._sport);
           if (desc) {
-            const prefix = sport === 'basketball'
+            const prefix = g._sport === 'basketball'
               ? periodLabel(e.period)
               : `${e.half === 'top' ? '▲' : '▼'}${e.inning||''}`;
             cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${prefix}</span> ${desc}`;
@@ -1295,7 +1284,7 @@
       }
       if (se) {
         const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
-        if (topLeft) renderScoreBug(topLeft, se, sport);
+        if (topLeft) renderScoreBug(topLeft, se, g._sport);
       }
     });
   }
@@ -1491,34 +1480,34 @@
     let alt = 'Stream';
 
     if (url.includes('easternmainesportsmedia') || url.includes('easternmainesports') || url.includes('eastern-maine')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/eastern%20maine%20sport.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278369/eastern_maine_sport_vp5nya.png';
       alt = 'Eastern Maine Sports';
     } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/You-Tube-14.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278312/You-Tube-14_nqkseu.png';
       alt = 'YouTube';
     } else if (url.includes('nfhs')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/nfhsnetworklogo2.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680700/nfhsnetworklogo2_hcomv2.png';
       alt = 'NFHS';
     } else if (url.includes('lctv') || url.includes('lctvonline')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/lctv.jpeg';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680745/lctv_wikpnr.jpg';
       alt = 'LCTV';
     } else if (url.includes('whou')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/whou.live_.square-768x609.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772683015/whou.live_.square-768x609_nwxdjx.png';
       alt = 'WHOU';
     } else if (url.includes('hudl.com')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/hudl.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680951/hudl_bq26ed.png';
       alt = 'Hudl';
     } else if (url.includes('theticket') || url.includes('ticket.tv')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/tickettv.jpeg';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680872/tickettv_llamh1.jpg';
       alt = 'The Ticket';
     } else if (url.includes('munzing')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/munzing.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278428/munzing_c4tion.png';
       alt = 'Munzing';
     } else if (url.includes('mainepublic') || url.includes('maine-public') || url.includes('mainepublic.org')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20public%20logoo.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278462/maine_public_logoo_mlepsa.png';
       alt = 'Maine Public';
     } else if (url.includes('mainecoast') || url.includes('maine-coast')) {
-      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine_coast_tv.png';
+      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278552/maine_coast_tv_njnccc.png';
       alt = 'Maine Coast TV';
     } else {
       return `<a href="${url}" target="_blank" rel="noopener" title="Watch live" style="color:var(--green2);font-size:18px;line-height:1;text-decoration:none">▶</a>`;
@@ -1642,15 +1631,15 @@
           : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${topLabel}</span>${submitBtnTop}</div>`;
 
     // Score cells
-    const gamePageUrl = `https://www.mainebasketballrankings.com/game/?id=${g.id}`;
+    const gamePageUrl = `game.html?game_id=${g.id}`;
     const hScEl = has
       ? (isFinal
-          ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" target="_blank" style="text-decoration:none">${hSc}</a>`
+          ? `<a class="team-score ${hWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${hSc}</a>`
           : `<div class="team-score">${hSc}</div>`)
       : `<div class="team-score empty">–</div>`;
     const aScEl = has
       ? (isFinal
-          ? `<a class="team-score ${aWin?'winner':'loser'}" href="${gamePageUrl}" target="_blank" style="text-decoration:none">${aSc}</a>`
+          ? `<a class="team-score ${aWin?'winner':'loser'}" href="${gamePageUrl}" style="text-decoration:none">${aSc}</a>`
           : `<div class="team-score">${aSc}</div>`)
       : `<div class="team-score empty">–</div>`;
 
@@ -1666,7 +1655,7 @@
     if (isFinal) {
       const notesContent = notes || '—';
       const notesStyle = notes ? 'color:var(--black)' : 'color:var(--lgray)';
-      footerMeta = `<a class="card-meta" href="${gamePageUrl}" target="_blank" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
+      footerMeta = `<a class="card-meta" href="${gamePageUrl}" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
     } else if (isLive) {
       footerMeta = `<div class="card-meta" style="color:var(--lgray)">In progress</div>`;
     } else {
@@ -1680,14 +1669,14 @@
         <div class="team-row">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="https://app.mainebasketballrankings.com/team_embed.html?team_id=${away.id}" target="_blank">${aR}${away.school_name}</a>${recordMap[away.id] ? ` <span style="font-size:12px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif;display:block;line-height:1.2;margin-top:1px">${recordMap[away.id]}</span>` : ''}
+            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="team.html?team_id=${away.id}">${aR}${away.school_name}</a>
           </div>
           ${aScEl}
         </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="https://app.mainebasketballrankings.com/team_embed.html?team_id=${home.id}" target="_blank">${hR}${home.school_name}</a>${recordMap[home.id] ? ` <span style="font-size:12px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif;display:block;line-height:1.2;margin-top:1px">${recordMap[home.id]}</span>` : ''}
+            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="team.html?team_id=${home.id}">${hR}${home.school_name}</a>
           </div>
           ${hScEl}
         </div>
@@ -1697,7 +1686,7 @@
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
           ${streamUrl ? streamIconEl(streamUrl) : ''}
-          ${isLive ? `<a href="https://app.mainebasketballrankings.com/live.html?game_id=${g.id}" class="live-btn" target="_blank">LIVE</a>` : ''}
+          ${isLive ? `<a href="live.html?game_id=${g.id}" class="live-btn">LIVE</a>` : ''}
           ${!isFinal && !isPPD && !isLive ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
           ${isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}" style="border-color:#c0392b;color:#c0392b">Edit PPD</button>` : ''}
         </div>
@@ -1897,6 +1886,7 @@
 
   // Load all sports for today
   activeSport = 'all';
+  // loadGames called after MBRNav.init() below
 
   // ── LIVE PATCH (non-destructive background refresh) ─────────────────────
   // Fetches only games data + events and patches DOM in place.
@@ -2057,36 +2047,86 @@
   }
   // ── END PPD ──────────────────────────────────────────────────────────────
 
-</script>
+  // ── EXPORT ──────────────────────────────────────────────────────────────
 
-<script>loadGames(currentDate);</script>
-
-<div style="text-align:center;padding:12px 0 16px;font-size:11px;color:#aaa;font-family:'Barlow',sans-serif">
-  Powered by <a href="https://mainebasketballrankings.com" target="_blank" style="color:#1a7a4a;text-decoration:none;font-weight:600">Maine Basketball Rankings</a>
-</div>
-
-<script>
-// Auto-resize: tells the parent page how tall this embed is
-// so the iframe can resize to fit content without scrollbars or dead space.
-// Works by posting the document height to the parent whenever content changes.
-
-(function() {
-  function sendHeight() {
-    const h = document.documentElement.scrollHeight;
-    window.parent.postMessage({ type: 'mbr-embed-resize', height: h }, '*');
+  function getScore(g, side) {
+    const live  = side === 'home' ? g.home_score_live : g.away_score_live;
+    const final = side === 'home' ? g.home_score      : g.away_score;
+    return live != null ? live : final != null ? final : '';
   }
 
-  // Send on load
-  window.addEventListener('load', sendHeight);
+  function renderExportPanel() {
+    if (!allGames || !allGames.length) {
+      document.getElementById('exportSections').innerHTML =
+        '<div style="padding:18px;font-size:13px;color:var(--lgray)">No games loaded.</div>';
+      return;
+    }
 
-  // Send whenever DOM changes (games load, tabs switch, etc.)
-  const observer = new ResizeObserver(sendHeight);
-  observer.observe(document.body);
+    const sportLabel = SPORT_LABEL[activeSport] || activeSport;
+    const dateLabel  = document.getElementById('dateHeading').textContent;
+    document.getElementById('exportPanelTitle').textContent = `${sportLabel} \u00b7 ${dateLabel}`;
 
-  // Also send on any click (tab switches change height)
-  document.addEventListener('click', () => setTimeout(sendHeight, 100));
-})();
+    // Group by gender
+    const groups = {};
+    allGames.forEach(g => {
+      const gender = g.home_team?.gender || 'Unknown';
+      if (!groups[gender]) groups[gender] = [];
+      groups[gender].push(g);
+    });
 
+    const order = ['Boys', 'Girls', ...Object.keys(groups).filter(k => k !== 'Boys' && k !== 'Girls')];
+
+    const html = order.filter(g => groups[g]).map(gender => {
+      const games = [...groups[gender]].sort((a, b) =>
+        (a.home_team?.school_name || '').localeCompare(b.home_team?.school_name || '')
+      );
+
+      const toRows = arr => arr.map(v => `<div class="export-col-row">${v}</div>`).join('');
+      const homeTeams  = toRows(games.map(g => g.home_team?.school_name || ''));
+      const homeScores = toRows(games.map(g => getScore(g, 'home')));
+      const awayTeams  = toRows(games.map(g => g.away_team?.school_name || ''));
+      const awayScores = toRows(games.map(g => getScore(g, 'away')));
+
+      return `
+        <div class="export-section">
+          <div class="export-section-label">${gender} \u2014 ${games.length} game${games.length !== 1 ? 's' : ''}</div>
+          <div class="export-cols">
+            <div>
+              <div class="export-col-label">Home Team</div>
+              <div class="export-col-data" tabindex="0">${homeTeams}</div>
+            </div>
+            <div>
+              <div class="export-col-label">Home Score</div>
+              <div class="export-col-data" tabindex="0">${homeScores}</div>
+            </div>
+            <div>
+              <div class="export-col-label">Away Team</div>
+              <div class="export-col-data" tabindex="0">${awayTeams}</div>
+            </div>
+            <div>
+              <div class="export-col-label">Away Score</div>
+              <div class="export-col-data" tabindex="0">${awayScores}</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('exportSections').innerHTML = html;
+  }
+
+  document.getElementById('exportTrigger').addEventListener('click', () => {
+    const panel   = document.getElementById('exportPanel');
+    const isOpen  = panel.classList.toggle('open');
+    document.getElementById('exportTrigger').textContent = isOpen ? 'hide export' : 'export scores';
+    if (isOpen) {
+      renderExportPanel();
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+  // ── END EXPORT ───────────────────────────────────────────────────────────
 </script>
+
+<script src="nav.js"></script>
+<script>MBRNav.init({ active: 'scoreboard' }); loadGames(currentDate);</script>
 </body>
 </html>

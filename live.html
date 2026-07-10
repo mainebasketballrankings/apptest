@@ -826,6 +826,12 @@ function setBBMobTab(side, btn) {
   document.getElementById('bb-mob-away').style.display = side==='away' ? '' : 'none';
 }
 
+// Full first name when we have one ("Grace Vachon"); initial fallback ("G.Vachon").
+function dispName(first, fi, last){
+  const f = (first && first.length>1) ? first : (fi || '');
+  if(!f) return last||'';
+  return f.length===1 ? `${f}.${last}` : `${f} ${last}`;
+}
 function buildPlayerRows(side, rowsId, sumId) {
   const ts = GAME.ts[side];
   const tppct = ts.tpa ? Math.round(100*ts.tpm/ts.tpa)+'%' : '—';
@@ -846,7 +852,7 @@ function buildPlayerRows(side, rowsId, sumId) {
     const dots = Array.from({length:5},(_,i)=>`<div class="pl-fd${i<p.fouls?' on':''}"></div>`).join('');
     div.innerHTML=`
       <div class="pl-top">
-        <div class="pl-ident"><span class="pl-num">#${p.num}</span><span class="pl-name">${p.fi}.${p.last}</span></div>
+        <div class="pl-ident"><span class="pl-num">#${p.num}</span><span class="pl-name">${dispName(p.first,p.fi,p.last)}</span></div>
         <div class="pl-pts">${p.pts||0}</div>
       </div>
       <div class="pl-stats">
@@ -964,7 +970,7 @@ function updFeed(){
     const dot=document.createElement('div'); dot.className='fr-dot';
     dot.style.background=e.side==='home'?'var(--home)':'var(--away)';
     const body=document.createElement('div'); body.className='fr-body';
-    const who=e.pnum?`<b>#${e.pnum} ${e.pfi}.${e.plast}</b>`:`<b>${GAME[e.side]?.name||''}</b>`;
+    const who=e.pnum?`<b>#${e.pnum} ${dispName(e.pfirst,e.pfi,e.plast)}</b>`:`<b>${GAME[e.side]?.name||''}</b>`;
     const action=KLBL[e.key]||e.key;
     const desc=e.key==='possession_flip'?`${GAME[e.side]?.name||''} ball`:`${who} — ${action}`;
     body.innerHTML=`<div class="fr-desc">${desc}</div><div class="fr-meta">Q${e.period} · ${fmt(e.clk)}</div>`;
@@ -996,9 +1002,10 @@ function onEvent(e){
       if(Array.isArray(roster) && roster.length){
         PL[s] = roster.map((r,i)=>{
           const parts = String(r.name||'').trim().split(/\s+/);
-          const fi   = (parts[0]||'').replace(/\./g,'').charAt(0);
-          const last = parts.length>1 ? parts.slice(1).join(' ') : (parts[0]||'');
-          return { id:s+'_'+(r.num!=null?r.num:i), fi, last,
+          const first = parts.length>1 ? parts[0] : '';
+          const fi    = (parts[0]||'').replace(/\./g,'').charAt(0);
+          const last  = parts.length>1 ? parts.slice(1).join(' ') : (parts[0]||'');
+          return { id:s+'_'+(r.num!=null?r.num:i), first, fi, last,
                    num:(parseInt(r.num)||r.num||''), on:!!r.starter,
                    pts:0,reb:0,ast:0,fouls:0,fgm:0,fga:0,tpm:0,tpa:0 };
         });
@@ -1025,7 +1032,7 @@ function onEvent(e){
     if(p){p.pts+=2;p.fgm++;p.fga++;} ts.fgm++;ts.fga++;
     GAME.possession=opp;
     e.scoreSnap={home:GAME.home.score,away:GAME.away.score};
-    toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — 2 pts<span class="tp">${e.scoreSnap.home}–${e.scoreSnap.away}</span>`);
+    toast(`<b>#${e.pnum} ${dispName(e.pfirst,e.pfi,e.plast)}</b> — 2 pts<span class="tp">${e.scoreSnap.home}–${e.scoreSnap.away}</span>`);
   } else if(e.key==='3pt_made'){
     GAME[s].score+=3; GAME.qtrs[s][qi]+=3;
     GAME.qfgm[s][qi]++; GAME.qfga[s][qi]++;
@@ -1033,7 +1040,7 @@ function onEvent(e){
     if(p){p.pts+=3;p.fgm++;p.fga++;p.tpm++;p.tpa++;} ts.fgm++;ts.fga++;ts.tpm++;ts.tpa++;
     GAME.possession=opp;
     e.scoreSnap={home:GAME.home.score,away:GAME.away.score};
-    toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — 3-pointer! 🔥<span class="tp">${e.scoreSnap.home}–${e.scoreSnap.away}</span>`);
+    toast(`<b>#${e.pnum} ${dispName(e.pfirst,e.pfi,e.plast)}</b> — 3-pointer! 🔥<span class="tp">${e.scoreSnap.home}–${e.scoreSnap.away}</span>`);
   } else if(e.key==='ft_made'){
     GAME[s].score+=1; GAME.qtrs[s][qi]+=1;
     if(p) p.pts++;
@@ -1050,14 +1057,14 @@ function onEvent(e){
   } else if(e.key==='o_reb'||e.key==='d_reb'){
     GAME.qreb[s][qi]++;
     if(p) p.reb++; ts.reb++;
-    if(e.key==='o_reb') toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — offensive rebound`);
+    if(e.key==='o_reb') toast(`<b>#${e.pnum} ${dispName(e.pfirst,e.pfi,e.plast)}</b> — offensive rebound`);
   } else if(e.key==='steal'){
-    ts.stl++; toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — steal ⚡`);
+    ts.stl++; toast(`<b>#${e.pnum} ${dispName(e.pfirst,e.pfi,e.plast)}</b> — steal ⚡`);
   } else if(e.key==='block'){
-    ts.blk++; toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — block ✋`);
+    ts.blk++; toast(`<b>#${e.pnum} ${dispName(e.pfirst,e.pfi,e.plast)}</b> — block ✋`);
   } else if(e.key==='turnover'){
     GAME.qto[s][qi]++;
-    ts.to++; toast(`<b>#${e.pnum} ${e.pfi}.${e.plast}</b> — turnover`);
+    ts.to++; toast(`<b>#${e.pnum} ${dispName(e.pfirst,e.pfi,e.plast)}</b> — turnover`);
   } else if(e.key.startsWith('foul_')){
     if(p) p.fouls++;
     GAME[s].fouls++;                         // total fouls — never resets
@@ -1458,11 +1465,11 @@ async function connectGame(gameId){
 function bballRowToEvt(row){
   const side = row.team_id === LIVE_home_team_id ? 'home' : 'away';
   // Scorer stores full display name in player_name ("Kyle Melquist" or "K. Melquist").
-  let pfi='', plast='';
+  let pfirst='', pfi='', plast='';
   if(row.player_name){
     const parts = String(row.player_name).trim().split(/\s+/);
     if(parts.length===1){ plast=parts[0]; pfi=parts[0].charAt(0); }
-    else { pfi=parts[0].replace(/\./g,'').charAt(0); plast=parts.slice(1).join(' '); }
+    else { pfirst=parts[0].replace(/\./g,''); pfi=pfirst.charAt(0); plast=parts.slice(1).join(' '); }
   }
   return {
     side,
@@ -1471,7 +1478,7 @@ function bballRowToEvt(row){
     clk:    (row.clock_seconds != null ? row.clock_seconds : 0),
     pt:     (row.x!=null && row.y!=null) ? { x:Number(row.x), y:Number(row.y) } : null,
     pnum:   (row.player_num!=null ? row.player_num : ''),
-    pfi, plast,
+    pfirst, pfi, plast,
     pid:    null,               // scorer sends no player id -- onEvent matches by number
     notes:  row.notes || null
   };

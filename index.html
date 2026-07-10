@@ -1060,7 +1060,7 @@
       .eq('season_year', season)
       .order('game_time', { ascending: true, nullsFirst: false });
     if (error || !data) return [];
-    return data.filter(g => g.home_team && g.away_team);
+    return data.filter(g => g.home_team && g.away_team).map(g => ({ ...g, _sport: sport }));
   }
 
   function buildNotesMap(games) {
@@ -1137,7 +1137,27 @@
     sub_batter:'pinch hit', sub_defense:'defensive sub',
   };
 
-  function describeEvent(e) {
+  const BBALL_LABEL = {
+    '2pt_made':'2-pt basket','2pt_miss':'missed 2','3pt_made':'3-pointer','3pt_miss':'missed 3',
+    'putback_made':'putback','putback_miss':'missed putback','ft_made':'free throw','ft_miss':'missed free throw',
+    'o_reb':'offensive rebound','d_reb':'defensive rebound','assist':'assist','steal':'steal','block':'block',
+    'turnover':'turnover','foul_personal':'personal foul','foul_offensive':'offensive foul','foul_technical':'technical foul',
+    'foul_flagrant':'flagrant foul','foul_intentional':'intentional foul','timeout_full':'timeout','timeout_30sec':'timeout',
+    'possession_flip':'possession','deflection':'deflection','charge_taken':'charge taken'
+  };
+  function fmtClock(secs) {
+    if (secs == null) return '';
+    const s = Math.max(0, secs|0);
+    return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  }
+  function periodLabel(p) { p = p||1; return p>4 ? `OT${p-4}` : `Q${p}`; }
+
+  function describeEvent(e, sport) {
+    if (sport === 'basketball') {
+      const lbl  = BBALL_LABEL[e.event_type] || (e.event_type||'').replace(/_/g,' ');
+      const name = e.player_name || '';
+      return name ? `<strong>${name}</strong> — ${lbl}` : lbl;
+    }
     const isDP     = e.notes && e.notes.includes('(DP)');
     const evtLabel = isDP ? 'grounds into double play' : (EVT_LABEL[e.event_type] || e.event_type.replace(/_/g,' '));
     const name     = e.event_type === 'sub_pitcher' ? '' : (e.player_name || '');
@@ -1199,7 +1219,13 @@
     return `<strong>${name}</strong> ${evtLabel}${fieldingNote}${scored}${rbi}${outNum}${kDesc}`;
   }
 
-  function renderScoreBug(topLeftEl, se) {
+  function renderScoreBug(topLeftEl, se, sport) {
+    if (sport === 'basketball') {
+      const clk = fmtClock(se.clock_seconds);
+      topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
+      topLeftEl.innerHTML = `<span style="font-weight:700">${periodLabel(se.period)}</span>${clk?`<span>${clk}</span>`:''}`;
+      return;
+    }
     let { half: dispHalf, inning: dispInn = 1, outs: dispOuts = 0 } = se;
     let dispBases = Array.isArray(se.bases) ? se.bases : (se.bases ? JSON.parse(se.bases) : [false,false,false]);
     if (dispOuts >= 3 || se.event_type === 'inning_end') {
@@ -1219,7 +1245,7 @@
   // ── LIVE EVENTS (shared by loadGames + patchLiveGames) ───────────────────
   async function fetchLiveEvents(activeGames) {
     const { data: evts } = await sb.from('game_events')
-      .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, notes, created_at')
+      .select('game_id, event_type, player_name, pitcher_name, inning, half, outs, runs, rbi, bases, period, clock_seconds, notes, created_at')
       .in('game_id', activeGames.map(g => g.id))
       .neq('event_type', 'lineup_set').neq('event_type', 'batter_up')
       .order('created_at', { ascending: false })
@@ -1247,16 +1273,18 @@
       if (e) {
         const cardMetaEl = document.querySelector(`[data-game-id="${g.id}"] .card-meta`);
         if (cardMetaEl) {
-          const desc = describeEvent(e);
+          const desc = describeEvent(e, g._sport);
           if (desc) {
-            const half = e.half === 'top' ? '▲' : '▼';
-            cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${half}${e.inning||''}</span> ${desc}`;
+            const prefix = g._sport === 'basketball'
+              ? periodLabel(e.period)
+              : `${e.half === 'top' ? '▲' : '▼'}${e.inning||''}`;
+            cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${prefix}</span> ${desc}`;
           }
         }
       }
       if (se) {
         const topLeft = document.querySelector(`[data-game-id="${g.id}"] .card-top > span:first-child`);
-        if (topLeft) renderScoreBug(topLeft, se);
+        if (topLeft) renderScoreBug(topLeft, se, g._sport);
       }
     });
   }

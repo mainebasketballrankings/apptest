@@ -3111,8 +3111,8 @@ async function generatePDF(opts={}){
   });
   y+=4;
 
-  // ── Team comparison (own page; side-by-side on key rates) ──
-  newPage();
+  // ── Team comparison (own page in full report; on page 1 with the summary in coach mode) ──
+  if(!opts.coach) newPage();
   (function drawComparison(){
     sectionTitle('TEAM COMPARISON');
     const H=teamTotals('home'), A=teamTotals('away');

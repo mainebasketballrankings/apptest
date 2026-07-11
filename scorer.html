@@ -589,14 +589,18 @@ body{
   #pdisplay{font-size:10px;}
   #sel-display{font-size:12px;}
   .ppanel{padding:3px;gap:3px;}
-  .pcard{padding:6px;gap:6px;min-height:44px;}
-  .pnum{font-size:26px;}
-  .pinfo{gap:2px;}
-  .pname{display:none;}           /* uniform: number + stats only */
+  .pcard{padding:6px 8px;gap:8px;min-height:44px;}
+  .pnum{font-size:28px;}
+  .pinfo{gap:3px;}
+  .pname{display:none;}                                              /* uniform: number-led */
+  .pstats .ps:nth-child(2), .pstats .ps:nth-child(3){display:none;}  /* just points */
   .pstats{gap:8px;}
-  .psv{font-size:15px;}
-  .psl{font-size:7px;}
-  .fdots{display:none;}
+  .psv{font-size:18px;}
+  .psl{font-size:8px;}
+  .fdots{display:flex;}                                              /* keep fouls */
+  /* stat buttons wrap to two rows so P.Foul / FT / MORE aren't cut off */
+  .sgrid{grid-template-columns:repeat(5,minmax(0,1fr));}
+  .sbtn{padding:12px 3px;font-size:15px;}
 }
 /* ── Short screens (landscape phone): shrink chrome so the court isn't a sliver ── */
 @media(max-height:520px){
@@ -608,11 +612,12 @@ body{
   .side-lbl{font-size:7px;}
   .snum{font-size:34px;}
   #clock-btn{font-size:24px;}
-  .pname{display:none;}           /* uniform: number + stats only */
-  .fdots{display:none;}
+  .pname{display:none;}                                              /* uniform: number-led */
+  .pstats .ps:nth-child(2), .pstats .ps:nth-child(3){display:none;}  /* just points */
+  .fdots{display:flex;}                                              /* keep fouls */
   .pcard{padding:5px 10px;min-height:0;gap:8px;}
   .pnum{font-size:28px;}
-  .psv{font-size:16px;}
+  .psv{font-size:17px;}
   .psl{font-size:7px;}
 }
 #flash{

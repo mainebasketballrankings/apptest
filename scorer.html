@@ -3048,12 +3048,15 @@ async function generatePDF(opts={}){
   function checkY(need){if(y+need>PH-14)newPage();}
 
   function drawHeader(){
-    // Clean light header — navy wordmark + URL, report label on the right, gold rule.
-    // (The site mark is omitted: the current asset is a white-on-dark logo that would
-    //  be invisible on this white header. Swap in a dark/color logo URL to show it.)
+    // Clean light header — site logo (Maine-shape mark, no box), navy wordmark + URL,
+    // report label on the right, gold rule underneath.
     doc.setFillColor(...WHITE);
     doc.rect(0,0,PW,20,'F');
-    const tx=ML;
+    let tx=ML;
+    if(siteLogo){
+      try{ doc.addImage(siteLogo,imgType(siteLogo),ML,2.5,12,15); }catch(e){}  // portrait aspect (~4:5), no chip
+      tx=ML+15;
+    }
     doc.setTextColor(...NAVY);
     doc.setFont('helvetica','bold');
     doc.setFontSize(12);

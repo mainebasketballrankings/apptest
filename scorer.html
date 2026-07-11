@@ -41,9 +41,9 @@ body{
 /* Fouls/TO blocks on far left/right */
 .side-block{
   display:flex;flex-direction:column;justify-content:center;gap:2px;
-  padding:4px 10px;border-right:1px solid var(--border);
+  padding:4px 10px;border-left:1px solid var(--border);
 }
-.side-block.away-side{border-right:none;border-left:1px solid var(--border);}
+.side-block.away-side{border-left:none;border-right:1px solid var(--border);}
 .side-lbl{font-family:'Barlow Condensed',sans-serif;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
 .side-val{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;color:var(--text);}
 .side-to{display:flex;gap:4px;align-items:baseline;}
@@ -137,8 +137,8 @@ body{
   display:flex;flex-direction:column;gap:4px;padding:5px;
   overflow-y:auto;background:var(--surface);
 }
-.ppanel.hp{border-right:2px solid var(--border);}
-.ppanel.ap{border-left:2px solid var(--border);}
+.ppanel.hp{border-left:2px solid var(--border);}
+.ppanel.ap{border-right:2px solid var(--border);}
 
 .pcard{
   border-radius:8px;padding:12px 11px;cursor:pointer;
@@ -560,6 +560,30 @@ body{
   .su-teams-grid{grid-template-columns:1fr;}
   .su-mode-btn{padding:10px 16px;font-size:12px;}
 }
+
+/* ── In-game layout on narrow screens (landscape phone → small tablet) ── */
+@media(max-width:820px){
+  #middle{grid-template-columns:132px 1fr 132px;}
+  .snum{font-size:40px;}
+  .tname{font-size:14px;}
+  .side-block{padding:3px 6px;}
+  .side-val{font-size:14px;}
+  #clock-btn{font-size:28px;}
+  .tscore{gap:8px;}
+}
+/* ── Portrait phone: tight but still usable ── */
+@media(max-width:520px){
+  #topbar{padding:0 3px;}
+  #middle{grid-template-columns:92px 1fr 92px;}
+  .snum{font-size:28px;}
+  .tname{font-size:11px;line-height:1.05;}
+  .side-block{padding:2px 4px;}
+  .side-lbl{font-size:7px;}
+  .side-val{font-size:12px;}
+  #clock-btn{font-size:22px;}
+  #pdisplay{font-size:10px;}
+  #sel-display{font-size:11px;}
+}
 #flash{
   position:fixed;top:50%;left:50%;
   transform:translate(-50%,-50%) scale(.85);
@@ -582,28 +606,28 @@ body{
 <div id="scorer-ui" style="display:none;flex-direction:column;height:100dvh;overflow:hidden;">
 <!-- TOP BAR: [Fouls/TO] [Home Score+Name] [Clock/Period] [Away Score+Name] [Fouls/TO] -->
 <div id="topbar">
-  <!-- Home fouls/TO -->
-  <div class="side-block">
+<!-- Away fouls/TO (left) -->
+  <div class="side-block away-side">
     <div class="side-lbl">Q Fouls</div>
     <div style="display:flex;align-items:center;gap:5px;">
-      <div class="side-val" id="home-fouls">0</div>
-      <span id="away-bonus" class="bonus-pill" style="display:none">BONUS</span>
+      <div class="side-val" id="away-fouls">0</div>
+      <span id="home-bonus" class="bonus-pill" style="display:none">BONUS</span>
     </div>
     <div class="side-lbl" style="margin-top:4px">Timeouts</div>
     <div class="side-to">
-      <div class="side-val" id="home-tof">3</div>
+      <div class="side-val" id="away-tof">3</div>
       <div class="side-sep">/</div>
-      <div class="side-val" id="home-to3">2</div>
+      <div class="side-val" id="away-to3">2</div>
     </div>
-    <div class="poss-btn no-poss" id="poss-home" onclick="setPoss('home')" style="margin-top:6px;">
+    <div class="poss-btn no-poss" id="poss-away" onclick="setPoss('away')" style="margin-top:6px;">
       <span class="pa">▶</span><span>POSS</span>
     </div>
   </div>
 
-  <!-- Home score + name -->
-  <div class="tscore home">
-    <div class="tname" id="home-tname" onclick="setTeamMode('home')">—</div>
-    <div class="snum" id="home-score">0</div>
+  <!-- Away score + name -->
+  <div class="tscore away">
+    <div class="tname" id="away-tname" onclick="setTeamMode('away')">—</div>
+    <div class="snum" id="away-score">0</div>
   </div>
 
   <!-- Clock centre -->
@@ -623,34 +647,36 @@ body{
     </div>
   </div>
 
-  <!-- Away score + name -->
-  <div class="tscore away">
-    <div class="snum" id="away-score">0</div>
-    <div class="tname" id="away-tname" onclick="setTeamMode('away')">—</div>
+  <!-- Home score + name -->
+  <div class="tscore home">
+    <div class="snum" id="home-score">0</div>
+    <div class="tname" id="home-tname" onclick="setTeamMode('home')">—</div>
   </div>
 
-  <!-- Away fouls/TO -->
-  <div class="side-block away-side">
+  <!-- Home fouls/TO (right) -->
+  <div class="side-block">
     <div class="side-lbl">Q Fouls</div>
     <div style="display:flex;align-items:center;gap:5px;">
-      <div class="side-val" id="away-fouls">0</div>
-      <span id="home-bonus" class="bonus-pill" style="display:none">BONUS</span>
+      <div class="side-val" id="home-fouls">0</div>
+      <span id="away-bonus" class="bonus-pill" style="display:none">BONUS</span>
     </div>
     <div class="side-lbl" style="margin-top:4px">Timeouts</div>
     <div class="side-to">
-      <div class="side-val" id="away-tof">3</div>
+      <div class="side-val" id="home-tof">3</div>
       <div class="side-sep">/</div>
-      <div class="side-val" id="away-to3">2</div>
+      <div class="side-val" id="home-to3">2</div>
     </div>
-    <div class="poss-btn no-poss" id="poss-away" onclick="setPoss('away')" style="margin-top:6px;">
+    <div class="poss-btn no-poss" id="poss-home" onclick="setPoss('home')" style="margin-top:6px;">
       <span class="pa">▶</span><span>POSS</span>
     </div>
   </div>
+
+  
 </div>
 
 <!-- MIDDLE -->
 <div id="middle">
-  <div class="ppanel hp" id="home-panel"></div>
+  <div class="ppanel ap" id="away-panel"></div>
 
   <div id="court-wrap">
     <!--
@@ -752,7 +778,7 @@ body{
     </div>
   </div>
 
-  <div class="ppanel ap" id="away-panel"></div>
+  <div class="ppanel hp" id="home-panel"></div>
 </div>
 
 <!-- STAT BAR -->

@@ -187,7 +187,7 @@ body{
 .starters-btn:active{background:rgba(243,156,18,.25);}
 
 /* ── COURT ── */
-#court-wrap{position:relative;display:flex;overflow:hidden;background:#b8955a;}
+#court-wrap{position:relative;display:flex;overflow:hidden;background:#b8955a;padding-top:50px;box-sizing:border-box;}
 #csvg{width:100%;height:100%;display:block;cursor:crosshair;}
 
 /* Live event feed overlay */
@@ -737,7 +737,7 @@ body{
         (x-230)²+(18-40)²=34² → (x-230)²=1156-484=672 → x=230±26 → x=204,256
         Arc sweeps DOWN into court = sweep=1, large-arc=0
     -->
-    <svg id="csvg" viewBox="0 0 460 315" preserveAspectRatio="xMidYMid meet">
+    <svg id="csvg" viewBox="0 0 460 315" preserveAspectRatio="xMidYMin meet">
       <!--
         LOCKED COURT GEOMETRY (do not change):
         Playable area: x=15–445 (430px wide), y=10–372 (362px tall).
@@ -1699,11 +1699,11 @@ const swOv=document.getElementById('swipe-ov');
 function svgP(e){
   const r=svg.getBoundingClientRect(),vb=svg.viewBox.baseVal;
   const s=e.touches?e.touches[0]:e;
-  // Account for xMidYMid "meet" letterboxing: the drawn court is centered inside
-  // the element box, so map against the actual content rect, not the raw element.
+  // Court is top-aligned (xMidYMin "meet"): centered horizontally, pinned to the
+  // top of the element box, so there's no vertical offset — only horizontal.
   const scale=Math.min(r.width/vb.width, r.height/vb.height);
   const dw=vb.width*scale, dh=vb.height*scale;
-  const offX=(r.width-dw)/2, offY=(r.height-dh)/2;
+  const offX=(r.width-dw)/2, offY=0;
   return{
     x:((s.clientX-r.left-offX)/dw)*vb.width,
     y:((s.clientY-r.top -offY)/dh)*vb.height

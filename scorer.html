@@ -44,20 +44,6 @@ body{
   padding:4px 10px;border-right:1px solid var(--border);
 }
 .side-block.away-side{border-right:none;border-left:1px solid var(--border);}
-
-/* ── Home/away convention: AWAY on the left, HOME on the right ──
-   Matches the public scoreboard, the live page, and standard sports convention.
-   CSS-only (grid column placement) so the underlying home/away data is unchanged. */
-#topbar > .side-block:not(.away-side){ grid-column:5; border-right:none; border-left:1px solid var(--border); } /* home block → right */
-#topbar > .tscore.home{ grid-column:4; flex-direction:row-reverse; }
-#topbar > #clk-col{ grid-column:3; }
-#topbar > .tscore.away{ grid-column:2; flex-direction:row-reverse; }
-#topbar > .side-block.away-side{ grid-column:1; border-left:none; border-right:1px solid var(--border); } /* away block → left */
-#middle > #home-panel{ grid-column:3; }
-#middle > #court-wrap{ grid-column:2; }
-#middle > #away-panel{ grid-column:1; }
-.ppanel.hp{ border-right:none; border-left:2px solid var(--border); }
-.ppanel.ap{ border-left:none; border-right:2px solid var(--border); }
 .side-lbl{font-family:'Barlow Condensed',sans-serif;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
 .side-val{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;color:var(--text);}
 .side-to{display:flex;gap:4px;align-items:baseline;}

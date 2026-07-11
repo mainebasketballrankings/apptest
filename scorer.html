@@ -3054,17 +3054,16 @@ async function generatePDF(opts={}){
     doc.rect(0,0,PW,20,'F');
     let tx=ML;
     if(siteLogo){
-      try{ doc.addImage(siteLogo,imgType(siteLogo),ML,2.5,12,15); }catch(e){}  // portrait aspect (~4:5), no chip
-      tx=ML+15;
+      let lw=12, lh=15;
+      try{ const pr=doc.getImageProperties(siteLogo); lw=lh*(pr.width/pr.height); }catch(e){}
+      try{ doc.addImage(siteLogo,imgType(siteLogo),ML,2.5,lw,lh); }catch(e){}
+      tx=ML+lw+4;
     }
-    doc.setTextColor(...NAVY);
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(12);
-    doc.text('MAINE BASKETBALL RANKINGS',tx,10);
+    // No wordmark text — the logo already carries the name. Just the URL beside it.
     doc.setFont('helvetica','normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9.5);
     doc.setTextColor(...DIM);
-    doc.text('mainebasketballrankings.com',tx,15);
+    doc.text('mainebasketballrankings.com',tx,11.5);
     doc.setFont('helvetica','bold');
     doc.setFontSize(8);
     doc.setTextColor(...GOLD);
@@ -3388,18 +3387,19 @@ async function generatePDF(opts={}){
       ppx=nx;ppy=ny;
     });
 
-    // Shots
+    // Shots — colored by shot type to match the legend
     shotEvts.forEach(e=>{
       if(!e.pt)return;
       const made=['2pt_made','3pt_made','putback_made'].includes(e.key);
       const ex=sx(e.pt.x),ey=sy(e.pt.y);
-      const madeClr=e.side==='home'?[37,99,235]:[220,38,38];
-      const missClr=e.side==='home'?[147,197,253]:[252,165,165];
       if(made){
-        doc.setFillColor(...madeClr);doc.setDrawColor(...madeClr);
+        let clr=[39,174,96];                                 // 2pt = green
+        if(e.key==='3pt_made') clr=[243,156,18];             // 3pt = orange
+        else if(e.key==='putback_made') clr=[167,139,250];   // putback = purple
+        doc.setFillColor(...clr);doc.setDrawColor(...clr);
         doc.circle(ex,ey,1.2,'FD');
       } else {
-        doc.setDrawColor(...missClr);doc.setLineWidth(0.5);
+        doc.setDrawColor(224,92,82);doc.setLineWidth(0.5);   // miss = red ×
         doc.line(ex-1,ey-1,ex+1,ey+1);
         doc.line(ex+1,ey-1,ex-1,ey+1);
       }
@@ -3419,14 +3419,17 @@ async function generatePDF(opts={}){
     return shots.length?`  (${made}/${shots.length} FG)`:'';
   };
   const cGap=14;
-  drawMiniCourt(ML,y,COURT_W,COURT_H,homeShots,GAME.home.name+shotSummary(homeShots));
-  drawMiniCourt(ML+COURT_W+cGap,y,COURT_W,COURT_H,awayShots,GAME.away.name+shotSummary(awayShots));
+  const chartsW=2*COURT_W+cGap, chartsX=(PW-chartsW)/2;
+  drawMiniCourt(chartsX,y,COURT_W,COURT_H,homeShots,GAME.home.name+shotSummary(homeShots));
+  drawMiniCourt(chartsX+COURT_W+cGap,y,COURT_W,COURT_H,awayShots,GAME.away.name+shotSummary(awayShots));
   y+=COURT_H+8;
 
   // Legend
   (function legend(){
     const items=[['circ','#27ae60','2pt made'],['circ','#f39c12','3pt made'],['circ','#a78bfa','Putback'],['x','#e05c52','Miss']];
-    let lx=ML+2;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    let totalW=0; items.forEach(([,,lbl])=>{ totalW += 5 + doc.getTextWidth(lbl) + 8; }); totalW-=8;
+    let lx=(PW-totalW)/2;
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);
     items.forEach(([type,color,lbl])=>{
       if(type==='circ'){ doc.setFillColor(color); doc.circle(lx+1.6,y-1.1,1.6,'F'); }
@@ -3442,7 +3445,8 @@ async function generatePDF(opts={}){
   const ICW=57,ICH=48;
   const ICGAP=6;
   const ICPER=4; // charts per row (landscape)
-  const iCols=[ML, ML+ICW+ICGAP, ML+(ICW+ICGAP)*2, ML+(ICW+ICGAP)*3];
+  const _iGroupW=ICPER*ICW+(ICPER-1)*ICGAP, _iStartX=(PW-_iGroupW)/2;
+  const iCols=[_iStartX, _iStartX+ICW+ICGAP, _iStartX+(ICW+ICGAP)*2, _iStartX+(ICW+ICGAP)*3];
 
   // Collect all players with shots
   const allShooters=[];

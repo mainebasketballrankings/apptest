@@ -2429,18 +2429,29 @@ function suTipOff() {
     }));
   });
 
-  // A manually-created game may still match a scheduled DB game if the user picked
-  // one first; otherwise try to resolve team_ids by name (scoped to basketball +
-  // the selected gender) so events can still be linked.
-  if(!G_game_id && !G_test_mode){
-    const hg=document.getElementById('su-home-gender').value, ag=document.getElementById('su-away-gender').value;
-    Promise.all([fetchTeamIdByName(homeName,hg), fetchTeamIdByName(awayName,ag)]).then(([hid,aid])=>{
-      if(hid) G_home_team_id=hid; if(aid) G_away_team_id=aid;
-    });
-  }
-  enterScorer();
-  if(G_game_id) startGameBackend();
-  else scheduleSave();   // local/manual game — still crash-safe
+  // Already matched a scheduled game (user picked one first): use it as-is.
+  if(G_game_id){ enterScorer(); if(!G_test_mode) startGameBackend(); else scheduleSave(); return; }
+  if(G_test_mode){ enterScorer(); scheduleSave(); return; }
+
+  // Unscheduled New Game — emergency option: resolve both teams by name and create
+  // a real games row so it syncs (scoreboard / live / report). Falls back to a
+  // local-only game if the teams aren't in the DB or the insert fails.
+  const hg=document.getElementById('su-home-gender').value, ag=document.getElementById('su-away-gender').value;
+  errEl.textContent = 'Setting up game…';
+  Promise.all([fetchTeamIdByName(homeName,hg), fetchTeamIdByName(awayName,ag)]).then(async ([hid,aid])=>{
+    if(hid) G_home_team_id=hid;
+    if(aid) G_away_team_id=aid;
+    if(hid && aid){
+      const gid = await createEmergencyGame({
+        home_team_id:hid, away_team_id:aid,
+        date:GAME.meta.date, venue:GAME.meta.venue, event:GAME.meta.event
+      });
+      if(gid) G_game_id = gid;
+    }
+    errEl.textContent = '';
+    enterScorer();
+    if(G_game_id) startGameBackend(); else scheduleSave();   // no DB game → local, still crash-safe
+  }).catch(()=>{ errEl.textContent=''; enterScorer(); scheduleSave(); });
 }
 
 // ── Shared setup helpers ──
@@ -2470,6 +2481,30 @@ function enterScorer(){
   scheduleSave();
 }
 // For a real DB game: clean prior events, flag active, push roster snapshots.
+// Emergency option: turn an unscheduled New Game into a real games row so it
+// syncs to the scoreboard, live page, and report email. Returns the new game id,
+// or null if it can't (falls back to a local-only game).
+async function createEmergencyGame({home_team_id, away_team_id, date, venue, event}){
+  try{
+    const iso = date || new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD (local)
+    const d = new Date(iso+'T12:00:00'), y = d.getFullYear();
+    const season = (d.getMonth() >= 9) ? y+1 : y;                 // basketball season-ending year
+    const row = {
+      sport_id: BASKETBALL_SPORT_ID, season_year: season,
+      home_team_id, away_team_id, game_date: iso,
+      status: 'scheduled', location: venue || null, event: event || null
+    };
+    const res = await fetch(`${SB_URL}/rest/v1/games`, {
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' },
+      body: JSON.stringify(row)
+    });
+    if(!res.ok){ console.warn('emergency game insert failed', res.status, await res.text().catch(()=>'')); return null; }
+    const data = await res.json();
+    const g = Array.isArray(data) ? data[0] : data;
+    return (g && g.id) ? g.id : null;
+  }catch(e){ console.warn('createEmergencyGame error', e); return null; }
+}
 async function startGameBackend(){
   if(!G_game_id || G_test_mode) return;
   try{
@@ -3013,16 +3048,12 @@ async function generatePDF(opts={}){
   function checkY(need){if(y+need>PH-14)newPage();}
 
   function drawHeader(){
-    // Clean light header — a small navy chip holds the (white) MBR mark, wordmark
-    // and URL beside it, report label on the right, gold rule underneath.
+    // Clean light header — navy wordmark + URL, report label on the right, gold rule.
+    // (The site mark is omitted: the current asset is a white-on-dark logo that would
+    //  be invisible on this white header. Swap in a dark/color logo URL to show it.)
     doc.setFillColor(...WHITE);
     doc.rect(0,0,PW,20,'F');
-    if(siteLogo){
-      doc.setFillColor(...NAVY);
-      doc.roundedRect(ML,4,12,12,1.5,1.5,'F');
-      try{ doc.addImage(siteLogo,imgType(siteLogo),ML+1.2,5.2,9.6,9.6); }catch(e){}
-    }
-    const tx=siteLogo?ML+16:ML;
+    const tx=ML;
     doc.setTextColor(...NAVY);
     doc.setFont('helvetica','bold');
     doc.setFontSize(12);
@@ -3058,7 +3089,7 @@ async function generatePDF(opts={}){
   const hs=GAME.home.score, as=GAME.away.score;
   const winner=hs>as?'home':as>hs?'away':'tie';
 
-  const LOGO=13;
+  const LOGO=18;
   // Home (left): optional logo, then name + score
   let hx=ML;
   if(homeLogo){ try{ doc.addImage(homeLogo,imgType(homeLogo),ML,y-1,LOGO,LOGO); }catch(e){} hx=ML+LOGO+3; }

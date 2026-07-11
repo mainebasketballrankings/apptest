@@ -779,13 +779,14 @@ const KLBL = {
 // ── COORDINATE TRANSFORM ──────────────────────────────
 // Scorer: 460×380, basket at top (y≈25, x=230).
 // Fan court: 800×440. Court boundary x=10-790, y=10-430.
-// HOME → LEFT:  fan_x = 10+(sy/380)*390,   fan_y = 10+(sx/460)*420
-// AWAY → RIGHT: fan_x = 790-(sy/380)*390,  fan_y = 10+(sx/460)*420
+// HOME → RIGHT: fan_x = 790-(sy/380)*390,  fan_y = 10+(sx/460)*420
+// AWAY → LEFT:  fan_x = 10+(sy/380)*390,   fan_y = 10+(sx/460)*420
+// (away on the left, home on the right — matches the scoreboard and sidebars)
 function xfm(pt, side) {
   if(!pt) return null;
   return side==='home'
-    ? { x: 10+(pt.y/380)*390,      y: 10+(pt.x/460)*420 }
-    : { x: 790-(pt.y/380)*390,     y: 10+(pt.x/460)*420 };
+    ? { x: 790-(pt.y/380)*390,     y: 10+(pt.x/460)*420 }
+    : { x: 10+(pt.y/380)*390,      y: 10+(pt.x/460)*420 };
 }
 
 function addDot(pt, made, three, isPb, side) {

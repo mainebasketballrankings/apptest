@@ -257,13 +257,16 @@ body{
 
 /* Log panel */
 #log-panel{
-  position:absolute;top:34px;right:6px;width:min(320px,88vw);max-height:min(420px,70vh);
-  background:rgba(12,14,22,.97);border:1px solid var(--border);border-radius:var(--radius);
-  overflow-y:auto;font-size:10px;z-index:20;display:none;
-  box-shadow:0 6px 24px rgba(0,0,0,.6);
+  position:fixed;inset:0;z-index:100;display:none;
+  background:rgba(0,0,0,.78);align-items:center;justify-content:center;padding:20px;
 }
-#log-panel.open{display:block;}
-.lhdr{
+#log-panel.open{display:flex;}
+.log-box{
+  background:rgba(12,14,22,.98);border:1px solid var(--border);border-radius:var(--radius);
+  width:min(460px,94vw);max-height:85vh;overflow-y:auto;font-size:12px;
+  box-shadow:0 10px 40px rgba(0,0,0,.6);
+}
+.lhdr{position:sticky;top:0;background:rgba(12,14,22,.98);z-index:1;
   font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:.1em;
   text-transform:uppercase;color:#8890b0;padding:10px 12px 8px;
   border-bottom:1px solid rgba(46,50,80,.6);display:flex;justify-content:space-between;
@@ -579,7 +582,7 @@ body{
 /* ── Portrait phone: compact cards so name + stats fit the narrow panel ── */
 @media(max-width:520px){
   #topbar{padding:0 3px;}
-  #middle{grid-template-columns:104px 1fr 104px;}
+  #middle{grid-template-columns:88px 1fr 88px;}
   .snum{font-size:26px;}
   .tname{font-size:11px;line-height:1.05;}
   .side-block{padding:2px 4px;}
@@ -597,7 +600,8 @@ body{
   .pstats{gap:8px;}
   .psv{font-size:18px;}
   .psl{font-size:8px;}
-  .fdots{display:flex;}                                              /* keep fouls */
+  .fdots{display:flex;gap:1.5px;margin-top:1px;}                     /* fouls, compact */
+  .fd{width:3px;height:3px;}
   /* stat buttons wrap to two rows so P.Foul / FT / MORE aren't cut off */
   .sgrid{grid-template-columns:repeat(5,minmax(0,1fr));}
   .sbtn{padding:12px 3px;font-size:15px;}
@@ -614,7 +618,8 @@ body{
   #clock-btn{font-size:24px;}
   .pname{display:none;}                                              /* uniform: number-led */
   .pstats .ps:nth-child(2), .pstats .ps:nth-child(3){display:none;}  /* just points */
-  .fdots{display:flex;}                                              /* keep fouls */
+  .fdots{display:flex;gap:1.5px;margin-top:1px;}
+  .fd{width:3px;height:3px;}
   .pcard{padding:5px 10px;min-height:0;gap:8px;}
   .pnum{font-size:28px;}
   .psv{font-size:17px;}
@@ -809,8 +814,10 @@ body{
     <button id="chart-side-toggle" onclick="toggleChartSide()">🔄 <span id="chart-side-lbl">HOME shots</span></button>
 
     <div id="log-panel">
-      <div class="lhdr"><span>EVENT LOG</span><button onclick="toggleLog()">✕</button></div>
-      <div id="log-entries"></div>
+      <div class="log-box">
+        <div class="lhdr"><span>EVENT LOG</span><button onclick="toggleLog()">✕</button></div>
+        <div id="log-entries"></div>
+      </div>
     </div>
   </div>
 

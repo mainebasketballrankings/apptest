@@ -590,12 +590,12 @@ body{
   #sel-display{font-size:12px;}
   .ppanel{padding:3px;gap:3px;}
   .pcard{padding:6px;gap:6px;min-height:44px;}
-  .pnum{font-size:24px;}
+  .pnum{font-size:26px;}
   .pinfo{gap:2px;}
-  .pname{font-size:10.5px;-webkit-line-clamp:1;line-height:1.1;}
-  .pstats{gap:6px;}
-  .psv{font-size:14px;}
-  .psl{font-size:6.5px;}
+  .pname{display:none;}           /* uniform: number + stats only */
+  .pstats{gap:8px;}
+  .psv{font-size:15px;}
+  .psl{font-size:7px;}
   .fdots{display:none;}
 }
 /* ── Short screens (landscape phone): shrink chrome so the court isn't a sliver ── */
@@ -608,7 +608,12 @@ body{
   .side-lbl{font-size:7px;}
   .snum{font-size:34px;}
   #clock-btn{font-size:24px;}
-  .pcard{padding:6px 8px;min-height:0;}
+  .pname{display:none;}           /* uniform: number + stats only */
+  .fdots{display:none;}
+  .pcard{padding:5px 10px;min-height:0;gap:8px;}
+  .pnum{font-size:28px;}
+  .psv{font-size:16px;}
+  .psl{font-size:7px;}
 }
 #flash{
   position:fixed;top:50%;left:50%;

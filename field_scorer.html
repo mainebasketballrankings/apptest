@@ -80,6 +80,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .tscore{display:flex;align-items:center;justify-content:center;gap:14px;flex:1;}
 .tname{font-family:'Playfair Display',serif;font-weight:900;font-size:17px;cursor:pointer;padding:4px 8px;border-radius:6px;border:2px solid transparent;}
 .tname.team-active{border-color:currentColor;background:rgba(0,0,0,.06);}
+.tname.has-ball::after{content:' ●';color:var(--green);font-size:13px;vertical-align:middle;}
 .snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:50px;line-height:1;}
 .tscore.home .snum{color:var(--hl);} .tscore.away .snum{color:var(--al);}
 #clk-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 0;}
@@ -1003,7 +1004,7 @@ async function suKickOff(){
   ['home','away'].forEach(side=>{
     PL[side]=SU[side].players.filter(p=>p.last||p.first).map((p,i)=>({
       id:`${side[0]}${i+1}`, num:p.num||'', fi:p.fi||(p.last?p.last[0]:''), first:p.first||'', last:p.last||'',
-      on:!!p.starter, gk:!!p.gk, starter:!!p.starter
+      on:!!p.starter, gk:!!p.gk, wasGK:!!p.gk, starter:!!p.starter
     }));
     const k=PL[side].find(p=>p.gk);
     GAME[side].gk = k?k.id:null;
@@ -1247,20 +1248,34 @@ function updBtns(){
   [...document.querySelectorAll('#bgrid .sbtn')].forEach(el=>{
     const b=SP.btns[+el.dataset.i];
     el.classList.toggle('dis', !b.team && !selP);
+    // The possession button names the team that is about to get the ball,
+    // so it can never be read as "flip something, hope for the best".
+    if(b.key==='possession_flip'){
+      const tgt = selSide || opp(GAME.possession);
+      el.textContent = 'POSS → '+GAME[tgt].short;
+    }
   });
+  document.getElementById('nm-home').classList.toggle('has-ball',GAME.possession==='home');
+  document.getElementById('nm-away').classList.toggle('has-ball',GAME.possession==='away');
 }
 function doStat(i){
   if(GAME.ended)return;
   const b=SP.btns[i];
   if(b.key==='possession_flip'){
-    GAME.possession=opp(GAME.possession);
-    pushEvt({side:GAME.possession,key:'possession_flip',label:GAME[GAME.possession].short+' ball'});
-    updAll(); scheduleSave(); return;
+    // A selected player WINS possession for their team. With nobody selected it
+    // just flips to the other team. Either way the button says who is getting it.
+    const side = selSide || opp(GAME.possession);
+    GAME.possession = side;
+    pushEvt({side, p:selP||null, key:'possession_flip',
+      label: selP ? 'Wins possession' : GAME[side].short+' possession'});
+    updAll(); scheduleSave();
+    flash(selP ? pName(selP)+' wins possession' : GAME[side].short+' ball','');
+    return;
   }
   if(b.key==='goalie_change'){
     if(!selP){flash('Select the new keeper','bad');return;}
     PL[selSide].forEach(p=>p.gk=false);
-    selP.gk=true; selP.on=true; GAME[selSide].gk=selP.id;
+    selP.gk=true; selP.wasGK=true; selP.on=true; GAME[selSide].gk=selP.id;
     pushEvt({side:selSide,p:selP,key:'goalie_change',label:'Keeper change'});
     renderPl(selSide); updAll(); scheduleSave(); flash(pName(selP)+' in goal',''); return;
   }
@@ -1439,7 +1454,7 @@ function subPick(side,pid,dir){
   if(dir==='out'){ _subOut=p; flash('OUT: '+pName(p),''); return; }
   if(!_subOut){ flash('Pick who comes OUT first','bad'); return; }
   _subOut.on=false; p.on=true;
-  if(_subOut.gk){ _subOut.gk=false; p.gk=true; GAME[side].gk=p.id; }
+  if(_subOut.gk){ _subOut.gk=false; p.gk=true; p.wasGK=true; GAME[side].gk=p.id; }
   pushEvt({side,p:_subOut,key:'sub_out',label:'Sub OUT'});
   pushEvt({side,p,key:'sub_in',label:'Sub IN'});
   _subOut=null;
@@ -1503,21 +1518,32 @@ function toggleLog(){renderLog();document.getElementById('log-modal').classList.
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 
 // ══ BOX SCORE ════════════════════════════════════════════════
+// Every goal event records the keeper who was in net (e.gkName), so goals-against
+// attribute to the keeper who actually conceded them — not to whoever finished the game.
+function keeperGA(side,name){
+  return evts.filter(e=>e.goal && e.side===opp(side) && e.gkName===name).length;
+}
 function boxStats(side){
   return PL[side].map(p=>{
-    const l=playerLine(p.id);
-    return {num:p.num,name:pName(p),gk:!!p.gk,
+    const l=playerLine(p.id), nm=pName(p);
+    const wasGK=!!p.wasGK, ga=wasGK?keeperGA(side,nm):0;
+    return {num:p.num,name:nm,gk:!!p.gk,wasGK,
       g:l.g,a:l.a,pts:l.g+l.a,sh:l.sh,sog:l.sog,gb:l.gb,ct:l.ct,
-      sv:l.sv, ga: p.gk ? goalsAgainstFor(side) : 0,
+      sv:l.sv, ga, faced:wasGK?(l.sv+ga):0,
+      svpct: (wasGK && (l.sv+ga)>0) ? Math.round(l.sv/(l.sv+ga)*100)+'%' : '—',
       fl:l.fl,yc:l.yc,rc:l.rc};
   });
 }
-function goalsAgainstFor(side){ return GAME[opp(side)].score; }
+function keeperRows(side){ return boxStats(side).filter(r=>r.wasGK); }
 function teamTotals(side){
   const b=boxStats(side);
   const sum=k=>b.reduce((a,r)=>a+(r[k]||0),0);
+  const ct_=k=>evts.filter(e=>e.side===side&&e.key===k).length;
   return {g:GAME[side].score,a:sum('a'),sh:GAME[side].shots,sog:GAME[side].sog,
-    sv:GAME[side].saves,gb:sum('gb'),ct:sum('ct'),to:GAME[side].to,fl:sum('fl'),yc:sum('yc'),rc:sum('rc')};
+    sv:GAME[side].saves,gb:sum('gb'),ct:sum('ct'),to:GAME[side].to,fl:sum('fl'),
+    yc:sum('yc'),rc:sum('rc'),
+    corners:ct_('corner'), pc:ct_('penalty_corner'), offside:ct_('offside'),
+    gc:evts.filter(e=>e.side===side&&e.key==='card_green').length};
 }
 function periodScores(){
   const n=Math.max(SP.periods, GAME.period);
@@ -1540,15 +1566,15 @@ function openBoxScore(){
     <tr><td colspan="2">${GAME.home.name}</td>${ps.home.map(v=>`<td>${v}</td>`).join('')}<td><b>${GAME.home.score}</b></td></tr>
     </tbody></table>`;
   ['away','home'].forEach(side=>{
-    const b=boxStats(side).filter(r=>!r.gk), gks=boxStats(side).filter(r=>r.gk);
+    const b=boxStats(side), gks=keeperRows(side);
     const t=teamTotals(side);
     html+=`<div class="mh" style="font-size:15px;">${GAME[side].name}</div>
       <table class="bs"><thead><tr><th>#</th><th>Player</th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}</tr></thead><tbody>
-      ${b.map(r=>`<tr><td>${r.num||'–'}</td><td>${r.name}</td>${cols.map(c=>`<td>${r[c[0]]||0}</td>`).join('')}</tr>`).join('')}
+      ${b.map(r=>`<tr><td>${r.num||'–'}</td><td>${r.name}${r.wasGK?' <span style="color:var(--green);font-size:10px">GK</span>':''}</td>${cols.map(c=>`<td>${r[c[0]]||0}</td>`).join('')}</tr>`).join('')}
       <tr class="tot"><td></td><td>TOTALS</td>${cols.map(c=>`<td>${c[0]==='pts'?(t.g+t.a):(t[c[0]]!=null?t[c[0]]:'')}</td>`).join('')}</tr>
       </tbody></table>
-      <table class="bs"><thead><tr><th>#</th><th>Keeper</th><th>SV</th><th>GA</th><th>SOG FACED</th></tr></thead><tbody>
-      ${gks.map(r=>`<tr><td>${r.num||'–'}</td><td>${r.name}</td><td>${r.sv}</td><td>${GAME[opp(side)].score}</td><td>${GAME[opp(side)].sog}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--dim)">No keeper designated</td></tr>'}
+      <table class="bs"><thead><tr><th>#</th><th>Keeper</th><th>SV</th><th>GA</th><th>SOG FACED</th><th>SV%</th></tr></thead><tbody>
+      ${gks.map(r=>`<tr><td>${r.num||'–'}</td><td>${r.name}${r.gk?'':' <span style="color:var(--dim);font-size:10px">(out)</span>'}</td><td>${r.sv}</td><td>${r.ga}</td><td>${r.faced}</td><td>${r.svpct}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--dim)">No keeper designated</td></tr>'}
       </tbody></table>`;
   });
   document.getElementById('bs-body').innerHTML=html;
@@ -1642,132 +1668,280 @@ function generateCSV(){
 async function generatePDF(opts={}){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'letter'});
-  const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
-  let y=16;
-  const line=(t,size,style,color)=>{doc.setFontSize(size);doc.setFont('helvetica',style||'normal');
-    if(color)doc.setTextColor(...color);else doc.setTextColor(20,20,25);doc.text(t,14,y);};
-  const check=(n)=>{if(y+n>PH-14){doc.addPage();y=16;}};
+  const PW=215.9, PH=279.4, ML=14, MR=14, MT=14;
+  let y=MT;
 
-  line('MAINE BASKETBALL RANKINGS',9,'bold',[120,120,130]); y+=5;
-  line(`${GAME.away.name} at ${GAME.home.name}`,17,'bold'); y+=7;
-  line(`${SP.label} · ${GAME.gender==='girls'?'Girls':'Boys'} · ${new Date().toLocaleDateString()}`,9,'normal',[110,110,120]); y+=8;
+  const NAVY=[15,23,42], GOLD=[180,120,30], DIM=[120,130,150];
+  const RED=[180,30,30], BLUE=[30,80,200];
+  const WHITE=[255,255,255], LIGHT=[240,242,248], BORDER=[200,205,220];
 
-  doc.setFontSize(26);doc.setFont('helvetica','bold');doc.setTextColor(20,20,25);
-  doc.text(`${GAME.away.short} ${GAME.away.score}   —   ${GAME.home.score} ${GAME.home.short}`,14,y); y+=6;
-  doc.setFontSize(9);doc.setTextColor(110,110,120);
-  doc.text(GAME.endReason==='final'?'Final':`Final (${GAME.endReason})`,14,y); y+=9;
+  // ── Logos as data URLs. R2 sends no CORS headers, so go through img-proxy. ──
+  const SITE_LOGO_URL='https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png';
+  async function imgData(url){
+    if(!url) return null;
+    const via=`${SB_URL}/functions/v1/img-proxy?url=${encodeURIComponent(url)}`;
+    async function load(u){
+      const r=await fetch(u,{headers:{apikey:SB_KEY}}); if(!r.ok) return null;
+      const b=await r.blob();
+      return await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>res(null);fr.readAsDataURL(b);});
+    }
+    try{ return await load(via); }catch(e){ try{ return await load(url); }catch(e2){ return null; } }
+  }
+  let siteLogo=null, homeLogo=null, awayLogo=null;
+  try{ siteLogo=await imgData(SITE_LOGO_URL); }catch(e){}
+  try{
+    if(G_home_team_id||G_away_team_id){
+      const rows=await sbFetch(`teams?or=(id.eq.${G_home_team_id},id.eq.${G_away_team_id})&select=id,logo_url`);
+      if(Array.isArray(rows)){
+        const hm=rows.find(r=>r.id===G_home_team_id), aw=rows.find(r=>r.id===G_away_team_id);
+        homeLogo=await imgData(hm&&hm.logo_url); awayLogo=await imgData(aw&&aw.logo_url);
+      }
+    }
+  }catch(e){}
+  const imgType=d=>/^data:image\/jpe?g/.test(d||'')?'JPEG':'PNG';
 
-  // period line score
+  function drawHeader(){
+    doc.setFillColor(...WHITE); doc.rect(0,0,PW,20,'F');
+    let tx=ML;
+    if(siteLogo){
+      let lw=12, lh=15;
+      try{ const pr=doc.getImageProperties(siteLogo); lw=lh*(pr.width/pr.height); }catch(e){}
+      try{ doc.addImage(siteLogo,imgType(siteLogo),ML,2.5,lw,lh); }catch(e){}
+      tx=ML+lw+4;
+    }
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...DIM);
+    doc.text('mainebasketballrankings.com',tx,11.5);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+    doc.text('LIVE SCORING REPORT',PW-MR,11,{align:'right'});
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.6); doc.line(ML,20,PW-MR,20);
+  }
+  function drawFooter(){
+    doc.setDrawColor(...BORDER); doc.setLineWidth(0.3);
+    doc.line(ML,PH-13,PW-MR,PH-13);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...DIM);
+    doc.text('Maine Basketball Rankings',ML,PH-8.5);
+    doc.text('mainebasketballrankings.com',PW-MR,PH-8.5,{align:'right'});
+  }
+  function newPage(){ drawFooter(); doc.addPage(); y=MT+12; drawHeader(); }
+  function check(n){ if(y+n>PH-18) newPage(); }
+  function sectionHead(t){
+    check(12);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+    doc.text(t.toUpperCase(),ML,y);
+    doc.setDrawColor(...BORDER); doc.setLineWidth(0.3); doc.line(ML,y+1.6,PW-MR,y+1.6);
+    y+=6.5;
+  }
+
+  drawHeader();
+  y=MT+13;
+
+  // ── Matchup: logo, name, score — away left, home right ──
+  const LOGO=15;
+  const bandY=y;
+  doc.setFillColor(...LIGHT); doc.setDrawColor(...BORDER); doc.setLineWidth(0.3);
+  doc.roundedRect(ML,bandY,PW-ML-MR,22,1.5,1.5,'FD');
+  const cy=bandY+11;
+  if(awayLogo){ try{ doc.addImage(awayLogo,imgType(awayLogo),ML+3,bandY+3.5,LOGO,LOGO); }catch(e){} }
+  if(homeLogo){ try{ doc.addImage(homeLogo,imgType(homeLogo),PW-MR-3-LOGO,bandY+3.5,LOGO,LOGO); }catch(e){} }
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...NAVY);
+  doc.text(GAME.away.name,ML+3+LOGO+3,cy+1.5);
+  doc.text(GAME.home.name,PW-MR-3-LOGO-3,cy+1.5,{align:'right'});
+  doc.setFontSize(22);
+  doc.setTextColor(...RED);  doc.text(String(GAME.away.score),PW/2-9,cy+3,{align:'right'});
+  doc.setTextColor(...DIM);  doc.setFontSize(11); doc.text('–',PW/2,cy+2,{align:'center'});
+  doc.setTextColor(...BLUE); doc.setFontSize(22); doc.text(String(GAME.home.score),PW/2+9,cy+3);
+  y=bandY+26;
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...DIM);
+  const sportLbl=`${SP.label} · ${GAME.gender==='girls'?'Girls':'Boys'} · ${new Date().toLocaleDateString()}`;
+  doc.text(sportLbl,ML,y);
+  doc.setFont('helvetica','bold'); doc.setTextColor(...NAVY);
+  doc.text(GAME.endReason==='final'?'FINAL':`FINAL (${GAME.endReason.toUpperCase()})`,PW-MR,y,{align:'right'});
+  y+=8;
+
+  // ── Line score ──
   const ps=periodScores();
-  const cw=16, x0=40;
-  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(120,120,130);
-  for(let i=0;i<ps.home.length;i++) doc.text(periodLbl(i+1),x0+i*cw,y);
-  doc.text('F',x0+ps.home.length*cw,y); y+=5;
-  doc.setTextColor(20,20,25);
+  sectionHead('Line Score');
+  const cw=15, x0=ML+42;
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...DIM);
+  for(let i=0;i<ps.home.length;i++) doc.text(periodLbl(i+1),x0+i*cw,y,{align:'center'});
+  doc.text('F',x0+ps.home.length*cw,y,{align:'center'});
+  y+=4.5;
   ['away','home'].forEach(s=>{
-    doc.setFont('helvetica','normal');doc.text(GAME[s].short,14,y);
-    ps[s].forEach((v,i)=>doc.text(String(v),x0+i*cw,y));
-    doc.setFont('helvetica','bold');doc.text(String(GAME[s].score),x0+ps[s].length*cw,y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.setTextColor(...(s==='away'?RED:BLUE));
+    doc.text(GAME[s].short,ML,y);
+    doc.setTextColor(...NAVY);
+    ps[s].forEach((v,i)=>doc.text(String(v),x0+i*cw,y,{align:'center'}));
+    doc.setFont('helvetica','bold');
+    doc.text(String(GAME[s].score),x0+ps[s].length*cw,y,{align:'center'});
     y+=5;
   });
-  y+=5;
+  y+=4;
 
-  // goals
+  // ── Scoring summary ──
   const goals=[...evts].reverse().filter(e=>e.goal);
   if(goals.length){
-    check(10+goals.length*5);
-    line('SCORING',9,'bold',[120,120,130]); y+=5;
-    doc.setFontSize(9);doc.setTextColor(20,20,25);doc.setFont('helvetica','normal');
+    sectionHead('Scoring');
+    doc.setFontSize(8.5);
     goals.forEach(e=>{
       check(6);
       const t=SPORT_KEY.startsWith('soccer')?fmt(e.el||0):`${periodLbl(e.period)} ${fmt(e.clk)}`;
-      doc.text(`${t}  ${GAME[e.side].short}  ${e.pname||''}${e.assistName?'  (assist: '+e.assistName+')':' (unassisted)'}`,14,y);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...DIM);
+      doc.text(t,ML,y);
+      doc.setFont('helvetica','bold'); doc.setTextColor(...(e.side==='away'?RED:BLUE));
+      doc.text(GAME[e.side].short,ML+18,y);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...NAVY);
+      doc.text(`${e.pname||''}${e.assistName?'  (assist: '+e.assistName+')':'  (unassisted)'}`,ML+36,y);
       y+=5;
     });
     y+=4;
   }
 
-  // team stats
-  check(30);
-  line('TEAM',9,'bold',[120,120,130]); y+=5;
+  // ── Team stats — every sport gets its own set-piece counts ──
+  sectionHead('Team Stats');
   const ta=teamTotals('away'), th=teamTotals('home');
-  const trows=[['Goals',ta.g,th.g],['Shots',ta.sh,th.sh],['Shots on goal',ta.sog,th.sog],
-    ['Saves',ta.sv,th.sv],['Turnovers',ta.to,th.to],['Fouls',ta.fl,th.fl],
-    ['Yellow cards',ta.yc,th.yc],['Red cards',ta.rc,th.rc]];
-  if(SPORT_KEY==='lacrosse'){trows.push(['Ground balls',ta.gb,th.gb],['Caused turnovers',ta.ct,th.ct]);}
-  doc.setFontSize(9);
-  doc.setFont('helvetica','bold');doc.setTextColor(120,120,130);
-  doc.text(GAME.away.short,120,y);doc.text(GAME.home.short,160,y);y+=5;
-  doc.setFont('helvetica','normal');doc.setTextColor(20,20,25);
-  trows.forEach(r=>{check(6);doc.text(String(r[0]),14,y);doc.text(String(r[1]),120,y);doc.text(String(r[2]),160,y);y+=5;});
-  y+=4;
+  const acc=t=>t.sh?Math.round(t.sog/t.sh*100)+'%':'—';
+  let trows=[
+    ['Goals',ta.g,th.g],['Shots',ta.sh,th.sh],['Shots on goal',ta.sog,th.sog],
+    ['Shot accuracy',acc(ta),acc(th)],['Saves',ta.sv,th.sv]
+  ];
+  if(SPORT_KEY.startsWith('soccer')){
+    trows.push(['Corners',ta.corners,th.corners],['Offside',ta.offside,th.offside],
+      ['Fouls',ta.fl,th.fl],['Turnovers',ta.to,th.to],
+      ['Yellow cards',ta.yc,th.yc],['Red cards',ta.rc,th.rc]);
+  } else if(SPORT_KEY==='field_hockey'){
+    trows.push(['Penalty corners',ta.pc,th.pc],['Fouls',ta.fl,th.fl],['Turnovers',ta.to,th.to],
+      ['Green cards',ta.gc,th.gc],['Yellow cards',ta.yc,th.yc],['Red cards',ta.rc,th.rc]);
+  } else {
+    trows.push(['Ground balls',ta.gb,th.gb],['Caused turnovers',ta.ct,th.ct],
+      ['Turnovers',ta.to,th.to],['Penalties',ta.yc+ta.rc,th.yc+th.rc]);
+  }
+  const cA=PW/2+8, cH=PW-MR;
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.setTextColor(...RED);  doc.text(GAME.away.short,cA,y,{align:'right'});
+  doc.setTextColor(...BLUE); doc.text(GAME.home.short,cH,y,{align:'right'});
+  y+=4.5;
+  doc.setFontSize(8.5);
+  trows.forEach((r,i)=>{
+    check(6);
+    if(i%2===0){ doc.setFillColor(...LIGHT); doc.rect(ML-1,y-3.4,PW-ML-MR+2,5,'F'); }
+    doc.setFont('helvetica','normal'); doc.setTextColor(...NAVY); doc.text(String(r[0]),ML,y);
+    doc.setFont('helvetica','bold');
+    doc.setTextColor(...RED);  doc.text(String(r[1]),cA,y,{align:'right'});
+    doc.setTextColor(...BLUE); doc.text(String(r[2]),cH,y,{align:'right'});
+    y+=5;
+  });
+  y+=5;
 
-  // box scores
+  // ── Box scores ──
   const cols = SPORT_KEY==='lacrosse'
     ? [['g','G'],['a','A'],['sh','SH'],['sog','SOG'],['gb','GB'],['ct','CT'],['yc','Y'],['rc','R']]
     : [['g','G'],['a','A'],['sh','SH'],['sog','SOG'],['fl','FL'],['yc','Y'],['rc','R']];
   ['away','home'].forEach(side=>{
-    const b=boxStats(side);
-    check(14+b.length*5);
-    line(GAME[side].name.toUpperCase(),9,'bold',[120,120,130]); y+=5;
-    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(120,120,130);
-    doc.text('#',14,y);doc.text('PLAYER',22,y);
-    cols.forEach((c,i)=>doc.text(c[1],100+i*13,y));
-    y+=4.5;
-    doc.setFont('helvetica','normal');doc.setTextColor(20,20,25);doc.setFontSize(9);
-    b.forEach(r=>{
+    const b=boxStats(side), gks=keeperRows(side), t=teamTotals(side);
+    check(16+b.length*5+gks.length*5);
+    sectionHead(GAME[side].name);
+    const cx0=110, cgap=(PW-MR-cx0)/(cols.length-1||1);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...DIM);
+    doc.text('#',ML,y); doc.text('PLAYER',ML+8,y);
+    cols.forEach((c,i)=>doc.text(c[1],cx0+i*cgap,y,{align:'right'}));
+    y+=4.2;
+    doc.setFontSize(8.5);
+    b.forEach((r,i)=>{
       check(6);
-      doc.text(String(r.num||'–'),14,y);
-      doc.text(r.name+(r.gk?' (GK)':''),22,y);
-      cols.forEach((c,i)=>doc.text(String(r[c[0]]||0),100+i*13,y));
-      y+=4.6;
+      if(i%2===0){ doc.setFillColor(...LIGHT); doc.rect(ML-1,y-3.4,PW-ML-MR+2,5,'F'); }
+      doc.setFont('helvetica','normal'); doc.setTextColor(...DIM);
+      doc.text(String(r.num||'–'),ML,y);
+      doc.setTextColor(...NAVY);
+      doc.text(r.name+(r.wasGK?' (GK)':''),ML+8,y);
+      cols.forEach((c,j)=>doc.text(String(r[c[0]]||0),cx0+j*cgap,y,{align:'right'}));
+      y+=5;
     });
-    const gk=b.find(r=>r.gk);
-    if(gk){check(7);doc.setFont('helvetica','italic');doc.setTextColor(110,110,120);
-      doc.text(`Keeper: ${gk.name} — ${gk.sv} saves, ${GAME[opp(side)].score} GA`,14,y+2);y+=8;
-      doc.setFont('helvetica','normal');doc.setTextColor(20,20,25);}
-    y+=4;
+    check(6);
+    doc.setDrawColor(...BORDER); doc.setLineWidth(0.3); doc.line(ML,y-3.2,PW-MR,y-3.2);
+    doc.setFont('helvetica','bold'); doc.setTextColor(...NAVY);
+    doc.text('TOTALS',ML+8,y);
+    cols.forEach((c,j)=>{
+      const v = c[0]==='g'?t.g : c[0]==='sh'?t.sh : c[0]==='sog'?t.sog : (t[c[0]]!=null?t[c[0]]:'');
+      doc.text(String(v),cx0+j*cgap,y,{align:'right'});
+    });
+    y+=7;
+
+    // Every keeper who took the gloves gets their own line, with the goals
+    // they personally conceded — not the team total.
+    check(12+gks.length*5);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...DIM);
+    doc.text('#',ML,y); doc.text('KEEPER',ML+8,y);
+    ['SV','GA','SOG FACED','SV%'].forEach((h,i)=>doc.text(h,cx0+i*((PW-MR-cx0)/3),y,{align:'right'}));
+    y+=4.2;
+    doc.setFontSize(8.5);
+    if(!gks.length){
+      doc.setFont('helvetica','italic'); doc.setTextColor(...DIM);
+      doc.text('No keeper designated',ML+8,y); y+=5;
+    } else gks.forEach(r=>{
+      check(6);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...DIM);
+      doc.text(String(r.num||'–'),ML,y);
+      doc.setTextColor(...NAVY);
+      doc.text(r.name+(r.gk?'':' (subbed out)'),ML+8,y);
+      [r.sv,r.ga,r.faced,r.svpct].forEach((v,i)=>doc.text(String(v),cx0+i*((PW-MR-cx0)/3),y,{align:'right'}));
+      y+=5;
+    });
+    y+=6;
   });
 
-  // shot chart
-  check(90);
-  line('SHOT CHART',9,'bold',[120,120,130]); y+=5;
+  // ── Shot chart ──
+  check(95);
+  sectionHead('Shot Chart');
+  const chartW=(PW-ML-MR-10)/2;
   ['away','home'].forEach((side,i)=>{
-    const x=14+i*95;
-    drawMiniField(doc,x,y,80,dots.filter(d=>d.side===side));
-    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(120,120,130);
-    doc.text(GAME[side].short+' attacking',x,y-1);
+    const x=ML+i*(chartW+10);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...(side==='away'?RED:BLUE));
+    doc.text(`${GAME[side].short} ATTACKING`,x,y-1);
+    drawMiniField(doc,x,y+1,chartW,dots.filter(d=>d.side===side));
   });
-  y+=88;
+  const mh=chartW*((SP.field==='fh'?380:410)/440);
+  y+=mh+6;
+  check(8);
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...DIM);
+  doc.text('● goal    ○ on target    × off target / blocked',ML,y);
 
-  doc.setFontSize(7);doc.setTextColor(150,150,160);
-  doc.text('Maine Basketball Rankings · mainebasketballrankings.com',14,PH-9);
-
+  drawFooter();
   if(opts.returnBlob) return doc.output('blob');
   doc.save(`${GAME.away.short}-${GAME.home.short}-report.pdf`);
 }
 function drawMiniField(doc,x,y,w,ds){
   const vb=SP.field==='fh'?{w:440,h:380}:{w:440,h:410};
-  const h=w*(vb.h/vb.w);
-  const sc=w/vb.w;
+  const sc=w/vb.w, h=vb.h*sc;
   const X=v=>x+v*sc, Y=v=>y+v*sc;
-  doc.setDrawColor(150,170,155);doc.setFillColor(235,242,236);
-  doc.rect(X(20),Y(20),(400)*sc,(vb.h-43)*sc,'FD');
-  doc.setLineWidth(0.3);
+  doc.setDrawColor(150,170,155); doc.setFillColor(235,242,236); doc.setLineWidth(0.4);
+  const depth = SP.field==='fh' ? 334 : 367;
+  doc.rect(X(20),Y(20),400*sc,depth*sc,'FD');
+  doc.setLineWidth(0.25);
   if(SP.field==='soccer'){
     doc.rect(X(153),Y(20),134*sc,40*sc);
     doc.rect(X(73),Y(20),294*sc,120*sc);
+    doc.circle(X(220),Y(100),0.5,'F');
   }else if(SP.field==='fh'){
-    doc.circle(X(220),Y(20),107*sc);  // approximation of the D
+    // the D: two quarter-arcs off the posts, joined across the goal mouth
+    doc.lines([[0,0]],X(220),Y(20));
+    const r=107*sc, cx=X(220), cy=Y(20);
+    for(let a=0;a<=180;a+=6){
+      const t1=(a*Math.PI)/180, t2=((a+6)*Math.PI)/180;
+      doc.line(cx-r*Math.cos(t1), cy+r*Math.sin(t1), cx-r*Math.cos(t2), cy+r*Math.sin(t2));
+    }
   }else{
     doc.rect(X(87),Y(20),266*sc,233*sc);
     doc.circle(X(220),Y(120),20*sc);
   }
   ds.forEach(d=>{
     const px=X(d.pt.x), py=Y(d.pt.y);
-    if(d.kind==='goal'){doc.setFillColor(22,163,74);doc.circle(px,py,1.5,'F');}
-    else if(d.kind==='save'){doc.setDrawColor(37,99,235);doc.circle(px,py,1.2,'S');}
-    else{doc.setDrawColor(150,150,160);doc.line(px-1,py-1,px+1,py+1);doc.line(px+1,py-1,px-1,py+1);}
+    if(d.kind==='goal'){ doc.setFillColor(22,163,74); doc.circle(px,py,1.4,'F'); }
+    else if(d.kind==='save'){ doc.setDrawColor(37,99,235); doc.setLineWidth(0.35); doc.circle(px,py,1.2,'S'); }
+    else if(d.kind==='post'){ doc.setDrawColor(217,119,6); doc.setLineWidth(0.35); doc.rect(px-1,py-1,2,2,'S'); }
+    else { doc.setDrawColor(150,150,160); doc.setLineWidth(0.35);
+           doc.line(px-1,py-1,px+1,py+1); doc.line(px+1,py-1,px-1,py+1); }
   });
   doc.setDrawColor(150,170,155);
 }

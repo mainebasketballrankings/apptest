@@ -629,6 +629,25 @@ function qtrLabel(){
   return 'OT'+(G.quarter-4);
 }
 function fmtClock(s){ const m=Math.floor(s/60), ss=s%60; return m+':'+String(ss).padStart(2,'0'); }
+// Free-text label the scoreboard (embed.html) prints beside the live dot.
+function gameClockLabel(){
+  if(_gameFinalized) return 'Final';
+  if(G.clock===0 && G.quarter===2) return 'Halftime';
+  if(G.clock===0) return 'End '+qtrLabel();
+  return qtrLabel()+' | '+fmtClock(G.clock);
+}
+// The score alone doesn't move the clock, so sync it on its own timer.
+let _clkSync=null,_lastClkLbl=null;
+setInterval(()=>{
+  if(!G_game_id || G_test_mode || _gameFinalized) return;
+  const lbl=gameClockLabel();
+  if(lbl===_lastClkLbl) return;
+  _lastClkLbl=lbl;
+  fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`,{ method:'PATCH',
+    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+    body: JSON.stringify({ game_clock:lbl })
+  }).catch(()=>{});
+},20000);
 // ═══════════════════════════════════════════════
 // SETUP
 // ═══════════════════════════════════════════════
@@ -859,7 +878,7 @@ async function pushEvt(key, extras={}){
   if(extras.points){
     fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
       method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body: JSON.stringify({ home_score_live:G.score.home, away_score_live:G.score.away })
+      body: JSON.stringify({ home_score_live:G.score.home, away_score_live:G.score.away, game_clock:gameClockLabel() })
     }).catch(()=>{});
   }
 }
@@ -2087,7 +2106,7 @@ async function confirmEndGame(){
     // final score + status
     await fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
       method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body:JSON.stringify({ status:'final', home_score:G.score.home, away_score:G.score.away, home_score_live:G.score.home, away_score_live:G.score.away })
+      body:JSON.stringify({ status:'final', home_score:G.score.home, away_score:G.score.away, home_score_live:G.score.home, away_score_live:G.score.away, game_clock:'Final' })
     }).catch(e=>console.warn('final patch failed', e));
     // push per-player final stats as schema-free JSON events
     ['away','home'].forEach(side=>{

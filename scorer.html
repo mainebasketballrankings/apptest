@@ -1220,10 +1220,27 @@ function sbPushEvent(e){
   sbInsert('game_events', row);
   if(e.pts>0) patchLiveScore();
 }
+// Free-text label the scoreboard (embed.html) prints beside the live dot.
+function gameClockLabel(){
+  if(_gameFinalized) return 'Final';
+  if(GAME.clockSec===0 && GAME.period===2) return 'Halftime';
+  if(GAME.clockSec===0) return 'End '+PERIOD_LBL(GAME.period);
+  return PERIOD_LBL(GAME.period)+' | '+fmt(GAME.clockSec);
+}
 function patchLiveScore(){
   if(!G_game_id || G_test_mode) return;
-  sbPatch('games','id=eq.'+G_game_id,{ home_score_live:GAME.home.score, away_score_live:GAME.away.score }).catch(()=>{});
+  sbPatch('games','id=eq.'+G_game_id,{ home_score_live:GAME.home.score, away_score_live:GAME.away.score,
+    game_clock:gameClockLabel() }).catch(()=>{});
 }
+// The score alone doesn't move the clock, so sync it on its own timer.
+let _clkSync=null,_lastClkLbl=null;
+setInterval(()=>{
+  if(!G_game_id || G_test_mode || _gameFinalized) return;
+  const lbl=gameClockLabel();
+  if(lbl===_lastClkLbl) return;
+  _lastClkLbl=lbl;
+  sbPatch('games','id=eq.'+G_game_id,{ game_clock:lbl }).catch(()=>{});
+},20000);
 
 // ── School autocomplete source (DB, with the hardcoded list as fallback) ──
 let _schools=null;
@@ -2835,7 +2852,8 @@ async function endGame(){
     await sbPatch('games','id=eq.'+G_game_id,{
       status:'final',
       home_score:GAME.home.score, away_score:GAME.away.score,
-      home_score_live:GAME.home.score, away_score_live:GAME.away.score
+      home_score_live:GAME.home.score, away_score_live:GAME.away.score,
+      game_clock:'Final'
     }).catch(e=>console.warn('final patch failed', e));
     // per-player final stat lines (schema-free JSON events, like football/baseball)
     ['home','away'].forEach(side=>{

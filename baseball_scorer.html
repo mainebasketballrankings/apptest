@@ -804,6 +804,12 @@ let _gameListAbort = null; // AbortController for in-flight game list fetch
 let _rosterVersion = 0;
 // End-game guard — prevents double-tap on Finalize from double-pushing stats
 let _gameFinalized = false;
+// Free-text label the scoreboard (embed.html) prints beside the live dot.
+// Baseball has no clock — this matches the "Top 5" / "Bot 3" values already in the DB.
+function gameClockLabel(){
+  if(_gameFinalized) return 'Final';
+  return (G.half==='bottom'||G.half==='bot' ? 'Bot ' : 'Top ') + G.inning;
+}
 // saveState debounce — avoid serializing full G on every render() tap
 let _saveStateTimer = null;
 function scheduleSave(){
@@ -950,7 +956,7 @@ async function pushEvt(key, extras={}){
     fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
       method:'PATCH',
       headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body: JSON.stringify({ home_score_live: G.runs.home, away_score_live: G.runs.away })
+      body: JSON.stringify({ home_score_live: G.runs.home, away_score_live: G.runs.away, game_clock: gameClockLabel() })
     }).catch(e=>console.warn('score update failed',e));
   }
 }

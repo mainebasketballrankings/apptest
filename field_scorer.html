@@ -138,6 +138,9 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .sbtn.t-neg{background:#fee2e2;border-color:#fca5a5;color:#991b1b;}
 .sbtn.t-pos{background:#dcfce7;border-color:#86efac;color:#166534;}
 .sbtn.t-tm{background:#e0e7ff;border-color:#a5b4fc;color:#3730a3;}
+.sbtn.t-red{background:#dc2626;border-color:#dc2626;color:#fff;}
+.sbtn.t-grn{background:#16a34a;border-color:#16a34a;color:#fff;}
+.sbtn.t-yel{background:#eab308;border-color:#eab308;color:#000;}
 #toolbar{display:flex;gap:4px;margin-top:4px;}
 #toolbar .sbtn{flex:1;font-size:10px;padding:7px 2px;}
 
@@ -366,8 +369,8 @@ const SPORTS={
       {key:'offside',         lbl:'Offside',   t:'neg'},
       {key:'turnover',        lbl:'T/O',       t:'neg'},
       {key:'corner',          lbl:'Corner',    t:'tm', team:true},
-      {key:'card_yellow',     lbl:'Yellow',    t:'ca', card:'yellow'},
-      {key:'card_red',        lbl:'Red',       t:'ca', card:'red'},
+      {key:'card_yellow',     lbl:'Yellow',    t:'yel', card:'yellow'},
+      {key:'card_red',        lbl:'Red',       t:'red', card:'red'},
       {key:'penalty_kick_made',lbl:'PK ✓',     t:'pos', goal:true},
       {key:'penalty_kick_miss',lbl:'PK ✗',     t:'neg'},
       {key:'goal_kick',       lbl:'Goal Kick', t:'tm', team:true},
@@ -397,9 +400,9 @@ const SPORTS={
       {key:'defensive_save',   lbl:'Def Save',   t:'pos'},
       {key:'turnover',         lbl:'T/O',        t:'neg'},
       {key:'foul',             lbl:'Foul',       t:'neg'},
-      {key:'card_green',       lbl:'Green',      t:'ca', card:'green'},
-      {key:'card_yellow',      lbl:'Yellow',     t:'ca', card:'yellow'},
-      {key:'card_red',         lbl:'Red',        t:'ca', card:'red'},
+      {key:'card_green',       lbl:'Green',      t:'grn', card:'green'},
+      {key:'card_yellow',      lbl:'Yellow',     t:'yel', card:'yellow'},
+      {key:'card_red',         lbl:'Red',        t:'red', card:'red'},
       {key:'penalty_stroke_made',lbl:'Stroke ✓', t:'pos', goal:true},
       {key:'penalty_stroke_miss',lbl:'Stroke ✗', t:'neg'},
       {key:'timeout_full',     lbl:'Timeout',    t:'tm', team:true},
@@ -429,8 +432,8 @@ const SPORTS={
       {key:'penalty_60',       lbl:'Pen 1:00',   t:'ca', pen:60},
       {key:'penalty_120',      lbl:'Pen 2:00',   t:'ca', pen:120},
       {key:'penalty_180',      lbl:'Pen 3:00',   t:'ca', pen:180},
-      {key:'card_yellow',      lbl:'Yellow',     t:'ca', card:'yellow'},
-      {key:'card_red',         lbl:'Red',        t:'ca', card:'red'},
+      {key:'card_yellow',      lbl:'Yellow',     t:'yel', card:'yellow'},
+      {key:'card_red',         lbl:'Red',        t:'red', card:'red'},
       {key:'timeout_full',     lbl:'Timeout',    t:'tm', team:true},
       {key:'goalie_change',    lbl:'GK Change',  t:'tm'},
       {key:'possession_flip',  lbl:'Poss',       t:'tm', team:true}
@@ -601,9 +604,31 @@ function sbPushEvent(e){
   sbInsert('game_events',row);
   if(e.goal) patchLiveScore();
 }
+// Free-text label the scoreboard (embed.html) prints beside the live dot.
+function gameClockLabel(){
+  if(GAME.ended) return 'Final';
+  const half=Math.ceil(SP.periods/2);
+  if(GAME.clockSec===0 && GAME.period===half) return 'Halftime';
+  if(GAME.clockSec===0) return 'End '+periodLbl(GAME.period);
+  return periodLbl(GAME.period)+' | '+fmt(GAME.clockSec);
+}
 function patchLiveScore(){
   if(!G_game_id||G_test_mode)return;
-  sbPatch('games','id=eq.'+G_game_id,{home_score_live:GAME.home.score,away_score_live:GAME.away.score}).catch(()=>{});
+  sbPatch('games','id=eq.'+G_game_id,{home_score_live:GAME.home.score,away_score_live:GAME.away.score,
+    game_clock:gameClockLabel()}).catch(()=>{});
+}
+// The score alone doesn't move the clock, so sync it on its own timer.
+// Skips identical writes, so a stopped clock costs nothing.
+let _clkSync=null,_lastClkLbl=null;
+function startClockSync(){
+  clearInterval(_clkSync);
+  _clkSync=setInterval(()=>{
+    if(!G_game_id||G_test_mode||_gameFinalized)return;
+    const lbl=gameClockLabel();
+    if(lbl===_lastClkLbl)return;
+    _lastClkLbl=lbl;
+    sbPatch('games','id=eq.'+G_game_id,{game_clock:lbl}).catch(()=>{});
+  },20000);
 }
 
 // ══ TEAMS / ROSTERS ══════════════════════════════════════════
@@ -911,7 +936,7 @@ function enterScorer(){
   document.getElementById('nm-away').textContent=GAME.away.short;
   drawField(); renderBtns(); renderPl('home'); renderPl('away');
   setChartSide('home'); updAll();
-  setQueueStatus();
+  setQueueStatus(); startClockSync();
 }
 
 // ══ FIELD SVG ════════════════════════════════════════════════
@@ -1262,11 +1287,11 @@ function renderPl(side){
 function selPlayer(pid,side){
   const p=findP(pid,side); if(!p)return;
   if(selP&&selP.id===pid&&selSide===side){selP=null;selSide=null;}
-  else{selP=p;selSide=side;}
+  else{selP=p;selSide=side;setChartSide(side);}   // chart always shows the selected team's attack
   renderPl('home');renderPl('away');updBtns();
 }
 function setTeamMode(side){
-  selP=null; selSide=side;
+  selP=null; selSide=side; setChartSide(side);
   document.getElementById('nm-home').classList.toggle('team-active',side==='home');
   document.getElementById('nm-away').classList.toggle('team-active',side==='away');
   renderPl('home');renderPl('away');updBtns();
@@ -1436,7 +1461,7 @@ async function endGame(){
     _gameFinalized=true;
     await sbPatch('games','id=eq.'+G_game_id,{
       status:'final', home_score:GAME.home.score, away_score:GAME.away.score,
-      home_score_live:GAME.home.score, away_score_live:GAME.away.score
+      home_score_live:GAME.home.score, away_score_live:GAME.away.score, game_clock:'Final'
     }).catch(e=>console.warn('final patch failed',e));
     ['home','away'].forEach(side=>{
       boxStats(side).forEach(s=>{

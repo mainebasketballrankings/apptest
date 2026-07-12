@@ -179,6 +179,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   /* Baseball mobile */
   body.sport-baseball #home-panel,body.sport-baseball #away-panel{display:none !important;}
   body.sport-baseball #bb-mob-lineup{display:block !important;}
+  body.sport-soccer #mobile-panel,body.sport-field_hockey #mobile-panel,body.sport-lacrosse #mobile-panel{display:none !important;}
 }
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--rule);border-radius:2px;}
@@ -252,6 +253,46 @@ body.sport-baseball .bball-only{display:none !important;}
 #court-col, #bb-col{grid-area:centre;}
 /* ── FOOTBALL ───────────────────────────────────────── */
 .fb-only{display:none !important;}
+/* ── FIELD SPORTS (soccer / field hockey / lacrosse) ── */
+.fd-only{display:none;}
+body.sport-soccer .fd-only,
+body.sport-field_hockey .fd-only,
+body.sport-lacrosse .fd-only{display:block !important;}
+body.sport-soccer .bball-only, body.sport-soccer .bb-only, body.sport-soccer .fb-only,
+body.sport-field_hockey .bball-only, body.sport-field_hockey .bb-only, body.sport-field_hockey .fb-only,
+body.sport-lacrosse .bball-only, body.sport-lacrosse .bb-only, body.sport-lacrosse .fb-only{display:none !important;}
+body.sport-soccer #court-col, body.sport-soccer #bb-col, body.sport-soccer #fb-col,
+body.sport-field_hockey #court-col, body.sport-field_hockey #bb-col, body.sport-field_hockey #fb-col,
+body.sport-lacrosse #court-col, body.sport-lacrosse #bb-col, body.sport-lacrosse #fb-col{display:none !important;}
+body.sport-soccer #fd-col, body.sport-field_hockey #fd-col, body.sport-lacrosse #fd-col{
+  display:flex !important;flex-direction:column;gap:10px;grid-area:centre;}
+body.sport-soccer #home-panel, body.sport-soccer #away-panel,
+body.sport-field_hockey #home-panel, body.sport-field_hockey #away-panel,
+body.sport-lacrosse #home-panel, body.sport-lacrosse #away-panel{display:flex !important;flex-direction:column;}
+#fd-col{display:none;}
+.fd-clockblk{text-align:center;}
+.fd-clock{font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:var(--ink);line-height:1;}
+.fd-per{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--ink3);margin-top:2px;}
+.fd-elapsed{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink3);}
+.fd-mercy{font-family:'DM Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.08em;color:#b45309;min-height:11px;}
+.fd-pens{display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-top:3px;min-height:14px;}
+.fd-pen{font-family:'DM Mono',monospace;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;color:#fff;background:#c0392b;}
+.fd-pen.g{background:#15803d;} .fd-pen.y{background:#b45309;}
+#fd-field-wrap{border:1.5px solid var(--rule);border-radius:var(--r);background:var(--paper2);overflow:hidden;}
+.fd-legend{display:flex;gap:12px;justify-content:center;padding:5px 6px 7px;font-family:'DM Mono',monospace;font-size:9px;color:var(--ink3);flex-wrap:wrap;}
+.fd-legend .leg{display:flex;align-items:center;gap:4px;}
+.fd-legend .leg-dot{width:8px;height:8px;border-radius:50%;}
+.fd-stat-tbl{width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11px;}
+.fd-stat-tbl th{font-size:10px;color:var(--ink3);padding:4px 8px;text-align:center;border-bottom:1px solid var(--rule2);}
+.fd-stat-tbl td{padding:3px 8px;border-bottom:1px solid var(--rule2);text-align:center;}
+.fd-stat-tbl td.lbl{text-align:left;color:var(--ink3);}
+.fd-stat-tbl td.av{color:var(--away);font-weight:600;}
+.fd-stat-tbl td.hv{color:var(--home);font-weight:600;}
+.fd-pl-grp{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);
+  padding:6px 8px 2px;border-bottom:1px solid var(--rule2);}
+.fd-pl-row{display:flex;justify-content:space-between;gap:6px;padding:4px 8px;border-bottom:1px solid var(--rule2);font-size:12px;}
+.fd-pl-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fd-pl-ln{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink2);white-space:nowrap;}
 body.sport-football .fb-only{display:block !important;}
 body.sport-football .bball-only{display:none !important;}
 body.sport-football .bb-only{display:none !important;}
@@ -359,6 +400,29 @@ body.sport-football #fb-col{display:flex !important;flex-direction:column;gap:10
             </table>
           </div>
         </div>
+        <!-- FIELD SPORTS — clock/period + goals-by-period line score -->
+        <div class="fd-only" style="width:100%;padding:2px 0;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:20px;">
+            <div class="fd-clockblk">
+              <div class="fd-clock" id="fd-clock">--:--</div>
+              <div class="fd-per" id="fd-per">1ST</div>
+            </div>
+            <div style="text-align:center;">
+              <div class="fd-elapsed" id="fd-elapsed">0:00 elapsed</div>
+              <div class="fd-mercy" id="fd-mercy"></div>
+              <div class="fd-pens" id="fd-pens"></div>
+            </div>
+          </div>
+          <div class="ls-wrap">
+            <table class="ls-tbl" id="fd-linescore">
+              <thead><tr id="fd-ls-hdr"></tr></thead>
+              <tbody>
+                <tr id="fd-ls-away"></tr>
+                <tr id="fd-ls-home"></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
         <!-- FOOTBALL — quarter/clock + down & distance line score -->
         <div class="fb-only" style="width:100%;padding:2px 0;">
           <div style="display:flex;align-items:center;justify-content:center;gap:18px;">
@@ -423,6 +487,7 @@ body.sport-football #fb-col{display:flex !important;flex-direction:column;gap:10
       <span id="home-panel-name">Camden Hills</span>
       <span class="panel-hdr-sub bball-only" id="home-fg-sub">0/0 FG</span>
       <span class="panel-hdr-sub bb-only" id="home-pit-sub"></span>
+      <span class="panel-hdr-sub fd-only" id="home-gk-sub" style="display:none"></span>
     </div>
     <div class="team-summary" id="home-team-sum"></div>
     <div class="pl-rows" id="home-pl-rows"></div>
@@ -686,12 +751,38 @@ body.sport-football #fb-col{display:flex !important;flex-direction:column;gap:10
     </div>
   </div>
 
+  <!-- FIELD SPORTS CENTRE COLUMN -->
+  <div id="fd-col">
+    <div id="fd-field-wrap">
+      <div style="padding:6px 6px 0;">
+        <svg id="fd-fsvg" viewBox="0 0 1000 554" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;"></svg>
+      </div>
+      <div class="fd-legend">
+        <div class="leg"><div class="leg-dot" style="background:#15803d"></div>Goal</div>
+        <div class="leg"><div class="leg-dot" style="border:2px solid var(--ink3);background:none"></div>On target</div>
+        <div class="leg" style="gap:3px"><span style="font-size:13px;color:#c0392b;line-height:1">&times;</span>Off target</div>
+        <div class="leg"><div class="leg-dot" style="background:#b45309;border-radius:2px"></div>Post</div>
+      </div>
+    </div>
+
+    <div style="background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;">
+      <div class="feed-hdr">Team Stats</div>
+      <table class="fd-stat-tbl" id="fd-team-stats"><tbody></tbody></table>
+    </div>
+
+    <div style="background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;max-height:300px;">
+      <div class="feed-hdr">Play by Play</div>
+      <div id="fd-feed-list" style="overflow-y:auto;flex:1;"></div>
+    </div>
+  </div>
+
   <!-- AWAY STATS (right) -->
   <div class="stat-panel away" id="away-panel">
     <div class="panel-hdr ah">
       <span id="away-panel-name">Cape Elizabeth</span>
       <span class="panel-hdr-sub bball-only" id="away-fg-sub">0/0 FG</span>
       <span class="panel-hdr-sub bb-only" id="away-pit-sub"></span>
+      <span class="panel-hdr-sub fd-only" id="away-gk-sub" style="display:none"></span>
     </div>
     <div class="team-summary" id="away-team-sum"></div>
     <div class="pl-rows" id="away-pl-rows"></div>
@@ -717,7 +808,13 @@ const SPORT_BY_ID = {
   'b31ab283-b28e-4ba8-9684-b1cf30cea219':'basketball',
   'c87a4d6c-a471-47e1-b6a0-d1643d942bf0':'baseball',
   'fa905ca5-f416-409b-81ac-777179ee5576':'football',
+  'ff80a695-0e78-4432-98f2-141b2b571e0e':'soccer',
+  '1054869a-20d4-465f-8ca9-4bc4d2bafe1b':'field_hockey',
+  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d':'lacrosse',
 };
+// The three field sports share one engine (FD); only the rules/field differ.
+const FIELD_SPORTS = ['soccer','field_hockey','lacrosse'];
+const isField = sp => FIELD_SPORTS.includes(sp);
 
 const GAME = {
   home:{ name:'Camden Hills', short:'CAM', short2:'CHILLS', score:0, fouls:0, tof:3, to3:2 },
@@ -1269,7 +1366,12 @@ function initView(home,away){
       el.textContent=''; el.appendChild(img);
     }
   });
-  if(SPORT==='basketball'){ updScoreboard(); updPanels(); updFeed(); }
+  if(isField(SPORT)){
+    fdSetSport(SPORT);
+    ['home','away'].forEach(s=>{ const t=s==='home'?home:away; FD[s].name=t.name; FD[s].short=t.short; });
+    fdRenderAll();
+  }
+  else if(SPORT==='basketball'){ updScoreboard(); updPanels(); updFeed(); }
   else if(SPORT==='football'){
     ['home','away'].forEach(s=>{ const t=s==='home'?home:away; FB[s].name=t.name; FB[s].short=t.short; });
     fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels();
@@ -1288,7 +1390,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // game row and routes to the right engine. The demos only run with no game_id.
   if(gameId){ connectGame(gameId); return; }
 
-  if(SPORT==='basketball'){
+  if(isField(SPORT)){
+    LIVE_away_team_id='A'; LIVE_home_team_id='B';
+    initView(
+      {name:'Camden Hills',  short:'CAM', short2:'CAM', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/camden-hills.png'},
+      {name:'Cape Elizabeth',short:'CAP', short2:'CAP', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/cape-elizabeth.png'}
+    );
+    setTimeout(fdRunSim, 900);
+  } else if(SPORT==='basketball'){
     initView(
       {name:'Camden Hills',  short:'CAM', short2:'CHILLS', logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/camden-hills.png'},
       {name:'Cape Elizabeth',short:'CAP', short2:'CAPE',   logoUrl:'https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/cape-elizabeth.png'}
@@ -1334,12 +1443,15 @@ async function connectGame(gameId){
   }
   const FB_MODE = SPORT==='football';
   const BK_MODE = SPORT==='basketball';
-  // Route to the correct engine: football, basketball, or baseball.
-  const rowToEvt = FB_MODE ? fbRowToEvt : BK_MODE ? bballRowToEvt : sbRowToEvt;
-  const onEvt    = FB_MODE ? fbOnEvent  : BK_MODE ? onEvent       : bbOnEvent;
-  const setReplay= v => { if(FB_MODE) FB._replaying=v; else BB._replaying=v; }; // toast() gates on BB._replaying for basketball too
+  const FD_MODE = isField(SPORT);
+  if(FD_MODE) fdSetSport(SPORT);
+  // Route to the correct engine: field, football, basketball, or baseball.
+  const rowToEvt = FD_MODE ? fdRowToEvt : FB_MODE ? fbRowToEvt : BK_MODE ? bballRowToEvt : sbRowToEvt;
+  const onEvt    = FD_MODE ? fdOnEvent  : FB_MODE ? fbOnEvent  : BK_MODE ? onEvent       : bbOnEvent;
+  const setReplay= v => { if(FD_MODE) FD._replaying=v; else if(FB_MODE) FB._replaying=v; else BB._replaying=v; };
   const renderAll= () => {
-    if(FB_MODE){ fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels(); }
+    if(FD_MODE){ fdRenderAll(); }
+    else if(FB_MODE){ fbUpdScoreboard(); fbUpdField(); fbUpdLinescore(); fbUpdFeed(); fbUpdStats(); fbUpdPanels(); }
     else if(BK_MODE){ updScoreboard(); updPanels(); updFeed(); }
     else { bbUpdScoreboard(); bbUpdLinescore(); bbUpdPanels(); bbUpdFeed(); bbUpdField(); }
   };
@@ -2530,6 +2642,489 @@ function fbRunSim(){
   LIVE_away_team_id='A'; LIVE_home_team_id='B';
   fbOnEvent(fbRowToEvt(row));
   fbSimTmr=setTimeout(fbRunSim, 1800+Math.random()*700);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FIELD ENGINE (FD) — soccer · field hockey · lacrosse
+   Reads game_events written by field_scorer.html.
+   The scorer draws ONE attacking half (goal at top). Here we draw the
+   FULL field: away attacks the LEFT goal, home attacks the RIGHT goal,
+   which is the same convention as the basketball full-court view.
+   ══════════════════════════════════════════════════════════════ */
+
+// Rules/geometry per sport. halfDepth = scorer's attacking-half depth in px.
+const FD_SPORTS = {
+  soccer:{
+    label:'Soccer', periods:2, plbl:['1ST','2ND'], len:110,
+    halfDepth:367, mercy:{diff:8}, useElapsed:true
+  },
+  field_hockey:{
+    label:'Field Hockey', periods:4, plbl:['1ST','2ND','3RD','4TH'], len:100,
+    halfDepth:334, mercy:{diff:5}, useElapsed:false
+  },
+  lacrosse:{
+    label:'Lacrosse', periods:4, plbl:['1ST','2ND','3RD','4TH'], len:110,
+    halfDepth:367, mercy:null, useElapsed:false
+  }
+};
+let FDS = FD_SPORTS.soccer;
+
+const FD = {
+  home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,corners:0,fouls:0,
+        offside:0,to:0,gb:0,ct:0,yc:0,rc:0,gc:0,pc:0,pens:[]},
+  away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,corners:0,fouls:0,
+        offside:0,to:0,gb:0,ct:0,yc:0,rc:0,gc:0,pc:0,pens:[]},
+  players:{home:{},away:{}},
+  keeper:{home:null,away:null},
+  line:{home:[],away:[]},
+  period:1, clock:'--:--', elapsed:'0:00',
+  _replaying:false
+};
+let fdEvts=[], fdDots=[], fdSimTmr=null, fdSimIdx=0;
+
+function fdSetSport(sp){
+  FDS = FD_SPORTS[sp] || FD_SPORTS.soccer;
+  const el=document.getElementById('fd-fsvg');
+  if(el){ el.setAttribute('viewBox', `0 0 1000 ${fdGeo().vbH}`); }
+}
+function fdAbbr(side){ return FD[side].short || (side==='home'?'HOME':'AWAY'); }
+function fdReset(){
+  ['home','away'].forEach(s=>{
+    Object.assign(FD[s],{score:0,shots:0,sog:0,saves:0,corners:0,fouls:0,offside:0,
+      to:0,gb:0,ct:0,yc:0,rc:0,gc:0,pc:0,pens:[]});
+    FD.players[s]={}; FD.keeper[s]=null; FD.line[s]=[];
+  });
+  fdEvts=[]; fdDots=[];
+}
+
+// ── GEOMETRY ────────────────────────────────────────────────
+// Full field: x 10..990 (980px), y 10..(10+fieldH). 60 yards tall.
+function fdGeo(){
+  const ppy = 980/FDS.len;              // px per yard
+  const fieldH = 980*60/FDS.len;
+  return { ppy, fieldH, vbH: Math.round(fieldH+20), x0:10, x1:990, y0:10, y1:10+fieldH,
+           midX:500, midY:10+fieldH/2 };
+}
+// Scorer attacking-half (x 20..420, y 20..20+halfDepth) → full field.
+// AWAY attacks LEFT goal, HOME attacks RIGHT goal (180° rotation, not a mirror).
+function fdXfm(pt, side){
+  if(!pt || pt.x==null || pt.y==null) return null;
+  const g=fdGeo();
+  const d=(pt.y-20)/FDS.halfDepth;      // 0 = goal line, 1 = midfield
+  const l=(pt.x-20)/400;                // 0..1 across
+  return side==='home'
+    ? { x: g.x1 - d*490, y: g.y0 + (1-l)*g.fieldH }
+    : { x: g.x0 + d*490, y: g.y0 +    l *g.fieldH };
+}
+
+function fdBuildField(){
+  const g=fdGeo(), P=g.ppy, W=980, H=g.fieldH;
+  const L=g.x0, R=g.x1, T=g.y0, B=g.y1, MY=g.midY;
+  const yd=n=>n*P;
+  const ln=(x1,y1,x2,y2,w,dash)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#9db3a2" stroke-width="${w||2}"${dash?` stroke-dasharray="${dash}"`:''}/>`;
+  const box=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#9db3a2" stroke-width="2"/>`;
+  let s=`<rect width="1000" height="${g.vbH}" fill="#e3ede4"/>`;
+  s+=`<rect x="${L}" y="${T}" width="${W}" height="${H}" fill="#dbe8dd" stroke="#9db3a2" stroke-width="3"/>`;
+  s+=ln(g.midX,T,g.midX,B,2);
+
+  if(FDS.label==='Soccer'){
+    const ga=yd(6), gaW=yd(20), pa=yd(18), paW=yd(44), spot=yd(12), arc=yd(10), goalW=yd(8);
+    [[L,1],[R,-1]].forEach(([X,dir])=>{
+      s+=box(dir>0?X:X-ga, MY-gaW/2, ga, gaW);
+      s+=box(dir>0?X:X-pa, MY-paW/2, pa, paW);
+      s+=`<circle cx="${X+dir*spot}" cy="${MY}" r="3" fill="#9db3a2"/>`;
+      // penalty arc, drawn on the midfield side of the box
+      const ex=X+dir*pa, dy=Math.sqrt(Math.max(0,arc*arc-(pa-spot)*(pa-spot)));
+      s+=`<path d="M ${ex},${MY-dy} A ${arc},${arc} 0 0 ${dir>0?1:0} ${ex},${MY+dy}" fill="none" stroke="#9db3a2" stroke-width="2"/>`;
+      // goal, outside the line
+      s+=`<rect x="${dir>0?X-9:X}" y="${MY-goalW/2}" width="9" height="${goalW}" fill="none" stroke="#9db3a2" stroke-width="2.5"/>`;
+    });
+    s+=`<circle cx="${g.midX}" cy="${MY}" r="${yd(10)}" fill="none" stroke="#9db3a2" stroke-width="2"/>`;
+    s+=`<circle cx="${g.midX}" cy="${MY}" r="3" fill="#9db3a2"/>`;
+  }
+  else if(FDS.label==='Field Hockey'){
+    const cr=yd(16), goalW=yd(4), spot=yd(7), line25=yd(25);
+    [[L,1],[R,-1]].forEach(([X,dir])=>{
+      const p1=MY-goalW/2, p2=MY+goalW/2, cx=X;
+      // the D: quarter-arc from each post + straight span between
+      s+=`<path d="M ${cx},${p1-cr} A ${cr},${cr} 0 0 ${dir>0?1:0} ${cx+dir*cr},${p1} L ${cx+dir*cr},${p2} A ${cr},${cr} 0 0 ${dir>0?1:0} ${cx},${p2+cr}" fill="none" stroke="#9db3a2" stroke-width="2.5"/>`;
+      const dc=cr+yd(5);
+      s+=`<path d="M ${cx},${p1-dc} A ${dc},${dc} 0 0 ${dir>0?1:0} ${cx+dir*dc},${p1} L ${cx+dir*dc},${p2} A ${dc},${dc} 0 0 ${dir>0?1:0} ${cx},${p2+dc}" fill="none" stroke="#9db3a2" stroke-width="1.4" stroke-dasharray="6 5"/>`;
+      s+=`<circle cx="${X+dir*spot}" cy="${MY}" r="2.5" fill="#9db3a2"/>`;
+      s+=ln(X+dir*line25,T,X+dir*line25,B,2);
+      s+=`<rect x="${dir>0?X-8:X}" y="${MY-goalW/2}" width="8" height="${goalW}" fill="none" stroke="#9db3a2" stroke-width="2.5"/>`;
+    });
+  }
+  else { // Lacrosse
+    const gDist=yd(15), crease=yd(3), goalW=yd(2), boxW=yd(40), boxD=yd(35);
+    [[L,1],[R,-1]].forEach(([X,dir])=>{
+      const gx=X+dir*gDist;
+      s+=box(dir>0?X:X-boxD, MY-boxW/2, boxD, boxW);
+      s+=ln(gx,T,gx,B,1.3,'5 5');
+      s+=`<circle cx="${gx}" cy="${MY}" r="${crease}" fill="none" stroke="#9db3a2" stroke-width="2.5"/>`;
+      s+=`<rect x="${dir>0?gx-7:gx}" y="${MY-goalW/2}" width="7" height="${goalW}" fill="none" stroke="#9db3a2" stroke-width="2.5"/>`;
+    });
+    s+=`<circle cx="${g.midX}" cy="${MY}" r="${yd(10)}" fill="none" stroke="#9db3a2" stroke-width="1.5"/>`;
+    s+=`<path d="M ${g.midX-9},${MY-9} L ${g.midX+9},${MY+9} M ${g.midX+9},${MY-9} L ${g.midX-9},${MY+9}" stroke="#9db3a2" stroke-width="2"/>`;
+  }
+
+  // Attacking-direction hints
+  s+=`<text x="${L+16}" y="${T+18}" font-family="DM Mono,monospace" font-size="11" fill="#9db3a2">◀ ${fdAbbr('away')} attacks</text>`;
+  s+=`<text x="${R-16}" y="${T+18}" text-anchor="end" font-family="DM Mono,monospace" font-size="11" fill="#9db3a2">${fdAbbr('home')} attacks ▶</text>`;
+  s+=`<g id="fd-dots-away"></g><g id="fd-dots-home"></g>`;
+  return s;
+}
+function fdUpdField(){
+  if(FD._replaying) return;
+  const el=document.getElementById('fd-fsvg'); if(!el) return;
+  el.setAttribute('viewBox',`0 0 1000 ${fdGeo().vbH}`);
+  el.innerHTML=fdBuildField();
+  fdDots.forEach(d=>fdDrawDot(d.pt,d.kind,d.side));
+}
+function fdDrawDot(pt,kind,side){
+  const tp=fdXfm(pt,side); if(!tp) return;
+  const g=document.getElementById('fd-dots-'+side); if(!g) return;
+  const NS='http://www.w3.org/2000/svg';
+  const col = side==='home' ? '#1f5fb0' : '#c0392b';
+  let el;
+  if(kind==='goal'){
+    el=document.createElementNS(NS,'circle');
+    el.setAttribute('cx',tp.x); el.setAttribute('cy',tp.y); el.setAttribute('r','8');
+    el.setAttribute('fill','#15803d'); el.setAttribute('fill-opacity','.85');
+    el.setAttribute('stroke','rgba(255,255,255,.6)'); el.setAttribute('stroke-width','1.5');
+  } else if(kind==='on'){
+    el=document.createElementNS(NS,'circle');
+    el.setAttribute('cx',tp.x); el.setAttribute('cy',tp.y); el.setAttribute('r','6');
+    el.setAttribute('fill','none'); el.setAttribute('stroke',col); el.setAttribute('stroke-width','2.5');
+  } else if(kind==='post'){
+    el=document.createElementNS(NS,'rect');
+    el.setAttribute('x',tp.x-5); el.setAttribute('y',tp.y-5);
+    el.setAttribute('width','10'); el.setAttribute('height','10'); el.setAttribute('rx','2');
+    el.setAttribute('fill','none'); el.setAttribute('stroke','#b45309'); el.setAttribute('stroke-width','2.5');
+  } else {
+    el=document.createElementNS(NS,'text');
+    el.setAttribute('x',tp.x); el.setAttribute('y',tp.y+5.5);
+    el.setAttribute('text-anchor','middle'); el.setAttribute('font-size','16');
+    el.setAttribute('font-weight','bold');
+    el.setAttribute('fill', kind==='blocked' ? '#8a8a8a' : col);
+    el.textContent='×';
+  }
+  g.appendChild(el);
+}
+
+// ── EVENT INTAKE ────────────────────────────────────────────
+function fdRowToEvt(row){
+  const side = row.team_id === LIVE_home_team_id ? 'home' : 'away';
+  let n={}; try{ n = row.notes ? (typeof row.notes==='string'?JSON.parse(row.notes):row.notes) : {}; }catch(e){ n={}; }
+  return {
+    id:row.id, key:row.event_type, side,
+    pname:row.player_name||'', pnum:row.player_num||'',
+    period:row.period||1, clockSec:row.clock_seconds||0,
+    pt:(row.x!=null&&row.y!=null)?{x:row.x,y:row.y}:null,
+    notes:n
+  };
+}
+function fdP(side,name,num){
+  if(!name) return null;
+  const key=String(name).trim();
+  if(!FD.players[side][key]){
+    FD.players[side][key]={name:key,num:num||'',g:0,a:0,sh:0,sog:0,sv:0,gb:0,ct:0,
+      to:0,fl:0,yc:0,rc:0,gc:0,gk:false,on:true};
+  }
+  const p=FD.players[side][key];
+  if(num && !p.num) p.num=num;
+  return p;
+}
+
+function fdOnEvent(e){
+  const opp = e.side==='home'?'away':'home';
+  const n = e.notes||{};
+  const S = FD[e.side];
+
+  // Roster snapshot from the scorer — gives us numbers, starters, and the keeper.
+  if(e.key==='roster_set'){
+    let arr=[]; try{ arr=Array.isArray(n)?n:(typeof e.notes==='string'?JSON.parse(e.notes):[]); }catch(x){ arr=[]; }
+    if(Array.isArray(arr)) arr.forEach(r=>{
+      const p=fdP(e.side, r.name, r.num);
+      if(p){ p.on=!!r.starter; p.gk=!!r.gk; if(r.gk) FD.keeper[e.side]=p.name; }
+    });
+    return;
+  }
+  if(e.key==='player_final_stats') return;   // finalize snapshot; live view already has it
+
+  fdEvts.unshift(e);
+  if(e.period) FD.period=e.period;
+  if(n.clock) FD.clock=n.clock;
+  if(n.elapsed) FD.elapsed=n.elapsed;
+  // The scorer serialises the post-event score — trust it over accumulation.
+  if(n.score && typeof n.score.home==='number'){ FD.home.score=n.score.home; FD.away.score=n.score.away; }
+
+  const p = fdP(e.side, e.pname, e.pnum);
+  const isGoal = !!n.goal || e.key==='goal' || e.key==='penalty_kick_made' || e.key==='penalty_stroke_made';
+
+  if(isGoal){
+    S.shots++; S.sog++;
+    const i=(e.period||1)-1;
+    FD.line[e.side][i]=(FD.line[e.side][i]||0)+1;
+    if(FD.line[opp][i]==null) FD.line[opp][i]=FD.line[opp][i]||0;
+    if(p){ p.g++; p.sh++; p.sog++; }
+    const gkName=FD.keeper[opp];
+    if(gkName && FD.players[opp][gkName]) FD.players[opp][gkName].gc++;
+    fdDots.push({pt:e.pt,kind:'goal',side:e.side});
+    if(!FD._replaying && e.pt) fdDrawDot(e.pt,'goal',e.side);
+    if(!FD._replaying) fdToastGoal(e);
+  }
+  else switch(e.key){
+    case 'shot_on':
+      S.shots++; S.sog++; if(p){p.sh++;p.sog++;}
+      fdDots.push({pt:e.pt,kind:'on',side:e.side});
+      if(!FD._replaying && e.pt) fdDrawDot(e.pt,'on',e.side);
+      break;
+    case 'shot_off':
+      S.shots++; if(p)p.sh++;
+      { const kind = /post/i.test(n.label||'') ? 'post' : 'off';
+        fdDots.push({pt:e.pt,kind,side:e.side});
+        if(!FD._replaying && e.pt) fdDrawDot(e.pt,kind,e.side); }
+      break;
+    case 'shot_blocked':
+      S.shots++; if(p)p.sh++;
+      fdDots.push({pt:e.pt,kind:'blocked',side:e.side});
+      if(!FD._replaying && e.pt) fdDrawDot(e.pt,'blocked',e.side);
+      break;
+    case 'penalty_kick_miss': case 'penalty_stroke_miss':
+      S.shots++; if(p)p.sh++; break;
+    case 'save':            S.saves++; if(p){p.sv++;p.gk=true; FD.keeper[e.side]=p.name;} break;
+    case 'defensive_save':  if(p)p.sv++; break;
+    case 'assist':          if(p)p.a++;  break;
+    case 'corner':          S.corners++; break;
+    case 'penalty_corner':  S.pc++;      break;
+    case 'foul':            S.fouls++; if(p)p.fl++; break;
+    case 'offside':         S.offside++; break;
+    case 'turnover':        S.to++; if(p)p.to++; break;
+    case 'ground_ball':     S.gb++; if(p)p.gb++; break;
+    case 'caused_turnover': S.ct++; if(p)p.ct++; break;
+    case 'card_green':      S.gc++; if(p)p.gc++; fdAddPen(e.side,p,'G',n.secs); break;
+    case 'card_yellow':     S.yc++; if(p)p.yc++; fdAddPen(e.side,p,'Y',n.secs); break;
+    case 'card_red':        S.rc++; if(p){p.rc++;p.on=false;} fdAddPen(e.side,p,'R',null); break;
+    case 'penalty_30': case 'penalty_60': case 'penalty_120': case 'penalty_180':
+      fdAddPen(e.side,p,'P', parseInt(e.key.split('_')[1])); break;
+    case 'goalie_change':
+      if(p){ Object.values(FD.players[e.side]).forEach(x=>x.gk=false); p.gk=true; p.on=true; FD.keeper[e.side]=p.name; }
+      break;
+    case 'sub_in':  if(p)p.on=true;  break;
+    case 'sub_out': if(p)p.on=false; break;
+  }
+
+  if(!FD._replaying) fdRenderAll();
+}
+function fdAddPen(side,p,kind,secs){
+  FD[side].pens.push({name:p?p.name:'Team', num:p?p.num:'', kind, secs:secs||null});
+  if(FD[side].pens.length>4) FD[side].pens.shift();
+}
+function fdToastGoal(e){
+  const n=e.notes||{};
+  const t = FDS.useElapsed ? (n.elapsed||FD.elapsed) : `${n.period||''} ${n.clock||''}`.trim();
+  const ast = n.assist ? ` (assisted by ${n.assist})` : '';
+  if(typeof toast==='function'){
+    toast(`<b style="color:#15803d">GOAL!</b> ${t} — ${e.pname||fdAbbr(e.side)}${ast}<br>
+      <span style="font-family:'DM Mono',monospace;font-size:12px">${fdAbbr('away')} ${FD.away.score} – ${FD.home.score} ${fdAbbr('home')}</span>`);
+  }
+}
+
+// ── RENDER ──────────────────────────────────────────────────
+function fdRenderAll(){
+  fdUpdScoreboard(); fdUpdLinescore(); fdUpdField(); fdUpdStats(); fdUpdFeed(); fdUpdPanels();
+}
+function fdUpdScoreboard(){
+  if(FD._replaying) return;
+  const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+  set('home-score',FD.home.score);
+  set('away-score',FD.away.score);
+  set('fd-clock',FD.clock);
+  set('fd-per', FDS.plbl[FD.period-1] || (FD.period>FDS.periods ? 'OT'+(FD.period-FDS.periods>1?FD.period-FDS.periods:'') : ''));
+  set('fd-elapsed', FD.elapsed+' elapsed');
+
+  // mercy / running clock flag
+  const m=FDS.mercy, mel=document.getElementById('fd-mercy');
+  if(mel){
+    const diff=Math.abs(FD.home.score-FD.away.score);
+    if(m && diff>=m.diff){
+      mel.textContent = FDS.label==='Soccer' ? '⚑ MERCY RULE IN RANGE' : '⚑ RUNNING CLOCK';
+    } else mel.textContent='';
+  }
+  // penalty pills
+  const pel=document.getElementById('fd-pens');
+  if(pel){
+    const pills=[];
+    ['away','home'].forEach(s=>FD[s].pens.forEach(pn=>{
+      const cls=pn.kind==='G'?'g':(pn.kind==='Y'?'y':'');
+      pills.push(`<span class="fd-pen ${cls}">${fdAbbr(s)} #${pn.num||'–'} ${pn.kind==='R'?'OUT':(pn.secs?Math.round(pn.secs/60)+'m':pn.kind)}</span>`);
+    }));
+    pel.innerHTML=pills.join('');
+  }
+}
+function fdUpdLinescore(){
+  if(FD._replaying) return;
+  const maxP=Math.max(FDS.periods, FD.period, FD.line.home.length, FD.line.away.length);
+  const cols=[]; for(let i=1;i<=maxP;i++) cols.push(i);
+  const hdr=document.getElementById('fd-ls-hdr'); if(!hdr) return;
+  const lbl=q=> q<=FDS.periods ? FDS.plbl[q-1] : 'OT'+(q-FDS.periods>1?q-FDS.periods:'');
+  hdr.innerHTML='<th class="ls-tn"></th>'+cols.map(q=>`<th${q===FD.period?' class="ls-cur"':''}>${lbl(q)}</th>`).join('')+'<th class="ls-sep ls-tot">T</th>';
+  const row=side=>`<td class="ls-tn">${fdAbbr(side)}</td>`+
+    cols.map((q,i)=>`<td${q===FD.period?' class="ls-cur"':''}>${FD.line[side][i]!=null?FD.line[side][i]:'·'}</td>`).join('')+
+    `<td class="ls-sep ls-tot">${FD[side].score}</td>`;
+  document.getElementById('fd-ls-away').innerHTML=row('away');
+  document.getElementById('fd-ls-home').innerHTML=row('home');
+}
+function fdUpdStats(){
+  if(FD._replaying) return;
+  const tb=document.querySelector('#fd-team-stats tbody'); if(!tb) return;
+  const A=FD.away, H=FD.home;
+  const pct=(s)=>s.shots?Math.round(s.sog/s.shots*100)+'%':'—';
+  let rows=[
+    ['Goals',A.score,H.score],
+    ['Shots',A.shots,H.shots],
+    ['Shots on goal',A.sog,H.sog],
+    ['Shot accuracy',pct(A),pct(H)],
+    ['Saves',A.saves,H.saves],
+  ];
+  if(FDS.label==='Soccer'){
+    rows.push(['Corners',A.corners,H.corners],['Offside',A.offside,H.offside],
+      ['Fouls',A.fouls,H.fouls],['Yellow / Red',`${A.yc} / ${A.rc}`,`${H.yc} / ${H.rc}`]);
+  } else if(FDS.label==='Field Hockey'){
+    rows.push(['Penalty corners',A.pc,H.pc],['Turnovers',A.to,H.to],
+      ['Green / Yellow / Red',`${A.gc} / ${A.yc} / ${A.rc}`,`${H.gc} / ${H.yc} / ${H.rc}`]);
+  } else {
+    rows.push(['Ground balls',A.gb,H.gb],['Caused turnovers',A.ct,H.ct],
+      ['Turnovers',A.to,H.to],['Penalties',A.yc+A.rc,H.yc+H.rc]);
+  }
+  tb.innerHTML=`<tr><th style="text-align:left">&nbsp;</th><th>${fdAbbr('away')}</th><th>${fdAbbr('home')}</th></tr>`+
+    rows.map(r=>`<tr><td class="lbl">${r[0]}</td><td class="av">${r[1]}</td><td class="hv">${r[2]}</td></tr>`).join('');
+}
+const FD_KLBL={
+  shot_on:'Shot on goal (saved)', shot_off:'Shot off target', shot_blocked:'Shot blocked',
+  save:'Save', assist:'Assist', foul:'Foul', offside:'Offside', corner:'Corner',
+  goal_kick:'Goal kick', turnover:'Turnover', penalty_corner:'Penalty corner',
+  defensive_save:'Defensive save', ground_ball:'Ground ball', faceoff_won:'Faceoff won',
+  draw_won:'Draw control', caused_turnover:'Caused turnover', clear:'Clear',
+  card_green:'Green card', card_yellow:'Yellow card', card_red:'Red card',
+  penalty_kick_miss:'Penalty kick missed', penalty_stroke_miss:'Penalty stroke missed',
+  goalie_change:'Keeper change', sub_in:'Sub in', sub_out:'Sub out',
+  possession_flip:'Possession', timeout_full:'Timeout',
+  penalty_30:'Penalty :30', penalty_60:'Penalty 1:00',
+  penalty_120:'Penalty 2:00', penalty_180:'Penalty 3:00'
+};
+function fdFeedDesc(e){
+  const n=e.notes||{};
+  const who=e.pname?`<b>${e.pnum?'#'+e.pnum+' ':''}${e.pname}</b>`:'';
+  const isGoal=!!n.goal||e.key==='goal';
+  if(isGoal || e.key==='penalty_kick_made' || e.key==='penalty_stroke_made'){
+    const how = e.key==='penalty_kick_made' ? ' (penalty kick)'
+              : e.key==='penalty_stroke_made' ? ' (penalty stroke)' : '';
+    const ast = n.assist ? ` (assisted by ${n.assist})` : '';
+    return `<b style="color:#15803d">GOAL!</b> ${who||fdAbbr(e.side)}${how}${ast}`;
+  }
+  return `${who?who+' — ':''}${FD_KLBL[e.key]||n.label||e.key}`;
+}
+function fdUpdFeed(){
+  if(FD._replaying) return;
+  const list=document.getElementById('fd-feed-list'); if(!list) return;
+  list.innerHTML='';
+  fdEvts.slice(0,60).forEach((e,i)=>{
+    if(e.key==='roster_set'||e.key==='player_final_stats') return;
+    const n=e.notes||{};
+    const row=document.createElement('div'); row.className='fr'+(i===0?' new':'');
+    const dot=document.createElement('div'); dot.className='fr-dot';
+    dot.style.background = e.side==='home'?'var(--home)':'var(--away)';
+    const body=document.createElement('div'); body.className='fr-body';
+    // Soccer reads as elapsed ("65:34"); FH/LAX read as period + clock ("3RD 4:12").
+    const t = FDS.useElapsed ? (n.elapsed||'') : `${n.period||''} ${n.clock||''}`.trim();
+    body.innerHTML=`<div class="fr-desc">${fdFeedDesc(e)}</div><div class="fr-meta">${t} · ${fdAbbr(e.side)}</div>`;
+    const sc=document.createElement('div'); sc.className='fr-score';
+    sc.style.color = e.side==='home'?'var(--home)':'var(--away)';
+    if(n.score) sc.textContent=`${n.score.away}–${n.score.home}`;
+    row.appendChild(dot); row.appendChild(body); row.appendChild(sc);
+    list.appendChild(row);
+    if(i===0) setTimeout(()=>row.classList.remove('new'),1800);
+  });
+}
+function fdUpdPanels(){
+  if(FD._replaying) return;
+  ['home','away'].forEach(side=>{
+    const nameEl=document.getElementById(side+'-panel-name');
+    if(nameEl) nameEl.textContent=FD[side].name||fdAbbr(side);
+
+    // keeper line in the panel header
+    const gkEl=document.getElementById(side+'-gk-sub');
+    if(gkEl){
+      const k=FD.keeper[side] && FD.players[side][FD.keeper[side]];
+      if(k){ gkEl.style.display=''; gkEl.textContent=`${k.sv} SV · ${FD[side==='home'?'away':'home'].score} GA`; }
+      else gkEl.style.display='none';
+    }
+
+    const box=document.getElementById(side+'-pl-rows'); if(!box) return;
+    const players=Object.values(FD.players[side]||{});
+    const grp=(title,filt,fmt,sortKey)=>{
+      const rows=players.filter(filt).sort((a,b)=>(b[sortKey]||0)-(a[sortKey]||0));
+      if(!rows.length) return '';
+      return `<div class="fd-pl-grp">${title}</div>`+rows.map(p=>
+        `<div class="fd-pl-row"><div class="fd-pl-nm">${p.num?'#'+p.num+' ':''}${p.name}</div><div class="fd-pl-ln">${fmt(p)}</div></div>`).join('');
+    };
+    let h='';
+    h+=grp('Scoring', p=>(p.g>0||p.a>0),
+      p=>`${p.g?p.g+'G':''}${p.g&&p.a?' ':''}${p.a?p.a+'A':''}`, 'g');
+    h+=grp('Shots', p=>(p.sh>0&&p.g===0&&p.a===0),
+      p=>`${p.sh} sh${p.sog?', '+p.sog+' on':''}`, 'sh');
+    if(FDS.label==='Lacrosse')
+      h+=grp('Ground balls', p=>(p.gb>0||p.ct>0),
+        p=>`${p.gb?p.gb+' GB':''}${p.gb&&p.ct?', ':''}${p.ct?p.ct+' CT':''}`, 'gb');
+    h+=grp('Keeper', p=>p.gk,
+      p=>`${p.sv} SV · ${FD[side==='home'?'away':'home'].score} GA`, 'sv');
+    h+=grp('Discipline', p=>(p.yc>0||p.rc>0||p.gc>0),
+      p=>`${p.gc?'🟩'.repeat(p.gc):''}${p.yc?'🟨'.repeat(p.yc):''}${p.rc?'🟥'.repeat(p.rc):''}`, 'rc');
+    box.innerHTML = h || `<div class="fd-pl-row"><div class="fd-pl-nm" style="color:var(--ink3)">No stats yet</div></div>`;
+  });
+}
+
+// ── Demo (no game_id) — soccer ──────────────────────────────
+const FD_SIM=[
+  {team_id:'A',event_type:'roster_set',period:1,clock_seconds:2400,notes:JSON.stringify([
+    {num:1,name:'Ava Doyle',starter:true,gk:true},{num:9,name:'Mia Trask',starter:true},
+    {num:7,name:'Nora Bell',starter:true},{num:14,name:'Ines Cyr',starter:true}])},
+  {team_id:'B',event_type:'roster_set',period:1,clock_seconds:2400,notes:JSON.stringify([
+    {num:1,name:'Jo Pike',starter:true,gk:true},{num:10,name:'Rae Amato',starter:true},
+    {num:4,name:'Sam Voss',starter:true},{num:22,name:'Kit Bourne',starter:true}])},
+  {team_id:'A',event_type:'shot_on',period:1,clock_seconds:2210,player_name:'Mia Trask',player_num:9,x:180,y:130,
+   notes:JSON.stringify({label:'Shot on goal (saved)',clock:'36:50',period:'1ST',elapsed:'3:10',score:{away:0,home:0},shot:true,on_target:true})},
+  {team_id:'B',event_type:'save',period:1,clock_seconds:2210,player_name:'Jo Pike',player_num:1,
+   notes:JSON.stringify({label:'Save',clock:'36:50',period:'1ST',elapsed:'3:10',score:{away:0,home:0}})},
+  {team_id:'A',event_type:'goal',period:1,clock_seconds:1834,player_name:'Nora Bell',player_num:7,x:246,y:88,
+   notes:JSON.stringify({label:'GOAL',clock:'30:34',period:'1ST',elapsed:'9:26',score:{away:1,home:0},goal:true,shot:true,on_target:true,assist:'Mia Trask',gk:'Jo Pike'})},
+  {team_id:'A',event_type:'assist',period:1,clock_seconds:1834,player_name:'Mia Trask',player_num:9,
+   notes:JSON.stringify({label:'Assist',clock:'30:34',period:'1ST',elapsed:'9:26',score:{away:1,home:0}})},
+  {team_id:'B',event_type:'corner',period:1,clock_seconds:1502,
+   notes:JSON.stringify({label:'Corner',clock:'25:02',period:'1ST',elapsed:'14:58',score:{away:1,home:0}})},
+  {team_id:'B',event_type:'goal',period:1,clock_seconds:1470,player_name:'Rae Amato',player_num:10,x:214,y:64,
+   notes:JSON.stringify({label:'GOAL',clock:'24:30',period:'1ST',elapsed:'15:30',score:{away:1,home:1},goal:true,shot:true,on_target:true,assist:'Kit Bourne',gk:'Ava Doyle'})},
+  {team_id:'B',event_type:'assist',period:1,clock_seconds:1470,player_name:'Kit Bourne',player_num:22,
+   notes:JSON.stringify({label:'Assist',clock:'24:30',period:'1ST',elapsed:'15:30',score:{away:1,home:1}})},
+  {team_id:'A',event_type:'card_yellow',period:1,clock_seconds:1100,player_name:'Ines Cyr',player_num:14,
+   notes:JSON.stringify({label:'Yellow',clock:'18:20',period:'1ST',elapsed:'21:40',score:{away:1,home:1}})},
+  {team_id:'A',event_type:'shot_off',period:2,clock_seconds:1900,player_name:'Mia Trask',player_num:9,x:120,y:170,
+   notes:JSON.stringify({label:'Shot wide',clock:'31:40',period:'2ND',elapsed:'48:20',score:{away:1,home:1},shot:true})},
+  {team_id:'B',event_type:'goal',period:2,clock_seconds:640,player_name:'Sam Voss',player_num:4,x:232,y:110,
+   notes:JSON.stringify({label:'GOAL',clock:'10:40',period:'2ND',elapsed:'69:20',score:{away:1,home:2},goal:true,shot:true,on_target:true,gk:'Ava Doyle'})},
+];
+function fdRunSim(){
+  if(fdSimIdx>=FD_SIM.length){
+    const pill=document.getElementById('live-pill'); if(pill) pill.classList.add('final');
+    const lbl=document.getElementById('live-lbl'); if(lbl) lbl.textContent='DEMO';
+    return;
+  }
+  const row=FD_SIM[fdSimIdx++];
+  LIVE_away_team_id='A'; LIVE_home_team_id='B';
+  fdOnEvent(fdRowToEvt(row));
+  fdSimTmr=setTimeout(fdRunSim, 1600+Math.random()*600);
 }
 
 </script>

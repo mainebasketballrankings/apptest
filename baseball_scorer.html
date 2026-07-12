@@ -1950,7 +1950,10 @@ function confirmEndGame(){
   pushPlayerStats().catch(e => console.warn("Player stat push failed:", e));
   // Auto-generate PDF game report and upload to Supabase Storage
   if(G_game_id && !G_test_mode){
-    autoUploadGameReport().catch(e => console.warn("Auto game report failed:", e));
+    // upload the report first, then email it to matching subscribers
+    autoUploadGameReport()
+      .then(() => emailGameReport())
+      .catch(e => console.warn("Auto game report failed:", e));
   }
   closeOv("ovEndGame");
   document.getElementById("ovHalfTitle").textContent = "Game Final";
@@ -3210,6 +3213,19 @@ async function loadImgBase64(url){
   });
 }
 
+// Ask the backend to email this game's report to matching subscribers (deduped
+// server-side). No-op for test/manual games with no game_id.
+async function emailGameReport(){
+  if(!G_game_id || G_test_mode) return;
+  try{
+    const r=await fetch(`${SB_URL}/functions/v1/email-game-report`,{
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
+      body:JSON.stringify({ game_id:G_game_id })
+    });
+    console.log('email-game-report', await r.json().catch(()=>({status:r.status})));
+  }catch(e){ console.warn('email trigger failed', e); }
+}
 async function autoUploadGameReport(){
   // Silently generate PDF blob and upload to Supabase Storage, then patch games.report_url
   if(!G_game_id) return;

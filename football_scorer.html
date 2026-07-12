@@ -2032,6 +2032,19 @@ async function generatePDF(opts={}){
   doc.save(`MBR_Football_${abbr('away')}_at_${abbr('home')}_${(G.date||'').replace(/-/g,'')}.pdf`);
 }
 
+// Ask the backend to email this game's report to matching subscribers (deduped
+// server-side). No-op for test/manual games with no game_id.
+async function emailGameReport(){
+  if(!G_game_id || G_test_mode) return;
+  try{
+    const r=await fetch(`${SB_URL}/functions/v1/email-game-report`,{
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
+      body:JSON.stringify({ game_id:G_game_id })
+    });
+    console.log('email-game-report', await r.json().catch(()=>({status:r.status})));
+  }catch(e){ console.warn('email trigger failed', e); }
+}
 async function autoUploadGameReport(){
   if(!G_game_id || G_test_mode) return;
   try{
@@ -2090,10 +2103,11 @@ async function confirmEndGame(){
       });
     });
     await autoUploadGameReport();
+    await emailGameReport();
   }
   msg('Game finalized', G_test_mode
     ? 'Test game ended. Nothing was saved.'
-    : 'Final score saved, player stats pushed, and the game report was generated and uploaded.');
+    : 'Final score saved, player stats pushed, and the game report was generated, uploaded, and emailed.');
 }
 
 // ═══════════════════════════════════════════════

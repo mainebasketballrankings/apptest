@@ -374,7 +374,7 @@ const SPORTS={
       {key:'penalty_kick_made',lbl:'PK ✓',     t:'pos', goal:true},
       {key:'penalty_kick_miss',lbl:'PK ✗',     t:'neg'},
       {key:'goal_kick',       lbl:'Goal Kick', t:'tm', team:true},
-      {key:'timeout_full',    lbl:'Stoppage',  t:'tm', team:true},
+      {key:'injury',          lbl:'Injury',    t:'tm', team:true},
       {key:'goalie_change',   lbl:'GK Change', t:'tm'},
       {key:'possession_flip', lbl:'Poss',      t:'tm', team:true}
     ]
@@ -420,7 +420,8 @@ const SPORTS={
     field:'lax', gkTracked:true,
     stats:['G','A','SH','SOG','GB','CT','TO','PEN'],
     keeper:['SV','GA'],
-    cards:{yellow:{secs:null,short:false}, red:{secs:null,short:true}},
+    // Girls lacrosse: green = team caution, yellow = 2-min suspension (team plays short).
+    cards:{green:{secs:null,short:false}, yellow:{secs:120,short:true}, red:{secs:null,short:true}},
     btns:[
       {key:'ground_ball',      lbl:'GB',         t:'pos'},
       {key:'faceoff_won',      lbl:'FO Won',     t:'pos'},
@@ -432,6 +433,7 @@ const SPORTS={
       {key:'penalty_60',       lbl:'Pen 1:00',   t:'ca', pen:60},
       {key:'penalty_120',      lbl:'Pen 2:00',   t:'ca', pen:120},
       {key:'penalty_180',      lbl:'Pen 3:00',   t:'ca', pen:180},
+      {key:'card_green',       lbl:'Green',      t:'grn', card:'green', girlsOnly:true},
       {key:'card_yellow',      lbl:'Yellow',     t:'yel', card:'yellow'},
       {key:'card_red',         lbl:'Red',        t:'red', card:'red'},
       {key:'timeout_full',     lbl:'Timeout',    t:'tm', team:true},
@@ -597,6 +599,10 @@ function sbPushEvent(e){
       clock:fmt(e.clk), period:periodLbl(e.period), elapsed:fmt(e.el||0),
       goal:!!e.goal, shot:!!e.shot, on_target:!!e.onTarget,
       assist:e.assistName||null, gk:e.gkName||null,
+      // Snapshot of who is actually off the field right now. The viewer has no
+      // clock of its own, so it must not try to simulate a penalty box.
+      pens:{ home:GAME.home.pens.map(x=>({num:x.num,lbl:x.lbl,secs:x.secs,perm:!!x.perm})),
+             away:GAME.away.pens.map(x=>({num:x.num,lbl:x.lbl,secs:x.secs,perm:!!x.perm})) },
       score:{home:GAME.home.score,away:GAME.away.score},
       ln:playerLine(e.pid)
     })
@@ -757,8 +763,8 @@ async function suSelectGame(id){
   G_game_id=g.id; G_home_team_id=g.homeId; G_away_team_id=g.awayId; _gameFinalized=(g.status==='final');
   document.getElementById('su-home-name').value=g.home.name;
   document.getElementById('su-away-name').value=g.away.name;
-  document.getElementById('su-home-short').value=autoShort(g.home.name);
-  document.getElementById('su-away-short').value=autoShort(g.away.name);
+  document.getElementById('su-home-short').value=shortFor(g.home.name);
+  document.getElementById('su-away-short').value=shortFor(g.away.name);
   document.getElementById('su-home-gender').value=/girl/i.test(g.home.gender)?'girls':'boys';
   document.getElementById('su-away-gender').value=/girl/i.test(g.away.gender)?'girls':'boys';
   document.getElementById('su-venue').value=g.venue||'';
@@ -770,13 +776,125 @@ async function suSelectGame(id){
   if(!hc&&!ac){err.style.color='var(--al)';err.textContent='Teams set, but no rosters in the database. Add players below, then kick off.';}
   else{err.style.color='var(--green)';err.textContent=`✓ ${g.home.name} (${hc}) · ${g.away.name} (${ac}). Check starters ★ and keepers GK.`;}
 }
+const MAINE_TEAMS = [
+  // Class AA
+  {name:'Bangor',             short:'BANG'},
+  {name:'Bonny Eagle',        short:'BONNY'},
+  {name:'Cheverus',           short:'CHEV'},
+  {name:'Deering',            short:'DEER'},
+  {name:'Edward Little',      short:'EL'},
+  {name:'Lewiston',           short:'LEW'},
+  {name:'Massabesic',         short:'MASS'},
+  {name:'Noble',              short:'NOBLE'},
+  {name:'Oxford Hills',       short:'OXH'},
+  {name:'Portland',           short:'PORT'},
+  {name:'Sanford',            short:'SAN'},
+  {name:'Scarborough',        short:'SCAR'},
+  {name:'South Portland',     short:'SOPO'},
+  {name:'Thornton Academy',   short:'TA'},
+  {name:'Windham',            short:'WIND'},
+  // Class A
+  {name:'Biddeford',          short:'BIDD'},
+  {name:'Brewer',             short:'BREW'},
+  {name:'Brunswick',          short:'BRUNS'},
+  {name:'Camden Hills',       short:'CHILLS'},
+  {name:'Caribou',            short:'CARIB'},
+  {name:'Cape Elizabeth',     short:'CAPE'},
+  {name:'Ellsworth',          short:'ELL'},
+  {name:'Falmouth',           short:'FALM'},
+  {name:'Gorham',             short:'GOR'},
+  {name:'Hampden',            short:'HAMP'},
+  {name:'Hermon',             short:'HERM'},
+  {name:'Kennebunk',          short:'BUNK'},
+  {name:'Lawrence',           short:'LAW'},
+  {name:'Marshwood',          short:'MARSH'},
+  {name:'Mt. Blue',           short:'MTBLU'},
+  {name:'Old Town',           short:'OT'},
+  {name:'Skowhegan',          short:'SKOW'},
+  {name:'Westbrook',          short:'WEST'},
+  {name:'Yarmouth',           short:'YARM'},
+  // Class B
+  {name:'Erskine Academy',    short:'ERSK'},
+  {name:'Freeport',           short:'FREE'},
+  {name:'Gardiner',           short:'GARD'},
+  {name:'Greely',             short:'GRLY'},
+  {name:'Gray-New Gloucester',short:'GNG'},
+  {name:'Hampden Academy',    short:'HAMP'},
+  {name:'John Bapst',         short:'BAPST'},
+  {name:'Leavitt',            short:'LEAV'},
+  {name:'Lincoln Academy',    short:'LA'},
+  {name:'Medomak Valley',     short:'MED'},
+  {name:'Messalonskee',       short:'MESSO'},
+  {name:'Morse',              short:'MORSE'},
+  {name:'Mt. Ararat',         short:'MTA'},
+  {name:'Nokomis',            short:'NOKO'},
+  {name:'North Yarmouth Academy', short:'NYA'},
+  {name:'Oceanside',          short:'OCEAN'},
+  {name:'Orono',              short:'ORONO'},
+  {name:'Presque Isle',       short:'PI'},
+  {name:'Spruce Mountain',    short:'SPRCE'},
+  {name:'Waterville',         short:'WATER'},
+  {name:'Winslow',            short:'WINS'},
+  {name:'York',               short:'YORK'},
+  // Class C
+  {name:'Bangor Christian',   short:'BC'},
+  {name:'Belfast',            short:'BELF'},
+  {name:'Bucksport',          short:'BUCK'},
+  {name:'Dirigo',             short:'DIRIGO'},
+  {name:'Foxcroft Academy',   short:'FOX'},
+  {name:'Houlton',            short:'HOUL'},
+  {name:'Lee Academy',        short:'LEE'},
+  {name:'Lisbon',             short:'LIS'},
+  {name:'Madawaska',          short:'MAD'},
+  {name:'Mattanawcook',       short:'MATT'},
+  {name:'Monmouth Academy',   short:'MON'},
+  {name:'Mount Abram',        short:'ABRAM'},
+  {name:'Mt. Desert Island',  short:'MDI'},
+  {name:'Old Orchard Beach',  short:'OOB'},
+  {name:'Poland',             short:'POL'},
+  {name:'Schenck',            short:'SCHNK'},
+  {name:'Sumner',             short:'SUM'},
+  {name:'Telstar',            short:'TEL'},
+  {name:'Woodland',           short:'WOOD'},
+  {name:'Winthrop',           short:'WINT'},
+  // Class D / S
+  {name:'Ashland',            short:'ASH'},
+  {name:'Calais',             short:'CAL'},
+  {name:'Easton',             short:'EAST'},
+  {name:'Forest Hills',       short:'FH'},
+  {name:'Fort Fairfield',     short:'FTFAIR'},
+  {name:'Fort Kent',          short:'FKENT'},
+  {name:'Jonesport-Beals',    short:'JBEALS'},
+  {name:'Katahdin',           short:'KAT'},
+  {name:'Maranacook',         short:'MCOOK'},
+  {name:'Milo',               short:'MILO'},
+  {name:'Narraguagus',        short:'NARRA'},
+  {name:'Penobscot Valley',   short:'PV'},
+  {name:'Rangeley',           short:'RANG'},
+  {name:'Sacopee Valley',     short:'SAC'},
+  {name:'Southern Aroostook', short:'SA'},
+  {name:'Van Buren',          short:'VB'},
+  {name:'Waynflete',          short:'FLETE'},
+  {name:'Wiscasset',          short:'WISC'},
+  // Privates / other
+  {name:'Kents Hill School',  short:'KHS'},
+  {name:'Gould Academy',      short:'GOULD'},
+  {name:'Hebron Academy',     short:'HEB'},
+  {name:'Pine Tree Academy',  short:'PTA'},
+  {name:'Berwick Academy',    short:'BA'},
+];
+// Curated short first; initials only as a fallback for schools not on the list.
+function shortFor(name){
+  const t=MAINE_TEAMS.find(t=>t.name.toLowerCase()===(name||'').trim().toLowerCase());
+  return t ? t.short : autoShort(name);
+}
 function autoShort(name){
   const w=(name||'').trim().split(/\s+/);
   return (w.length===1?w[0].slice(0,6):w.map(x=>x[0]).join('').slice(0,6)).toUpperCase();
 }
 function suAutoShort(side){
   const s=document.getElementById(`su-${side}-short`);
-  if(!s.value) s.value=autoShort(document.getElementById(`su-${side}-name`).value);
+  if(!s.value) s.value=shortFor(document.getElementById(`su-${side}-name`).value);
 }
 function parseName(full){
   const p=(full||'').trim().split(/\s+/);
@@ -829,7 +947,7 @@ function suAcHide(side){setTimeout(()=>document.getElementById(`ac-${side}`).cla
 async function suAcPick(e,side,name){
   e.preventDefault();
   document.getElementById(`su-${side}-name`).value=name;
-  document.getElementById(`su-${side}-short`).value=autoShort(name);
+  document.getElementById(`su-${side}-short`).value=shortFor(name);
   document.getElementById(`ac-${side}`).classList.remove('show');
   await suGenderChange(side);
 }
@@ -879,8 +997,8 @@ async function suKickOff(){
 
   GAME.gender=document.getElementById('su-home-gender').value;
   GAME.home.name=hName; GAME.away.name=aName;
-  GAME.home.short=document.getElementById('su-home-short').value||autoShort(hName);
-  GAME.away.short=document.getElementById('su-away-short').value||autoShort(aName);
+  GAME.home.short=document.getElementById('su-home-short').value||shortFor(hName);
+  GAME.away.short=document.getElementById('su-away-short').value||shortFor(aName);
 
   ['home','away'].forEach(side=>{
     PL[side]=SU[side].players.filter(p=>p.last||p.first).map((p,i)=>({
@@ -1120,7 +1238,9 @@ function pushEvt(o){
 
 function renderBtns(){
   const g=document.getElementById('bgrid');
-  g.innerHTML=SP.btns.map((b,i)=>`<div class="sbtn t-${b.t}" data-i="${i}" onclick="doStat(${i})">${b.lbl}</div>`).join('');
+  g.innerHTML=SP.btns.map((b,i)=>
+    (b.girlsOnly && GAME.gender!=='girls') ? '' :
+    `<div class="sbtn t-${b.t}" data-i="${i}" onclick="doStat(${i})">${b.lbl}</div>`).join('');
   updBtns();
 }
 function updBtns(){

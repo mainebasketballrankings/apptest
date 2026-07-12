@@ -93,6 +93,7 @@
   .opt .od{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
   .dot.h{background:var(--home);} .dot.a{background:var(--away);}
+  .dot.rg{background:var(--gold);} .dot.vn{background:#0f766e;}
   button.go{width:100%;margin-top:18px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--ink);border:none;border-radius:12px;padding:15px;cursor:pointer;transition:transform .08s, background .12s;}
   button.go:hover{background:#1e293b;} button.go:active{transform:scale(.985);} button.go:disabled{opacity:.5;cursor:default;}
   .fine{font-size:11.5px;color:var(--muted);text-align:center;margin:12px 4px 0;line-height:1.5;}
@@ -151,6 +152,8 @@
           <div class="cap eyebrow">Want more? (optional)</div>
           <label class="opt"><input type="checkbox" id="followHome"><span><span class="ot"><span class="dot h"></span><span id="followHomeName">this team</span></span><span class="od">Get their reports whenever we cover a game.</span></span></label>
           <label class="opt"><input type="checkbox" id="followAway"><span><span class="ot"><span class="dot a"></span><span id="followAwayName">this team</span></span><span class="od">Get their reports whenever we cover a game.</span></span></label>
+          <label class="opt" id="optRegion" style="display:none"><input type="checkbox" id="followRegion"><span><span class="ot"><span class="dot rg"></span><span id="followRegionName">this region</span></span><span class="od">Every game we cover in this region.</span></span></label>
+          <label class="opt" id="optVenue" style="display:none"><input type="checkbox" id="followVenue"><span><span class="ot"><span class="dot vn"></span><span id="followVenueName">this venue</span></span><span class="od">Every game we cover at this site — handy for tournaments.</span></span></label>
           <label class="opt"><input type="checkbox" id="newsletter"><span><span class="ot">The Maine Basketball Rankings newsletter</span><span class="od">Rankings, podcast, and Maine hoops coverage.</span></span></label>
         </div>
         <button class="go" id="submit">Send me the report</button>
@@ -183,7 +186,7 @@ const BASKETBALL='b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const params=new URLSearchParams(location.search);
 const GAME_ID=params.get('game_id');
 const $=id=>document.getElementById(id);
-const SEL='id,game_date,location,status,home_score,away_score,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url,gender),away_team:away_team_id(school_name,logo_url,gender)';
+const SEL='id,game_date,location,venue,status,home_score,away_score,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url,gender,team_region),away_team:away_team_id(school_name,logo_url,gender,team_region)';
 
 let GAME=null;
 
@@ -271,10 +274,21 @@ function selectGame(g,fromPicker){
   const d=g.game_date? new Date(g.game_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
   $('meta').textContent=[d,g.location].filter(Boolean).join('  ·  ');
   $('followHomeName').textContent=hName; $('followAwayName').textContent=aName;
+  // Region follow (North/South) — offered when both teams sit in a real region.
+  const region=(h.team_region&&/^(north|south)$/i.test(h.team_region))?h.team_region:null;
+  GAME._region=region;
+  if(region){ $('followRegionName').textContent=region+' region'; $('optRegion').style.display=''; }
+  else { $('optRegion').style.display='none'; }
+  // Venue follow — skip placeholders like TBA.
+  const venue=(g.venue&&!/^tba$/i.test(g.venue.trim()))?g.venue.trim():null;
+  GAME._venue=venue;
+  if(venue){ $('followVenueName').textContent=venue; $('optVenue').style.display=''; }
+  else { $('optVenue').style.display='none'; }
   $('flede').textContent = g.status==='final'
     ? 'Full box score, shot charts, and play-by-play — sent straight to your inbox.'
     : "We'll email you the full report the moment this game goes final.";
   $('email').value=''; $('followHome').checked=$('followAway').checked=$('newsletter').checked=false;
+  $('followRegion').checked=$('followVenue').checked=false;
   $('form').style.display=''; $('done').style.display='none';
   const btn=$('submit'); btn.disabled=false; btn.textContent='Send me the report';
   $('back').style.display=fromPicker?'':'none';
@@ -305,21 +319,33 @@ $('submit').addEventListener('click',async()=>{
   $('email').style.borderColor='';
   const payload={email,game_id:GAME.id,
     follow_team_ids:[ $('followHome').checked?GAME.home_team_id:null, $('followAway').checked?GAME.away_team_id:null ].filter(Boolean),
+    follow_region: ($('followRegion').checked && GAME._region) ? GAME._region : null,
+    follow_venue:  ($('followVenue').checked  && GAME._venue)  ? GAME._venue  : null,
     newsletter:$('newsletter').checked, source:'game-qr'};
   const btn=$('submit'); btn.disabled=true; btn.textContent='Sending…';
   try{ const r=await fetch(`${SB_URL}/functions/v1/report-signup`,{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`},body:JSON.stringify(payload)}); if(!r.ok) throw 0; }
   catch(e){ console.warn('signup endpoint not live yet — payload:',payload); }
-  const final=GAME.status==='final', follows=payload.follow_team_ids.length;
+  const final=GAME.status==='final';
+  const follows=payload.follow_team_ids.length
+    + (payload.follow_region?1:0) + (payload.follow_venue?1:0);
   let msg = final
     ? `The report for ${teamName(GAME.away_team)} at ${teamName(GAME.home_team)} is on its way to ${email}.`
     : `We'll send the report to ${email} as soon as this game is final.`;
-  if(follows||payload.newsletter){ msg+=` You're also set up for ${[follows?`${follows} team${follows>1?'s':''}`:'', payload.newsletter?'the newsletter':''].filter(Boolean).join(' and ')}.`; }
+  if(follows||payload.newsletter){
+    const bits=[];
+    const t=payload.follow_team_ids.length; if(t) bits.push(`${t} team${t>1?'s':''}`);
+    if(payload.follow_region) bits.push(`the ${payload.follow_region} region`);
+    if(payload.follow_venue)  bits.push(payload.follow_venue);
+    if(payload.newsletter)    bits.push('the newsletter');
+    msg+=` You're also set up for ${bits.join(', ')}.`;
+  }
   $('doneMsg').textContent=msg;
   $('form').style.display='none'; $('done').style.display='block';
 });
 
 $('again').addEventListener('click',()=>{
   $('email').value=''; $('followHome').checked=$('followAway').checked=$('newsletter').checked=false;
+  $('followRegion').checked=$('followVenue').checked=false;
   $('done').style.display='none'; $('form').style.display='';
   const btn=$('submit'); btn.disabled=false; btn.textContent='Send me the report';
   $('email').focus();

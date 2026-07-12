@@ -3029,6 +3029,9 @@ function fdFeedDesc(e){
   const n=e.notes||{};
   const who=e.pname?`<b>${e.pnum?'#'+e.pnum+' ':''}${e.pname}</b>`:'';
   const isGoal=!!n.goal||e.key==='goal';
+  // A red that came from a second caution should say so — it reads very differently.
+  if(e.key==='card_red' && /2nd yellow/i.test(n.label||''))
+    return `${who?who+' — ':''}<b style="color:#c0392b">RED CARD</b> (second yellow)`;
   if(isGoal || e.key==='penalty_kick_made' || e.key==='penalty_stroke_made'){
     const how = e.key==='penalty_kick_made' ? ' (penalty kick)'
               : e.key==='penalty_stroke_made' ? ' (penalty stroke)' : '';

@@ -361,6 +361,9 @@ const SPORTS={
     periods:2, periodSecs:2400, plbl:['1ST','2ND'],
     ot:{secs:300, max:2, sudden:true}, ties:true,
     mercy:{diff:8, afterElapsed:3600, end:true, txt:'Mercy: 8-goal margin at 60:00 or later ends the game'},
+    // MPA bulletin: "Two yellow cards in the same game result in a red card. For the
+    // purposes of card counting, they would be reported as one yellow card and one red."
+    secondYellowRed:true,
     field:'soccer', gkTracked:true,
     cards:{yellow:{secs:null,short:false}, red:{secs:null,short:true}},
     stats:['G','A','SH','SOG','FL','YC','RC'],
@@ -392,6 +395,9 @@ const SPORTS={
     periods:4, periodSecs:900, plbl:['1ST','2ND','3RD','4TH'],
     ot:{secs:480, max:2, sudden:true, note:'7v7'}, ties:true,
     mercy:{diff:5, secondHalfOnly:true, end:false, txt:'5+ goals in 2nd half → running clock'},
+    // Field hockey cards escalate at the umpire's discretion — there is no automatic
+    // second-yellow red. Warn the scorer, but never issue it for them.
+    secondYellowRed:false,
     field:'fh', gkTracked:true,
     cards:{green:{secs:120,short:true}, yellow:{secs:300,short:true}, red:{secs:null,short:true}},
     stats:['G','A','SH','SOG','DS','GC','YC','RC'],
@@ -417,6 +423,7 @@ const SPORTS={
     periods:4, periodSecs:720, plbl:['1ST','2ND','3RD','4TH'],
     ot:{secs:240, max:99, sudden:true}, ties:false,
     otGirls:{secs:360, max:99, sudden:true},
+    secondYellowRed:true,   // girls lacrosse: a second yellow removes the player
     mercy:{diff:12, end:false, txt:'no MPA mercy rule — End Game is manual'},
     field:'lax', gkTracked:true,
     stats:['G','A','SH','SOG','GB','CT','TO','PEN'],
@@ -1001,8 +1008,15 @@ async function suKickOff(){
   GAME.home.short=document.getElementById('su-home-short').value||shortFor(hName);
   GAME.away.short=document.getElementById('su-away-short').value||shortFor(aName);
 
+  const byNum=(a,b)=>{
+    const na=parseInt(a.num), nb=parseInt(b.num);
+    if(isNaN(na)&&isNaN(nb)) return 0;
+    if(isNaN(na)) return 1;          // players with no number sort last
+    if(isNaN(nb)) return -1;
+    return na-nb;
+  };
   ['home','away'].forEach(side=>{
-    PL[side]=SU[side].players.filter(p=>p.last||p.first).map((p,i)=>({
+    PL[side]=SU[side].players.filter(p=>p.last||p.first).sort(byNum).map((p,i)=>({
       id:`${side[0]}${i+1}`, num:p.num||'', fi:p.fi||(p.last?p.last[0]:''), first:p.first||'', last:p.last||'',
       on:!!p.starter, gk:!!p.gk, wasGK:!!p.gk, starter:!!p.starter
     }));
@@ -1303,6 +1317,25 @@ function doStat(i){
     pushEvt({side,p,key:b.key,label:b.lbl,goal:true,shot:true,onTarget:true,gkName:gk?pName(gk):null});
     checkMercy(); updAll(); scheduleSave();
     flash(`GOAL! ${p?pName(p):''} (${b.lbl})`,'made'); return;
+  }
+
+  // Two yellows = a red. Recorded as ONE yellow + ONE red (per the MPA card-counting
+  // rule), so the second yellow is logged AS the red rather than as another caution.
+  if(b.card==='yellow' && p){
+    const l=playerLine(p.id);
+    if(l.rc>0){ flash(pName(p)+' is already off — red card issued','bad'); return; }
+    if(l.yc>=1){
+      if(SP.secondYellowRed){
+        addPenalty(side,p,'RED',null);
+        p.on=false;
+        pushEvt({side,p,key:'card_red',label:'Red (2nd yellow)',
+          meta:{card:'red',second_yellow:true}});
+        renderPl(side); updAll(); scheduleSave();
+        flash('SECOND YELLOW → RED · '+pName(p),'bad');
+        return;
+      }
+      flash('2nd yellow for '+pName(p)+' — check the card escalation rule','bad');
+    }
   }
 
   // cards & timed penalties → penalty box

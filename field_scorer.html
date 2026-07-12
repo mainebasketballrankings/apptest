@@ -1182,6 +1182,19 @@ function finishGoal(assistId){
 }
 
 // ══ SHOT DOTS ════════════════════════════════════════════════
+// Rebuild a shot's marker type from its event. Lets the report slice shots
+// by player without keeping a second parallel array in sync.
+function dotKindFor(e){
+  if(e.goal) return 'goal';
+  if(e.key==='shot_on') return 'save';
+  if(e.key==='shot_blocked') return 'blocked';
+  if(/post/i.test(e.label||'')) return 'post';
+  return 'off';
+}
+function shotsFor(side,pid){
+  return evts.filter(e=>e.side===side && e.pt && e.shot && (pid==null||e.pid===pid))
+             .map(e=>({pt:e.pt, kind:dotKindFor(e), side:e.side}));
+}
 function addDot(pt,kind,side){
   dots.push({pt,kind,side});
   if(side!==chartSide)return;
@@ -1779,20 +1792,39 @@ async function generatePDF(opts={}){
   });
   y+=4;
 
-  // ── Scoring summary ──
-  const goals=[...evts].reverse().filter(e=>e.goal);
-  if(goals.length){
-    sectionHead('Scoring');
+  // ── Scoring & discipline. A red card decides games; it does not belong
+  //    buried in a Y/R column at the bottom of a box score. ──
+  const CARD_TXT={card_green:'GREEN CARD',card_yellow:'YELLOW CARD',card_red:'RED CARD'};
+  const CARD_COL={card_green:[22,140,60],card_yellow:[190,140,10],card_red:[190,30,30]};
+  // Sort by clock, not by insertion order — an undo-and-re-enter must not
+  // land a 12th-minute card underneath a 70th-minute goal.
+  const bigEvts=[...evts].filter(e=>e.goal||CARD_TXT[e.key])
+    .sort((a,b)=> (a.period-b.period) || (b.clk-a.clk));
+  if(bigEvts.length){
+    sectionHead('Scoring & Discipline');
     doc.setFontSize(8.5);
-    goals.forEach(e=>{
+    bigEvts.forEach(e=>{
       check(6);
       const t=SPORT_KEY.startsWith('soccer')?fmt(e.el||0):`${periodLbl(e.period)} ${fmt(e.clk)}`;
       doc.setFont('helvetica','normal'); doc.setTextColor(...DIM);
       doc.text(t,ML,y);
       doc.setFont('helvetica','bold'); doc.setTextColor(...(e.side==='away'?RED:BLUE));
       doc.text(GAME[e.side].short,ML+18,y);
-      doc.setFont('helvetica','normal'); doc.setTextColor(...NAVY);
-      doc.text(`${e.pname||''}${e.assistName?'  (assist: '+e.assistName+')':'  (unassisted)'}`,ML+36,y);
+      if(e.goal){
+        // colour chip so goals read at a glance down the column
+        doc.setFillColor(22,163,74); doc.circle(ML+34,y-1.1,1.1,'F');
+        doc.setFont('helvetica','bold'); doc.setTextColor(22,163,74);
+        doc.text('GOAL',ML+37,y);
+        doc.setFont('helvetica','normal'); doc.setTextColor(...NAVY);
+        doc.text(`${e.pname||''}${e.assistName?'  (assist: '+e.assistName+')':'  (unassisted)'}`,ML+50,y);
+      }else{
+        const c=CARD_COL[e.key];
+        doc.setFillColor(...c); doc.rect(ML+33,y-2.4,2.4,2.8,'F');
+        doc.setFont('helvetica','bold'); doc.setTextColor(...c);
+        doc.text(CARD_TXT[e.key],ML+37,y);
+        doc.setFont('helvetica','normal'); doc.setTextColor(...NAVY);
+        doc.text(e.pname||'',ML+65,y);
+      }
       y+=5;
     });
     y+=4;
@@ -1838,6 +1870,7 @@ async function generatePDF(opts={}){
   const cols = SPORT_KEY==='lacrosse'
     ? [['g','G'],['a','A'],['sh','SH'],['sog','SOG'],['gb','GB'],['ct','CT'],['yc','Y'],['rc','R']]
     : [['g','G'],['a','A'],['sh','SH'],['sog','SOG'],['fl','FL'],['yc','Y'],['rc','R']];
+  newPage();   // box scores get a clean page
   ['away','home'].forEach(side=>{
     const b=boxStats(side), gks=keeperRows(side), t=teamTotals(side);
     check(16+b.length*5+gks.length*5);
@@ -1891,21 +1924,64 @@ async function generatePDF(opts={}){
     y+=6;
   });
 
-  // ── Shot chart ──
-  check(95);
+  // ── Team shot charts ──
+  const ASPECT=(SP.field==='fh'?380:410)/440;
+  newPage();
   sectionHead('Shot Chart');
   const chartW=(PW-ML-MR-10)/2;
   ['away','home'].forEach((side,i)=>{
     const x=ML+i*(chartW+10);
     doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...(side==='away'?RED:BLUE));
     doc.text(`${GAME[side].short} ATTACKING`,x,y-1);
-    drawMiniField(doc,x,y+1,chartW,dots.filter(d=>d.side===side));
+    drawMiniField(doc,x,y+1,chartW,shotsFor(side,null));
   });
-  const mh=chartW*((SP.field==='fh'?380:410)/440);
-  y+=mh+6;
+  y+=chartW*ASPECT+7;
+
+  // Legend — drawn as shapes. jsPDF's standard fonts are WinAnsi and cannot
+  // encode ● or ○; they come out as mojibake.
   check(8);
-  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...DIM);
-  doc.text('● goal    ○ on target    × off target / blocked',ML,y);
+  let lx=ML;
+  const legend=(draw,label)=>{
+    draw(lx+1.4,y-1.1);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...DIM);
+    doc.text(label,lx+5,y);
+    lx += doc.getTextWidth(label)+12;
+  };
+  legend((x,cy)=>{doc.setFillColor(22,163,74);doc.circle(x,cy,1.4,'F');},'goal');
+  legend((x,cy)=>{doc.setDrawColor(37,99,235);doc.setLineWidth(0.35);doc.circle(x,cy,1.3,'S');},'on target (saved)');
+  legend((x,cy)=>{doc.setDrawColor(150,150,160);doc.setLineWidth(0.35);
+    doc.line(x-1.2,cy-1.2,x+1.2,cy+1.2);doc.line(x+1.2,cy-1.2,x-1.2,cy+1.2);},'off target / blocked');
+  legend((x,cy)=>{doc.setDrawColor(217,119,6);doc.setLineWidth(0.35);doc.rect(x-1.2,cy-1.2,2.4,2.4,'S');},'post');
+  y+=10;
+
+  // ── Individual shot charts, 3 across (portrait) ──
+  const shooters=[];
+  ['away','home'].forEach(side=>PL[side].forEach(p=>{
+    const sh=shotsFor(side,p.id);
+    if(sh.length) shooters.push({p,side,sh});
+  }));
+  if(shooters.length){
+    const PER=3, GAP=6;
+    const ICW=(PW-ML-MR-(PER-1)*GAP)/PER, ICH=ICW*ASPECT;
+    const CELL=ICH+11;
+    sectionHead('Individual Shot Charts');
+    let col=0, rowY=y;
+    shooters.forEach(({p,side,sh})=>{
+      if(col===PER){ col=0; rowY+=CELL; }
+      if(rowY+CELL>PH-18){ y=rowY; newPage(); sectionHead('Individual Shot Charts (cont.)'); rowY=y; col=0; }
+      const x=ML+col*(ICW+GAP);
+      doc.setFont('helvetica','bold'); doc.setFontSize(6.8);
+      doc.setTextColor(...(side==='away'?RED:BLUE));
+      doc.text(`#${p.num||'–'} ${pName(p)}`,x,rowY);
+      const g=sh.filter(s=>s.kind==='goal').length;
+      const on=sh.filter(s=>s.kind==='goal'||s.kind==='save').length;
+      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(...DIM);
+      doc.text(`${sh.length} SH · ${on} SOG · ${g} G`,x,rowY+3.4);
+      drawMiniField(doc,x,rowY+5,ICW,sh);
+      col++;
+    });
+    y=rowY+CELL;
+  }
 
   drawFooter();
   if(opts.returnBlob) return doc.output('blob');

@@ -152,7 +152,7 @@
           <div class="cap eyebrow">Want more? (optional)</div>
           <label class="opt"><input type="checkbox" id="followHome"><span><span class="ot"><span class="dot h"></span><span id="followHomeName">this team</span></span><span class="od">Get their reports whenever we cover a game.</span></span></label>
           <label class="opt"><input type="checkbox" id="followAway"><span><span class="ot"><span class="dot a"></span><span id="followAwayName">this team</span></span><span class="od">Get their reports whenever we cover a game.</span></span></label>
-          <label class="opt" id="optRegion" style="display:none"><input type="checkbox" id="followRegion"><span><span class="ot"><span class="dot rg"></span><span id="followRegionName">this region</span></span><span class="od">Every game we cover in this region.</span></span></label>
+          <div id="regionOpts"></div>
           <label class="opt" id="optVenue" style="display:none"><input type="checkbox" id="followVenue"><span><span class="ot"><span class="dot vn"></span><span id="followVenueName">this venue</span></span><span class="od">Every game we cover at this site — handy for tournaments.</span></span></label>
           <label class="opt"><input type="checkbox" id="newsletter"><span><span class="ot">The Maine Basketball Rankings newsletter</span><span class="od">Rankings, podcast, and Maine hoops coverage.</span></span></label>
         </div>
@@ -186,7 +186,7 @@ const BASKETBALL='b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const params=new URLSearchParams(location.search);
 const GAME_ID=params.get('game_id');
 const $=id=>document.getElementById(id);
-const SEL='id,game_date,location,venue,status,home_score,away_score,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url,gender,team_region),away_team:away_team_id(school_name,logo_url,gender,team_region)';
+const SEL='id,game_date,location,venue,status,sport_id,season_year,home_score,away_score,home_team_id,away_team_id,home_team:home_team_id(school_name,logo_url,gender),away_team:away_team_id(school_name,logo_url,gender)';
 
 let GAME=null;
 
@@ -201,6 +201,27 @@ function localDate(d){d=d||new Date();return `${d.getFullYear()}-${String(d.getM
 function addDays(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return localDate(d);}
 function prettyDate(iso){const t=localDate();if(iso===t)return 'Today';if(iso===addDays(t,-1))return 'Yesterday';return new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});}
 async function sb(path){const r=await fetch(`${SB_URL}/rest/v1/${path}`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});return r.json();}
+
+// Class + region for a game's two teams, e.g. ["A North"] (or two, if cross-class).
+async function loadClassRegions(g){
+  if(!g.sport_id || !g.season_year || !g.home_team_id || !g.away_team_id) return [];
+  const ids=[g.home_team_id,g.away_team_id].join(',');
+  const rows=await sb(`team_classifications?team_id=in.(${ids})`+
+    `&select=team_id,classes!inner(name,sport_id,season_year),regions(name)`+
+    `&classes.sport_id=eq.${g.sport_id}&classes.season_year=eq.${g.season_year}`);
+  // Gender-scoped: a B North boys coach shouldn't get B North girls reports.
+  const gen = t => /girl/i.test((t&&t.gender)||'') ? 'Girls' : /boy/i.test((t&&t.gender)||'') ? 'Boys' : '';
+  const genderOf = { [g.home_team_id]: gen(g.home_team), [g.away_team_id]: gen(g.away_team) };
+  const out=[];
+  (Array.isArray(rows)?rows:[]).forEach(r=>{
+    const cls=r&&r.classes&&r.classes.name, reg=r&&r.regions&&r.regions.name;
+    if(!cls) return;
+    const base = reg ? `${cls} ${reg}` : String(cls);
+    const label = [base, genderOf[r.team_id]].filter(Boolean).join(' ');   // "B North Boys"
+    if(label && !out.includes(label)) out.push(label);
+  });
+  return out;
+}
 
 async function start(){
   buildQR();
@@ -274,11 +295,15 @@ function selectGame(g,fromPicker){
   const d=g.game_date? new Date(g.game_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
   $('meta').textContent=[d,g.location].filter(Boolean).join('  ·  ');
   $('followHomeName').textContent=hName; $('followAwayName').textContent=aName;
-  // Region follow (North/South) — offered when both teams sit in a real region.
-  const region=(h.team_region&&/^(north|south)$/i.test(h.team_region))?h.team_region:null;
-  GAME._region=region;
-  if(region){ $('followRegionName').textContent=region+' region'; $('optRegion').style.display=''; }
-  else { $('optRegion').style.display='none'; }
+  // Class + region follow ("A North") — from team_classifications, not teams.team_region
+  // (which is null for basketball). A cross-class game can offer two.
+  $('regionOpts').innerHTML='';
+  loadClassRegions(g).then(list=>{
+    $('regionOpts').innerHTML = list.map((cr,i)=>
+      `<label class="opt"><input type="checkbox" class="rgchk" data-cr="${cr.replace(/"/g,'&quot;')}">`+
+      `<span><span class="ot"><span class="dot rg"></span>Class ${cr}</span>`+
+      `<span class="od">Every Class ${cr} game we cover — scout who you might see in the tourney.</span></span></label>`).join('');
+  }).catch(()=>{});
   // Venue follow — skip placeholders like TBA.
   const venue=(g.venue&&!/^tba$/i.test(g.venue.trim()))?g.venue.trim():null;
   GAME._venue=venue;
@@ -288,7 +313,8 @@ function selectGame(g,fromPicker){
     ? 'Full box score, shot charts, and play-by-play — sent straight to your inbox.'
     : "We'll email you the full report the moment this game goes final.";
   $('email').value=''; $('followHome').checked=$('followAway').checked=$('newsletter').checked=false;
-  $('followRegion').checked=$('followVenue').checked=false;
+  $('followVenue').checked=false;
+  document.querySelectorAll('.rgchk').forEach(c=>c.checked=false);
   $('form').style.display=''; $('done').style.display='none';
   const btn=$('submit'); btn.disabled=false; btn.textContent='Send me the report';
   $('back').style.display=fromPicker?'':'none';
@@ -319,7 +345,7 @@ $('submit').addEventListener('click',async()=>{
   $('email').style.borderColor='';
   const payload={email,game_id:GAME.id,
     follow_team_ids:[ $('followHome').checked?GAME.home_team_id:null, $('followAway').checked?GAME.away_team_id:null ].filter(Boolean),
-    follow_region: ($('followRegion').checked && GAME._region) ? GAME._region : null,
+    follow_regions: [...document.querySelectorAll('.rgchk')].filter(c=>c.checked).map(c=>c.dataset.cr),
     follow_venue:  ($('followVenue').checked  && GAME._venue)  ? GAME._venue  : null,
     newsletter:$('newsletter').checked, source:'game-qr'};
   const btn=$('submit'); btn.disabled=true; btn.textContent='Sending…';
@@ -327,14 +353,14 @@ $('submit').addEventListener('click',async()=>{
   catch(e){ console.warn('signup endpoint not live yet — payload:',payload); }
   const final=GAME.status==='final';
   const follows=payload.follow_team_ids.length
-    + (payload.follow_region?1:0) + (payload.follow_venue?1:0);
+    + payload.follow_regions.length + (payload.follow_venue?1:0);
   let msg = final
     ? `The report for ${teamName(GAME.away_team)} at ${teamName(GAME.home_team)} is on its way to ${email}.`
     : `We'll send the report to ${email} as soon as this game is final.`;
   if(follows||payload.newsletter){
     const bits=[];
     const t=payload.follow_team_ids.length; if(t) bits.push(`${t} team${t>1?'s':''}`);
-    if(payload.follow_region) bits.push(`the ${payload.follow_region} region`);
+    payload.follow_regions.forEach(cr=>bits.push(`Class ${cr}`));
     if(payload.follow_venue)  bits.push(payload.follow_venue);
     if(payload.newsletter)    bits.push('the newsletter');
     msg+=` You're also set up for ${bits.join(', ')}.`;
@@ -345,7 +371,8 @@ $('submit').addEventListener('click',async()=>{
 
 $('again').addEventListener('click',()=>{
   $('email').value=''; $('followHome').checked=$('followAway').checked=$('newsletter').checked=false;
-  $('followRegion').checked=$('followVenue').checked=false;
+  $('followVenue').checked=false;
+  document.querySelectorAll('.rgchk').forEach(c=>c.checked=false);
   $('done').style.display='none'; $('form').style.display='';
   const btn=$('submit'); btn.disabled=false; btn.textContent='Send me the report';
   $('email').focus();

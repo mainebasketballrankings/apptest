@@ -523,10 +523,15 @@ function evtTime(e){
   return `${periodLbl(e.period)} ${fmt(e.clk)}`;
 }
 function findP(pid,side){return PL[side]?.find(p=>p.id===pid);}
-// School-year-ending year. Fall sports (Jul-Dec) roll into next year; spring stays.
+// season_year = the calendar year the SEASON ENDS.
+// Basketball is the only sport that crosses New Year's (Dec–Mar), so it rolls
+// forward. Soccer and field hockey end in November; lacrosse ends in June —
+// none of them cross Jan 1, so for the field sports it is simply the game's year.
+// Rolling July forward would write 2027 for a Sept 2026 game, and the scorer's
+// own game picker (and embed.html) query 2026 — the game would vanish.
 function seasonYearFor(iso){
   const d=new Date((iso||new Date().toLocaleDateString('en-CA'))+'T12:00:00');
-  return d.getMonth()>=6 ? d.getFullYear()+1 : d.getFullYear();
+  return d.getFullYear();
 }
 function opp(s){return s==='home'?'away':'home';}
 

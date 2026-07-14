@@ -507,6 +507,12 @@ async function sbFetch(path){
 
 // ── Push queue (offline resilience) ──
 const QUEUE_KEY = 'mbr_fb_push_queue';
+let _lastStamp = 0;
+function evtStamp(){
+  const now = Date.now();
+  _lastStamp = (now <= _lastStamp) ? _lastStamp + 1 : now;   // strictly increasing
+  return new Date(_lastStamp).toISOString();
+}
 let _flushing = false;
 function queueLoad(){ try { return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); } catch(e){ return []; } }
 function queueSave(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e){} }
@@ -516,8 +522,18 @@ function setQueueStatus(){
   if(!el){ el = document.createElement('div'); el.id='push-queue-status';
     el.style.cssText='position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
     document.body.appendChild(el); }
-  el.innerHTML = q.length===0 ? '' : `<span>🟡</span><span style="color:#888">${q.length} event${q.length>1?'s':''} queued</span>`;
+  const drop = (typeof _droppedRows==='number' && _droppedRows>0)
+    ? `<span style="color:#c00">· ${_droppedRows} rejected</span>` : '';
+  el.innerHTML = (q.length===0 && !drop) ? ''
+    : `${q.length?'<span>🟡</span><span style="color:#888">'+q.length+' event'+(q.length>1?'s':'')+' queued</span>':''}${drop}`;
 }
+// A 4xx means the row will NEVER be accepted (bad enum, bad column, duplicate).
+// Retrying it forever just blocks everything behind it. 408/429 are the
+// exceptions — those are "try again", not "never".
+function isPermanentReject(status){
+  return status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
+let _droppedRows = 0;
 async function flushQueue(){
   if(_flushing) return; _flushing=true;
   let q = queueLoad();
@@ -529,9 +545,17 @@ async function flushQueue(){
         headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
         body: JSON.stringify(row)
       });
-      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
-      q.shift(); queueSave(q); setQueueStatus();
-    } catch(e){ console.warn('flush failed, retry later', e); break; }
+      if(r.ok || r.status===409){ q.shift(); queueSave(q); setQueueStatus(); continue; }
+      if(isPermanentReject(r.status)){
+        // Drop it and keep going — do NOT let one bad row wedge the whole queue.
+        let body=''; try{ body = await r.text(); }catch(_){}
+        console.error('DROPPING permanently-rejected event', r.status, body, row);
+        _droppedRows++;
+        q.shift(); queueSave(q); setQueueStatus();
+        continue;
+      }
+      throw new Error(`HTTP ${r.status}`);          // 5xx / 429 → transient, retry later
+    } catch(e){ console.warn('flush failed (transient), will retry', e); break; }
   }
   _flushing=false;
 }
@@ -548,8 +572,17 @@ async function sbInsert(table, row){
         headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
         body: JSON.stringify(row)
       });
-      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
-      await flushQueue(); return;
+      if(!r.ok && r.status!==409){
+        if(isPermanentReject(r.status)){
+          let body=''; try{ body = await r.text(); }catch(_){}
+          console.error('event REJECTED (not queued — it would never succeed)', r.status, body, row);
+          _droppedRows++; setQueueStatus(); return;
+        }
+        throw new Error(`HTTP ${r.status}`);
+      }
+      // only pay for a drain when there is actually something queued
+      if(queueLoad().length) flushQueue();
+      return;
     } catch(e){ console.warn('sbInsert failed, queuing', e); }
   }
   const q=queueLoad(); q.push({table,row}); queueSave(q); setQueueStatus();
@@ -884,12 +917,14 @@ async function pushEvt(key, extras={}){
   const points   = extras.points || 0;
   const pName    = extras.player || null;
   const pNum     = (extras.num!=null && extras.num!=='') ? (parseInt(extras.num)||null) : null;
+  const stamp    = evtStamp();      // true play order, captured before the await
 
   // Yield one microtask so the caller's commitPlay()/changePoss() runs first.
   await Promise.resolve();
 
   const row = {
     id: evtId, game_id: G_game_id,
+    created_at: stamp,              // ordering is the client's business, not the DB's
     team_id,
     event_type: key,
     period: qtr, clock_seconds: clk,
@@ -1229,7 +1264,8 @@ function confirmRun(){
   if(td){
     st.rtd++;
     addPBP(`${p.rusher.name} ${gain} yd rush ${tackTxt}`);
-    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,td:true}});
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,td:true,
+      tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null}});
     const tdSide=G.poss;
     scoreTD(tdSide);
     // Carry how the TD was scored, so the scoreboard can say what happened
@@ -1246,7 +1282,9 @@ function confirmRun(){
     changePoss(other(G.poss), 100-G.ballOn, 'fumble');
   } else {
     addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} yd rush${tackTxt}`);
-    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,tackler:p.tackler?.name||null}});
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,
+      tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null,
+      assist:p.assist?.name||null,   assistNum:p.assist?.number||null}});
     commitPlay(p.toSpot);
     if(p.oob) stopClock();
     applyPendPenalty(p);
@@ -1331,14 +1369,18 @@ function confirmPass(){
     if(td){
       ps.ptd++; rs.rectd++;
       addPBP(`${p.passer.name} ${gain} yd TD pass to ${p.receiver.name}`);
-      pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name,td:true}});
+      pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,
+        receiver:p.receiver.name, receiverNum:p.receiver.number||null, td:true}});
       const tdSide=G.poss; scoreTD(tdSide);
       G.lastTD = `${p.passer.name} ${gain} yd pass to ${p.receiver.name}`;
       pushEvt('touchdown',{player:p.receiver.name,num:p.receiver.number,points:6,side:tdSide,
         detail:{via:'pass', gain, passer:p.passer.name, scoring:G.lastTD}});
     } else {
       addPBP(`${p.passer.name} ${gain>=0?'+':''}${gain} pass to ${p.receiver.name}${p.tackler?` (${p.tackler.name})`:''}`);
-      pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name}});
+      pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,
+        receiver:p.receiver.name, receiverNum:p.receiver.number||null,
+        tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null,
+        assist:p.assist?.name||null,  assistNum:p.assist?.number||null}});
       commitPlay(p.toSpot);
       if(p.oob) stopClock();
       applyPendPenalty(p);
@@ -1357,7 +1399,7 @@ function confirmPass(){
       const d1=statFor(defSide(),p.defender.name,p.defender.number); d1.sack+=0.5;
       const d2=statFor(defSide(),p.defender2.name,p.defender2.number); d2.sack+=0.5;
       addPBP(`${p.passer.name} sacked by ${p.defender.name} & ${p.defender2.name} (${loss} yd, ½ each)`);
-      pushEvt('sack',{player:p.defender.name,num:p.defender.number,side:defSide(),detail:{loss,qb:p.passer.name,half:true,with:p.defender2.name}});
+      pushEvt('sack',{player:p.defender.name,num:p.defender.number,side:defSide(),detail:{loss,qb:p.passer.name,half:true,with:p.defender2.name,withNum:p.defender2.number||null}});
     } else {
       const ds=statFor(defSide(),p.defender.name,p.defender.number); ds.sack+=1;
       addPBP(`${p.passer.name} sacked by ${p.defender.name} (${loss} yd)`);

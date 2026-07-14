@@ -1198,22 +1198,31 @@
       const dd   = n.dd ? ` <span style="opacity:.6">— ${n.dd}</span>` : '';
       const B    = s => `<strong>${s}</strong>`;
 
+      // who made the stop, e.g. "… for 3 yards (Logan Vigue)"
+      const tk = n.tackler
+        ? ` (${n.tackler}${n.assist ? ', ' + n.assist : ''})`
+        : '';
+      const conv = (good, kind) =>
+        `<span style="color:${good ? 'var(--green)' : 'var(--red)'};font-weight:700">(${kind} ${good ? 'GOOD' : 'NO GOOD'})</span>`;
+
       switch (e.event_type) {
         case 'touchdown':
           return `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring || B(nm)}`;
+        // A conversion is the tail of the touchdown, not a separate play — show
+        // the TD it settled, with the result inline.
         case 'extra_point':
           return n.scoring
-            ? `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring} (PAT ${n.good ? 'good' : 'no good'})`
+            ? `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring} ${conv(n.good, 'PAT')}`
             : `Extra point ${n.good ? 'good' : 'no good'}${nm ? ' — ' + nm : ''}`;
         case 'two_point':
           return n.scoring
-            ? `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring} (2-pt ${n.good ? 'good' : 'failed'})`
+            ? `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring} ${conv(n.good, '2-pt')}`
             : `2-pt conversion ${n.good ? 'good' : 'failed'}${nm ? ' — ' + nm : ''}`;
         case 'run':
           if (n.fumbleLost) return `${B(nm)} rushes for ${yd(g||0)}, <span style="color:var(--red);font-weight:700">FUMBLE</span>`;
-          return `${B(nm)} rushes for ${yd(g||0)}${dd}`;
+          return `${B(nm)} rushes for ${yd(g||0)}${tk}${dd}`;
         case 'pass_comp':
-          return `${B(nm)} ${yd(g||0)} pass to ${n.receiver || ''}${dd}`;
+          return `${B(nm)} ${yd(g||0)} pass to ${n.receiver || ''}${tk}${dd}`;
         case 'pass_incomp':
           return `${B(nm)} pass incomplete${dd}`;
         case 'sack':
@@ -1389,11 +1398,8 @@
           if (desc) {
             let prefix;
             if (sport === 'basketball') prefix = periodLabel(e.period);
-            else if (sport === 'football' || ['soccer','field_hockey','lacrosse'].includes(sport)) {
-              let pn = {};
-              try { pn = e.notes ? (typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes) : {}; } catch (_) {}
-              prefix = (pn.qtr || pn.period || periodLabel(e.period) || '');
-            }
+            // Football / field sports: the period is already in the score bug above.
+            else if (sport === 'football' || ['soccer','field_hockey','lacrosse'].includes(sport)) prefix = '';
             else prefix = `${e.half === 'top' ? '▲' : '▼'}${e.inning||''}`;
             cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${prefix}</span> ${desc}`;
           }

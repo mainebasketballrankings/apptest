@@ -2449,7 +2449,8 @@ function fbRowToEvt(row){
 function fbPlayer(side,name,num){
   if(!name) return null;
   const m=FB.players[side];
-  if(!m[name]) m[name]={name,num:num||'',ra:0,ry:0,pa:0,pc:0,py:0,ptd:0,rec:0,recy:0,rectd:0,sack:0,dint:0};
+  if(!m[name]) m[name]={name,num:num||'',ra:0,ry:0,pa:0,pc:0,py:0,ptd:0,rec:0,recy:0,rectd:0,sack:0,dint:0,tkl:0};
+  if(num && !m[name].num) m[name].num=num;   // fill a number in later if we learn it
   if(num && !m[name].num) m[name].num=num;
   return m[name];
 }
@@ -2458,16 +2459,24 @@ function fbCheckFirstDown(e, forceAuto){
   if(forceAuto){ FB.tstat[e.side].fd++; return; }
   if(n.down===1 && FB._prevPoss===e.side && (FB._prevDown||1)>1) FB.tstat[e.side].fd++;
 }
+// The scorer records who made the stop; nothing was crediting it, so DEFENSE
+// showed nothing but interceptions.
+function fbCredTackle(def, d){
+  if(d.tackler){ const p=fbPlayer(def, d.tackler, d.tacklerNum); if(p) p.tkl++; }
+  if(d.assist){  const p=fbPlayer(def, d.assist,  d.assistNum);  if(p) p.tkl+=0.5; }
+}
 function fbAccumulate(e){
   const off=e.side, def=fbOther(off), T=FB.tstat, d=e.notes||{};
   switch(e.key){
-    case 'run': { const g=d.gain||0; T[off].ra++; T[off].ry+=g; const pl=fbPlayer(off,e.plast,e.pnum); if(pl){pl.ra++;pl.ry+=g;} fbCheckFirstDown(e); break; }
+    case 'run': { const g=d.gain||0; T[off].ra++; T[off].ry+=g;
+      const pl=fbPlayer(off,e.plast,e.pnum); if(pl){pl.ra++;pl.ry+=g;if(d.td)pl.rtd=(pl.rtd||0)+1;}
+      fbCredTackle(def,d); fbCheckFirstDown(e); break; }
     case 'pass_comp': { const g=d.gain||0; T[off].pa++; T[off].pc++; T[off].py+=g;
       const ps=fbPlayer(off,e.plast,e.pnum); if(ps){ps.pa++;ps.pc++;ps.py+=g;if(d.td)ps.ptd++;}
-      if(d.receiver){ const rc=fbPlayer(off,d.receiver,null); if(rc){rc.rec++;rc.recy+=g;if(d.td)rc.rectd++;} }
-      fbCheckFirstDown(e); break; }
+      if(d.receiver){ const rc=fbPlayer(off,d.receiver,d.receiverNum); if(rc){rc.rec++;rc.recy+=g;if(d.td)rc.rectd++;} }
+      fbCredTackle(def,d); fbCheckFirstDown(e); break; }
     case 'pass_incomp': { T[off].pa++; const ps=fbPlayer(off,e.plast,e.pnum); if(ps)ps.pa++; break; }
-    case 'sack': { T[def].sack+=1; const ds=fbPlayer(def,e.plast,e.pnum); if(ds)ds.sack+=(d.half?0.5:1); if(d.with){ const d2=fbPlayer(def,d.with,null); if(d2)d2.sack+=0.5; } break; }
+    case 'sack': { T[def].sack+=1; const ds=fbPlayer(def,e.plast,e.pnum); if(ds)ds.sack+=(d.half?0.5:1); if(d.with){ const d2=fbPlayer(def,d.with,d.withNum); if(d2)d2.sack+=0.5; } break; }
     case 'interception': { T[off].to++; const ds=fbPlayer(def,e.plast,e.pnum); if(ds)ds.dint++; break; }
     case 'penalty': { const on=e.side; T[on].pen++; T[on].penyd+=(d.yds||0); if(d.autoFirst) fbCheckFirstDown(e,true); break; }
   }
@@ -2565,7 +2574,7 @@ function fbUpdLinescore(){
 function fbFeedDesc(e){
   const d=e.notes||{}, who=e.plast?`<b>${e.pnum?'#'+e.pnum+' ':''}${e.plast}</b>`:'';
   switch(e.key){
-    case 'run': return `${who} — ${d.gain>=0?'+':''}${d.gain||0} yd run${d.tackler?` (${d.tackler})`:''}`;
+    case 'run': return `${who} — ${d.gain>=0?'+':''}${d.gain||0} yd run${d.tackler?` (${d.tacklerNum?'#'+d.tacklerNum+' ':''}${d.tackler})`:''}`;
     case 'pass_comp': return `${who} — ${d.gain>=0?'+':''}${d.gain||0} yd pass${d.receiver?` to ${d.receiver}`:''}${d.td?' <b style="color:var(--green)">TD</b>':''}`;
     case 'pass_incomp': return `${who} — incomplete`;
     case 'interception': return `<b style="color:var(--away)">INTERCEPTED</b> by ${who||fbAbbr(e.side)}`;
@@ -2588,15 +2597,47 @@ function fbUpdFeed(){
   if(FB._replaying) return;
   const list=document.getElementById('fb-feed-list'); if(!list) return;
   list.innerHTML='';
-  fbEvts.slice(0,60).forEach((e,i)=>{
-    if(e.key==='roster_set'||e.key==='player_final_stats') return;
+  // fbEvts is newest-first. A PAT/2-pt is the tail of the touchdown before it,
+  // not a play in its own right — merge it into the TD row and show the FINAL
+  // score for the drive, so a TD never sits there reading 7-6 forever.
+  const PAT = new Set(['extra_point','two_point']);
+  const merged = [];
+  for(let i=0;i<fbEvts.length;i++){
+    const e=fbEvts[i];
+    if(e.key==='roster_set'||e.key==='player_final_stats') continue;
+    if(PAT.has(e.key)){
+      // the TD it followed is the NEXT entry in a newest-first list
+      const td = fbEvts[i+1];
+      if(td && td.key==='touchdown' && td.side===e.side){
+        merged.push({ base:td, pat:e });
+        i++;                     // consume the touchdown too
+        continue;
+      }
+      merged.push({ base:e, pat:null });
+      continue;
+    }
+    merged.push({ base:e, pat:null });
+  }
+
+  merged.slice(0,60).forEach((m,i)=>{
+    const e=m.base, p=m.pat;
     const row=document.createElement('div'); row.className='fr'+(i===0?' new':'');
     const dot=document.createElement('div'); dot.className='fr-dot'; dot.style.background=e.side==='home'?'var(--home)':'var(--away)';
     const body=document.createElement('div'); body.className='fr-body';
     const n=e.notes||{}; const qlbl=(e.quarter>4?'OT'+(e.quarter-4):'Q'+e.quarter)+' '+(n.clock||fbFmt(e.clockSec));
-    body.innerHTML=`<div class="fr-desc">${fbFeedDesc(e)}</div><div class="fr-meta">${qlbl}</div>`;
+    let desc=fbFeedDesc(e);
+    if(p){
+      const pn=p.notes||{};
+      const kind = p.key==='two_point' ? '2-pt' : 'PAT';
+      const ok   = pn.good ? 'GOOD' : 'NO GOOD';
+      const col  = pn.good ? 'var(--green)' : 'var(--away)';
+      desc += ` <span style="color:${col};font-weight:700">(${kind} ${ok})</span>`;
+    }
+    body.innerHTML=`<div class="fr-desc">${desc}</div><div class="fr-meta">${qlbl}</div>`;
     const sc=document.createElement('div'); sc.className='fr-score'; sc.style.color=e.side==='home'?'var(--home)':'var(--away)';
-    if(n.score) sc.textContent=`${n.score.away}–${n.score.home}`;
+    // score AFTER the conversion, not the naked 6
+    const sn = (p && p.notes && p.notes.score) ? p.notes.score : n.score;
+    if(sn) sc.textContent=`${sn.away}–${sn.home}`;
     row.appendChild(dot); row.appendChild(body); row.appendChild(sc); list.appendChild(row);
     if(i===0) setTimeout(()=>row.classList.remove('new'),1800);
   });
@@ -2635,7 +2676,13 @@ function fbUpdPanels(){
     h+=grp('Passing', p=>p.pa>0, p=>`${p.pc}/${p.pa}, ${p.py} yd${p.ptd?', '+p.ptd+' TD':''}`, 'py');
     h+=grp('Rushing', p=>p.ra>0, p=>`${p.ra} att, ${p.ry} yd${p.rtd?', '+p.rtd+' TD':''}`, 'ry');
     h+=grp('Receiving', p=>p.rec>0, p=>`${p.rec} rec, ${p.recy} yd${p.rectd?', '+p.rectd+' TD':''}`, 'recy');
-    h+=grp('Defense', p=>(p.sack>0||p.dint>0), p=>`${p.sack?p.sack+' sk':''}${p.sack&&p.dint?', ':''}${p.dint?p.dint+' INT':''}`, 'sack');
+    h+=grp('Defense', p=>(p.tkl>0||p.sack>0||p.dint>0), p=>{
+      const bits=[];
+      if(p.tkl)  bits.push(`${p.tkl} tkl`);
+      if(p.sack) bits.push(`${p.sack} sk`);
+      if(p.dint) bits.push(`${p.dint} INT`);
+      return bits.join(', ');
+    }, 'tkl');
     box.innerHTML = h || `<div class="fb-pl-row"><div class="fb-pl-nm" style="color:var(--ink3)">No stats yet</div></div>`;
   });
 }

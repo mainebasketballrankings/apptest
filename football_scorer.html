@@ -813,7 +813,7 @@ async function startGame(){
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
-  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null};
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null;
 
   // Sort each roster by uniform number, then seed the starting QB. The QB is
   // captured as an object reference BEFORE the sort, so it survives reordering.
@@ -873,22 +873,38 @@ async function pushEvt(key, extras={}){
   if(!G_game_id) return;
   const evtId = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
   G_evt_current_group.push(evtId);
+  // ── captured BEFORE the play resolves ──
   const sideForTeam = extras.side || G.poss;
+  const team_id  = sideForTeam==='home' ? G_home_team_id : G_away_team_id;
+  const qtr      = G.quarter, clk = G.clock;
+  const losSpot  = (extras.ballOn!=null ? Math.round(extras.ballOn) : Math.round(G.ballOn));
+  const pre      = { down:G.down, distance:G.distance, ballOn:Math.round(G.ballOn),
+                     poss:G.poss, spot:spotLabel(), dd:ddLabel() };
+  const detail   = extras.detail || {};
+  const points   = extras.points || 0;
+  const pName    = extras.player || null;
+  const pNum     = (extras.num!=null && extras.num!=='') ? (parseInt(extras.num)||null) : null;
+
+  // Yield one microtask so the caller's commitPlay()/changePoss() runs first.
+  await Promise.resolve();
+
   const row = {
     id: evtId, game_id: G_game_id,
-    team_id: sideForTeam==='home' ? G_home_team_id : G_away_team_id,
+    team_id,
     event_type: key,
-    period: G.quarter, clock_seconds: G.clock,
-    inning: G.quarter, half:'top', outs:0, balls:0, strikes:0, bases:null, rbi:0,
-    runs: extras.points || 0,
-    player_name: extras.player || null,
-    player_num: (extras.num!=null && extras.num!=='') ? (parseInt(extras.num)||null) : null,
-    x: (extras.ballOn!=null ? Math.round(extras.ballOn) : Math.round(G.ballOn)),
+    period: qtr, clock_seconds: clk,
+    inning: qtr, half:'top', outs:0, balls:0, strikes:0, bases:null, rbi:0,
+    runs: points,
+    player_name: pName,
+    player_num: pNum,
+    x: losSpot,                       // line of scrimmage, i.e. where the play began
     notes: JSON.stringify(Object.assign({
+      // CURRENT situation — what a scoreboard shows
       down:G.down, distance:G.distance, ballOn:Math.round(G.ballOn), poss:G.poss,
-      spot:spotLabel(), dd:ddLabel(), clock:fmtClock(G.clock), qtr:qtrLabel(),
-      score:{away:G.score.away, home:G.score.home}
-    }, extras.detail||{}))
+      spot:spotLabel(), dd:ddLabel(), clock:fmtClock(clk), qtr:qtrLabel(),
+      score:{away:G.score.away, home:G.score.home},
+      pre                             // where the play started — for the PBP/report
+    }, detail))
   };
   await sbInsert('game_events', row);
   if(extras.points){
@@ -1004,10 +1020,10 @@ function resolveConversion(good, player, desc){
   if(good){
     addScore(scorer, 2);
     addPBP(`2-pt conversion <strong>GOOD</strong> — ${desc} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
-    pushEvt('two_point',{player:player?.name,num:player?.number,points:2,side:scorer,detail:{good:true,via:desc}});
+    pushEvt('two_point',{player:player?.name,num:player?.number,points:2,side:scorer,detail:{good:true,via:desc,scoring:G.lastTD||null}});
   } else {
     addPBP(`2-pt conversion failed — ${desc}`);
-    pushEvt('two_point',{player:player?.name,num:player?.number,side:scorer,detail:{good:false,via:desc}});
+    pushEvt('two_point',{player:player?.name,num:player?.number,side:scorer,detail:{good:false,via:desc,scoring:G.lastTD||null}});
   }
   G.pendingPAT=false;
   changePoss(other(scorer), 25, 'kickoff-pending');
@@ -1216,7 +1232,11 @@ function confirmRun(){
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,td:true}});
     const tdSide=G.poss;
     scoreTD(tdSide);
-    pushEvt('touchdown',{player:p.rusher.name,num:p.rusher.number,points:6,side:tdSide});
+    // Carry how the TD was scored, so the scoreboard can say what happened
+    // instead of just naming whoever crossed the line.
+    G.lastTD = `${p.rusher.name} ${gain} yd run`;
+    pushEvt('touchdown',{player:p.rusher.name,num:p.rusher.number,points:6,side:tdSide,
+      detail:{via:'run', gain, scoring:G.lastTD}});
   } else if(p.fumble && p.fumRecover==='def'){
     st.fumlost++;
     addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — ${abbr(defSide())} ball`);
@@ -1313,7 +1333,9 @@ function confirmPass(){
       addPBP(`${p.passer.name} ${gain} yd TD pass to ${p.receiver.name}`);
       pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name,td:true}});
       const tdSide=G.poss; scoreTD(tdSide);
-      pushEvt('touchdown',{player:p.receiver.name,num:p.receiver.number,points:6,side:tdSide});
+      G.lastTD = `${p.passer.name} ${gain} yd pass to ${p.receiver.name}`;
+      pushEvt('touchdown',{player:p.receiver.name,num:p.receiver.number,points:6,side:tdSide,
+        detail:{via:'pass', gain, passer:p.passer.name, scoring:G.lastTD}});
     } else {
       addPBP(`${p.passer.name} ${gain>=0?'+':''}${gain} pass to ${p.receiver.name}${p.tackler?` (${p.tackler.name})`:''}`);
       pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name}});
@@ -1492,8 +1514,8 @@ function confirmKick(){
     const recvSide=recv;
     if(p.patMode==='kick'){
       if(p.patKicker){ const ks=statFor(recvSide,p.patKicker.name,p.patKicker.number); ks.xpa++; if(p.patGood) ks.xpm++; }
-      if(p.patGood){ addScore(recvSide,1); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true}}); }
-      else { addPBP(`Extra point ${abbr(recvSide)} — no good`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,side:recvSide,detail:{good:false}}); }
+      if(p.patGood){ addScore(recvSide,1); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true, scoring:G.lastTD||null}}); }
+      else { addPBP(`Extra point ${abbr(recvSide)} — no good`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,side:recvSide,detail:{good:false, scoring:G.lastTD||null}}); }
     } else {
       if(p.patConverted){ addScore(recvSide,2); addPBP(`2-pt conversion ${abbr(recvSide)} — good${p.patPlayer?` (${p.patPlayer.name})`:''} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,points:2,side:recvSide,detail:{good:true}}); }
       else { addPBP(`2-pt conversion ${abbr(recvSide)} — failed`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,side:recvSide,detail:{good:false}}); }

@@ -1185,6 +1185,60 @@
   function periodLabel(p) { p = p||1; return p>4 ? `OT${p-4}` : `Q${p}`; }
 
   function describeEvent(e, sport, game) {
+    // ── FOOTBALL ──
+    // The baseball path appended "· 1 run" to anything with points, which is how
+    // an extra point ended up reading as a run.
+    if (sport === 'football') {
+      let n = {};
+      try { n = e.notes ? (typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes) : {}; } catch (_) {}
+      const nm   = e.player_name || '';
+      const g    = n.gain;
+      const yd   = v => `${v} yard${Math.abs(v) === 1 ? '' : 's'}`;
+      // the situation the play LEFT behind — "… — 2nd & 4"
+      const dd   = n.dd ? ` <span style="opacity:.6">— ${n.dd}</span>` : '';
+      const B    = s => `<strong>${s}</strong>`;
+
+      switch (e.event_type) {
+        case 'touchdown':
+          return `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring || B(nm)}`;
+        case 'extra_point':
+          return n.scoring
+            ? `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring} (PAT ${n.good ? 'good' : 'no good'})`
+            : `Extra point ${n.good ? 'good' : 'no good'}${nm ? ' — ' + nm : ''}`;
+        case 'two_point':
+          return n.scoring
+            ? `<span style="color:var(--green);font-weight:700">TD!</span> — ${n.scoring} (2-pt ${n.good ? 'good' : 'failed'})`
+            : `2-pt conversion ${n.good ? 'good' : 'failed'}${nm ? ' — ' + nm : ''}`;
+        case 'run':
+          if (n.fumbleLost) return `${B(nm)} rushes for ${yd(g||0)}, <span style="color:var(--red);font-weight:700">FUMBLE</span>`;
+          return `${B(nm)} rushes for ${yd(g||0)}${dd}`;
+        case 'pass_comp':
+          return `${B(nm)} ${yd(g||0)} pass to ${n.receiver || ''}${dd}`;
+        case 'pass_incomp':
+          return `${B(nm)} pass incomplete${dd}`;
+        case 'sack':
+          return `${B(nm)} sacked${g != null ? ' for ' + yd(g) : ''}${dd}`;
+        case 'interception':
+          return `<span style="color:var(--red);font-weight:700">INTERCEPTED</span> by ${B(nm)}`;
+        case 'field_goal':
+          return `${B(nm)} field goal ${n.good ? 'GOOD' : 'no good'}`;
+        case 'punt':
+          return `${B(nm)} punts${dd}`;
+        case 'kickoff':
+          return `Kickoff${nm ? ' — ' + nm : ''}`;
+        case 'kick_return_td':
+          return `<span style="color:var(--green);font-weight:700">TD!</span> — ${B(nm)} return`;
+        case 'penalty':
+          return `<span style="color:var(--gold,#b45309);font-weight:700">Flag</span> — ${n.type || 'Penalty'}${n.yds ? ', ' + n.yds + ' yds' : ''}${dd}`;
+        case 'timeout':
+          return `Timeout${nm ? ' — ' + nm : ''}`;
+        case 'game_over':
+          return 'Final';
+        default:
+          return nm ? `${B(nm)} — ${String(e.event_type).replace(/_/g,' ')}` : String(e.event_type).replace(/_/g,' ');
+      }
+    }
+
     if (sport === 'basketball') {
       const lbl  = BBALL_LABEL[e.event_type] || (e.event_type||'').replace(/_/g,' ');
       const name = e.player_name || '';
@@ -1253,6 +1307,30 @@
   }
 
   function renderScoreBug(topLeftEl, se, sport) {
+    let sn = null;
+    try { sn = se.notes ? (typeof se.notes === 'string' ? JSON.parse(se.notes) : se.notes) : null; } catch (_) {}
+
+    // Football: clock + down & distance. Never bases and outs.
+    if (sport === 'football') {
+      const clk = (sn && sn.clock) || fmtClock(se.clock_seconds) || '';
+      const qtr = (sn && sn.qtr) || ('Q' + (se.period || 1));
+      const dd  = sn && sn.dd ? sn.dd : '';
+      const spot= sn && sn.spot ? sn.spot : '';
+      topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap';
+      topLeftEl.innerHTML =
+        `<span style="font-weight:700">${qtr}</span>${clk?`<span>${clk}</span>`:''}` +
+        (dd ? `<span style="opacity:.75">${dd}</span>` : '') +
+        (spot ? `<span style="opacity:.55">${spot}</span>` : '');
+      return;
+    }
+    // Soccer / field hockey / lacrosse: clock + period.
+    if (['soccer','field_hockey','lacrosse'].includes(sport)) {
+      const clk = (sn && sn.clock) || fmtClock(se.clock_seconds) || '';
+      const per = (sn && sn.period) || periodLabel(se.period);
+      topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
+      topLeftEl.innerHTML = `<span style="font-weight:700">${per}</span>${clk?`<span>${clk}</span>`:''}`;
+      return;
+    }
     if (sport === 'basketball') {
       const clk = fmtClock(se.clock_seconds);
       topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
@@ -1309,9 +1387,14 @@
         if (cardMetaEl) {
           const desc = describeEvent(e, sport, g);
           if (desc) {
-            const prefix = sport === 'basketball'
-              ? periodLabel(e.period)
-              : `${e.half === 'top' ? '▲' : '▼'}${e.inning||''}`;
+            let prefix;
+            if (sport === 'basketball') prefix = periodLabel(e.period);
+            else if (sport === 'football' || ['soccer','field_hockey','lacrosse'].includes(sport)) {
+              let pn = {};
+              try { pn = e.notes ? (typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes) : {}; } catch (_) {}
+              prefix = (pn.qtr || pn.period || periodLabel(e.period) || '');
+            }
+            else prefix = `${e.half === 'top' ? '▲' : '▼'}${e.inning||''}`;
             cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${prefix}</span> ${desc}`;
           }
         }

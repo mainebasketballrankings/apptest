@@ -804,6 +804,21 @@ body.sport-football #fb-col{display:flex !important;flex-direction:column;gap:10
 // 'basketball' | 'baseball' | 'football'
 // Resolved from ?sport= param, then corrected from the game's sport_id in connectGame.
 let SPORT = (new URLSearchParams(location.search).get('sport') || 'baseball').toLowerCase();
+// A naive slice(0,3) made "Shrine East" and "Shrine West" BOTH "SHR" — two teams,
+// one abbreviation, an unreadable scoreboard. Curated names win; initials fall back.
+const SHORT_OVERRIDE = {
+  'shrine east':'EAST', 'shrine west':'WEST',
+  'camden hills':'CHILLS', 'cape elizabeth':'CAPE',
+};
+function shortFor(name){
+  if(!name) return '';
+  const key = String(name).trim().toLowerCase();
+  if(SHORT_OVERRIDE[key]) return SHORT_OVERRIDE[key];
+  const w = String(name).trim().split(/\s+/);
+  if(w.length===1) return w[0].slice(0,4).toUpperCase();
+  return w.map(x=>x[0]).join('').slice(0,4).toUpperCase();
+}
+
 const SPORT_BY_ID = {
   'b31ab283-b28e-4ba8-9684-b1cf30cea219':'basketball',
   'c87a4d6c-a471-47e1-b6a0-d1643d942bf0':'baseball',
@@ -1460,8 +1475,8 @@ async function connectGame(gameId){
   LIVE_away_team_id = game.away_team_id;
 
   initView(
-    { name: game.home_team.school_name, short: game.home_team.school_name.slice(0,3).toUpperCase(), logoUrl: game.home_team.logo_url||'' },
-    { name: game.away_team.school_name, short: game.away_team.school_name.slice(0,3).toUpperCase(), logoUrl: game.away_team.logo_url||'' }
+    { name: game.home_team.school_name, short: shortFor(game.home_team.school_name), short2: shortFor(game.home_team.school_name), logoUrl: game.home_team.logo_url||'' },
+    { name: game.away_team.school_name, short: shortFor(game.away_team.school_name), short2: shortFor(game.away_team.school_name), logoUrl: game.away_team.logo_url||'' }
   );
 
   // Populate header event/venue from real game data

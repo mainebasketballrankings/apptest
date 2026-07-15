@@ -44,6 +44,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="mbr-scoreboard.js"></script>
 
   <style>
     :root {
@@ -1185,6 +1186,8 @@
   function periodLabel(p) { p = p||1; return p>4 ? `OT${p-4}` : `Q${p}`; }
 
   function describeEvent(e, sport, game) {
+    // Shared football logic (mbr-scoreboard.js) so index and embed can't drift.
+    if (window.MBRScoreboard) { const s = MBRScoreboard.describe(e, sport); if (s !== null) return s; }
     // ── FOOTBALL ──
     // The baseball path appended "· 1 run" to anything with points, which is how
     // an extra point ended up reading as a run.
@@ -1316,6 +1319,7 @@
   }
 
   function renderScoreBug(topLeftEl, se, sport) {
+    if (window.MBRScoreboard && MBRScoreboard.scoreBug(topLeftEl, se, sport, { fmtClock, periodLabel })) return;
     let sn = null;
     try { sn = se.notes ? (typeof se.notes === 'string' ? JSON.parse(se.notes) : se.notes) : null; } catch (_) {}
 

@@ -19,6 +19,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="mbr-embed.js"></script>
   
   <style>
     :root {
@@ -423,7 +424,9 @@
 </div>
 
 <script>
-  const sb = supabase.createClient('https://vtwupenqieesoktonbzg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA', { auth: { storageKey: 'mbr-heals' } });
+  const sb = (window.MBREmbed && MBREmbed.makeClient)
+    ? MBREmbed.makeClient('mbr-heals')
+    : supabase.createClient('https://vtwupenqieesoktonbzg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA', { auth: { storageKey: 'mbr-heals' } });
 
   // Win point values by class
   const WIN_PTS = { A: 40, B: 38, C: 36, D: 34, S: 32, '8': 30 };
@@ -1086,16 +1089,14 @@
 
 
 <script>
-// Auto-resize: posts content height to parent Ghost page so iframe fits without scrollbars
-(function() {
-  function sendHeight() {
-    var h = document.documentElement.scrollHeight;
-    window.parent.postMessage({ type: 'mbr-embed-resize', height: h }, '*');
-  }
-  window.addEventListener('load', sendHeight);
-  var ro = new ResizeObserver(sendHeight);
-  ro.observe(document.body);
-  document.addEventListener('click', function() { setTimeout(sendHeight, 150); });
+// Auto-resize handled by the shared harness (mbr-embed.js). Inline fallback
+// below keeps the iframe working even if that file fails to load.
+(function(){
+  if (window.MBREmbed && MBREmbed.initResize) { MBREmbed.initResize(); return; }
+  function sendHeight(){ window.parent.postMessage({ type:"mbr-embed-resize", height: document.documentElement.scrollHeight }, "*"); }
+  window.addEventListener("load", sendHeight);
+  if (typeof ResizeObserver === "function") new ResizeObserver(sendHeight).observe(document.body);
+  document.addEventListener("click", function(){ setTimeout(sendHeight, 120); });
 })();
 </script>
 

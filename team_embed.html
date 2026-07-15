@@ -15,6 +15,7 @@
   <title>Team Detail — Maine Basketball Rankings</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="mbr-embed.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -254,7 +255,7 @@
 </div>
 
 <script>
-const SB_URL  = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_URL = (window.MBREmbed ? MBREmbed.config.SUPABASE_URL : 'https://vtwupenqieesoktonbzg.supabase.co');
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 const SPORT_REG_END = {
   'basketball':    '2026-02-06',
@@ -1103,27 +1104,15 @@ function goToTeam(id) {
   Powered by <a href="https://mainebasketballrankings.com" target="_blank" style="color:#1a7a4a;text-decoration:none;font-weight:600">Maine Basketball Rankings</a>
 </div>
 <script>
-// Auto-resize: tells the parent page how tall this embed is
-// so the iframe can resize to fit content without scrollbars or dead space.
-// Works by posting the document height to the parent whenever content changes.
-
-(function() {
-  function sendHeight() {
-    const h = document.documentElement.scrollHeight;
-    window.parent.postMessage({ type: 'mbr-embed-resize', height: h }, '*');
-  }
-
-  // Send on load
-  window.addEventListener('load', sendHeight);
-
-  // Send whenever DOM changes (games load, tabs switch, etc.)
-  const observer = new ResizeObserver(sendHeight);
-  observer.observe(document.body);
-
-  // Also send on any click (tab switches change height)
-  document.addEventListener('click', () => setTimeout(sendHeight, 100));
+// Auto-resize handled by the shared harness (mbr-embed.js). Inline fallback
+// below keeps the iframe working even if that file fails to load.
+(function(){
+  if (window.MBREmbed && MBREmbed.initResize) { MBREmbed.initResize(); return; }
+  function sendHeight(){ window.parent.postMessage({ type:"mbr-embed-resize", height: document.documentElement.scrollHeight }, "*"); }
+  window.addEventListener("load", sendHeight);
+  if (typeof ResizeObserver === "function") new ResizeObserver(sendHeight).observe(document.body);
+  document.addEventListener("click", function(){ setTimeout(sendHeight, 120); });
 })();
-
 </script>
 </body>
 </html>

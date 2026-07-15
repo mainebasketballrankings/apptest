@@ -293,12 +293,7 @@
     <input type="date" id="datePicker">
     <button class="day-btn" id="nextDay">&#8594;</button>
   </div>
-  <div class="sport-tabs" id="sportTabs">
-    <button class="sport-tab active" data-sport="c87a4d6c-a471-47e1-b6a0-d1643d942bf0">Baseball</button>
-    <button class="sport-tab" data-sport="095c9841-7261-4cb1-824e-6304792b53d0">Softball</button>
-    <button class="sport-tab" data-sport="9c34ec5c-81b4-4e2e-9f60-740bb30fee4d">Lacrosse</button>
-    <button class="sport-tab" data-sport="ff80a695-0e78-4432-98f2-141b2b571e0e">Soccer</button>
-  </div>
+  <div class="sport-tabs" id="sportTabs"><!-- populated from SPORTS --></div>
 </div>
 
 <div id="results"></div>
@@ -306,9 +301,29 @@
 <script>
 const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-const FEED_BASE = 'https://vtwupenqieesoktonbzg.supabase.co/functions/v1/baseball-feed';
 
-let activeSport = 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+// Each sport maps to its OWN feed function. The page used to hand out
+// baseball-feed for everything, which is wrong for every non-baseball sport.
+// Softball shares baseball-feed; soccer/field hockey/lacrosse share field-feed.
+const FN = 'https://vtwupenqieesoktonbzg.supabase.co/functions/v1';
+const SPORTS = [
+  { id:'c87a4d6c-a471-47e1-b6a0-d1643d942bf0', label:'Baseball',     feed:FN+'/baseball-feed'   },
+  { id:'095c9841-7261-4cb1-824e-6304792b53d0', label:'Softball',     feed:FN+'/baseball-feed'   },
+  { id:'b31ab283-b28e-4ba8-9684-b1cf30cea219', label:'Basketball',   feed:FN+'/basketball-feed' },
+  { id:'fa905ca5-f416-409b-81ac-777179ee5576', label:'Football',     feed:FN+'/football-feed'   },
+  { id:'ff80a695-0e78-4432-98f2-141b2b571e0e', label:'Soccer',       feed:FN+'/field-feed'      },
+  { id:'1054869a-20d4-465f-8ca9-4bc4d2bafe1b', label:'Field Hockey', feed:FN+'/field-feed'      },
+  { id:'9c34ec5c-81b4-4e2e-9f60-740bb30fee4d', label:'Lacrosse',     feed:FN+'/field-feed'      },
+];
+const feedFor = id => (SPORTS.find(s => s.id === id) || SPORTS[0]).feed;
+
+// Build the tabs from SPORTS so they can never drift from the feed map.
+const tabsEl = document.getElementById('sportTabs');
+tabsEl.innerHTML = SPORTS.map((s,i) =>
+  `<button class="sport-tab${i===0?' active':''}" data-sport="${s.id}">${s.label}</button>`
+).join('');
+
+let activeSport = SPORTS[0].id;
 let activeDate = '';
 
 // Set today's date
@@ -375,13 +390,10 @@ async function loadGames() {
     games.forEach(g => {
       const home = teamMap[g.home_team_id] || 'Home Team';
       const away = teamMap[g.away_team_id] || 'Away Team';
-      const feedUrl = `${FEED_BASE}?game_id=${g.id}`;
-      const statusLabel = g.status === 'in_progress' ? 'Live'
-        : g.status === 'final' ? 'Final'
-        : 'Scheduled';
-      const statusClass = g.status === 'in_progress' ? 'status-live'
-        : g.status === 'final' ? 'status-final'
-        : 'status-scheduled';
+      const feedUrl = `${feedFor(activeSport)}?game_id=${g.id}`;
+      const live = g.status === 'in_progress' || g.status === 'active';
+      const statusLabel = live ? 'Live' : g.status === 'final' ? 'Final' : 'Scheduled';
+      const statusClass = live ? 'status-live' : g.status === 'final' ? 'status-final' : 'status-scheduled';
       const timeStr = g.game_time ? formatTime(g.game_time) : 'TBD';
 
       html += `

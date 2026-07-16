@@ -54,8 +54,7 @@
     var B = function (s) { return '<strong>' + s + '</strong>'; };
     // tackler, WITH jersey number when we have it — this is the bit that drifted
     var tk = n.tackler
-      ? ' (' + (n.tacklerNum ? '#' + n.tacklerNum + ' ' : '') + n.tackler +
-        (n.assist ? ', ' + n.assist : '') + ')'
+      ? ' (' + n.tackler + (n.assist ? ', ' + n.assist : '') + ')'
       : '';
     var conv = function (good, kind) {
       return '<span style="color:' + (good ? 'var(--green)' : 'var(--red)') +
@@ -79,8 +78,11 @@
         return B(nm) + ' rushes for ' + yd(g || 0) + tk + dd;
       case 'pass_comp':
         return B(nm) + ' ' + yd(g || 0) + ' pass to ' + (n.receiver || '') + tk + dd;
-      case 'pass_incomp':
-        return B(nm) + ' pass incomplete' + dd;
+      case 'pass_incomp': {
+        var forTxt = n.receiver ? ' (intended for ' + n.receiver + ')' : '';
+        var pd = n.defended ? ' <span style="opacity:.7">— broken up by ' + n.defended + '</span>' : '';
+        return B(nm) + ' pass incomplete' + forTxt + pd + dd;
+      }
       case 'sack': {
         // nm is the DEFENDER who made the sack; n.qb is the quarterback.
         var qbName = n.qb || 'QB';
@@ -88,12 +90,21 @@
         var lossTxt = (n.loss != null) ? ' for ' + yd(-Math.abs(n.loss)) : (g != null ? ' for ' + yd(g) : '');
         return qbName + ' sacked' + by + lossTxt + dd;
       }
-      case 'interception':
-        return '<span style="color:var(--red);font-weight:700">INTERCEPTED</span> by ' + B(nm);
+      case 'interception': {
+        if (n.pick6) return TD(B(nm) + ' ' + (n.retYds != null ? n.retYds + ' yd ' : '') + 'interception return');
+        var ret = (n.retYds != null && n.retYds > 0) ? ', ' + n.retYds + ' yd return' : '';
+        return '<span style="color:var(--red);font-weight:700">INTERCEPTED</span> by ' + B(nm) + ret;
+      }
       case 'field_goal':
-        return B(nm) + ' field goal ' + (n.good ? 'GOOD' : 'no good');
+        return B(nm) + (n.dist ? ' ' + n.dist + ' yd' : '') + ' field goal ' + (n.good ? 'GOOD' : 'no good');
       case 'punt':      return B(nm) + ' punts' + dd;
-      case 'kickoff':   return 'Kickoff' + (nm ? ' — ' + nm : '');
+      case 'kickoff': {
+        if (n.touchback) return 'Kickoff, touchback';
+        if (n.returner)  return n.returner + ' returns kickoff' +
+          (n.retYds != null ? ' ' + n.retYds + ' yards' : '') +
+          (n.advTo ? ' to the ' + n.advTo : '');
+        return 'Kickoff' + (nm ? ' — ' + nm : '');
+      }
       case 'kick_return_td': return TD(B(nm) + ' return');
       case 'penalty': {
         // Name the penalty (scorer sends it as n.name), keep the red flag, no player.
@@ -103,6 +114,11 @@
         return '<span style="color:var(--red);font-weight:700">Flag</span> — ' + pen + on +
                (n.yds ? ', ' + n.yds + ' yd' + (Math.abs(n.yds)===1?'':'s') : '') + auto + dd;
       }
+      case 'fumble':
+        return '<span style="color:var(--red);font-weight:700">FUMBLE</span>' +
+          (n.lost ? ' — ' + (n.recoverTeam || 'defense') + ' recovers' +
+                    (n.recoveredBy ? ' (' + n.recoveredBy + ')' : '')
+                  : (n.recoveredBy ? ' — recovered by ' + n.recoveredBy : ' — offense recovers'));
       case 'timeout':   return 'Timeout' + (nm ? ' — ' + nm : '');
       case 'game_over': return 'Final';
       default:

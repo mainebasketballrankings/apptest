@@ -624,7 +624,7 @@ function blankStat(name, number){
     pa:0,pc:0,pyd:0,ptd:0,pint:0,                 // passing
     ra:0,ryd:0,rtd:0,rlong:0,                      // rushing
     rec:0,recyd:0,rectd:0,reclong:0,               // receiving
-    tkl:0,ast:0,sack:0,dint:0,ff:0,fr:0,           // defense
+    tkl:0,ast:0,sack:0,dint:0,pd:0,ff:0,fr:0,      // defense
     fgm:0,fga:0,xpm:0,xpa:0,                        // kicking
     punts:0,puntyd:0,                              // punting
     kret:0,kretyd:0,pret:0,pretyd:0,               // returns
@@ -1551,13 +1551,15 @@ function confirmKick(){
   } else if(p.sub==='fg'){
     const recvSide=recv;
     if(p.fgKicker){ const ks=statFor(recvSide,p.fgKicker.name,p.fgKicker.number); ks.fga++; if(p.fgGood) ks.fgm++; }
+    const fgDist=(100-G.ballOn)+17;
     if(p.fgGood){
-      pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,points:3,side:recvSide,detail:{good:true}});
+      addPBP(`<strong>FIELD GOAL</strong> ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — good`);
+      pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,points:3,side:recvSide,detail:{good:true, dist:fgDist}});
       scoreFG(recvSide);
       G.kickoffPending=true;
     } else {
-      addPBP(`Field goal ${abbr(recvSide)} — <strong>missed</strong>`);
-      pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{good:false}});
+      addPBP(`Field goal ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — <strong>missed</strong>`);
+      pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{good:false, dist:fgDist}});
       changePoss(defSide(), 100-G.ballOn, 'missed-fg');
     }
   } else if(p.sub==='pat'){

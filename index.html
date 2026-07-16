@@ -1165,7 +1165,7 @@
       const yd = v => `${v} yard${Math.abs(v) === 1 ? '' : 's'}`;
       const dd = n.dd ? ` <span style="opacity:.6">— ${n.dd}</span>` : '';
       const B  = s => `<strong>${s}</strong>`;
-      const tk = n.tackler ? ` (${n.tacklerNum ? '#' + n.tacklerNum + ' ' : ''}${n.tackler}${n.assist ? ', ' + n.assist : ''})` : '';
+      const tk = n.tackler ? ` (${n.tackler}${n.assist ? ', ' + n.assist : ''})` : '';
       const conv = (good, kind) => `<span style="color:${good ? 'var(--green)' : 'var(--red)'};font-weight:700">(${kind} ${good ? 'GOOD' : 'NO GOOD'})</span>`;
       switch (e.event_type) {
         case 'touchdown':
@@ -1183,20 +1183,30 @@
           return `${B(nm)} rushes for ${yd(g||0)}${tk}${dd}`;
         case 'pass_comp':
           return `${B(nm)} ${yd(g||0)} pass to ${n.receiver || ''}${tk}${dd}`;
-        case 'pass_incomp':
-          return `${B(nm)} pass incomplete${dd}`;
+        case 'pass_incomp': {
+          const forTxt = n.receiver ? ` (intended for ${n.receiver})` : '';
+          const pd = n.defended ? ` <span style="opacity:.7">— broken up by ${n.defended}</span>` : '';
+          return `${B(nm)} pass incomplete${forTxt}${pd}${dd}`;
+        }
         case 'sack': {
           const qbName = n.qb || 'QB';
           const by = nm ? ` by ${B(nm)}${n.with ? ' & ' + n.with : ''}` : '';
           const lossTxt = (n.loss != null) ? ` for ${yd(-Math.abs(n.loss))}` : (g != null ? ` for ${yd(g)}` : '');
           return `${qbName} sacked${by}${lossTxt}${dd}`;
         }
-        case 'interception':
-          return `<span style="color:var(--red);font-weight:700">INTERCEPTED</span> by ${B(nm)}`;
+        case 'interception': {
+          if (n.pick6) return `<span style="color:var(--green);font-weight:700">TD!</span> — ${B(nm)} ${n.retYds != null ? n.retYds + ' yd ' : ''}interception return`;
+          const ret = (n.retYds != null && n.retYds > 0) ? `, ${n.retYds} yd return` : '';
+          return `<span style="color:var(--red);font-weight:700">INTERCEPTED</span> by ${B(nm)}${ret}`;
+        }
         case 'field_goal':
-          return `${B(nm)} field goal ${n.good ? 'GOOD' : 'no good'}`;
+          return `${B(nm)}${n.dist ? ' ' + n.dist + ' yd' : ''} field goal ${n.good ? 'GOOD' : 'no good'}`;
         case 'punt':      return `${B(nm)} punts${dd}`;
-        case 'kickoff':   return `Kickoff${nm ? ' — ' + nm : ''}`;
+        case 'kickoff': {
+          if (n.touchback) return 'Kickoff, touchback';
+          if (n.returner)  return `${n.returner} returns kickoff${n.retYds != null ? ' ' + n.retYds + ' yards' : ''}${n.advTo ? ' to the ' + n.advTo : ''}`;
+          return `Kickoff${nm ? ' — ' + nm : ''}`;
+        }
         case 'kick_return_td': return `<span style="color:var(--green);font-weight:700">TD!</span> — ${B(nm)} return`;
         case 'penalty': {
           const pen = n.name || n.type || 'Penalty';
@@ -1204,6 +1214,8 @@
           const auto = n.autoFirst ? ', automatic first' : '';
           return `<span style="color:var(--red);font-weight:700">Flag</span> — ${pen}${on}${n.yds ? ', ' + n.yds + ' yd' + (Math.abs(n.yds)===1?'':'s') : ''}${auto}${dd}`;
         }
+        case 'fumble':
+          return `<span style="color:var(--red);font-weight:700">FUMBLE</span>${n.lost ? ' — ' + (n.recoverTeam || 'defense') + ' recovers' + (n.recoveredBy ? ' (' + n.recoveredBy + ')' : '') : (n.recoveredBy ? ' — recovered by ' + n.recoveredBy : ' — offense recovers')}`;
         case 'timeout':   return `Timeout${nm ? ' — ' + nm : ''}`;
         case 'game_over': return 'Final';
         default: return nm ? `${B(nm)} — ${String(e.event_type).replace(/_/g,' ')}` : String(e.event_type).replace(/_/g,' ');

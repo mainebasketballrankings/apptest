@@ -199,7 +199,7 @@ input,select,button{font-family:inherit;}
 <!-- ══ SETUP ══ -->
 <div id="setupScreen">
   <div class="setup-logo">Maine Basketball Rankings</div>
-  <div class="setup-title">Football Scorer <span style="font-size:12px;font-weight:400;color:var(--dim);font-family:'Barlow Condensed',sans-serif">v0.1</span></div>
+  <div class="setup-title">Football Scorer <span id="buildBadge" style="font-size:12px;font-weight:400;color:var(--dim);font-family:'Barlow Condensed',sans-serif">v0.1</span></div>
 
   <div class="setup-card">
     <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
@@ -472,6 +472,11 @@ input,select,button{font-family:inherit;}
 </div>
 
 <script>
+// Show the deployed build in the header so it can be verified without devtools.
+window.addEventListener('DOMContentLoaded', ()=>{
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-15c'; } catch(_){}
+});
+
 // ═══════════════════════════════════════════════
 // SUPABASE + LIVE PUSH   (ported from baseball_scorer)
 // ═══════════════════════════════════════════════

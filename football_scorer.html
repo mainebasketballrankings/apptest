@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-16e'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-16g'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -474,7 +474,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16e'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16g'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -854,7 +854,7 @@ async function startGame(){
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
-  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null;
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[];
 
   // Sort each roster by uniform number, then seed the starting QB. The QB is
   // captured as an object reference BEFORE the sort, so it survives reordering.
@@ -1021,9 +1021,17 @@ function flipPossession(){
 
 // ── Scoring ──
 function addScore(side, pts){ G.score[side] += pts; }
+// Dedicated scoring log — the report reads this, not parsed PBP, so it can show
+// the descriptive play ("Parker Morin 72 yd pass to Jaxson Foster") with the score.
+function logScore(side, kind, desc){
+  if(!G.scoreLog) G.scoreLog=[];
+  G.scoreLog.push({ qtr:qtrLabel(), clock:fmtClock(G.clock), side, kind, desc:desc||'',
+                    away:G.score.away, home:G.score.home });
+}
 
 function scoreTD(side){
   addScore(side, 6);
+  logScore(side, 'TD', G.lastTD || (abbr(side)+' touchdown'));
   endDrive('TD');
   addPBP(`<strong>TOUCHDOWN ${abbr(side)}!</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
   // set up PAT: scoring team on offense at the 3 (Maine HS PAT spot ~3)
@@ -1033,6 +1041,7 @@ function scoreTD(side){
 }
 function scoreFG(side){
   addScore(side, 3);
+  logScore(side, 'FG', (G.lastFG||('Field goal '+abbr(side))));
   endDrive('FG');
   addPBP(`<strong>FIELD GOAL ${abbr(side)} — good</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
   // kickoff: scoring team kicks off; receiving team takes over ~25
@@ -1043,12 +1052,16 @@ function scoreSafety(side){
   // its own end zone. After a safety the CONCEDING team free-kicks from its own
   // 20, so the SCORING team (side) receives and takes over — not the other way.
   addScore(side, 2);
+  logScore(side, 'Safety', 'Safety, '+abbr(side));
   endDrive('Safety');
   addPBP(`<strong>SAFETY ${abbr(side)}</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
-  // Scoring team receives the free kick; a typical free-kick return leaves them
-  // near midfield. Give them the ball ~own 40 (they can adjust with Set Spot).
-  changePoss(side, 40, 'free-kick');
-  G.kickoffPending=false;
+  // Set up the free kick as a kickoff: the CONCEDING team (other side) kicks,
+  // the SCORING team receives. changePoss puts the receiver on offense; marking
+  // kickoffPending makes the field render the kickoff (conceding team kicking
+  // toward the scoring team's end) and defaults the Kick overlay to Kickoff.
+  changePoss(side, 25, 'free-kick');
+  G.freeKick = true;          // a safety free kick (conceding team kicks from their 20)
+  G.kickoffPending = true;
   stopClock();
 }
 
@@ -1075,6 +1088,7 @@ function resolveConversion(good, player, desc){
   const scorer=G.poss;
   if(good){
     addScore(scorer, 2);
+    logScore(scorer, '2PT', (G.lastTD?G.lastTD+' — 2-pt ('+desc+')':'2-pt conversion — '+desc));
     addPBP(`2-pt conversion <strong>GOOD</strong> — ${desc} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
     pushEvt('two_point',{player:player?.name,num:player?.number,points:2,side:scorer,detail:{good:true,via:desc,scoring:G.lastTD||null}});
   } else {
@@ -1404,6 +1418,13 @@ function confirmRun(){
     pushEvt('fumble',{side:G.poss,detail:{lost:false,recoveredBy:p.fumRecoverer?.name||null}});
     commitPlay(spot);
     applyPendPenalty(p);
+  } else if(p.toSpot<=0){
+    // ball carrier down in his own end zone → safety for the defense
+    st.ra++; st.ryd+=gain;
+    addPBP(`${p.rusher.name} ${gain} run, tackled in the end zone${tackTxt}`);
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,safety:true,
+      tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null}});
+    scoreSafety(defSide());
   } else {
     addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} yd rush${tackTxt}`);
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,
@@ -1526,6 +1547,11 @@ function confirmPass(){
           leadIn: lead, onKind:'pass'
         });
         applyPendPenalty(p);
+      } else if(p.toSpot<=0){
+        // caught and downed in own end zone → safety
+        addPBP(`${p.passer.name} pass to ${p.receiver.name}, tackled in the end zone`);
+        pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name,safety:true}});
+        scoreSafety(defSide());
       } else {
         commitPlay(p.toSpot);
         if(p.oob) stopClock();
@@ -1603,7 +1629,7 @@ function openKick(){
     koFumble:false, koFumLost:false, koFumRecoverer:null, koFumAt:50,
     // punt
     puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
-    puntFumble:false, puntFumLost:false, puntFumRecoverer:null,
+    puntFumble:false, puntFumLost:false, puntFumRecoverer:null, puntSafety:false,
     // fg
     fgKicker:null, fgGood:true,
     // pat
@@ -1645,8 +1671,13 @@ function renderKick(){
   } else if(p.sub==='punt'){
     h += `<div class="sec-lbl">${abbr(recv)} punts · ${abbr(kicking)} receives</div>`;
     h += pselRow('Punter', p.puntPunter, "pickFor('puntPunter','"+recv+"','Punter')");
-    h += `<div class="res-row" style="margin:6px 0"><span class="toggle-pill ${p.puntTouchback?'on':''}" onclick="G.pend.puntTouchback=!G.pend.puntTouchback;renderKick()">Touchback (downs at 20)</span></div>`;
-    if(!p.puntTouchback){
+    h += `<div class="res-row" style="margin:6px 0">
+      <span class="toggle-pill ${p.puntTouchback?'on':''}" onclick="G.pend.puntTouchback=!G.pend.puntTouchback;G.pend.puntSafety=false;renderKick()">Touchback (downs at 20)</span>
+      <span class="toggle-pill ${p.puntSafety?'on':''}" onclick="G.pend.puntSafety=!G.pend.puntSafety;G.pend.puntTouchback=false;renderKick()">Safety (blocked / out of own EZ)</span></div>`;
+    if(p.puntSafety){
+      h += `<div class="sec-lbl" style="color:var(--red)">Safety — 2 pts to ${abbr(kicking)}, ${abbr(recv)} free-kicks</div>`;
+    }
+    if(!p.puntTouchback && !p.puntSafety){
       h += `<div class="sec-lbl">Punt caught / lands at</div>`;
       h += `<div class="psel-row" onclick="puntLandSpot()"><span class="psel-lbl">Lands at</span><span class="psel-val">${spotLabel(p.puntLand, recv)}</span></div>`;
       h += pselRow('Returner (optional)', p.puntReturner, "pickFor('puntReturner','"+kicking+"','Returner')");
@@ -1735,6 +1766,13 @@ function confirmKick(){
       if(p.koFumble && !p.koFumLost){ pushEvt('fumble',{side:recv,detail:{lost:false,recoveredBy:p.koFumRecoverer?.name||null,onKickoff:true}}); }
     }
   } else if(p.sub==='punt'){
+    if(p.puntSafety){
+      // blocked punt or punter down/out in his own end zone → safety for receivers
+      addPBP(`${p.puntPunter?p.puntPunter.name+' ':''}punt blocked / down in the end zone — <strong>SAFETY ${abbr(kicking)}</strong>`);
+      pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{safety:true}});
+      scoreSafety(kicking);   // receiving team scores the safety
+      G.pend=null; render(); return;
+    }
     if(p.puntPunter){ const ps=statFor(recv,p.puntPunter.name,p.puntPunter.number); ps.punts++; ps.puntyd += Math.max(0,(p.puntTouchback?80:p.puntLand)-G.ballOn); }
     let F = p.puntTouchback ? 80 : p.puntEnd;
     if(p.puntReturner && !p.puntTouchback && p.puntEnd!==p.puntLand){ const rs=statFor(kicking,p.puntReturner.name,p.puntReturner.number); rs.pret++; rs.pretyd += Math.max(0,p.puntLand-p.puntEnd); }
@@ -1770,6 +1808,7 @@ function confirmKick(){
     if(p.fgKicker){ const ks=statFor(recvSide,p.fgKicker.name,p.fgKicker.number); ks.fga++; if(p.fgGood) ks.fgm++; }
     const fgDist=(100-G.ballOn)+17;
     if(p.fgGood){
+      G.lastFG = `${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd field goal`;
       addPBP(`<strong>FIELD GOAL</strong> ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — good`);
       pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,points:3,side:recvSide,detail:{good:true, dist:fgDist}});
       scoreFG(recvSide);
@@ -1783,7 +1822,7 @@ function confirmKick(){
     const recvSide=recv;
     if(p.patMode==='kick'){
       if(p.patKicker){ const ks=statFor(recvSide,p.patKicker.name,p.patKicker.number); ks.xpa++; if(p.patGood) ks.xpm++; }
-      if(p.patGood){ addScore(recvSide,1); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true, scoring:G.lastTD||null}}); }
+      if(p.patGood){ addScore(recvSide,1); logScore(recvSide,'PAT', (G.lastTD?G.lastTD+' — kick':'Extra point '+abbr(recvSide))); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true, scoring:G.lastTD||null}}); }
       else { addPBP(`Extra point ${abbr(recvSide)} — no good`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,side:recvSide,detail:{good:false, scoring:G.lastTD||null}}); }
     } else {
       if(p.patConverted){ addScore(recvSide,2); addPBP(`2-pt conversion ${abbr(recvSide)} — good${p.patPlayer?` (${p.patPlayer.name})`:''} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,points:2,side:recvSide,detail:{good:true}}); }
@@ -2450,43 +2489,41 @@ async function generatePDF(opts={}){
 
   const CWt=PW-M*2;
 
-  // ── SCORING SUMMARY (chronological, like soccer's goal list) ──
-  {
-    const scoreLines = G.pbp.filter(e=>/TOUCHDOWN|FIELD GOAL|SAFETY|PICK SIX|Extra point|2-pt conversion|RETURN TD/i.test(e.text||''));
-    if(scoreLines.length){
-      need(24);
-      doc.setFont(F,'bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
-      doc.text('Scoring Summary', M, y); y+=14;
-      const qW=34, tW=44, sW=44, pW=CWt-qW-tW-sW*2;
-      doc.setFillColor(238,238,243); doc.rect(M,y-9,CWt,13,'F');
-      doc.setFont(F,'bold'); doc.setFontSize(7.5); doc.setTextColor(95,95,95);
-      doc.text('QTR', M+4, y-1);
-      doc.text('TIME', M+qW+4, y-1);
-      doc.text('PLAY', M+qW+tW+4, y-1);
-      doc.text(abbr('away'), M+qW+tW+pW+sW-4, y-1, {align:'right'});
-      doc.text(abbr('home'), M+CWt-4, y-1, {align:'right'});
-      y+=8;
-      doc.setFont(F,'normal'); doc.setFontSize(8.5);
-      scoreLines.forEach((e,i)=>{
-        need(14);
-        if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M,y-9,CWt,13,'F'); }
-        let txt=(e.text||'').replace(/<[^>]+>/g,'');
-        const sm=txt.match(/([A-Z]{2,6})\s+(\d+)\s*[\u00b7.]\s*([A-Z]{2,6})\s+(\d+)\s*$/);
-        let aS='', hS='';
-        if(sm){ txt=txt.slice(0,sm.index).trim(); const av=abbr('away');
-          if(sm[1]===av){ aS=sm[2]; hS=sm[4]; } else { aS=sm[4]; hS=sm[2]; } }
-        doc.setTextColor(60,60,60);
-        doc.text((e.qtr||'').replace(/\s*QTR/i,'').trim()||'-', M+4, y);
-        doc.text(e.clock||'', M+qW+4, y);
-        doc.setTextColor(30,30,30);
-        doc.text(txt, M+qW+tW+4, y, {maxWidth:pW-8});
-        doc.setTextColor(80,80,80);
-        if(aS) doc.text(aS, M+qW+tW+pW+sW-4, y, {align:'right'});
-        if(hS) doc.text(hS, M+CWt-4, y, {align:'right'});
-        y+=13;
-      });
-      y+=6; rule();
-    }
+  // ── SCORING SUMMARY (chronological, from the scoring log) ──
+  if(G.scoreLog && G.scoreLog.length){
+    need(28);
+    doc.setFont(F,'bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+    doc.text('Scoring Summary', M, y); y+=17;
+    const qW=40, tW=48, sW=42, pW=CWt-qW-tW-sW*2;
+    const rowH=17, padTop=12;
+    // header bar (roomier)
+    doc.setFillColor(238,238,243); doc.rect(M, y-padTop, CWt, rowH, 'F');
+    doc.setFont(F,'bold'); doc.setFontSize(7.5); doc.setTextColor(95,95,95);
+    const hy = y - padTop + 11;
+    doc.text('QTR', M+6, hy);
+    doc.text('TIME', M+qW+6, hy);
+    doc.text('SCORING PLAY', M+qW+tW+6, hy);
+    doc.text(abbr('away'), M+qW+tW+pW+sW-6, hy, {align:'right'});
+    doc.text(abbr('home'), M+CWt-6, hy, {align:'right'});
+    y += rowH - padTop + 4;
+    doc.setFont(F,'normal'); doc.setFontSize(9);
+    G.scoreLog.forEach((s,i)=>{
+      need(rowH+2);
+      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M, y-padTop, CWt, rowH, 'F'); }
+      const ty = y - padTop + 12;
+      doc.setTextColor(90,90,90); doc.setFontSize(8);
+      doc.text((s.qtr||'').replace(/\s*QTR/i,'').trim()||'-', M+6, ty);
+      doc.text(s.clock||'', M+qW+6, ty);
+      doc.setTextColor(25,25,25); doc.setFontSize(9);
+      doc.text(s.desc||'', M+qW+tW+6, ty, {maxWidth:pW-10});
+      // bold the team that scored on its side
+      doc.setFont(F,'bold'); doc.setTextColor(60,60,60);
+      doc.text(String(s.away), M+qW+tW+pW+sW-6, ty, {align:'right'});
+      doc.text(String(s.home), M+CWt-6, ty, {align:'right'});
+      doc.setFont(F,'normal');
+      y += rowH;
+    });
+    y += 8; rule();
   }
 
   // individual stats — ESPN-style tables: name column + aligned stat columns
@@ -2497,26 +2534,28 @@ async function generatePDF(opts={}){
     doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(110,110,110);
     doc.text(title, M, y); y+=11;
     const nameW = CWt - cols.reduce((s,c)=>s+c.w,0);
-    // header row — bar centered on the text baseline (was sitting too high)
-    const hbarH=13, hbarTop=y-9;            // text baseline at y; bar spans y-9..y+4
-    doc.setFillColor(238,238,243); doc.rect(M,hbarTop,CWt,hbarH,'F');
+    const rowH=16, padTop=11;   // roomier rows; bar vertically centered on text
+    // header bar
+    doc.setFillColor(238,238,243); doc.rect(M, y-padTop, CWt, rowH, 'F');
     doc.setFont(F,'bold'); doc.setFontSize(7.5); doc.setTextColor(95,95,95);
-    doc.text('PLAYER', M+4, y-1);           // labeled name column
+    const hy=y-padTop+11;
+    doc.text('PLAYER', M+6, hy);
     let cx=M+nameW;
-    cols.forEach(c=>{ doc.text(c.h.toUpperCase(), cx+c.w-4, y-1, {align:'right'}); cx+=c.w; });
-    y+=8;
+    cols.forEach(c=>{ doc.text(c.h.toUpperCase(), cx+c.w-6, hy, {align:'right'}); cx+=c.w; });
+    y += rowH - padTop + 3;
     // data rows
     doc.setFont(F,'normal'); doc.setFontSize(9);
     rows.forEach((r,i)=>{
-      need(14);
-      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M,y-9,CWt,13,'F'); }
+      need(rowH+2);
+      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M, y-padTop, CWt, rowH, 'F'); }
+      const ty=y-padTop+12;
       doc.setTextColor(35,35,35);
-      doc.text(String(r[0]), M+4, y, {maxWidth:nameW-8});
+      doc.text(String(r[0]), M+6, ty, {maxWidth:nameW-10});
       let cxr=M+nameW;
-      for(let j=0;j<cols.length;j++){ doc.text(String(r[j+1]), cxr+cols[j].w-4, y, {align:'right'}); cxr+=cols[j].w; }
-      y+=13;
+      for(let j=0;j<cols.length;j++){ doc.text(String(r[j+1]), cxr+cols[j].w-6, ty, {align:'right'}); cxr+=cols[j].w; }
+      y+=rowH;
     });
-    y+=6;
+    y+=8;
   }
   function statBlock(side){
     need(24);

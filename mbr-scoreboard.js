@@ -81,8 +81,13 @@
         return B(nm) + ' ' + yd(g || 0) + ' pass to ' + (n.receiver || '') + tk + dd;
       case 'pass_incomp':
         return B(nm) + ' pass incomplete' + dd;
-      case 'sack':
-        return B(nm) + ' sacked' + (g != null ? ' for ' + yd(g) : '') + dd;
+      case 'sack': {
+        // nm is the DEFENDER who made the sack; n.qb is the quarterback.
+        var qbName = n.qb || 'QB';
+        var by = nm ? ' by ' + B(nm) + (n.with ? ' & ' + n.with : '') : '';
+        var lossTxt = (n.loss != null) ? ' for ' + yd(-Math.abs(n.loss)) : (g != null ? ' for ' + yd(g) : '');
+        return qbName + ' sacked' + by + lossTxt + dd;
+      }
       case 'interception':
         return '<span style="color:var(--red);font-weight:700">INTERCEPTED</span> by ' + B(nm);
       case 'field_goal':
@@ -90,8 +95,14 @@
       case 'punt':      return B(nm) + ' punts' + dd;
       case 'kickoff':   return 'Kickoff' + (nm ? ' — ' + nm : '');
       case 'kick_return_td': return TD(B(nm) + ' return');
-      case 'penalty':   return '<span style="color:#b45309;font-weight:700">Flag</span> — ' +
-                               (n.type || 'Penalty') + (n.yds ? ', ' + n.yds + ' yds' : '') + dd;
+      case 'penalty': {
+        // Name the penalty (scorer sends it as n.name), keep the red flag, no player.
+        var pen = n.name || n.type || 'Penalty';
+        var on  = n.on ? ' on ' + n.on : '';
+        var auto = n.autoFirst ? ', automatic first' : '';
+        return '<span style="color:var(--red);font-weight:700">Flag</span> — ' + pen + on +
+               (n.yds ? ', ' + n.yds + ' yd' + (Math.abs(n.yds)===1?'':'s') : '') + auto + dd;
+      }
       case 'timeout':   return 'Timeout' + (nm ? ' — ' + nm : '');
       case 'game_over': return 'Final';
       default:

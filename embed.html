@@ -1240,8 +1240,12 @@
           return `Kickoff${nm ? ' — ' + nm : ''}`;
         case 'kick_return_td':
           return `<span style="color:var(--green);font-weight:700">TD!</span> — ${B(nm)} return`;
-        case 'penalty':
-          return `<span style="color:var(--gold,#b45309);font-weight:700">Flag</span> — ${n.type || 'Penalty'}${n.yds ? ', ' + n.yds + ' yds' : ''}${dd}`;
+        case 'penalty': {
+          const pen = n.name || n.type || 'Penalty';
+          const on  = n.on ? ` on ${n.on}` : '';
+          const auto = n.autoFirst ? ', automatic first' : '';
+          return `<span style="color:var(--red);font-weight:700">Flag</span> — ${pen}${on}${n.yds ? ', ' + n.yds + ' yd' + (Math.abs(n.yds)===1?'':'s') : ''}${auto}${dd}`;
+        }
         case 'timeout':
           return `Timeout${nm ? ' — ' + nm : ''}`;
         case 'game_over':

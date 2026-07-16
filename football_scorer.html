@@ -1223,7 +1223,7 @@ function confirmSpot(){ const c=_spotCtx; closeOv('ovSpot'); c.cb(c.val); }
 // ═══════════════════════════════════════════════
 function openRun(){
   saveSnapshot();
-  G.pend={type:'run', rusher:null, toSpot:G.ballOn, tackler:null, assist:null, fumble:false, fumRecover:'off', oob:false,
+  G.pend={type:'run', rusher:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, assist:null, fumble:false, fumRecover:'off', oob:false,
           addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
   document.getElementById('ovPlayTitle').textContent='Run';
   renderRun(); openOv('ovPlay');
@@ -1297,7 +1297,7 @@ function confirmRun(){
 // ═══════════════════════════════════════════════
 function openPass(){
   saveSnapshot();
-  G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, tackler:null, intSpot:100-G.ballOn, oob:false,
+  G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, intSpot:100-G.ballOn, oob:false,
           addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
   document.getElementById('ovPlayTitle').textContent='Pass';
   renderPass(); openOv('ovPlay');
@@ -1429,7 +1429,7 @@ function openKick(){
   const recv=G.poss, kicking=defSide();
   G.pend={ type:'kick', sub:defaultKickTab(),
     // kickoff
-    koKicker:null, koReturner:null, koRecAt:0, koAdvTo:25, koTouchback:false,
+    koKicker:null, koReturner:null, koRecAt:5, koAdvTo:25, koTouchback:false,
     // punt
     puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
     // fg
@@ -1456,6 +1456,8 @@ function renderKick(){
     h += pselRow('Returner', p.koReturner, "pickFor('koReturner','"+recv+"','Returner')");
     h += `<div class="res-row" style="margin:6px 0"><span class="toggle-pill ${p.koTouchback?'on':''}" onclick="G.pend.koTouchback=!G.pend.koTouchback;renderKick()">Touchback (start at 20)</span></div>`;
     if(!p.koTouchback){
+      h += `<div class="sec-lbl">Fielded at</div>`;
+      h += `<div class="psel-row" onclick="koRecSpot()"><span class="psel-lbl">Caught at</span><span class="psel-val">${spotLabel(p.koRecAt, recv)}</span></div>`;
       h += `<div class="sec-lbl">Return ends at (${abbr(recv)} drive starts)</div>`;
       h += `<div class="psel-row" onclick="koSpot()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.koAdvTo, recv)}</span></div>`;
     }
@@ -1500,6 +1502,7 @@ function renderKick(){
   h += `<div class="oactions"><button class="oconfirm" onclick="confirmKick()">Save Play</button></div>`;
   document.getElementById('ovPlayBody').innerHTML=h;
 }
+function koRecSpot(){ openSpotPicker(G.poss, G.pend.koRecAt, v=>{G.pend.koRecAt=v;renderKick();}, {showGain:false, title:'Fielded at'}); }
 function koSpot(){ openSpotPicker(G.poss, G.pend.koAdvTo, v=>{G.pend.koAdvTo=v;renderKick();}, {showGain:false, title:'Return ends at'}); }
 function puntLandSpot(){ openSpotPicker(G.poss, G.pend.puntLand, v=>{G.pend.puntLand=v; if(G.pend.puntEnd>v)G.pend.puntEnd=v; renderKick();}, {base:G.ballOn, title:'Punt lands at'}); }
 function puntEndSpot(){ openSpotPicker(G.poss, G.pend.puntEnd, v=>{G.pend.puntEnd=v;renderKick();}, {showGain:false, title:'Play ends at'}); }
@@ -1521,8 +1524,13 @@ function confirmKick(){
       G.ballOn=clamp(advTo,1,99); G.down=1; G.distance=Math.min(10,100-G.ballOn);
       if(G.curDrive) G.curDrive.startBallOn=G.ballOn;
       G.kickoffPending=false;
-      addPBP(`Kickoff${p.koTouchback?', touchback':''} — ${abbr(recv)} ball at ${spotLabel()}`);
-      pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{advTo:spotLabel(advTo,recv),touchback:p.koTouchback}});
+      const retTxt = (!p.koTouchback && p.koReturner)
+        ? ` — ${p.koReturner.name} return ${spotLabel(p.koRecAt,recv)} to ${spotLabel(advTo,recv)}` : '';
+      addPBP(`Kickoff${p.koTouchback?', touchback':''} — ${abbr(recv)} ball at ${spotLabel()}${retTxt}`);
+      pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{
+        advTo:spotLabel(advTo,recv), fieldedAt:spotLabel(p.koRecAt,recv), touchback:p.koTouchback,
+        returner:p.koReturner?.name||null, returnerNum:p.koReturner?.number||null,
+        retYds: p.koTouchback?0:Math.max(0,advTo-p.koRecAt)}});
     }
   } else if(p.sub==='punt'){
     if(p.puntPunter){ const ps=statFor(recv,p.puntPunter.name,p.puntPunter.number); ps.punts++; ps.puntyd += Math.max(0,(p.puntTouchback?80:p.puntLand)-G.ballOn); }
@@ -1615,15 +1623,20 @@ function penTypeChips(selName, fn){
 function penDefaultTeam(t){ return t.side==='off'?G.poss : t.side==='def'?defSide() : defSide(); }
 
 // shared enforcement — moves ball, sets down/distance, logs PBP + event
-function applyPenalty({team, yds, name, autoFirst, lossDown, replay}){
+function applyPenalty({team, yds, name, autoFirst, lossDown, replay, fromSpot, resetDist}){
   const onDef = team!==G.poss;
-  const oldTarget=firstDownTarget();
+  // Enforce from the given spot (previous LOS for most fouls; spot of foul for a
+  // spot foul). Falls back to current ballOn if the caller didn't specify.
+  const spot = (fromSpot!=null) ? clamp(fromSpot,1,99) : G.ballOn;
+  // distance-to-go is measured from the ORIGINAL target unless the penalty
+  // enforcement moved the LOS behind where the down started — then re-mark.
+  const target = (resetDist!=null) ? resetDist : firstDownTarget();
   let nb, capped=false;
-  if(onDef){ const half=Math.floor((100-G.ballOn)/2); const eff=Math.min(yds,half); capped=eff<yds; nb=G.ballOn+eff; }
-  else { const half=Math.floor(G.ballOn/2); const eff=Math.min(yds,half); capped=eff<yds; nb=G.ballOn-eff; }
+  if(onDef){ const half=Math.floor((100-spot)/2); const eff=Math.min(yds,half); capped=eff<yds; nb=spot+eff; }
+  else { const half=Math.floor(spot/2); const eff=Math.min(yds,half); capped=eff<yds; nb=spot-eff; }
   G.ballOn=clamp(nb,1,99);
   if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); if(G.tstat&&G.tstat[G.poss]) G.tstat[G.poss].fd++; }
-  else { G.distance=Math.max(1, oldTarget-G.ballOn); if(lossDown && !replay) G.down=Math.min(4,G.down+1); }
+  else { G.distance=Math.max(1, target-G.ballOn); if(lossDown && !replay) G.down=Math.min(4,G.down+1); }
   if(G.tstat&&G.tstat[team]){ G.tstat[team].pen++; G.tstat[team].penyd+=yds; }
   const nm = (name && name!=='Other') ? name : 'Penalty';
   addPBP(`Penalty — <strong>${nm}</strong> on ${abbr(team)}, ${yds} yd${capped?' (half-distance to goal)':''}${autoFirst?', automatic 1st':''}${lossDown?', loss of down':''} — ${ddLabel()} at ${spotLabel()}`);
@@ -1690,6 +1703,10 @@ function inlinePenaltyForm(p){
       <span class="qchip" onclick="G.pend.penYds=15;rerenderPend()">15</span>
       <span style="margin-left:auto;font-weight:700">${p.penYds||0} yd</span></div>`;
     h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.penAuto?'on':''}" onclick="G.pend.penAuto=!G.pend.penAuto;rerenderPend()">Automatic 1st down</span></div>`;
+    // Most penalties enforce from the previous LOS. A spot foul (e.g. backfield
+    // holding) enforces from where the play ended instead.
+    h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.penSpotFoul?'on':''}" onclick="G.pend.penSpotFoul=!G.pend.penSpotFoul;rerenderPend()">Spot foul (enforce from end of play)</span></div>`;
+    h += `<div class="sec-lbl" style="opacity:.7">${p.penSpotFoul?'From end of play':'From previous line of scrimmage'}</div>`;
   }
   return h;
 }
@@ -1708,7 +1725,14 @@ function pendPenTeam(s){ G.pend.penTeam=s; rerenderPend(); }
 // called after a normal commit to tack the penalty on
 function applyPendPenalty(p){
   if(!p.addPen || !p.penTeam) return;
-  applyPenalty({team:p.penTeam, yds:p.penYds||0, name:p.penName, autoFirst:!!p.penAuto, lossDown:false, replay:false});
+  // Default: enforce from the previous line of scrimmage and re-mark the down
+  // from there (a holding on a 9-yd run from the 2nd-&-19 LOS -> 2nd-&-29, not
+  // marked off the end of the run). Spot foul enforces from where the play ended.
+  const spotFoul = !!p.penSpotFoul;
+  const from = spotFoul ? G.ballOn : (p.losBefore!=null ? p.losBefore : G.ballOn);
+  const tgt  = spotFoul ? null : ((p.losBefore!=null && p.distBefore!=null) ? p.losBefore + p.distBefore : null);
+  applyPenalty({team:p.penTeam, yds:p.penYds||0, name:p.penName, autoFirst:!!p.penAuto,
+    lossDown:false, replay:false, fromSpot:from, resetDist:tgt});
 }
 
 // ═══════════════════════════════════════════════

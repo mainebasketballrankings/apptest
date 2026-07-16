@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-16b'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-16c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -474,7 +474,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16b'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16c'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -965,7 +965,15 @@ function startDrive(){
   G.curDrive = { team:G.poss, startQtr:G.quarter, startClock:G.clock, startBallOn:G.ballOn, plays:0, yards:0, result:null };
 }
 function endDrive(result){
-  if(G.curDrive){ G.curDrive.result=result; G.curDrive.endBallOn=G.ballOn; G.drives.push(G.curDrive); G.curDrive=null; }
+  if(G.curDrive){
+    // The drive-ending play (TD/FG/turnover/etc.) usually doesn't run through
+    // commitPlay, so it was never tallied. Count it unless this close was purely
+    // administrative (end of quarter/half/game with no snap).
+    const admin = ['half','end-reg','end-reg-tie','final','manual'];
+    if(!admin.includes(result)) G.curDrive.plays++;
+    G.curDrive.result=result; G.curDrive.endBallOn=G.ballOn;
+    G.drives.push(G.curDrive); G.curDrive=null;
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1272,6 +1280,41 @@ function renderRun(){
   document.getElementById('ovPlayBody').innerHTML=h;
 }
 function runSpot(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{ G.pend.toSpot=v; renderRun(); }, {base:G.ballOn, target:firstDownTarget(), title:'Ball ends at'}); }
+function resolveFumble(carrierSide, fumSpotOwn, opts={}){
+  const defr = other(carrierSide);
+  const lost = !!opts.lost;
+  const recPlayer = opts.recoverer || null;
+  const lead = opts.leadIn || '';
+  if(!lost){
+    // carrier's team keeps it — ball at advance spot (carrier frame), down continues
+    const spot = (opts.advToOwn!=null) ? opts.advToOwn : fumSpotOwn;
+    const recName = recPlayer?.name || abbr(carrierSide);
+    addPBP(`${lead}<strong>FUMBLE</strong> — recovered by ${recName} (${abbr(carrierSide)})`);
+    pushEvt('fumble',{side:carrierSide,detail:{lost:false,recoveredBy:recPlayer?.name||null,on:opts.onKind||null}});
+    if(carrierSide===G.poss){ commitPlay(clamp(spot,0,100)); }
+    else { G.ballOn=clamp(spot,1,99); }
+    return {lost:false,td:false};
+  }
+  // defense recovers. Work in the RECOVERING team's frame.
+  const fumAtDef = 100 - clamp(fumSpotOwn,0,100);
+  const endDef = (opts.advToOwn!=null) ? opts.advToOwn : fumAtDef;   // already def-frame if provided
+  const retYds = Math.max(0, endDef - fumAtDef);
+  const recName = recPlayer?.name || abbr(defr);
+  if(endDef>=100){
+    addPBP(`${lead}<strong>FUMBLE</strong> — recovered by ${recName}, ${retYds} yd return <strong>TD ${abbr(defr)}</strong>`);
+    pushEvt('fumble',{side:carrierSide,detail:{lost:true,recoveredBy:recPlayer?.name||null,recoverTeam:abbr(defr),retYds,td:true,on:opts.onKind||null}});
+    G.poss=defr;
+    G.lastTD=`${recName} ${retYds} yd fumble return`;
+    pushEvt('touchdown',{player:recPlayer?.name||null,num:recPlayer?.number||null,points:6,side:defr,detail:{via:'fumble_return',scoring:G.lastTD}});
+    scoreTD(defr);
+    return {lost:true,td:true,retYds};
+  }
+  const retTxt = retYds>0 ? `, ${recName} ${retYds} yd return` : (recPlayer?`, recovered by ${recName}`:'');
+  addPBP(`${lead}<strong>FUMBLE</strong> — ${abbr(defr)} ball${retTxt}`);
+  pushEvt('fumble',{side:carrierSide,detail:{lost:true,recoveredBy:recPlayer?.name||null,recoverTeam:abbr(defr),retYds,on:opts.onKind||null}});
+  changePoss(defr, endDef, 'fumble');
+  return {lost:true,td:false,retYds};
+}
 function fumRunSpot(){ const p=G.pend; const rt=p.fumRecover==='def'?defSide():G.poss;
   openSpotPicker(rt, p.fumAdvTo!=null?p.fumAdvTo:(p.fumRecover==='def'?100-p.toSpot:p.toSpot),
     v=>{G.pend.fumAdvTo=v;renderRun();}, {showGain:false, title:'Ball ends at'}); }
@@ -2209,6 +2252,38 @@ function addScore(side, pts){
 // ═══════════════════════════════════════════════
 // PDF GAME REPORT
 // ═══════════════════════════════════════════════
+async function loadImgBase64(url){
+  if(!url) return null;
+  return await new Promise(resolve=>{
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c=document.createElement('canvas');
+        c.width=img.naturalWidth; c.height=img.naturalHeight;
+        c.getContext('2d').drawImage(img,0,0);
+        resolve({data:c.toDataURL('image/png'), w:img.naturalWidth, h:img.naturalHeight});
+      } catch(e){ resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url + (url.includes('?')?'&':'?') + '_t=' + Date.now();
+  });
+}
+// Fetch team logo URLs from the DB when we have team ids (rewrite Cloudinary->R2).
+async function fetchTeamLogos(){
+  const out={away:null,home:null};
+  try{
+    const ids=[G_away_team_id,G_home_team_id].filter(Boolean);
+    if(!ids.length) return out;
+    const rows=await sbFetch(`teams?id=in.(${ids.join(',')})&select=id,logo_url`);
+    (rows||[]).forEach(r=>{
+      let u=r.logo_url||'';
+      if(u.includes('res.cloudinary.com')){ const m=u.match(/\/([^\/]+)\.(png|jpg|jpeg|webp)(\?|$)/i); if(m) u='https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/'+m[1]+'.'+m[2]; }
+      if(r.id===G_away_team_id) out.away=u; if(r.id===G_home_team_id) out.home=u;
+    });
+  }catch(e){}
+  return out;
+}
 async function generatePDF(opts={}){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'letter'});
@@ -2222,15 +2297,40 @@ async function generatePDF(opts={}){
   }
   function rule(){ need(8); doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(M,y,PW-M,y); y+=8; }
 
-  // header
-  doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(120);
-  doc.text('MAINE BASKETBALL RANKINGS', M, y); y+=14;
-  doc.setFontSize(18); doc.setTextColor(20); doc.text('Football Game Report', M, y); y+=22;
-  doc.setFontSize(15); doc.setTextColor(20);
-  doc.text(`${G.teams.away.name}  ${G.score.away}  —  ${G.score.home}  ${G.teams.home.name}`, M, y); y+=18;
-  doc.setFont(F,'normal'); doc.setFontSize(10); doc.setTextColor(90);
-  const meta=[G.date||'', G.loc||'', (G.level==='jv'?'JV':'Varsity')].filter(Boolean).join('  ·  ');
-  doc.text(meta, M, y); y+=8; rule();
+  // ── BRANDED HEADER (matches baseball/basketball reports) ──
+  const CW=PW-M*2;
+  // MBR wordmark, centered
+  const mbr=await loadImgBase64('https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/ghost-banner-5_sykt26.png');
+  if(mbr){
+    const mh=26, mw=(mbr.w/mbr.h)*mh;
+    try{ doc.addImage(mbr.data,'PNG',M+CW/2-mw/2,y,mw,mh); y+=mh+8; }
+    catch(e){ doc.setFont(F,'bold'); doc.setFontSize(11); doc.setTextColor(30); doc.text('MAINE BASKETBALL RANKINGS',M+CW/2,y+12,{align:'center'}); y+=26; }
+  } else {
+    doc.setFont(F,'bold'); doc.setFontSize(11); doc.setTextColor(30); doc.text('MAINE BASKETBALL RANKINGS',M+CW/2,y+12,{align:'center'}); y+=26;
+  }
+  doc.setFont(F,'normal'); doc.setFontSize(9); doc.setTextColor(130);
+  const dstr=G.date?new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}):'';
+  doc.text([dstr,(G.level==='jv'?'JV':'Varsity')].filter(Boolean).join('  \u2022  '),M+CW/2,y,{align:'center'}); y+=13;
+  doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(M,y,M+CW,y); y+=12;
+
+  // Teams + score, with logos when available
+  const logos=await fetchTeamLogos();
+  const aLogo=logos.away?await loadImgBase64(logos.away):null;
+  const hLogo=logos.home?await loadImgBase64(logos.home):null;
+  const lsz=40, gap=8;
+  if(aLogo){ try{ const w=Math.min((aLogo.w/aLogo.h)*lsz,lsz); doc.addImage(aLogo.data,'PNG',M,y+2,w,lsz); }catch(e){} }
+  if(hLogo){ try{ const w=Math.min((hLogo.w/hLogo.h)*lsz,lsz); doc.addImage(hLogo.data,'PNG',M+CW-w,y+2,w,lsz); }catch(e){} }
+  const aNm=G.teams.away.name, hNm=G.teams.home.name;
+  const aFz=aNm.length>14?Math.max(10,16-(aNm.length-14)*0.6):16;
+  const hFz=hNm.length>14?Math.max(10,16-(hNm.length-14)*0.6):16;
+  doc.setFont(F,'bold'); doc.setFontSize(aFz); doc.setTextColor(30);
+  doc.text(aNm, M+lsz+gap, y+22, {maxWidth:(CW-110)/2-lsz-gap});
+  doc.setFontSize(hFz);
+  doc.text(hNm, M+CW-lsz-gap, y+22, {align:'right', maxWidth:(CW-110)/2-lsz-gap});
+  doc.setFont(F,'bold'); doc.setFontSize(34); doc.setTextColor(238,103,48);
+  doc.text(`${G.score.away}-${G.score.home}`, M+CW/2, y+26, {align:'center'});
+  if(G.loc){ doc.setFont(F,'normal'); doc.setFontSize(8); doc.setTextColor(130); doc.text(G.loc,M+CW/2,y+42,{align:'center'}); }
+  y+=54; doc.setDrawColor(210); doc.setLineWidth(1); doc.line(M,y,M+CW,y); y+=12;
 
   // line score
   const qs=Object.keys(G.lineScore||{}).map(Number).sort((a,b)=>a-b);
@@ -2311,6 +2411,14 @@ async function generatePDF(opts={}){
     else line(`${e.qtr} ${e.clock}  ${txt}`, 8.5, 'normal', [55,55,55], 2.5);
   });
 
+  // Branded footer on every page (matches baseball/basketball).
+  const _pages=doc.internal.getNumberOfPages();
+  for(let pi=1; pi<=_pages; pi++){
+    doc.setPage(pi);
+    doc.setFont(F,'normal'); doc.setFontSize(8); doc.setTextColor(150);
+    doc.text('Maine Basketball Rankings  \u2022  Generated '+new Date().toLocaleDateString(), M, PH-20);
+    doc.text(`${pi} / ${_pages}`, PW-M, PH-20, {align:'right'});
+  }
   if(opts.returnBlob) return doc.output('blob');
   doc.save(`MBR_Football_${abbr('away')}_at_${abbr('home')}_${(G.date||'').replace(/-/g,'')}.pdf`);
 }

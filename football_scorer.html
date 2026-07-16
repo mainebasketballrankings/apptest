@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-15c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-16a'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -474,7 +474,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-15c'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16a'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -606,8 +606,8 @@ let G = {
   teams:{
     away:{ name:'Away', abbr:'AWY', roster:[] },
     home:{ name:'Home', abbr:'HOM', roster:[] },
-    startQB:{ away:null, home:null },
   },
+  startQB:{ away:null, home:null },   // top-level: read as G.startQB[side], not G.teams.startQB
   quarter:1, clock:720, poss:'away',
   ballOn:35, down:1, distance:10,
   score:{away:0,home:0},

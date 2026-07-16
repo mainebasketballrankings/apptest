@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
+const MBR_BUILD='fb-2026-07-15c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -1223,7 +1224,7 @@ function confirmSpot(){ const c=_spotCtx; closeOv('ovSpot'); c.cb(c.val); }
 // ═══════════════════════════════════════════════
 function openRun(){
   saveSnapshot();
-  G.pend={type:'run', rusher:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, assist:null, fumble:false, fumRecover:'off', oob:false,
+  G.pend={type:'run', rusher:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, assist:null, fumble:false, fumRecover:'off', fumRecoverer:null, fumAdvTo:null, oob:false,
           addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
   document.getElementById('ovPlayTitle').textContent='Run';
   renderRun(); openOv('ovPlay');
@@ -1239,14 +1240,21 @@ function renderRun(){
   h += `<div class="res-row" style="margin-top:10px"><span class="toggle-pill ${p.fumble?'on':''}" onclick="G.pend.fumble=!G.pend.fumble;renderRun()">Fumble on play</span><span class="toggle-pill ${p.oob?'on':''}" onclick="G.pend.oob=!G.pend.oob;renderRun()">Out of bounds</span></div>`;
   if(p.fumble){
     h += `<div class="sec-lbl">Recovered by</div><div class="res-row">
-      <span class="reschip ${p.fumRecover==='off'?'active':''}" onclick="G.pend.fumRecover='off';renderRun()">${abbr(G.poss)} (offense)</span>
-      <span class="reschip ${p.fumRecover==='def'?'active':''}" onclick="G.pend.fumRecover='def';renderRun()">${abbr(defSide())} (defense)</span></div>`;
+      <span class="reschip ${p.fumRecover==='off'?'active':''}" onclick="G.pend.fumRecover='off';G.pend.fumRecoverer=null;renderRun()">${abbr(G.poss)} (offense)</span>
+      <span class="reschip ${p.fumRecover==='def'?'active':''}" onclick="G.pend.fumRecover='def';G.pend.fumRecoverer=null;renderRun()">${abbr(defSide())} (defense)</span></div>`;
+    const recTeam = p.fumRecover==='def'?defSide():G.poss;
+    h += pselRow('Recovered by (player)', p.fumRecoverer, "pickFor('fumRecoverer','"+recTeam+"','Recovered by')");
+    h += `<div class="sec-lbl">Ball ends at (after any return)</div>`;
+    h += `<div class="psel-row" onclick="fumRunSpot()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.fumAdvTo!=null?p.fumAdvTo:p.toSpot, recTeam)}</span></div>`;
   }
   h += inlinePenaltyForm(p);
   h += `<div class="oactions"><button class="oconfirm" onclick="confirmRun()">Save Play</button></div>`;
   document.getElementById('ovPlayBody').innerHTML=h;
 }
 function runSpot(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{ G.pend.toSpot=v; renderRun(); }, {base:G.ballOn, target:firstDownTarget(), title:'Ball ends at'}); }
+function fumRunSpot(){ const p=G.pend; const rt=p.fumRecover==='def'?defSide():G.poss;
+  openSpotPicker(rt, p.fumAdvTo!=null?p.fumAdvTo:(p.fumRecover==='def'?100-p.toSpot:p.toSpot),
+    v=>{G.pend.fumAdvTo=v;renderRun();}, {showGain:false, title:'Ball ends at'}); }
 
 function confirmRun(){
   const p=G.pend;
@@ -1257,7 +1265,6 @@ function confirmRun(){
   st.ra++; st.ryd+=gain; if(gain>st.rlong) st.rlong=gain;
   if(p.tackler){ const d=statFor(defSide(), p.tackler.name, p.tackler.number); d.tkl++; }
   if(p.assist){ const d=statFor(defSide(), p.assist.name, p.assist.number); d.ast++; }
-  if(p.fumble){ st.fum++; }
   closeOv('ovPlay');
   const td = p.toSpot>=100 && !(p.fumble && p.fumRecover==='def');
   const tackTxt = p.tackler?` (${p.tackler.name}${p.assist?', '+p.assist.name:''})`:'';
@@ -1275,11 +1282,38 @@ function confirmRun(){
       detail:{via:'run', gain, scoring:G.lastTD}});
   } else if(p.fumble && p.fumRecover==='def'){
     st.fumlost++;
-    addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — ${abbr(defSide())} ball`);
-    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,fumbleLost:true}});
-    // ball at fumble spot, defense takes over (mirror)
-    G.ballOn=clamp(p.toSpot,0,100);
-    changePoss(other(G.poss), 100-G.ballOn, 'fumble');
+    const defr=other(G.poss);
+    const recName = p.fumRecoverer?.name || abbr(defr);
+    // fumble spot in defense frame; advance to fumAdvTo (defense frame) if set
+    const fumAtDef = 100 - clamp(p.toSpot,0,100);
+    const endDef = (p.fumAdvTo!=null) ? p.fumAdvTo : fumAtDef;
+    const retYds = Math.max(0, endDef - fumAtDef);
+    if(endDef>=100){
+      // scoop and score — fumble six
+      addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — recovered by ${recName}, ${retYds} yd return <strong>TD ${abbr(defr)}</strong>`);
+      pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,fumbleLost:true}});
+      pushEvt('fumble',{side:G.poss,detail:{lost:true,recoveredBy:p.fumRecoverer?.name||null,recoverTeam:abbr(defr),retYds,td:true}});
+      G.poss=defr;
+      G.lastTD=`${recName} ${retYds} yd fumble return`;
+      pushEvt('touchdown',{player:p.fumRecoverer?.name||null,num:p.fumRecoverer?.number||null,points:6,side:defr,detail:{via:'fumble_return',scoring:G.lastTD}});
+      scoreTD(defr);
+    } else {
+      const retTxt = retYds>0 ? `, ${recName} ${retYds} yd return` : (p.fumRecoverer?`, recovered by ${recName}`:'');
+      addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — ${abbr(defr)} ball${retTxt}`);
+      pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,fumbleLost:true}});
+      pushEvt('fumble',{side:G.poss,detail:{lost:true,recoveredBy:p.fumRecoverer?.name||null,recoverTeam:abbr(defr),retYds}});
+      changePoss(defr, endDef, 'fumble');
+    }
+  } else if(p.fumble){
+    // offense keeps it — ball at recovery spot, down continues from there
+    st.fum++;
+    const spot = (p.fumAdvTo!=null)?p.fumAdvTo:p.toSpot;
+    const recName = p.fumRecoverer?.name || abbr(G.poss);
+    addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — recovered by ${recName} (${abbr(G.poss)})`);
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,tackler:p.tackler?.name||null,tacklerNum:p.tackler?.number||null}});
+    pushEvt('fumble',{side:G.poss,detail:{lost:false,recoveredBy:p.fumRecoverer?.name||null}});
+    commitPlay(spot);
+    applyPendPenalty(p);
   } else {
     addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} yd rush${tackTxt}`);
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,
@@ -1297,7 +1331,7 @@ function confirmRun(){
 // ═══════════════════════════════════════════════
 function openPass(){
   saveSnapshot();
-  G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, intSpot:100-G.ballOn, oob:false,
+  G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, intSpot:Math.max(1,100-G.ballOn), oob:false,
           addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
   document.getElementById('ovPlayTitle').textContent='Pass';
   renderPass(); openOv('ovPlay');
@@ -1319,7 +1353,10 @@ function renderPass(){
     h += spotRow(p.toSpot, G.ballOn, "passSpotBack()");
   } else {
     h += pselRow('Passer', p.passer, "pickFor('passer','"+G.poss+"','QB / Passer')");
-    if(p.sub==='comp' || p.sub==='int') h += pselRow(p.sub==='int'?'Targeted':'Receiver', p.receiver, "pickFor('receiver','"+G.poss+"','Receiver')");
+    if(p.sub==='comp' || p.sub==='int' || p.sub==='incomp')
+      h += pselRow(p.sub==='comp'?'Receiver':'Intended for', p.receiver, "pickFor('receiver','"+G.poss+"','Receiver / target')");
+    if(p.sub==='incomp')
+      h += pselRow('Pass defended by (optional)', p.defender, "pickFor('defender','"+defSide()+"','Pass defended by')");
     if(p.sub==='int'){
       h += pselRow('Intercepted by', p.defender, "pickFor('defender','"+defSide()+"','Intercepted by')");
       h += `<div class="sec-lbl">${abbr(defSide())} ball at</div>`;
@@ -1354,8 +1391,13 @@ function confirmPass(){
   if(p.sub==='incomp'){
     if(!p.passer){ openOv('ovPlay'); msg('Pick a passer','Choose who threw the ball.'); return; }
     const st=statFor(G.poss,p.passer.name,p.passer.number); st.pa++;
-    addPBP(`${p.passer.name} pass incomplete`);
-    pushEvt('pass_incomp',{player:p.passer.name,num:p.passer.number});
+    if(p.defender){ const dd=statFor(defSide(),p.defender.name,p.defender.number); dd.pd=(dd.pd||0)+1; }
+    const forTxt = p.receiver ? ` (intended for ${p.receiver.name})` : '';
+    const pdTxt  = p.defender ? ` — broken up by ${p.defender.name}` : '';
+    addPBP(`${p.passer.name} pass incomplete${forTxt}${pdTxt}`);
+    pushEvt('pass_incomp',{player:p.passer.name,num:p.passer.number,detail:{
+      receiver:p.receiver?.name||null, receiverNum:p.receiver?.number||null,
+      defended:p.defender?.name||null, defendedNum:p.defender?.number||null}});
     commitPlay(G.ballOn);
     stopClock();
     applyPendPenalty(p);
@@ -1389,9 +1431,22 @@ function confirmPass(){
     if(!p.passer||!p.defender){ openOv('ovPlay'); msg('Missing player','Pick the passer and the defender who intercepted.'); return; }
     const ps=statFor(G.poss,p.passer.name,p.passer.number); ps.pa++; ps.pint++;
     const ds=statFor(defSide(),p.defender.name,p.defender.number); ds.dint++;
-    addPBP(`<strong>INTERCEPTED</strong> by ${p.defender.name} (${abbr(defSide())})`);
-    pushEvt('interception',{player:p.defender.name,num:p.defender.number,side:defSide(),detail:{passer:p.passer.name}});
-    changePoss(defSide(), p.intSpot, 'interception');
+    const defr=defSide();
+    const pickAt=100-G.ballOn;                 // where the pick happened, defense-relative
+    const retYds=Math.max(0,p.intSpot-pickAt);
+    if(p.intSpot>=100){
+      addPBP(`<strong>PICK SIX</strong> — ${p.defender.name} ${retYds} yd return (${abbr(defr)})`);
+      pushEvt('interception',{player:p.defender.name,num:p.defender.number,side:defr,detail:{passer:p.passer.name,retYds,pick6:true}});
+      G.poss=defr;                             // defense scores; scoreTD reads G.poss for the PAT
+      G.lastTD=`${p.defender.name} ${retYds} yd interception return`;
+      pushEvt('touchdown',{player:p.defender.name,num:p.defender.number,points:6,side:defr,detail:{via:'int_return',scoring:G.lastTD}});
+      scoreTD(defr);
+    } else {
+      const retTxt = retYds>0 ? `, ${retYds} yd return` : '';
+      addPBP(`<strong>INTERCEPTED</strong> by ${p.defender.name} (${abbr(defr)})${retTxt}`);
+      pushEvt('interception',{player:p.defender.name,num:p.defender.number,side:defr,detail:{passer:p.passer.name,retYds}});
+      changePoss(defr, p.intSpot, 'interception');
+    }
   } else if(p.sub==='sack'){
     if(!p.passer||!p.defender){ openOv('ovPlay'); msg('Missing player','Pick the QB and who made the sack.'); return; }
     const loss=Math.round(p.toSpot-G.ballOn);

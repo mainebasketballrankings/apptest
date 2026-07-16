@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-16a'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-16b'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -474,7 +474,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16a'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16b'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -499,6 +499,8 @@ let undoStack = [];
 let _gameFinalized = false;
 let _gameListVersion = 0, _gameListAbort = null;
 let _rosterVersion = 0;
+let _schoolIds = {};
+let G_side_team_id = { away:null, home:null };   // resolved team ids for manual entry
 let _saveStateTimer = null;
 let _lastPbpLength = -1;
 
@@ -1147,6 +1149,19 @@ function absYd(y, frame){ return frame===FIELD_FRAME ? y : 100-y; }   // involut
 function renderField(){
   const svg = document.getElementById('fieldSVG');
   if(!svg) return;
+  if(G.kickoffPending){
+    // Kickoff view: kicking team = other(G.poss). Ball on the kicking team's 40,
+    // arrow toward the RECEIVER's end zone (the direction the ball is kicked).
+    const kicking = other(G.poss);
+    const koSpotAbs = absYd(40, kicking);              // kicking team's own 40
+    svg.innerHTML = buildFieldSVG(
+      FIELD_FRAME,
+      koSpotAbs,
+      null,
+      { h:430, dir: kicking===FIELD_FRAME ? 1 : -1, kickoff:true }
+    );
+    return;
+  }
   svg.innerHTML = buildFieldSVG(
     FIELD_FRAME,
     absYd(G.ballOn, G.poss),
@@ -1490,6 +1505,7 @@ function openKick(){
   G.pend={ type:'kick', sub:defaultKickTab(),
     // kickoff
     koKicker:null, koReturner:null, koRecAt:5, koAdvTo:25, koTouchback:false,
+    koFumble:false, koFumLost:false, koFumRecoverer:null, koFumAt:50,
     // punt
     puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
     // fg
@@ -1520,6 +1536,15 @@ function renderKick(){
       h += `<div class="psel-row" onclick="koRecSpot()"><span class="psel-lbl">Caught at</span><span class="psel-val">${spotLabel(p.koRecAt, recv)}</span></div>`;
       h += `<div class="sec-lbl">Return ends at (${abbr(recv)} drive starts)</div>`;
       h += `<div class="psel-row" onclick="koSpot()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.koAdvTo, recv)}</span></div>`;
+      // A kickoff can be fumbled — muffed catch or fumble on the return.
+      h += `<div class="res-row" style="margin-top:8px"><span class="toggle-pill ${p.koFumble?'on':''}" onclick="G.pend.koFumble=!G.pend.koFumble;renderKick()">Fumble on the return</span></div>`;
+      if(p.koFumble){
+        h += `<div class="res-row" style="margin-top:4px">
+          <span class="reschip ${!p.koFumLost?'active':''}" onclick="G.pend.koFumLost=false;renderKick()">${abbr(recv)} keeps</span>
+          <span class="reschip ${p.koFumLost?'active':''}" onclick="G.pend.koFumLost=true;renderKick()">${abbr(kicking)} recovers</span></div>`;
+        const rt = p.koFumLost?kicking:recv;
+        h += pselRow('Recovered by', p.koFumRecoverer, "pickFor('koFumRecoverer','"+rt+"','Recovered by')");
+      }
     }
   } else if(p.sub==='punt'){
     h += `<div class="sec-lbl">${abbr(recv)} punts · ${abbr(kicking)} receives</div>`;
@@ -1580,17 +1605,29 @@ function confirmKick(){
       pushEvt('kick_return_td',{player:p.koReturner?.name,num:p.koReturner?.number,side:recv,detail:{}});
       const tdSide=recv; scoreTD(tdSide);
       pushEvt('touchdown',{player:p.koReturner?.name,num:p.koReturner?.number,points:6,side:tdSide});
+    } else if(p.koFumble && p.koFumLost && !p.koTouchback){
+      // kicking team recovers the kickoff — they take over at the fumble spot
+      G.kickoffPending=false;
+      const recName=p.koFumRecoverer?.name||abbr(kicking);
+      addPBP(`Kickoff — ${p.koReturner?p.koReturner.name+' ':''}<strong>FUMBLE</strong>, recovered by ${recName} (${abbr(kicking)})`);
+      pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{
+        fieldedAt:spotLabel(p.koRecAt,recv), returner:p.koReturner?.name||null, fumble:true, recoverTeam:abbr(kicking)}});
+      pushEvt('fumble',{side:recv,detail:{lost:true,recoveredBy:p.koFumRecoverer?.name||null,recoverTeam:abbr(kicking),onKickoff:true}});
+      // kicking team takes over; mirror the advance spot into their frame
+      changePoss(kicking, 100-advTo, 'kickoff-fumble');
     } else {
       G.ballOn=clamp(advTo,1,99); G.down=1; G.distance=Math.min(10,100-G.ballOn);
       if(G.curDrive) G.curDrive.startBallOn=G.ballOn;
       G.kickoffPending=false;
+      const fumTxt = (p.koFumble && !p.koFumLost) ? `, ${abbr(recv)} recovered own fumble` : '';
       const retTxt = (!p.koTouchback && p.koReturner)
         ? ` — ${p.koReturner.name} return ${spotLabel(p.koRecAt,recv)} to ${spotLabel(advTo,recv)}` : '';
-      addPBP(`Kickoff${p.koTouchback?', touchback':''} — ${abbr(recv)} ball at ${spotLabel()}${retTxt}`);
+      addPBP(`Kickoff${p.koTouchback?', touchback':''} — ${abbr(recv)} ball at ${spotLabel()}${retTxt}${fumTxt}`);
       pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{
         advTo:spotLabel(advTo,recv), fieldedAt:spotLabel(p.koRecAt,recv), touchback:p.koTouchback,
         returner:p.koReturner?.name||null, returnerNum:p.koReturner?.number||null,
         retYds: p.koTouchback?0:Math.max(0,advTo-p.koRecAt)}});
+      if(p.koFumble && !p.koFumLost){ pushEvt('fumble',{side:recv,detail:{lost:false,recoveredBy:p.koFumRecoverer?.name||null,onKickoff:true}}); }
     }
   } else if(p.sub==='punt'){
     if(p.puntPunter){ const ps=statFor(recv,p.puntPunter.name,p.puntPunter.number); ps.punts++; ps.puntyd += Math.max(0,(p.puntTouchback?80:p.puntLand)-G.ballOn); }
@@ -2103,11 +2140,41 @@ let _schools=null;
 async function loadSchools(){
   if(_schools) return _schools;
   try{
-    const rows=await sbFetch(`teams?select=school_name&order=school_name.asc&limit=2000`);
-    const set=new Set(); (rows||[]).forEach(r=>{ if(r.school_name) set.add(r.school_name); });
-    _schools=[...set];
-  }catch(e){ _schools=[]; }
+    const rows=await sbFetch(`teams?select=id,school_name&order=school_name.asc&limit=2000`);
+    // keep every id per name; a school can have >1 team row (gender/sport)
+    const byName={};
+    (rows||[]).forEach(r=>{ if(r.school_name){ (byName[r.school_name]=byName[r.school_name]||[]).push(r.id); } });
+    _schools=Object.keys(byName).sort();
+    _schoolIds=byName;
+  }catch(e){ _schools=[]; _schoolIds={}; }
   return _schools;
+}
+// Pull a roster for a manually-typed team by matching its school name to a
+// team_id, then loading that team's football players — the emergency-game path.
+async function loadRosterByName(name, side){
+  try{
+    await loadSchools();
+    const ids=(_schoolIds&&_schoolIds[name])||[];
+    if(!ids.length) return;
+    const sportId=await resolveFootballSport();
+    const myV=++_rosterVersion;
+    // try each candidate id until one has football players
+    for(const teamId of ids){
+      const q = sportId
+        ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`
+        : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`;
+      const players=await sbFetch(q);
+      if(myV!==_rosterVersion) return;
+      if(Array.isArray(players)&&players.length){
+        G.teams[side].roster=players.map(p=>newPlayer(p.number?String(parseInt(p.number)):'', p.name||'', p.position||''));
+        G_side_team_id[side]=teamId;   // remember so live push writes the right team
+        renderLU(side);
+        const st=document.getElementById(side+'RosterStatus');
+        if(st){ st.textContent=`✓ ${players.length} players loaded`; st.style.color='var(--green)'; }
+        return;
+      }
+    }
+  }catch(e){ console.warn('loadRosterByName failed', side, e); }
 }
 function schoolAC(inp, side){
   const v=(inp.value||'').toLowerCase().trim();
@@ -2124,6 +2191,7 @@ function pickSchool(name, side){
   document.getElementById(side+'NameInp').value=name;
   document.getElementById(side+'AbbrInp').value=autoAbbr(name);
   document.getElementById(side+'AC').style.display='none';
+  loadRosterByName(name, side);   // emergency-game roster load
 }
 function closeAC(side){ setTimeout(()=>{ const b=document.getElementById(side+'AC'); if(b) b.style.display='none'; }, 150); }
 

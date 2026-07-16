@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-16c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-16d'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -474,7 +474,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16c'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16d'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -1280,6 +1280,28 @@ function renderRun(){
   document.getElementById('ovPlayBody').innerHTML=h;
 }
 function runSpot(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{ G.pend.toSpot=v; renderRun(); }, {base:G.ballOn, target:firstDownTarget(), title:'Ball ends at'}); }
+function fumbleUI(carrierSide, rerender){
+  const p=G.pend; const defr=other(carrierSide);
+  let h = `<div class="res-row" style="margin-top:10px"><span class="toggle-pill ${p.fumble?'on':''}" onclick="G.pend.fumble=!G.pend.fumble;${rerender}()">Fumble on the play</span></div>`;
+  if(p.fumble){
+    h += `<div class="sec-lbl">Recovered by</div><div class="res-row">
+      <span class="reschip ${p.fumRecover!=='def'?'active':''}" onclick="G.pend.fumRecover='off';G.pend.fumRecoverer=null;${rerender}()">${abbr(carrierSide)} keeps</span>
+      <span class="reschip ${p.fumRecover==='def'?'active':''}" onclick="G.pend.fumRecover='def';G.pend.fumRecoverer=null;${rerender}()">${abbr(defr)} recovers</span></div>`;
+    const rt = p.fumRecover==='def'?defr:carrierSide;
+    h += pselRow('Recovered by (player)', p.fumRecoverer, "pickFor('fumRecoverer','"+rt+"','Recovered by')");
+    h += `<div class="sec-lbl">Ball ends at (after any return)</div>`;
+    h += `<div class="psel-row" onclick="fumSpotPick('${carrierSide}','${rerender}')"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.fumAdvTo!=null?p.fumAdvTo:(p.toSpot!=null?p.toSpot:G.ballOn), rt)}</span></div>`;
+  }
+  return h;
+}
+// spot picker for the shared fumble UI (in the recovering team's frame)
+function fumSpotPick(carrierSide, rerender){
+  const p=G.pend; const defr=other(carrierSide);
+  const rt = p.fumRecover==='def'?defr:carrierSide;
+  const base = p.fumAdvTo!=null ? p.fumAdvTo
+             : (p.fumRecover==='def' ? 100-(p.toSpot!=null?p.toSpot:G.ballOn) : (p.toSpot!=null?p.toSpot:G.ballOn));
+  openSpotPicker(rt, base, v=>{G.pend.fumAdvTo=v; window[rerender] && window[rerender]();}, {showGain:false, title:'Ball ends at'});
+}
 function resolveFumble(carrierSide, fumSpotOwn, opts={}){
   const defr = other(carrierSide);
   const lost = !!opts.lost;
@@ -1395,6 +1417,7 @@ function confirmRun(){
 function openPass(){
   saveSnapshot();
   G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, intSpot:Math.max(1,100-G.ballOn), oob:false,
+          fumble:false, fumRecover:'off', fumRecoverer:null, fumAdvTo:null,
           addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
   document.getElementById('ovPlayTitle').textContent='Pass';
   renderPass(); openOv('ovPlay');
@@ -1414,6 +1437,7 @@ function renderPass(){
     h += pselRow('Sack by (2) — half sack', p.defender2, "pickFor('defender2','"+defSide()+"','2nd defender (½ sack)')");
     h += `<div class="sec-lbl">Tackled at</div>`;
     h += spotRow(p.toSpot, G.ballOn, "passSpotBack()");
+    h += fumbleUI(G.poss, 'renderPass');
   } else {
     h += pselRow('Passer', p.passer, "pickFor('passer','"+G.poss+"','QB / Passer')");
     if(p.sub==='comp' || p.sub==='int' || p.sub==='incomp')
@@ -1430,6 +1454,7 @@ function renderPass(){
       h += spotRow(p.toSpot, G.ballOn, "passSpot()");
       h += pselRow('Tackle (optional)', p.tackler, "pickFor('tackler','"+defSide()+"','Tackled by')");
       h += `<div class="res-row" style="margin-top:8px"><span class="toggle-pill ${p.oob?'on':''}" onclick="G.pend.oob=!G.pend.oob;renderPass()">Out of bounds</span></div>`;
+      h += fumbleUI(G.poss, 'renderPass');
     }
   }
   h += inlinePenaltyForm(p);
@@ -1486,9 +1511,21 @@ function confirmPass(){
         receiver:p.receiver.name, receiverNum:p.receiver.number||null,
         tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null,
         assist:p.assist?.name||null,  assistNum:p.assist?.number||null}});
-      commitPlay(p.toSpot);
-      if(p.oob) stopClock();
-      applyPendPenalty(p);
+      if(p.fumble){
+        // ball carrier is the RECEIVER's team (G.poss); fumble at the catch spot
+        const lead = `${p.passer.name} ${gain>=0?'+':''}${gain} pass to ${p.receiver.name} — `;
+        resolveFumble(G.poss, p.toSpot, {
+          lost: p.fumRecover==='def',
+          recoverer: p.fumRecoverer||null,
+          advToOwn: p.fumAdvTo,
+          leadIn: lead, onKind:'pass'
+        });
+        applyPendPenalty(p);
+      } else {
+        commitPlay(p.toSpot);
+        if(p.oob) stopClock();
+        applyPendPenalty(p);
+      }
     }
   } else if(p.sub==='int'){
     if(!p.passer||!p.defender){ openOv('ovPlay'); msg('Missing player','Pick the passer and the defender who intercepted.'); return; }
@@ -1523,7 +1560,17 @@ function confirmPass(){
       addPBP(`${p.passer.name} sacked by ${p.defender.name} (${loss} yd)`);
       pushEvt('sack',{player:p.defender.name,num:p.defender.number,side:defSide(),detail:{loss,qb:p.passer.name}});
     }
-    if(p.toSpot<=0){ scoreSafety(defSide()); }
+    if(p.fumble){
+      // strip-sack: QB's team (G.poss) is the carrier, fumble at the sack spot
+      const lead = `${p.passer.name} sacked — `;
+      resolveFumble(G.poss, p.toSpot, {
+        lost: p.fumRecover==='def',
+        recoverer: p.fumRecoverer||null,
+        advToOwn: p.fumAdvTo,
+        leadIn: lead, onKind:'sack'
+      });
+      applyPendPenalty(p);
+    } else if(p.toSpot<=0){ scoreSafety(defSide()); }
     else { commitPlay(p.toSpot); applyPendPenalty(p); }
   }
   G.pend=null; render();
@@ -1551,6 +1598,7 @@ function openKick(){
     koFumble:false, koFumLost:false, koFumRecoverer:null, koFumAt:50,
     // punt
     puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
+    puntFumble:false, puntFumLost:false, puntFumRecoverer:null,
     // fg
     fgKicker:null, fgGood:true,
     // pat
@@ -1599,6 +1647,15 @@ function renderKick(){
       h += pselRow('Returner (optional)', p.puntReturner, "pickFor('puntReturner','"+kicking+"','Returner')");
       h += `<div class="sec-lbl">Play ends at</div>`;
       h += `<div class="psel-row" onclick="puntEndSpot()"><span class="psel-lbl">Ends at</span><span class="psel-val">${spotLabel(p.puntEnd, recv)}</span></div>`;
+      // A punt return can be fumbled — muffed catch or fumble on the return.
+      h += `<div class="res-row" style="margin-top:8px"><span class="toggle-pill ${p.puntFumble?'on':''}" onclick="G.pend.puntFumble=!G.pend.puntFumble;renderKick()">Fumble on the return</span></div>`;
+      if(p.puntFumble){
+        h += `<div class="res-row" style="margin-top:4px">
+          <span class="reschip ${!p.puntFumLost?'active':''}" onclick="G.pend.puntFumLost=false;renderKick()">${abbr(kicking)} keeps</span>
+          <span class="reschip ${p.puntFumLost?'active':''}" onclick="G.pend.puntFumLost=true;renderKick()">${abbr(recv)} recovers</span></div>`;
+        const rt = p.puntFumLost?recv:kicking;
+        h += pselRow('Recovered by', p.puntFumRecoverer, "pickFor('puntFumRecoverer','"+rt+"','Recovered by')");
+      }
     }
   } else if(p.sub==='fg'){
     const dist=(100-G.ballOn)+17;
@@ -1684,6 +1741,21 @@ function confirmKick(){
       G.poss=kicking;                 // scoreTD ends the punting team's drive, then sets PAT for returner's team
       scoreTD(tdSide);
       pushEvt('touchdown',{player:p.puntReturner?.name,num:p.puntReturner?.number,points:6,side:tdSide});
+    } else if(p.puntFumble && !p.puntTouchback){
+      G.kickoffPending=false;
+      // The returning team (kicking) fielded the punt; F is in the receiver's
+      // frame, so the returning team's own-frame spot is 100-F.
+      const carrier = kicking;
+      const carrierSpotOwn = 100 - F;
+      const lead = `${p.puntPunter?p.puntPunter.name+' ':''}punt, ${p.puntReturner?p.puntReturner.name+' ':''}return — `;
+      // possession is currently 'recv'; make the returning team the carrier first
+      G.poss = carrier;
+      resolveFumble(carrier, carrierSpotOwn, {
+        lost: p.puntFumLost,
+        recoverer: p.puntFumRecoverer||null,
+        advToOwn: null,
+        leadIn: lead, onKind:'punt'
+      });
     } else {
       G.kickoffPending=false;
       changePoss(kicking, 100-F, 'punt');
@@ -2371,26 +2443,60 @@ async function generatePDF(opts={}){
   }
   rule();
 
-  // individual stats
-  function statBlock(side){
-    line(G.teams[side].name+' — Individual Stats', 12, 'bold', [20,20,20], 6);
-    const groups=[
-      ['Passing', p=>p.pa>0, p=>`${p.name}: ${p.pc}/${p.pa}, ${p.pyd} yds, ${p.ptd} TD, ${p.pint} INT`],
-      ['Rushing', p=>p.ra>0, p=>`${p.name}: ${p.ra} att, ${p.ryd} yds, ${p.rtd} TD, lng ${p.rlong}`],
-      ['Receiving', p=>p.rec>0, p=>`${p.name}: ${p.rec} rec, ${p.recyd} yds, ${p.rectd} TD, lng ${p.reclong}`],
-      ['Defense', p=>(p.tkl+p.ast+p.sack+p.dint)>0, p=>`${p.name}: ${p.tkl} tkl, ${p.ast} ast, ${p.sack} sk, ${p.dint} INT`],
-      ['Kicking', p=>(p.fga+p.xpa)>0, p=>`${p.name}: FG ${p.fgm}/${p.fga}, XP ${p.xpm}/${p.xpa}`],
-      ['Punting/Returns', p=>(p.punts+p.kret+p.pret)>0, p=>`${p.name}: ${p.punts} punts ${p.puntyd} yds, KR ${p.kretyd}, PR ${p.pretyd}`],
-    ];
-    const players=Object.values(G.stats[side]);
-    groups.forEach(([title,filt,fmt])=>{
-      const rows=players.filter(filt);
-      if(!rows.length) return;
-      line(title, 9, 'bold', [110,110,110], 3);
-      rows.forEach(p=>line('  '+fmt(p), 9, 'normal', [40,40,40], 3));
-      y+=2;
+  // individual stats — ESPN-style tables: name column + aligned stat columns
+  const CWt=PW-M*2;
+  function statTable(title, cols, rows){
+    // cols: [{h:'Yds', w:38}], rows: [[name, v1, v2...]]
+    if(!rows.length) return;
+    need(30);
+    doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(110,110,110);
+    doc.text(title, M, y); y+=11;
+    const nameW = CWt - cols.reduce((s,c)=>s+c.w,0);
+    // header row (shaded)
+    doc.setFillColor(240,240,245); doc.rect(M,y-8,CWt,14,'F');
+    doc.setFont(F,'bold'); doc.setFontSize(8); doc.setTextColor(90,90,90);
+    let x=M+4; doc.text('', x, y);          // name header blank
+    let cx=M+nameW;
+    cols.forEach(c=>{ doc.text(c.h, cx+c.w-4, y, {align:'right'}); cx+=c.w; });
+    y+=10;
+    // data rows
+    doc.setFont(F,'normal'); doc.setFontSize(9);
+    rows.forEach((r,i)=>{
+      need(14);
+      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M,y-8,CWt,13,'F'); }
+      doc.setTextColor(35,35,35);
+      doc.text(String(r[0]), M+4, y, {maxWidth:nameW-8});
+      let cxr=M+nameW;
+      for(let j=0;j<cols.length;j++){ doc.text(String(r[j+1]), cxr+cols[j].w-4, y, {align:'right'}); cxr+=cols[j].w; }
+      y+=13;
     });
     y+=6;
+  }
+  function statBlock(side){
+    need(24);
+    doc.setFont(F,'bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
+    doc.text(G.teams[side].name, M, y); y+=16;
+    const P=Object.values(G.stats[side]);
+    const ipp=n=>String(n);   // passthrough
+    statTable('Passing',
+      [{h:'C/A',w:46},{h:'Yds',w:40},{h:'TD',w:30},{h:'INT',w:30},{h:'Lng',w:34}],
+      P.filter(p=>p.pa>0).map(p=>[p.name,`${p.pc}/${p.pa}`,p.pyd,p.ptd,p.pint,p.plong||0]));
+    statTable('Rushing',
+      [{h:'Att',w:40},{h:'Yds',w:40},{h:'TD',w:30},{h:'Lng',w:34}],
+      P.filter(p=>p.ra>0).map(p=>[p.name,p.ra,p.ryd,p.rtd,p.rlong]));
+    statTable('Receiving',
+      [{h:'Rec',w:40},{h:'Yds',w:40},{h:'TD',w:30},{h:'Lng',w:34}],
+      P.filter(p=>p.rec>0).map(p=>[p.name,p.rec,p.recyd,p.rectd,p.reclong]));
+    statTable('Defense',
+      [{h:'Tkl',w:40},{h:'Ast',w:34},{h:'Sk',w:30},{h:'INT',w:30},{h:'PD',w:30}],
+      P.filter(p=>(p.tkl+p.ast+p.sack+p.dint+(p.pd||0))>0).map(p=>[p.name,p.tkl,p.ast,p.sack,p.dint,p.pd||0]));
+    statTable('Kicking',
+      [{h:'FG',w:44},{h:'XP',w:44}],
+      P.filter(p=>(p.fga+p.xpa)>0).map(p=>[p.name,`${p.fgm}/${p.fga}`,`${p.xpm}/${p.xpa}`]));
+    statTable('Punting / Returns',
+      [{h:'Punts',w:44},{h:'Yds',w:40},{h:'KR',w:34},{h:'PR',w:34}],
+      P.filter(p=>(p.punts+p.kret+p.pret)>0).map(p=>[p.name,p.punts,p.puntyd,p.kretyd,p.pretyd]));
+    y+=4;
   }
   statBlock('away'); statBlock('home'); rule();
 

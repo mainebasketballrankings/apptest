@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-16d'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-16e'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -474,7 +474,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16d'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16e'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -1039,11 +1039,16 @@ function scoreFG(side){
   changePoss(other(side), 25, 'kickoff-pending');
 }
 function scoreSafety(side){
-  // side = team that SCORES the safety (the defense). The offense was tackled in own EZ.
+  // side = team that SCORES the safety (the defense). The offense was tackled in
+  // its own end zone. After a safety the CONCEDING team free-kicks from its own
+  // 20, so the SCORING team (side) receives and takes over — not the other way.
   addScore(side, 2);
   endDrive('Safety');
   addPBP(`<strong>SAFETY ${abbr(side)}</strong> <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
-  changePoss(other(side), 25, 'free-kick');
+  // Scoring team receives the free kick; a typical free-kick return leaves them
+  // near midfield. Give them the ball ~own 40 (they can adjust with Set Spot).
+  changePoss(side, 40, 'free-kick');
+  G.kickoffPending=false;
   stopClock();
 }
 
@@ -2443,8 +2448,48 @@ async function generatePDF(opts={}){
   }
   rule();
 
-  // individual stats — ESPN-style tables: name column + aligned stat columns
   const CWt=PW-M*2;
+
+  // ── SCORING SUMMARY (chronological, like soccer's goal list) ──
+  {
+    const scoreLines = G.pbp.filter(e=>/TOUCHDOWN|FIELD GOAL|SAFETY|PICK SIX|Extra point|2-pt conversion|RETURN TD/i.test(e.text||''));
+    if(scoreLines.length){
+      need(24);
+      doc.setFont(F,'bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
+      doc.text('Scoring Summary', M, y); y+=14;
+      const qW=34, tW=44, sW=44, pW=CWt-qW-tW-sW*2;
+      doc.setFillColor(238,238,243); doc.rect(M,y-9,CWt,13,'F');
+      doc.setFont(F,'bold'); doc.setFontSize(7.5); doc.setTextColor(95,95,95);
+      doc.text('QTR', M+4, y-1);
+      doc.text('TIME', M+qW+4, y-1);
+      doc.text('PLAY', M+qW+tW+4, y-1);
+      doc.text(abbr('away'), M+qW+tW+pW+sW-4, y-1, {align:'right'});
+      doc.text(abbr('home'), M+CWt-4, y-1, {align:'right'});
+      y+=8;
+      doc.setFont(F,'normal'); doc.setFontSize(8.5);
+      scoreLines.forEach((e,i)=>{
+        need(14);
+        if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M,y-9,CWt,13,'F'); }
+        let txt=(e.text||'').replace(/<[^>]+>/g,'');
+        const sm=txt.match(/([A-Z]{2,6})\s+(\d+)\s*[\u00b7.]\s*([A-Z]{2,6})\s+(\d+)\s*$/);
+        let aS='', hS='';
+        if(sm){ txt=txt.slice(0,sm.index).trim(); const av=abbr('away');
+          if(sm[1]===av){ aS=sm[2]; hS=sm[4]; } else { aS=sm[4]; hS=sm[2]; } }
+        doc.setTextColor(60,60,60);
+        doc.text((e.qtr||'').replace(/\s*QTR/i,'').trim()||'-', M+4, y);
+        doc.text(e.clock||'', M+qW+4, y);
+        doc.setTextColor(30,30,30);
+        doc.text(txt, M+qW+tW+4, y, {maxWidth:pW-8});
+        doc.setTextColor(80,80,80);
+        if(aS) doc.text(aS, M+qW+tW+pW+sW-4, y, {align:'right'});
+        if(hS) doc.text(hS, M+CWt-4, y, {align:'right'});
+        y+=13;
+      });
+      y+=6; rule();
+    }
+  }
+
+  // individual stats — ESPN-style tables: name column + aligned stat columns
   function statTable(title, cols, rows){
     // cols: [{h:'Yds', w:38}], rows: [[name, v1, v2...]]
     if(!rows.length) return;
@@ -2452,18 +2497,19 @@ async function generatePDF(opts={}){
     doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(110,110,110);
     doc.text(title, M, y); y+=11;
     const nameW = CWt - cols.reduce((s,c)=>s+c.w,0);
-    // header row (shaded)
-    doc.setFillColor(240,240,245); doc.rect(M,y-8,CWt,14,'F');
-    doc.setFont(F,'bold'); doc.setFontSize(8); doc.setTextColor(90,90,90);
-    let x=M+4; doc.text('', x, y);          // name header blank
+    // header row — bar centered on the text baseline (was sitting too high)
+    const hbarH=13, hbarTop=y-9;            // text baseline at y; bar spans y-9..y+4
+    doc.setFillColor(238,238,243); doc.rect(M,hbarTop,CWt,hbarH,'F');
+    doc.setFont(F,'bold'); doc.setFontSize(7.5); doc.setTextColor(95,95,95);
+    doc.text('PLAYER', M+4, y-1);           // labeled name column
     let cx=M+nameW;
-    cols.forEach(c=>{ doc.text(c.h, cx+c.w-4, y, {align:'right'}); cx+=c.w; });
-    y+=10;
+    cols.forEach(c=>{ doc.text(c.h.toUpperCase(), cx+c.w-4, y-1, {align:'right'}); cx+=c.w; });
+    y+=8;
     // data rows
     doc.setFont(F,'normal'); doc.setFontSize(9);
     rows.forEach((r,i)=>{
       need(14);
-      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M,y-8,CWt,13,'F'); }
+      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M,y-9,CWt,13,'F'); }
       doc.setTextColor(35,35,35);
       doc.text(String(r[0]), M+4, y, {maxWidth:nameW-8});
       let cxr=M+nameW;
@@ -2477,25 +2523,26 @@ async function generatePDF(opts={}){
     doc.setFont(F,'bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
     doc.text(G.teams[side].name, M, y); y+=16;
     const P=Object.values(G.stats[side]);
-    const ipp=n=>String(n);   // passthrough
+    const nm=p=>p.number?`#${p.number} ${p.name}`:p.name;   // box-score style
     statTable('Passing',
       [{h:'C/A',w:46},{h:'Yds',w:40},{h:'TD',w:30},{h:'INT',w:30},{h:'Lng',w:34}],
-      P.filter(p=>p.pa>0).map(p=>[p.name,`${p.pc}/${p.pa}`,p.pyd,p.ptd,p.pint,p.plong||0]));
+      P.filter(p=>p.pa>0).map(p=>[nm(p),`${p.pc}/${p.pa}`,p.pyd,p.ptd,p.pint,p.plong||0]));
     statTable('Rushing',
       [{h:'Att',w:40},{h:'Yds',w:40},{h:'TD',w:30},{h:'Lng',w:34}],
-      P.filter(p=>p.ra>0).map(p=>[p.name,p.ra,p.ryd,p.rtd,p.rlong]));
+      P.filter(p=>p.ra>0).map(p=>[nm(p),p.ra,p.ryd,p.rtd,p.rlong]));
     statTable('Receiving',
       [{h:'Rec',w:40},{h:'Yds',w:40},{h:'TD',w:30},{h:'Lng',w:34}],
-      P.filter(p=>p.rec>0).map(p=>[p.name,p.rec,p.recyd,p.rectd,p.reclong]));
+      P.filter(p=>p.rec>0).map(p=>[nm(p),p.rec,p.recyd,p.rectd,p.reclong]));
     statTable('Defense',
       [{h:'Tkl',w:40},{h:'Ast',w:34},{h:'Sk',w:30},{h:'INT',w:30},{h:'PD',w:30}],
-      P.filter(p=>(p.tkl+p.ast+p.sack+p.dint+(p.pd||0))>0).map(p=>[p.name,p.tkl,p.ast,p.sack,p.dint,p.pd||0]));
+      P.filter(p=>(p.tkl+p.ast+p.sack+p.dint+(p.pd||0))>0).map(p=>[nm(p),p.tkl,p.ast,p.sack,p.dint,p.pd||0]));
     statTable('Kicking',
       [{h:'FG',w:44},{h:'XP',w:44}],
-      P.filter(p=>(p.fga+p.xpa)>0).map(p=>[p.name,`${p.fgm}/${p.fga}`,`${p.xpm}/${p.xpa}`]));
+      P.filter(p=>(p.fga+p.xpa)>0).map(p=>[nm(p),`${p.fgm}/${p.fga}`,`${p.xpm}/${p.xpa}`]));
+    // Returns split out with attempt counts, and numbers included
     statTable('Punting / Returns',
-      [{h:'Punts',w:44},{h:'Yds',w:40},{h:'KR',w:34},{h:'PR',w:34}],
-      P.filter(p=>(p.punts+p.kret+p.pret)>0).map(p=>[p.name,p.punts,p.puntyd,p.kretyd,p.pretyd]));
+      [{h:'Punts',w:40},{h:'Yds',w:38},{h:'KR',w:30},{h:'KR Yds',w:44},{h:'PR',w:30},{h:'PR Yds',w:44}],
+      P.filter(p=>(p.punts+p.kret+p.pret)>0).map(p=>[nm(p),p.punts,p.puntyd,p.kret,p.kretyd,p.pret,p.pretyd]));
     y+=4;
   }
   statBlock('away'); statBlock('home'); rule();

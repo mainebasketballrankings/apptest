@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-16h'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-16j'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -480,7 +480,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16h'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16j'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -1046,6 +1046,22 @@ function logScore(side, kind, desc){
   G.scoreLog.push({ qtr:qtrLabel(), clock:fmtClock(G.clock), side, kind, desc:desc||'',
                     away:G.score.away, home:G.score.home });
 }
+// Fold a try (PAT/2-pt) onto the touchdown it followed: append "(PAT GOOD)" to
+// the TD's row and refresh that row's score — so the summary shows ONE line per
+// score, exactly like the scoreboard feed. Falls back to its own row if there's
+// no immediately-preceding TD by the same team.
+function logTry(side, kind, good){
+  if(!G.scoreLog) G.scoreLog=[];
+  const last = G.scoreLog[G.scoreLog.length-1];
+  const label = kind==='2PT' ? (good?'2-PT GOOD':'2-PT FAILED') : (good?'PAT GOOD':'PAT NO GOOD');
+  if(last && last.kind==='TD' && last.side===side){
+    last.desc = `${last.desc} (${label})`;
+    last.away = G.score.away; last.home = G.score.home;   // reflect the point(s) just added
+  } else {
+    G.scoreLog.push({ qtr:qtrLabel(), clock:fmtClock(G.clock), side, kind, desc:label,
+                      away:G.score.away, home:G.score.home });
+  }
+}
 
 function scoreTD(side){
   addScore(side, 6);
@@ -1106,10 +1122,11 @@ function resolveConversion(good, player, desc){
   const scorer=G.poss;
   if(good){
     addScore(scorer, 2);
-    logScore(scorer, '2PT', (G.lastTD?G.lastTD+' — 2-pt ('+desc+')':'2-pt conversion — '+desc));
+    logTry(scorer, '2PT', true);
     addPBP(`2-pt conversion <strong>GOOD</strong> — ${desc} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
     pushEvt('two_point',{player:player?.name,num:player?.number,points:2,side:scorer,detail:{good:true,via:desc,scoring:G.lastTD||null}});
   } else {
+    logTry(scorer, '2PT', false);
     addPBP(`2-pt conversion failed — ${desc}`);
     pushEvt('two_point',{player:player?.name,num:player?.number,side:scorer,detail:{good:false,via:desc,scoring:G.lastTD||null}});
   }
@@ -1651,8 +1668,10 @@ function openKick(){
     // punt
     puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
     puntFumble:false, puntFumLost:false, puntFumRecoverer:null, puntSafety:false,
+    puntBlocked:false, puntBlockRecov:'kicking', puntBlockRecoverer:null, puntBlockSpot:null, puntBlockTD:false,
     // fg
     fgKicker:null, fgGood:true,
+    fgBlocked:false, fgBlockRecov:'def', fgBlockRecoverer:null, fgBlockSpot:null, fgBlockTD:false,
     // pat
     patMode:'kick', patKicker:null, patGood:true, patPlayer:null, patConverted:false
   };
@@ -1692,13 +1711,25 @@ function renderKick(){
   } else if(p.sub==='punt'){
     h += `<div class="sec-lbl">${abbr(recv)} punts · ${abbr(kicking)} receives</div>`;
     h += pselRow('Punter', p.puntPunter, "pickFor('puntPunter','"+recv+"','Punter')");
-    h += `<div class="res-row" style="margin:6px 0">
-      <span class="toggle-pill ${p.puntTouchback?'on':''}" onclick="G.pend.puntTouchback=!G.pend.puntTouchback;G.pend.puntSafety=false;renderKick()">Touchback (downs at 20)</span>
-      <span class="toggle-pill ${p.puntSafety?'on':''}" onclick="G.pend.puntSafety=!G.pend.puntSafety;G.pend.puntTouchback=false;renderKick()">Safety (blocked / out of own EZ)</span></div>`;
+    h += `<div class="res-row" style="margin:6px 0;flex-wrap:wrap;gap:4px">
+      <span class="toggle-pill ${p.puntTouchback?'on':''}" onclick="G.pend.puntTouchback=!G.pend.puntTouchback;G.pend.puntSafety=false;G.pend.puntBlocked=false;renderKick()">Touchback</span>
+      <span class="toggle-pill ${p.puntBlocked?'on':''}" onclick="G.pend.puntBlocked=!G.pend.puntBlocked;G.pend.puntTouchback=false;G.pend.puntSafety=false;renderKick()">Blocked</span>
+      <span class="toggle-pill ${p.puntSafety?'on':''}" onclick="G.pend.puntSafety=!G.pend.puntSafety;G.pend.puntTouchback=false;G.pend.puntBlocked=false;renderKick()">Safety (own EZ)</span></div>`;
     if(p.puntSafety){
       h += `<div class="sec-lbl" style="color:var(--red)">Safety — 2 pts to ${abbr(kicking)}, ${abbr(recv)} free-kicks</div>`;
     }
-    if(!p.puntTouchback && !p.puntSafety){
+    if(p.puntBlocked){
+      h += `<div class="sec-lbl">Blocked punt — recovered by</div>`;
+      h += `<div class="res-row">
+        <span class="reschip ${p.puntBlockRecov==='kicking'?'active':''}" onclick="G.pend.puntBlockRecov='kicking';G.pend.puntBlockRecoverer=null;renderKick()">${abbr(recv)} (kicking)</span>
+        <span class="reschip ${p.puntBlockRecov==='recv'?'active':''}" onclick="G.pend.puntBlockRecov='recv';G.pend.puntBlockRecoverer=null;renderKick()">${abbr(kicking)} (receiving)</span></div>`;
+      const brt = p.puntBlockRecov==='recv'?kicking:recv;
+      h += pselRow('Recovered by', p.puntBlockRecoverer, "pickFor('puntBlockRecoverer','"+brt+"','Recovered by')");
+      h += `<div class="sec-lbl">Ball ends at</div>`;
+      h += `<div class="psel-row" onclick="puntBlockSpotPick()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.puntBlockSpot!=null?p.puntBlockSpot:G.ballOn, brt)}</span></div>`;
+      h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.puntBlockTD?'on':''}" onclick="G.pend.puntBlockTD=!G.pend.puntBlockTD;renderKick()">Returned for TD</span></div>`;
+    }
+    if(!p.puntTouchback && !p.puntSafety && !p.puntBlocked){
       h += `<div class="sec-lbl">Punt caught / lands at</div>`;
       h += `<div class="psel-row" onclick="puntLandSpot()"><span class="psel-lbl">Lands at</span><span class="psel-val">${spotLabel(p.puntLand, recv)}</span></div>`;
       h += pselRow('Returner (optional)', p.puntReturner, "pickFor('puntReturner','"+kicking+"','Returner')");
@@ -1719,9 +1750,21 @@ function renderKick(){
     h += `<div class="sec-lbl">${abbr(recv)} field goal · ${dist} yd attempt</div>`;
     h += pselRow('Kicker', p.fgKicker, "pickFor('fgKicker','"+recv+"','Kicker')");
     h += `<div class="sec-lbl">Result</div>`;
-    h += `<div class="res-row">
-      <span class="reschip ${p.fgGood?'active':''}" onclick="G.pend.fgGood=true;renderKick()">Good (+3)</span>
-      <span class="reschip ${!p.fgGood?'active':''}" onclick="G.pend.fgGood=false;renderKick()">Missed</span></div>`;
+    h += `<div class="res-row" style="flex-wrap:wrap;gap:4px">
+      <span class="reschip ${p.fgGood&&!p.fgBlocked?'active':''}" onclick="G.pend.fgGood=true;G.pend.fgBlocked=false;renderKick()">Good (+3)</span>
+      <span class="reschip ${!p.fgGood&&!p.fgBlocked?'active':''}" onclick="G.pend.fgGood=false;G.pend.fgBlocked=false;renderKick()">Missed</span>
+      <span class="reschip ${p.fgBlocked?'active':''}" onclick="G.pend.fgBlocked=true;G.pend.fgGood=false;renderKick()">Blocked</span></div>`;
+    if(p.fgBlocked){
+      h += `<div class="sec-lbl">Blocked FG — recovered by</div>`;
+      h += `<div class="res-row">
+        <span class="reschip ${p.fgBlockRecov==='def'?'active':''}" onclick="G.pend.fgBlockRecov='def';G.pend.fgBlockRecoverer=null;renderKick()">${abbr(defSide())} (defense)</span>
+        <span class="reschip ${p.fgBlockRecov==='off'?'active':''}" onclick="G.pend.fgBlockRecov='off';G.pend.fgBlockRecoverer=null;renderKick()">${abbr(recv)} (kicking)</span></div>`;
+      const frt = p.fgBlockRecov==='off'?recv:defSide();
+      h += pselRow('Recovered by', p.fgBlockRecoverer, "pickFor('fgBlockRecoverer','"+frt+"','Recovered by')");
+      h += `<div class="sec-lbl">Ball ends at</div>`;
+      h += `<div class="psel-row" onclick="fgBlockSpotPick()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.fgBlockSpot!=null?p.fgBlockSpot:G.ballOn, frt)}</span></div>`;
+      h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.fgBlockTD?'on':''}" onclick="G.pend.fgBlockTD=!G.pend.fgBlockTD;renderKick()">Returned for TD</span></div>`;
+    }
   } else if(p.sub==='pat'){
     h += `<div class="sec-lbl">${abbr(recv)} point(s) after</div>`;
     h += `<div class="res-row" style="margin-bottom:8px">
@@ -1746,6 +1789,14 @@ function renderKick(){
 }
 function koRecSpot(){ openSpotPicker(G.poss, G.pend.koRecAt, v=>{G.pend.koRecAt=v;renderKick();}, {showGain:false, title:'Fielded at'}); }
 function koSpot(){ openSpotPicker(G.poss, G.pend.koAdvTo, v=>{G.pend.koAdvTo=v;renderKick();}, {showGain:false, title:'Return ends at'}); }
+function fgBlockSpotPick(){ const p=G.pend; const recv=G.poss;
+  const frt = p.fgBlockRecov==='off'?recv:defSide();
+  openSpotPicker(frt, p.fgBlockSpot!=null?p.fgBlockSpot:(frt===G.poss?G.ballOn:100-G.ballOn),
+    v=>{G.pend.fgBlockSpot=v;renderKick();}, {showGain:false, title:'Ball ends at'}); }
+function puntBlockSpotPick(){ const p=G.pend; const recv=G.poss, kicking=defSide();
+  const brt = p.puntBlockRecov==='recv'?kicking:recv;
+  openSpotPicker(brt, p.puntBlockSpot!=null?p.puntBlockSpot:(brt===G.poss?G.ballOn:100-G.ballOn),
+    v=>{G.pend.puntBlockSpot=v;renderKick();}, {showGain:false, title:'Ball ends at'}); }
 function puntLandSpot(){ openSpotPicker(G.poss, G.pend.puntLand, v=>{G.pend.puntLand=v; if(G.pend.puntEnd>v)G.pend.puntEnd=v; renderKick();}, {base:G.ballOn, title:'Punt lands at'}); }
 function puntEndSpot(){ openSpotPicker(G.poss, G.pend.puntEnd, v=>{G.pend.puntEnd=v;renderKick();}, {showGain:false, title:'Play ends at'}); }
 
@@ -1794,6 +1845,35 @@ function confirmKick(){
       scoreSafety(kicking);   // receiving team scores the safety
       G.pend=null; render(); return;
     }
+    if(p.puntBlocked){
+      // A blocked punt is a loose ball behind the line. recv = punting team,
+      // kicking = receiving team. Either can recover; the recovering team may
+      // return it (or score). puntBlockSpot is in the RECOVERING team's frame.
+      const recTeam = p.puntBlockRecov==='recv' ? kicking : recv;   // 'recv' toggle = receiving team
+      const recName = p.puntBlockRecoverer?.name || abbr(recTeam);
+      const lead = `${p.puntPunter?p.puntPunter.name+' ':''}punt <strong>BLOCKED</strong>`;
+      if(p.puntBlockTD){
+        addPBP(`${lead}, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
+        pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{blocked:true,recoverTeam:abbr(recTeam),td:true}});
+        G.poss=recTeam; G.lastTD=`${recName} blocked punt return`;
+        pushEvt('touchdown',{player:p.puntBlockRecoverer?.name||null,num:p.puntBlockRecoverer?.number||null,points:6,side:recTeam,detail:{via:'blocked_punt'}});
+        scoreTD(recTeam);
+      } else {
+        const spotOwn = p.puntBlockSpot!=null ? p.puntBlockSpot : (recTeam===G.poss?G.ballOn:100-G.ballOn);
+        addPBP(`${lead}, recovered by ${recName} (${abbr(recTeam)})`);
+        pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{blocked:true,recoverTeam:abbr(recTeam)}});
+        if(recTeam===recv){
+          // punting team recovered its own blocked punt — keep possession, spot it,
+          // down advances (fresh series only if they got past the line to gain).
+          G.kickoffPending=false;
+          commitPlay(spotOwn);
+        } else {
+          // receiving team recovered — they take over
+          changePoss(recTeam, spotOwn, 'blocked-punt');
+        }
+      }
+      G.pend=null; render(); return;
+    }
     if(p.puntPunter){ const ps=statFor(recv,p.puntPunter.name,p.puntPunter.number); ps.punts++; ps.puntyd += Math.max(0,(p.puntTouchback?80:p.puntLand)-G.ballOn); }
     let F = p.puntTouchback ? 80 : p.puntEnd;
     if(p.puntReturner && !p.puntTouchback && p.puntEnd!==p.puntLand){ const rs=statFor(kicking,p.puntReturner.name,p.puntReturner.number); rs.pret++; rs.pretyd += Math.max(0,p.puntLand-p.puntEnd); }
@@ -1828,7 +1908,24 @@ function confirmKick(){
     const recvSide=recv;
     if(p.fgKicker){ const ks=statFor(recvSide,p.fgKicker.name,p.fgKicker.number); ks.fga++; if(p.fgGood) ks.fgm++; }
     const fgDist=(100-G.ballOn)+17;
-    if(p.fgGood){
+    if(p.fgBlocked){
+      const defr=defSide();
+      const recTeam = p.fgBlockRecov==='off' ? recvSide : defr;
+      const recName = p.fgBlockRecoverer?.name || abbr(recTeam);
+      if(p.fgBlockTD){
+        addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong>, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
+        pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam),td:true}});
+        G.poss=recTeam; G.lastTD=`${recName} blocked FG return`;
+        pushEvt('touchdown',{player:p.fgBlockRecoverer?.name||null,num:p.fgBlockRecoverer?.number||null,points:6,side:recTeam,detail:{via:'blocked_fg'}});
+        scoreTD(recTeam);
+      } else {
+        const spotOwn = p.fgBlockSpot!=null ? p.fgBlockSpot : (recTeam===G.poss?G.ballOn:100-G.ballOn);
+        addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong> — recovered by ${recName} (${abbr(recTeam)})`);
+        pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam)}});
+        if(recTeam===recvSide){ G.kickoffPending=false; commitPlay(spotOwn); }
+        else { changePoss(recTeam, spotOwn, 'blocked-fg'); }
+      }
+    } else if(p.fgGood){
       G.lastFG = `${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd field goal`;
       addPBP(`<strong>FIELD GOAL</strong> ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — good`);
       pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,points:3,side:recvSide,detail:{good:true, dist:fgDist}});
@@ -1843,8 +1940,8 @@ function confirmKick(){
     const recvSide=recv;
     if(p.patMode==='kick'){
       if(p.patKicker){ const ks=statFor(recvSide,p.patKicker.name,p.patKicker.number); ks.xpa++; if(p.patGood) ks.xpm++; }
-      if(p.patGood){ addScore(recvSide,1); logScore(recvSide,'PAT', (G.lastTD?G.lastTD+' — kick':'Extra point '+abbr(recvSide))); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true, scoring:G.lastTD||null}}); }
-      else { addPBP(`Extra point ${abbr(recvSide)} — no good`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,side:recvSide,detail:{good:false, scoring:G.lastTD||null}}); }
+      if(p.patGood){ addScore(recvSide,1); logTry(recvSide,'PAT',true); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true, scoring:G.lastTD||null}}); }
+      else { logTry(recvSide,'PAT',false); addPBP(`Extra point ${abbr(recvSide)} — no good`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,side:recvSide,detail:{good:false, scoring:G.lastTD||null}}); }
     } else {
       if(p.patConverted){ addScore(recvSide,2); addPBP(`2-pt conversion ${abbr(recvSide)} — good${p.patPlayer?` (${p.patPlayer.name})`:''} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,points:2,side:recvSide,detail:{good:true}}); }
       else { addPBP(`2-pt conversion ${abbr(recvSide)} — failed`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,side:recvSide,detail:{good:false}}); }
@@ -2215,16 +2312,22 @@ function advanceQuarter(){
   saveSnapshot();
   stopClock();
   if(G.quarter<4){
+    const endingQ=G.quarter;
     G.quarter++;
     G.clock=G.qLen*60;
     if(G.quarter===3){
-      // halftime: second-half receiving team = the team that kicked off to open
+      // halftime: second-half receiving team = the team that kicked off to open.
+      // Teams also change ends — flip the fixed field view.
       endDrive('half');
+      FIELD_FRAME = other(FIELD_FRAME);
       G.poss=other(G.openKick); G.ballOn=25; G.down=1; G.distance=10; G.kickoffPending=true; G.pendingPAT=false;
       startDrive();
-      addPBP(`<strong>Halftime.</strong> ${abbr(G.poss)} receives 2nd-half kickoff`, true);
+      addPBP(`<strong>Halftime.</strong> Teams change ends. ${abbr(G.poss)} receives 2nd-half kickoff`, true);
     } else {
-      addPBP(`<strong>End of ${({1:'1st',2:'2nd',3:'3rd'}[G.quarter-1])} quarter</strong>`, true);
+      // End of Q1 or Q3: teams change ends, but possession/spot carry over.
+      // Flip the field so the offense keeps driving the correct way visually.
+      FIELD_FRAME = other(FIELD_FRAME);
+      addPBP(`<strong>End of ${({1:'1st',2:'2nd',3:'3rd'}[endingQ])} quarter</strong> — teams change ends`, true);
     }
   } else {
     // into / through overtime
@@ -2462,225 +2565,167 @@ async function generatePDF(opts={}){
   }
   function rule(){ need(8); doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(M,y,PW-M,y); y+=8; }
 
-  // ── BRANDED HEADER (matches baseball/basketball reports) ──
-  const CW=PW-M*2;
-  // MBR wordmark, centered
-  const mbr=await loadImgBase64('https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/ghost-banner-5_sykt26.png');
-  if(mbr){
-    const mh=26, mw=(mbr.w/mbr.h)*mh;
-    try{ doc.addImage(mbr.data,'PNG',M+CW/2-mw/2,y,mw,mh); y+=mh+8; }
-    catch(e){ doc.setFont(F,'bold'); doc.setFontSize(11); doc.setTextColor(30); doc.text('MAINE BASKETBALL RANKINGS',M+CW/2,y+12,{align:'center'}); y+=26; }
-  } else {
-    doc.setFont(F,'bold'); doc.setFontSize(11); doc.setTextColor(30); doc.text('MAINE BASKETBALL RANKINGS',M+CW/2,y+12,{align:'center'}); y+=26;
-  }
-  doc.setFont(F,'normal'); doc.setFontSize(9); doc.setTextColor(130);
-  const dstr=G.date?new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}):'';
-  doc.text([dstr,(G.level==='jv'?'JV':'Varsity')].filter(Boolean).join('  \u2022  '),M+CW/2,y,{align:'center'}); y+=13;
-  doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(M,y,M+CW,y); y+=12;
+  // ═══════════════ REPORT BODY (baseball-quality helpers) ═══════════════
+  const ML=44, MR=44, CW=PW-ML-MR;
+  const ff=(s,st)=>{ doc.setFont(F,st||'normal'); doc.setFontSize(s); };
+  const clr=(r,g,b)=>doc.setTextColor(r,g,b);
+  const rct=(x,yy,w,h,fill)=>{ if(fill){ doc.setFillColor(fill[0],fill[1],fill[2]); doc.rect(x,yy,w,h,'F'); } else { doc.setDrawColor(180,180,180); doc.rect(x,yy,w,h,'S'); } };
+  const cell=(text,x,yy,w,align,bold)=>{ ff(8,bold?'bold':'normal'); clr(30,30,30);
+    doc.text(String(text==null?'':text), align==='center'?x+w/2:align==='right'?x+w-3:x+3, yy+8.5, {align:align||'left', maxWidth:w-4}); };
+  const checkY=(n)=>{ if(y+n>PH-46){ doc.addPage(); y=M; } };
+  const sanitize=(s)=>{ let t=String(s).replace(/<[^>]+>/g,''); t=t.replace(/[\u2013\u2014\u2015]/g,'-').replace(/\u00B7/g,'-').replace(/\u2022/g,'*').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u0100-\uFFFF]/g,'?'); return t; };
+  const sectionTitle=(txt)=>{ checkY(26); ff(11,'bold'); clr(20,20,20); doc.text(txt, ML, y); y+=6; doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(ML,y,ML+CW,y); y+=12; };
 
-  // Teams + score, with logos when available
-  const logos=await fetchTeamLogos();
-  const aLogo=logos.away?await loadImgBase64(logos.away):null;
-  const hLogo=logos.home?await loadImgBase64(logos.home):null;
-  const lsz=40, gap=8;
-  if(aLogo){ try{ const w=Math.min((aLogo.w/aLogo.h)*lsz,lsz); doc.addImage(aLogo.data,'PNG',M,y+2,w,lsz); }catch(e){} }
-  if(hLogo){ try{ const w=Math.min((hLogo.w/hLogo.h)*lsz,lsz); doc.addImage(hLogo.data,'PNG',M+CW-w,y+2,w,lsz); }catch(e){} }
-  const aNm=G.teams.away.name, hNm=G.teams.home.name;
-  const aFz=aNm.length>14?Math.max(10,16-(aNm.length-14)*0.6):16;
-  const hFz=hNm.length>14?Math.max(10,16-(hNm.length-14)*0.6):16;
-  doc.setFont(F,'bold'); doc.setFontSize(aFz); doc.setTextColor(30);
-  doc.text(aNm, M+lsz+gap, y+22, {maxWidth:(CW-110)/2-lsz-gap});
-  doc.setFontSize(hFz);
-  doc.text(hNm, M+CW-lsz-gap, y+22, {align:'right', maxWidth:(CW-110)/2-lsz-gap});
-  doc.setFont(F,'bold'); doc.setFontSize(34); doc.setTextColor(238,103,48);
-  doc.text(`${G.score.away}-${G.score.home}`, M+CW/2, y+26, {align:'center'});
-  if(G.loc){ doc.setFont(F,'normal'); doc.setFontSize(8); doc.setTextColor(130); doc.text(G.loc,M+CW/2,y+42,{align:'center'}); }
-  y+=54; doc.setDrawColor(210); doc.setLineWidth(1); doc.line(M,y,M+CW,y); y+=12;
+  // ── HEADER: wordmark + date ──
+  const dstr = G.date ? new Date(G.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '';
+  const mbr = await loadImgBase64('https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/ghost-banner-5_sykt26.png');
+  if(mbr){ const mh=27, mw=(mbr.w/mbr.h)*mh; try{ doc.addImage(mbr.data,'PNG',ML+CW/2-mw/2,y,mw,mh); y+=mh+6; }catch(e){ ff(13,'bold'); clr(30,30,30); doc.text('MAINE BASKETBALL RANKINGS',ML+CW/2,y+14,{align:'center'}); y+=28; } }
+  else { ff(13,'bold'); clr(30,30,30); doc.text('MAINE BASKETBALL RANKINGS',ML+CW/2,y+14,{align:'center'}); y+=28; }
+  ff(9,'normal'); clr(130,130,130);
+  doc.text([dstr,(G.level==='jv'?'JV':'Varsity'),'Lobster Bowl'].filter(Boolean).join('  \u2022  ')+(G.loc?'  \u2022  '+sanitize(G.loc):''), ML+CW/2, y, {align:'center'}); y+=14;
+  doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(ML,y,ML+CW,y); y+=12;
 
-  // line score
-  const qs=Object.keys(G.lineScore||{}).map(Number).sort((a,b)=>a-b);
-  const maxQ=Math.max(4, ...(qs.length?qs:[4]));
-  const cols=[]; for(let i=1;i<=maxQ;i++) cols.push(i);
-  const cellW=34, x0=M+120;
-  function lineScoreRow(label, side){
-    need(16); doc.setFont(F, side?'normal':'bold'); doc.setFontSize(10); doc.setTextColor(30);
-    doc.text(label, M, y);
-    let tot=0;
-    cols.forEach((q,i)=>{ const v=side?((G.lineScore[q]&&G.lineScore[q][side])||0):''; if(side){tot+=v;} doc.text(String(side?v:('Q'+q)), x0+i*cellW, y, {align:'center'}); });
-    doc.text(side?String(tot):'T', x0+cols.length*cellW+8, y, {align:'center'});
-    y+=16;
-  }
-  lineScoreRow('', null);
-  lineScoreRow(abbr('away'), 'away');
-  lineScoreRow(abbr('home'), 'home');
-  rule();
+  // ── TEAMS + SCORE with logos ──
+  const logos = await fetchTeamLogos();
+  const aLogo = logos.away ? await loadImgBase64(logos.away) : null;
+  const hLogo = logos.home ? await loadImgBase64(logos.home) : null;
+  const lsz=44, gap=10;
+  if(aLogo){ try{ const w=Math.min((aLogo.w/aLogo.h)*lsz,lsz); doc.addImage(aLogo.data,'PNG',ML,y+2,w,lsz); }catch(e){} }
+  if(hLogo){ try{ const w=Math.min((hLogo.w/hLogo.h)*lsz,lsz); doc.addImage(hLogo.data,'PNG',ML+CW-w,y+2,w,lsz); }catch(e){} }
+  const aNm=sanitize(G.teams.away.name), hNm=sanitize(G.teams.home.name);
+  ff(15,'bold'); clr(25,25,25);
+  doc.text(aNm, ML+lsz+gap, y+24, {maxWidth:(CW-120)/2-lsz});
+  doc.text(hNm, ML+CW-lsz-gap, y+24, {align:'right', maxWidth:(CW-120)/2-lsz});
+  ff(30,'bold'); clr(238,103,48);
+  doc.text(`${G.score.away}-${G.score.home}`, ML+CW/2, y+26, {align:'center'});
+  y+=lsz+12; doc.setDrawColor(210); doc.setLineWidth(1); doc.line(ML,y,ML+CW,y); y+=14;
 
-  // team totals
-  line('Team Stats', 12, 'bold', [20,20,20], 6);
+  // ── LINE SCORE (per-quarter) ──
   {
-    const a=teamTotals('away'), hh=teamTotals('home');
-    const trows=[
-      ['First downs', a.firstDowns, hh.firstDowns],
-      ['Total yards', a.totalYds, hh.totalYds],
-      ['Rushing (att-yds)', a.rush, hh.rush],
-      ['Passing (c/a, yds)', a.pass, hh.pass],
-      ['Sacks', a.sacksBy, hh.sacksBy],
-      ['Turnovers', a.turnovers, hh.turnovers],
-      ['Penalties (no-yds)', a.penalties, hh.penalties],
-    ];
-    const lx=M, ax=M+220, hx=M+320;
-    need(16); doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(110);
-    doc.text('', lx, y); doc.text(abbr('away'), ax, y, {align:'center'}); doc.text(abbr('home'), hx, y, {align:'center'}); y+=14;
-    trows.forEach(r=>{ need(14); doc.setFont(F,'normal'); doc.setFontSize(9.5); doc.setTextColor(40);
-      doc.text(String(r[0]), lx, y); doc.text(String(r[1]), ax, y, {align:'center'}); doc.text(String(r[2]), hx, y, {align:'center'}); y+=13; });
+    sectionTitle('Line Score');
+    const qs = Math.max(4, G.quarter||4);
+    const cols=['', ...Array.from({length:qs},(_,i)=> i<4?('Q'+(i+1)):('OT'+(i-3))), 'T'];
+    const nameW=120, qW=(CW-nameW-40)/qs, tW=40;
+    // header
+    rct(ML,y,CW,15,[240,240,245]); let cx=ML;
+    cell(cols[0],cx,y,nameW,'left',true); cx+=nameW;
+    for(let i=1;i<cols.length-1;i++){ cell(cols[i],cx,y,qW,'center',true); cx+=qW; }
+    cell('T',cx,y,tW,'center',true); y+=15;
+    ['away','home'].forEach((side,ri)=>{
+      rct(ML,y,CW,14, ri%2===0?[255,255,255]:[250,250,252]); cx=ML;
+      cell(sanitize(G.teams[side].name),cx,y,nameW,'left',true); cx+=nameW;
+      let tot=0;
+      for(let q=1;q<=qs;q++){ const v=(G.lineScore&&G.lineScore[q]&&G.lineScore[q][side])||0; tot+=v; cell(v,cx,y,qW,'center'); cx+=qW; }
+      cell(G.score[side],cx,y,tW,'center',true); y+=14;
+    });
+    y+=14;
   }
-  rule();
 
-  const CWt=PW-M*2;
-
-  // ── SCORING SUMMARY (chronological, from the scoring log) ──
+  // ── SCORING SUMMARY (one line per score, PAT folded in) ──
   if(G.scoreLog && G.scoreLog.length){
-    need(28);
-    doc.setFont(F,'bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
-    doc.text('Scoring Summary', M, y); y+=17;
-    const qW=40, tW=48, sW=42, pW=CWt-qW-tW-sW*2;
-    const rowH=17, padTop=12;
-    // header bar (roomier)
-    doc.setFillColor(238,238,243); doc.rect(M, y-padTop, CWt, rowH, 'F');
-    doc.setFont(F,'bold'); doc.setFontSize(7.5); doc.setTextColor(95,95,95);
-    const hy = y - padTop + 11;
-    doc.text('QTR', M+6, hy);
-    doc.text('TIME', M+qW+6, hy);
-    doc.text('SCORING PLAY', M+qW+tW+6, hy);
-    doc.text(abbr('away'), M+qW+tW+pW+sW-6, hy, {align:'right'});
-    doc.text(abbr('home'), M+CWt-6, hy, {align:'right'});
-    y += rowH - padTop + 4;
-    doc.setFont(F,'normal'); doc.setFontSize(9);
+    sectionTitle('Scoring Summary');
+    const qW=42, tW=46, sW=42, pW=CW-qW-tW-sW*2;
+    rct(ML,y,CW,15,[240,240,245]); let cx=ML;
+    cell('QTR',cx,y,qW,'left',true); cx+=qW;
+    cell('TIME',cx,y,tW,'left',true); cx+=tW;
+    cell('SCORING PLAY',cx,y,pW,'left',true); cx+=pW;
+    cell(abbr('away'),cx,y,sW,'right',true); cx+=sW;
+    cell(abbr('home'),cx,y,sW,'right',true); y+=15;
     G.scoreLog.forEach((s,i)=>{
-      need(rowH+2);
-      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M, y-padTop, CWt, rowH, 'F'); }
-      const ty = y - padTop + 12;
-      doc.setTextColor(90,90,90); doc.setFontSize(8);
-      doc.text((s.qtr||'').replace(/\s*QTR/i,'').trim()||'-', M+6, ty);
-      doc.text(s.clock||'', M+qW+6, ty);
-      doc.setTextColor(25,25,25); doc.setFontSize(9);
-      doc.text(s.desc||'', M+qW+tW+6, ty, {maxWidth:pW-10});
-      // bold the team that scored on its side
-      doc.setFont(F,'bold'); doc.setTextColor(60,60,60);
-      doc.text(String(s.away), M+qW+tW+pW+sW-6, ty, {align:'right'});
-      doc.text(String(s.home), M+CWt-6, ty, {align:'right'});
-      doc.setFont(F,'normal');
-      y += rowH;
+      checkY(14); rct(ML,y,CW,14, i%2===0?[255,255,255]:[250,250,252]); cx=ML;
+      cell((s.qtr||'').replace(/\s*QTR/i,'').trim()||'-',cx,y,qW,'left'); cx+=qW;
+      cell(s.clock||'',cx,y,tW,'left'); cx+=tW;
+      cell(sanitize(s.desc||''),cx,y,pW,'left'); cx+=pW;
+      cell(s.away,cx,y,sW,'right',true); cx+=sW;
+      cell(s.home,cx,y,sW,'right',true); y+=14;
     });
-    y += 8; rule();
+    y+=14;
   }
 
-  // individual stats — ESPN-style tables: name column + aligned stat columns
+  // ── TEAM STATS (comparison) ──
+  {
+    sectionTitle('Team Stats');
+    const a=teamTotals('away'), hh=teamTotals('home');
+    const rows=[['First downs',a.firstDowns,hh.firstDowns],['Total yards',a.totalYds,hh.totalYds],
+      ['Rushing (att-yds)',a.rush,hh.rush],['Passing (c/a, yds)',a.pass,hh.pass],
+      ['Sacks',a.sacksBy,hh.sacksBy],['Turnovers',a.turnovers,hh.turnovers],['Penalties (no-yds)',a.penalties,hh.penalties]];
+    const labW=CW-160, colW=80;
+    rct(ML,y,CW,15,[240,240,245]); let cx=ML;
+    cell('',cx,y,labW,'left',true); cx+=labW;
+    cell(abbr('away'),cx,y,colW,'center',true); cx+=colW;
+    cell(abbr('home'),cx,y,colW,'center',true); y+=15;
+    rows.forEach((r,i)=>{ checkY(14); rct(ML,y,CW,14,i%2===0?[255,255,255]:[250,250,252]); cx=ML;
+      cell(r[0],cx,y,labW,'left'); cx+=labW;
+      cell(r[1],cx,y,colW,'center',true); cx+=colW;
+      cell(r[2],cx,y,colW,'center',true); y+=14; });
+    y+=14;
+  }
+
+  // ── INDIVIDUAL STATS (per team, bordered tables) ──
   function statTable(title, cols, rows){
-    // cols: [{h:'Yds', w:38}], rows: [[name, v1, v2...]]
     if(!rows.length) return;
-    need(30);
-    doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(110,110,110);
-    doc.text(title, M, y); y+=11;
-    const nameW = CWt - cols.reduce((s,c)=>s+c.w,0);
-    const rowH=16, padTop=11;   // roomier rows; bar vertically centered on text
-    // header bar
-    doc.setFillColor(238,238,243); doc.rect(M, y-padTop, CWt, rowH, 'F');
-    doc.setFont(F,'bold'); doc.setFontSize(7.5); doc.setTextColor(95,95,95);
-    const hy=y-padTop+11;
-    doc.text('PLAYER', M+6, hy);
-    let cx=M+nameW;
-    cols.forEach(c=>{ doc.text(c.h.toUpperCase(), cx+c.w-6, hy, {align:'right'}); cx+=c.w; });
-    y += rowH - padTop + 3;
-    // data rows
-    doc.setFont(F,'normal'); doc.setFontSize(9);
-    rows.forEach((r,i)=>{
-      need(rowH+2);
-      if(i%2===1){ doc.setFillColor(249,249,251); doc.rect(M, y-padTop, CWt, rowH, 'F'); }
-      const ty=y-padTop+12;
-      doc.setTextColor(35,35,35);
-      doc.text(String(r[0]), M+6, ty, {maxWidth:nameW-10});
-      let cxr=M+nameW;
-      for(let j=0;j<cols.length;j++){ doc.text(String(r[j+1]), cxr+cols[j].w-6, ty, {align:'right'}); cxr+=cols[j].w; }
-      y+=rowH;
-    });
-    y+=8;
+    checkY(30);
+    ff(8,'bold'); clr(100,100,100); doc.text(title.toUpperCase(), ML, y+2); y+=8;
+    const nameW = CW - cols.reduce((s,c)=>s+c.w,0);
+    rct(ML,y,CW,14,[240,240,245]); let cx=ML;
+    cell('PLAYER',cx,y,nameW,'left',true); cx+=nameW;
+    cols.forEach(c=>{ cell(c.h.toUpperCase(),cx,y,c.w,'center',true); cx+=c.w; });
+    y+=14;
+    rows.forEach((r,i)=>{ checkY(13); rct(ML,y,CW,13,i%2===0?[255,255,255]:[250,250,252]); cx=ML;
+      cell(sanitize(r[0]),cx,y,nameW,'left',true); cx+=nameW;
+      for(let j=0;j<cols.length;j++){ cell(r[j+1],cx,y,cols[j].w,'center'); cx+=cols[j].w; }
+      y+=13; });
+    y+=12;
   }
-  function statBlock(side){
-    need(24);
-    doc.setFont(F,'bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
-    doc.text(G.teams[side].name, M, y); y+=16;
+  ['away','home'].forEach(side=>{
+    checkY(40);
+    ff(13,'bold'); clr(25,25,25); doc.text(sanitize(G.teams[side].name), ML, y+4); y+=18;
     const P=Object.values(G.stats[side]);
-    const nm=p=>p.number?`#${p.number} ${p.name}`:p.name;   // box-score style
-    statTable('Passing',
-      [{h:'C/A',w:46},{h:'Yds',w:40},{h:'TD',w:30},{h:'INT',w:30},{h:'Lng',w:34}],
+    const nm=p=>p.number?`#${p.number} ${p.name}`:p.name;
+    statTable('Passing',[{h:'C/A',w:52},{h:'Yds',w:44},{h:'TD',w:36},{h:'Int',w:36},{h:'Lng',w:40}],
       P.filter(p=>p.pa>0).map(p=>[nm(p),`${p.pc}/${p.pa}`,p.pyd,p.ptd,p.pint,p.plong||0]));
-    statTable('Rushing',
-      [{h:'Att',w:40},{h:'Yds',w:40},{h:'TD',w:30},{h:'Lng',w:34}],
+    statTable('Rushing',[{h:'Att',w:44},{h:'Yds',w:44},{h:'TD',w:36},{h:'Lng',w:40}],
       P.filter(p=>p.ra>0).map(p=>[nm(p),p.ra,p.ryd,p.rtd,p.rlong]));
-    statTable('Receiving',
-      [{h:'Rec',w:40},{h:'Yds',w:40},{h:'TD',w:30},{h:'Lng',w:34}],
+    statTable('Receiving',[{h:'Rec',w:44},{h:'Yds',w:44},{h:'TD',w:36},{h:'Lng',w:40}],
       P.filter(p=>p.rec>0).map(p=>[nm(p),p.rec,p.recyd,p.rectd,p.reclong]));
-    statTable('Defense',
-      [{h:'Tkl',w:40},{h:'Ast',w:34},{h:'Sk',w:30},{h:'INT',w:30},{h:'PD',w:30}],
-      P.filter(p=>(p.tkl+p.ast+p.sack+p.dint+(p.pd||0))>0).map(p=>[nm(p),p.tkl,p.ast,p.sack,p.dint,p.pd||0]));
-    statTable('Kicking',
-      [{h:'FG',w:44},{h:'XP',w:44}],
+    statTable('Defense',[{h:'Tkl',w:42},{h:'Ast',w:38},{h:'Sk',w:34},{h:'Int',w:34},{h:'PD',w:34}],
+      P.filter(p=>(p.tkl+(p.ast||0)+p.sack+p.dint+(p.pd||0))>0).map(p=>[nm(p),p.tkl,p.ast||0,p.sack,p.dint,p.pd||0]));
+    statTable('Kicking',[{h:'FG',w:52},{h:'XP',w:52}],
       P.filter(p=>(p.fga+p.xpa)>0).map(p=>[nm(p),`${p.fgm}/${p.fga}`,`${p.xpm}/${p.xpa}`]));
-    // Returns split out with attempt counts, and numbers included
-    statTable('Punting / Returns',
-      [{h:'Punts',w:40},{h:'Yds',w:38},{h:'KR',w:30},{h:'KR Yds',w:44},{h:'PR',w:30},{h:'PR Yds',w:44}],
+    statTable('Punting / Returns',[{h:'Punts',w:44},{h:'Yds',w:40},{h:'KR',w:32},{h:'KR Yds',w:46},{h:'PR',w:32},{h:'PR Yds',w:46}],
       P.filter(p=>(p.punts+p.kret+p.pret)>0).map(p=>[nm(p),p.punts,p.puntyd,p.kret,p.kretyd,p.pret,p.pretyd]));
-    y+=4;
-  }
-  statBlock('away'); statBlock('home'); rule();
+    y+=6;
+  });
 
-  // drive chart
-  if(G.drives.length){
-    line('Drive Summary', 12, 'bold', [20,20,20], 6);
-    G.drives.forEach((d,i)=>{
-      line(`${i+1}. ${abbr(d.team)} — ${d.result||'—'} (${d.plays||0} plays)`, 9, 'normal', [40,40,40], 3);
-    });
-    rule();
-  }
-
-  // play by play — drive headers get a shaded band; scoring plays show a bold
-  // score chip on the right, like basketball.
-  need(20);
-  doc.setFont(F,'bold'); doc.setFontSize(13); doc.setTextColor(20,20,20);
-  doc.text('Play-by-Play', M, y); y+=16;
+  // ── PLAY-BY-PLAY (drive bands + bold scores) ──
+  sectionTitle('Play-by-Play');
   const pbpScoreRe=/([A-Z]{2,6})\s+(\d+)\s*[\u00b7.]\s*([A-Z]{2,6})\s+(\d+)\s*$/;
   G.pbp.forEach(e=>{
-    let txt=(e.text||'').replace(/<[^>]+>/g,'');
-    const sm=txt.match(pbpScoreRe);
-    let chip=null;
-    if(sm){ chip=`${sm[1]} ${sm[2]} · ${sm[3]} ${sm[4]}`; txt=txt.slice(0,sm.index).trim(); }
+    let txt=sanitize(e.text||'');
+    const sm=txt.match(pbpScoreRe); let chip=null;
+    if(sm){ chip=`${sm[1]} ${sm[2]} - ${sm[3]} ${sm[4]}`; txt=txt.slice(0,sm.index).trim(); }
     if(e.drive){
-      // drive header band (mini drive summary lives on this line)
-      need(18);
-      y+=3;
-      doc.setFillColor(244,244,248); doc.rect(M, y-9, PW-M*2, 15, 'F');
-      doc.setFont(F,'bold'); doc.setFontSize(9); doc.setTextColor(70,70,80);
-      doc.text(txt, M+6, y+1, {maxWidth:PW-M*2-90});
-      if(chip){ doc.setTextColor(238,103,48); doc.text(chip, PW-M-6, y+1, {align:'right'}); }
-      y+=16;
+      checkY(17); rct(ML,y,CW,15,[242,242,247]);
+      ff(9,'bold'); clr(70,70,80); doc.text(txt, ML+5, y+10.5, {maxWidth:CW-100});
+      if(chip){ ff(9,'bold'); clr(238,103,48); doc.text(chip, ML+CW-5, y+10.5, {align:'right'}); }
+      y+=17;
     } else {
-      need(13);
-      doc.setFont(F,'normal'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
-      doc.text(`${e.qtr} ${e.clock}`, M, y);
-      doc.text(txt, M+64, y, {maxWidth:PW-M*2-64-70});
-      if(chip){ doc.setFont(F,'bold'); doc.setTextColor(30,30,30); doc.text(chip, PW-M, y, {align:'right'}); doc.setFont(F,'normal'); }
+      checkY(12); ff(8,'normal'); clr(120,120,120);
+      doc.text(`${(e.qtr||'').replace(/\s*QTR/i,'')} ${e.clock||''}`, ML, y+8);
+      ff(8.5,'normal'); clr(45,45,45);
+      doc.text(txt, ML+62, y+8, {maxWidth:CW-62-70});
+      if(chip){ ff(8.5,'bold'); clr(30,30,30); doc.text(chip, ML+CW, y+8, {align:'right'}); }
       y+=12;
     }
   });
 
-  // Branded footer on every page (matches baseball/basketball).
+  // ── FOOTER on every page ──
   const _pages=doc.internal.getNumberOfPages();
   for(let pi=1; pi<=_pages; pi++){
     doc.setPage(pi);
-    doc.setFont(F,'normal'); doc.setFontSize(8); doc.setTextColor(150);
-    doc.text('Maine Basketball Rankings  \u2022  Generated '+new Date().toLocaleDateString(), M, PH-20);
-    doc.text(`${pi} / ${_pages}`, PW-M, PH-20, {align:'right'});
+    ff(8,'normal'); clr(150,150,150);
+    doc.text('Maine Basketball Rankings  \u2022  Generated '+new Date().toLocaleDateString(), ML, PH-24);
+    doc.text(`${pi} / ${_pages}`, ML+CW, PH-24, {align:'right'});
   }
   if(opts.returnBlob) return doc.output('blob');
   doc.save(`MBR_Football_${abbr('away')}_at_${abbr('home')}_${(G.date||'').replace(/-/g,'')}.pdf`);

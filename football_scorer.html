@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-17c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-17d'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -701,6 +701,20 @@ function spotLabel(ballOn=G.ballOn, poss=G.poss){
   if(ballOn===50) return '50';
   if(ballOn<50)   return abbr(poss)+' '+ballOn;
   return abbr(other(poss))+' '+(100-ballOn);
+}
+// PHYSICAL yard-line label that matches the FIXED field display: it names the
+// painted end zone the ball is nearest, so it stays in sync after an ends-change.
+// absYd(val,frame) is exactly the value buildFieldSVG hands to X(), where x=0 is
+// the LEFT end zone = FIELD_LABEL_FRAME team's goal. After teams change ends the
+// ball is drawn on the opposite side, and this label follows it (EAST 18 → WEST 18).
+function fieldLabelPhys(val=G.ballOn, frame=G.poss){
+  const x = clamp(Math.round(absYd(val, frame)), 0, 100);   // yards from the LEFT (label-frame) goal
+  const L = FIELD_LABEL_FRAME;
+  if(x>=100) return abbr(other(L))+' goal';
+  if(x<=0)   return abbr(L)+' goal';
+  if(x===50) return '50';
+  if(x<50)   return abbr(L)+' '+x;
+  return abbr(other(L))+' '+(100-x);
 }
 function ddLabel(){
   const ord = {1:'1st',2:'2nd',3:'3rd',4:'4th'}[G.down]||G.down+'th';
@@ -1393,7 +1407,7 @@ function renderSpotPicker(){
     FIELD_FRAME, absYd(c.val, c.frame),
     c.target!=null ? absYd(c.target, c.frame) : null,
     {h:280, arrow:false});
-  document.getElementById('spotBig').textContent=spotLabel(c.val, c.frame);
+  document.getElementById('spotBig').textContent=fieldLabelPhys(c.val, c.frame);
   const g=document.getElementById('spotGain');
   if(c.showGain){ const gain=Math.round(c.val-c.base); g.textContent=(gain>=0?'+':'')+gain+' yd'; g.className='spot-gain '+(gain>=0?'pos':'neg'); }
   else g.textContent='';
@@ -2299,7 +2313,7 @@ function render(){
   document.getElementById('sbQtr').textContent=qtrLabel();
   document.getElementById('sbClock').textContent=fmtClock(G.clock);
   document.getElementById('sbDD').innerHTML=ddLabel().replace('&','&amp;');
-  document.getElementById('sbBallOn').textContent='ball on '+spotLabel();
+  document.getElementById('sbBallOn').textContent='ball on '+fieldLabelPhys();
   document.getElementById('toAway').innerHTML=renderTimeouts('away');
   document.getElementById('toHome').innerHTML=renderTimeouts('home');
   // game id bar
@@ -2543,9 +2557,11 @@ function teamTotals(side){
   const rushYd=sum('ryd'), rushAtt=sum('ra');
   const grossPassYd=sum('pyd'), passAtt=sum('pa'), passComp=sum('pc');
   const sackAllowed=t.sackAllowed||0, sackYdLost=t.sackYdLost||0;
-  const netPassYd=grossPassYd - sackYdLost;                 // ESPN passing = net of sacks
-  const totalPlays=rushAtt + passAtt + sackAllowed;         // offensive scrimmage plays
-  const totalYds=rushYd + netPassYd;
+  // HS/MaxPreps convention: passing yards are GROSS (completions only). Sacks are
+  // tracked and shown on their own line but do NOT count against passing, rushing,
+  // or total offense. A sack still counts as a play (it used a down).
+  const totalPlays=rushAtt + passAtt + sackAllowed;        // offensive scrimmage plays incl. sacks
+  const totalYds=rushYd + grossPassYd;
   const admin=['half','end-reg','end-reg-tie','final','manual'];
   const drives=(G.drives||[]).filter(d=>d.team===side && !admin.includes(d.result));
   const totalDrives=drives.length + ((G.curDrive&&G.curDrive.team===side)?1:0);
@@ -2555,8 +2571,8 @@ function teamTotals(side){
     third:`${t.thirdC||0}-${t.thirdA||0}`, fourth:`${t.fourthC||0}-${t.fourthA||0}`,
     totalPlays, totalYds, totalDrives,
     yardsPerPlay: dec(totalYds, totalPlays),
-    passYds: netPassYd, passCA:`${passComp}/${passAtt}`,
-    yardsPerPass: dec(netPassYd, passAtt + sackAllowed),
+    passYds: grossPassYd, passCA:`${passComp}/${passAtt}`,
+    yardsPerPass: dec(grossPassYd, passAtt),
     intThrown: sum('pint'), sacksLost:`${sackAllowed}-${sackYdLost}`,
     rushYds: rushYd, rushAtt, yardsPerRush: dec(rushYd, rushAtt),
     redZone:`${t.rzTD||0}-${t.rzTrips||0}`,
@@ -2565,7 +2581,7 @@ function teamTotals(side){
     defstTD: t.defstTD||0,
     top: fmtClock(t.topSec||0),
     // legacy fields kept for any other callers
-    totalYards:totalYds, rush:`${rushAtt}-${rushYd}`, pass:`${passComp}/${passAtt}, ${netPassYd}`, sacksBy:sum('sack')
+    totalYards:totalYds, rush:`${rushAtt}-${rushYd}`, pass:`${passComp}/${passAtt}, ${grossPassYd}`, sacksBy:sum('sack')
   };
 }
 // Shared row set for the expanded team-stats comparison (live box + PDF report).

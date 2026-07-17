@@ -28,7 +28,8 @@
   .eyebrow{font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.16em;text-transform:uppercase;}
 
   .mast{width:100%;max-width:460px;display:flex;align-items:center;gap:10px;margin-bottom:18px;}
-  .mast .mark{width:34px;height:34px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:'Playfair Display',serif;font-weight:900;font-size:19px;flex-shrink:0;}
+  .mast .mark{width:38px;height:38px;border-radius:8px;flex-shrink:0;display:grid;place-items:center;overflow:hidden;}
+  .mast .mark img{width:100%;height:100%;object-fit:contain;}
   .mast .wm{font-family:'Playfair Display',serif;font-weight:800;font-size:15px;line-height:1.05;}
   .mast .sub{font-size:11px;letter-spacing:.14em;color:var(--gold-deep);}
 
@@ -60,7 +61,7 @@
   .status.final{background:#eef1f6;color:var(--ink-soft);}
   .status.live{background:#fdecec;color:var(--away);}
   .status.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--away);margin-right:6px;vertical-align:middle;animation:pulse 1.6s infinite;}
-  .livelink{display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:10px 16px;border-radius:10px;background:var(--ink);color:#fff;text-decoration:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.04em;font-size:15px;transition:opacity .15s;}
+  .livelink{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:12px auto 0;padding:10px 16px;border-radius:10px;background:var(--ink);color:#fff;text-decoration:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.04em;font-size:15px;transition:opacity .15s;}
   .livelink:hover{opacity:.88;}
   .livelink .livedot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,.7);animation:pulse 1.6s infinite;}
   .livelink.pre{background:#f3f1ea;color:var(--ink-soft);}
@@ -125,7 +126,7 @@
 <body>
 
   <div class="mast">
-    <div class="mark">M</div>
+    <div class="mark"><img src="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png" alt="Maine Basketball Rankings"></div>
     <div><div class="wm">Maine Basketball Rankings</div><div class="eyebrow sub">Game Reports</div></div>
   </div>
 
@@ -146,8 +147,8 @@
           <div class="team h"><div class="crest" id="homeCrest">—</div><div class="tn" id="homeName">Home</div><div class="sc" id="homeScore"></div></div>
         </div>
         <div class="meta" id="meta"></div>
-        <a class="livelink" id="liveLink" href="#" style="display:none" target="_blank" rel="noopener">
-          <span class="livedot"></span> Watch live stats on your phone</a>
+        <div id="liveLinkWrap" style="text-align:center;display:none"><a class="livelink" id="liveLink" href="#" target="_blank" rel="noopener">
+          <span class="livedot"></span> Watch live stats on your phone</a></div>
       </div>
       <div class="perf"></div>
       <div class="fbody" id="form">
@@ -318,12 +319,12 @@ function selectGame(g,fromPicker){
   else { $('homeScore').textContent=''; $('awayScore').textContent=''; }
   const st=$('status'); st.className='status '+si.cls; st.textContent=si.txt;
   // Live stats link — scan the QR at the game, then follow along on your phone.
-  const live=$('liveLink');
+  const live=$('liveLink'), liveWrap=$('liveLinkWrap');
   if(g.status==='final'){
-    live.style.display='none';   // game's over — the report covers it
+    liveWrap.style.display='none';   // game's over — the report covers it
   } else {
     live.href='live.html?game_id='+encodeURIComponent(g.id);
-    live.style.display='inline-flex';
+    liveWrap.style.display='block';
     if(g.status==='active'){ live.className='livelink'; live.innerHTML='<span class="livedot"></span> Watch live stats on your phone'; }
     else { live.className='livelink pre'; live.innerHTML='<span class="livedot"></span> Live stats \u2014 available once the game starts'; }
   }

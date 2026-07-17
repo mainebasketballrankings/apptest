@@ -245,7 +245,6 @@ async function loadClassRegions(g){
 }
 
 async function start(){
-  buildQR();
   if(GAME_ID){
     try{ const rows=await sb(`games?id=eq.${GAME_ID}&select=${SEL}`); const g=rows&&rows[0];
       if(!g) return err("Game not found.","Try scanning again, or head to mainebasketballrankings.com.");
@@ -281,6 +280,7 @@ function scoreStr(g){ return (g.home_score!=null&&g.away_score!=null)?`${g.away_
 
 function renderPicker(games){
   $('loading').style.display='none';
+  buildQR();   // no game selected → QR links to this picker (good for all of today's games)
   const groups={};
   games.forEach(g=>{ (groups[g.game_date]=groups[g.game_date]||[]).push(g); });
   const dates=Object.keys(groups).sort().reverse();
@@ -356,12 +356,22 @@ function selectGame(g,fromPicker){
   $('back').style.display=fromPicker?'':'none';
   $('loading').style.display='none'; $('picker').style.display='none'; $('ticketPanel').style.display='';
   $('qtoggle').style.display='';
+  buildQR();   // GAME is set now → QR links to THIS game's ticket
 }
 
 $('back').addEventListener('click',()=>{ $('ticketPanel').style.display='none'; $('picker').style.display=''; window.scrollTo(0,0); });
 
 function buildQR(){
-  try{ const base=location.origin+location.pathname; new QRCode($('qr'),{text:base,width:180,height:180,colorDark:'#0f172a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+  // Mirror the current page: on a single-game ticket (?game_id=...) the QR links
+  // to THAT game; on the overall reports page (no game_id) it links to the
+  // picker — one code good for every game that day (tourney week).
+  try{
+    const url = GAME && GAME.id
+      ? location.origin+location.pathname+'?game_id='+encodeURIComponent(GAME.id)
+      : location.origin+location.pathname;
+    $('qr').innerHTML='';   // rebuild cleanly if called again
+    new QRCode($('qr'),{text:url,width:180,height:180,colorDark:'#0f172a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){}
 }
 $('qtoggle').addEventListener('click',()=>{
   const w=$('qrwrap'); const open=w.style.display==='block';

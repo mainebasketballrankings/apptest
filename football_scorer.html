@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-17b'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-17c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -647,8 +647,10 @@ let G = {
   drives:[], curDrive:null,
   pbp:[],
   qb:{away:null, home:null},      // remembered starting/last passer per side
-  tstat:{ away:{fd:0,pen:0,penyd:0}, home:{fd:0,pen:0,penyd:0} },  // team counters
+  tstat:{ away:{fd:0,pen:0,penyd:0}, home:{fd:0,pen:0,penyd:0} },  // team counters (see blankTStat)
+  _scrimKind:null,                // transient marker: 'rush'|'pass' set before commitPlay for down-efficiency tracking
   lineScore:{}, pendingPAT:false, kickoffPending:true, clockRunning:false,
+  _pendingDriveSummary:null,        // stashed drive-summary PBP line, flushed after the terminating event
   // pending interaction state
   pend:null,
 };
@@ -661,7 +663,7 @@ function blankStat(name, number){
     pa:0,pc:0,pyd:0,ptd:0,pint:0,                 // passing
     ra:0,ryd:0,rtd:0,rlong:0,                      // rushing
     rec:0,recyd:0,rectd:0,reclong:0,               // receiving
-    tkl:0,ast:0,sack:0,dint:0,pd:0,ff:0,fr:0,      // defense
+    tkl:0,ast:0,sack:0,dint:0,pd:0,ff:0,fr:0,blk:0,  // defense (blk = blocked kicks)
     fgm:0,fga:0,xpm:0,xpa:0,                        // kicking
     punts:0,puntyd:0,                              // punting
     kret:0,kretyd:0,pret:0,pretyd:0,               // returns
@@ -673,6 +675,16 @@ function statFor(side, name, number){
   if(number && !G.stats[side][name].number) G.stats[side][name].number = number;
   return G.stats[side][name];
 }
+// Team-level counters (things not derivable from per-player lines): first downs
+// (+ by type), penalties, 3rd/4th-down efficiency, red-zone trips, def/ST TDs,
+// sacks allowed, and time of possession (seconds).
+function blankTStat(){
+  return { fd:0, fdRush:0, fdPass:0, fdPen:0, pen:0, penyd:0,
+           thirdA:0, thirdC:0, fourthA:0, fourthC:0,
+           rzTrips:0, rzTD:0, defstTD:0, sackAllowed:0, sackYdLost:0, topSec:0 };
+}
+// Migrate an older/partial tstat object to the full shape (autosave restore).
+function normTStat(t){ return Object.assign(blankTStat(), t||{}); }
 
 // ── helpers ──
 function other(side){ return side==='away'?'home':'away'; }
@@ -886,7 +898,7 @@ async function startGame(){
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
-  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[];
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null;
 
   // Sort each roster by uniform number, then seed the starting QB. The QB is
   // captured as an object reference BEFORE the sort, so it survives reordering.
@@ -903,7 +915,7 @@ async function startGame(){
     });
     G.qb[side] = qb;
   });
-  G.tstat={away:{fd:0,pen:0,penyd:0}, home:{fd:0,pen:0,penyd:0}}; G.clockRunning=false;
+  G.tstat={away:blankTStat(), home:blankTStat()}; G.clockRunning=false; G._scrimKind=null;
   undoStack=[]; G_evt_id_stack=[]; G_evt_current_group=[]; _lastPbpLength=-1; _gameFinalized=false;
 
   // opening kickoff: receiving team starts on offense, but ball is a kickoff situation.
@@ -996,7 +1008,19 @@ async function pushEvt(key, extras={}){
 function startDrive(){
   G.curDrive = { team:G.poss, startQtr:G.quarter, startClock:G.clock, startBallOn:G.ballOn, plays:0, yards:0, result:null };
 }
+// Emit any pending drive-summary line. The summary must land AFTER the drive's
+// terminating event (TD+PAT / FG / punt / turnover), so endDrive() only STASHES
+// it and the caller flushes at the right moment (changePoss does this for every
+// change of possession; the deferred-TD path relies on the ensuing kickoff's
+// changePoss). This was the fb-2026-07-17a ordering bug: the summary printed
+// before the TOUCHDOWN + Extra Point lines instead of after them.
+function flushDriveSummary(){
+  if(G._pendingDriveSummary){ addPBP(G._pendingDriveSummary, true); G._pendingDriveSummary=null; }
+}
 function endDrive(result){
+  // Safety net: emit any still-pending summary before we stash a new one, so a
+  // deferred summary (e.g. a TD's) is never lost or overwritten by the next drive.
+  flushDriveSummary();
   if(G.curDrive){
     const admin = ['half','end-reg','end-reg-tie','final','manual'];
     if(!admin.includes(result)) G.curDrive.plays++;
@@ -1005,14 +1029,26 @@ function endDrive(result){
     const net = (G.curDrive.endBallOn!=null && G.curDrive.startBallOn!=null)
       ? Math.round(G.curDrive.endBallOn - G.curDrive.startBallOn) : 0;
     G.curDrive.yards = net;
-    // Emit a mini drive summary line (drive header) unless purely administrative.
+    // Red-zone accounting: a trip is any drive that reached the opponent's 20;
+    // "made" counts only drives the offense finished with its own TD.
+    if(!admin.includes(result) && G.curDrive.reachedRZ && G.tstat&&G.tstat[G.curDrive.team]){
+      const tt=G.tstat[G.curDrive.team]; tt.rzTrips=(tt.rzTrips||0)+1;
+      if(result==='TD' && G.curDrive.team===G._lastScoringSide) tt.rzTD=(tt.rzTD||0)+1;
+    }
+    // Stash a mini drive summary (drive header) unless purely administrative.
     if(!admin.includes(result)){
       const RES={TD:'Touchdown', FG:'Field goal', Safety:'Safety', punt:'Punt',
                  'missed-fg':'Missed FG', interception:'Interception', fumble:'Fumble',
-                 downs:'Turnover on downs', change:'Change of possession', 'kickoff-fumble':'Muffed kickoff'};
-      const rlabel = RES[result] || result;
+                 downs:'Turnover on downs', change:'Change of possession', 'kickoff-fumble':'Muffed kickoff',
+                 'blocked-punt':'Blocked punt', 'blocked-fg':'Blocked FG', 'free-kick':'Safety'};
+      let rlabel = RES[result] || result;
+      // A "TD" drive whose scorer isn't the offense = defense/ST returned it for a
+      // score. Relabel so West's drive doesn't read as West's touchdown.
+      if(result==='TD' && G._lastScoringSide && G.curDrive.team!==G._lastScoringSide){
+        rlabel = `Returned for TD ${abbr(G._lastScoringSide)}`;
+      }
       const pl = G.curDrive.plays, plt = pl===1?'play':'plays';
-      addPBP(`${abbr(G.curDrive.team)} drive: ${pl} ${plt}, ${net>=0?net:0} yds — ${rlabel}`, true);
+      G._pendingDriveSummary = `${abbr(G.curDrive.team)} drive: ${pl} ${plt}, ${net>=0?net:0} yds — ${rlabel}`;
     }
     G.drives.push(G.curDrive); G.curDrive=null;
   }
@@ -1023,16 +1059,28 @@ function endDrive(result){
 // ═══════════════════════════════════════════════
 function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
 
+// Record a 3rd/4th-down attempt + conversion for a scrimmage play by `side`.
+function trackDownEff(side, downBefore, converted){
+  const t=G.tstat&&G.tstat[side]; if(!t) return;
+  if(downBefore===3){ t.thirdA=(t.thirdA||0)+1; if(converted) t.thirdC=(t.thirdC||0)+1; }
+  else if(downBefore===4){ t.fourthA=(t.fourthA||0)+1; if(converted) t.fourthC=(t.fourthC||0)+1; }
+}
 // Move ball within the current possession to absolute spot (poss own-goal frame), handle down/distance.
 function commitPlay(newBallOn){
   newBallOn = clamp(newBallOn, 0, 100);
+  const kind = G._scrimKind; G._scrimKind=null;   // consume the scrimmage marker (rush/pass); null for special-teams recoveries
+  const wasDown = G.down;
   if(G.curDrive){ G.curDrive.plays++; G.curDrive.yards += (newBallOn - G.curDrive.startBallOn) - (G.ballOn - G.curDrive.startBallOn); }
   const target = firstDownTarget();
+  const converted = newBallOn >= target;
+  if(kind) trackDownEff(G.poss, wasDown, converted);      // 3rd/4th-down efficiency (scrimmage plays only)
+  if(G.curDrive && newBallOn>=80) G.curDrive.reachedRZ=true;  // reached opponent's 20 (red zone)
   G.ballOn = newBallOn;
-  if(newBallOn >= target){
+  if(converted){
     G.down = 1;
     G.distance = Math.min(10, 100 - newBallOn);
-    if(G.tstat&&G.tstat[G.poss]) G.tstat[G.poss].fd++;
+    if(G.tstat&&G.tstat[G.poss]){ const t=G.tstat[G.poss]; t.fd++;
+      if(kind==='pass') t.fdPass=(t.fdPass||0)+1; else if(kind==='rush') t.fdRush=(t.fdRush||0)+1; }
   } else {
     G.down += 1;
     G.distance = Math.max(1, target - newBallOn);
@@ -1046,6 +1094,7 @@ function commitPlay(newBallOn){
 // Flip possession to newPoss; newBallOn is already in newPoss own-goal frame.
 function changePoss(newPoss, newBallOn, reason){
   endDrive(reason||'change');
+  flushDriveSummary();   // emit this drive's summary now — right after its terminating line
   G.poss = newPoss;
   G.ballOn = clamp(newBallOn, 1, 99);
   G.down = 1;
@@ -1088,6 +1137,12 @@ function logTry(side, kind, good){
 }
 
 function scoreTD(side){
+  G._lastScoringSide = side;
+  const drvTeam = G.curDrive ? G.curDrive.team : null;
+  // A TD by a team other than the offense whose drive this is = defensive / ST TD.
+  if(drvTeam && side!==drvTeam && G.tstat&&G.tstat[side]) G.tstat[side].defstTD=(G.tstat[side].defstTD||0)+1;
+  // An offensive TD means that drive reached the red zone.
+  if(G.curDrive && G.curDrive.team===side) G.curDrive.reachedRZ=true;
   addScore(side, 6);
   logScore(side, 'TD', G.lastTD || (abbr(side)+' touchdown'));
   endDrive('TD');
@@ -1137,6 +1192,7 @@ function tickClock(){
   if(document.getElementById('gameScreen').style.display==='none') return;
   if(G.clock<=0){ G.clockRunning=false; updateClockUI(); return; }
   G.clock--;
+  if(G.tstat&&G.tstat[G.poss]) G.tstat[G.poss].topSec=(G.tstat[G.poss].topSec||0)+1;   // time of possession
   const el=document.getElementById('sbClock'); if(el) el.textContent=fmtClock(G.clock);
   if(G.clock<=0){ G.clockRunning=false; updateClockUI(); addPBP(`<strong>End of ${qtrLabel()}</strong> (clock 0:00)`, true); renderPBP(); showQuarterOver(); }
 }
@@ -1450,6 +1506,7 @@ function confirmRun(){
   const p=G.pend;
   if(!p.rusher){ msg('Pick a rusher','Tap Rusher to choose who carried the ball.'); return; }
   if(G.pendingPAT){ closeOv('ovPlay'); resolveConversion(p.toSpot>=100, p.rusher, `${p.rusher.name} run`); G.pend=null; render(); return; }
+  const downBefore=G.down;   // for 3rd/4th-down efficiency
   const gain=Math.round(p.toSpot-G.ballOn);
   const st=statFor(G.poss, p.rusher.name, p.rusher.number);
   st.ra++; st.ryd+=gain; if(gain>st.rlong) st.rlong=gain;
@@ -1460,6 +1517,7 @@ function confirmRun(){
   const tackTxt = p.tackler?` (${p.tackler.name}${p.assist?', '+p.assist.name:''})`:'';
   if(td){
     st.rtd++;
+    trackDownEff(G.poss, downBefore, true);   // a rushing TD converts the down
     addPBP(`${p.rusher.name} ${gain} yd rush ${tackTxt}`);
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,td:true,
       tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null}});
@@ -1515,6 +1573,7 @@ function confirmRun(){
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,
       tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null,
       assist:p.assist?.name||null,   assistNum:p.assist?.number||null}});
+    G._scrimKind='rush';
     commitPlay(p.toSpot);
     if(p.oob) stopClock();
     applyPendPenalty(p);
@@ -1587,6 +1646,7 @@ function confirmPass(){
     else { good=false; desc=p.sub; }
     resolveConversion(good, p.receiver||p.passer, desc); G.pend=null; render(); return;
   }
+  const offSideStart=G.poss, downBefore=G.down;   // for 3rd/4th-down efficiency (before any possession flip)
   if(p.sub==='incomp'){
     if(!p.passer){ openOv('ovPlay'); msg('Pick a passer','Choose who threw the ball.'); return; }
     const st=statFor(G.poss,p.passer.name,p.passer.number); st.pa++;
@@ -1597,6 +1657,7 @@ function confirmPass(){
     pushEvt('pass_incomp',{player:p.passer.name,num:p.passer.number,detail:{
       receiver:p.receiver?.name||null, receiverNum:p.receiver?.number||null,
       defended:p.defender?.name||null, defendedNum:p.defender?.number||null}});
+    G._scrimKind='pass';
     commitPlay(G.ballOn);
     stopClock();
     applyPendPenalty(p);
@@ -1609,6 +1670,7 @@ function confirmPass(){
     const td=p.toSpot>=100;
     if(td){
       ps.ptd++; rs.rectd++;
+      trackDownEff(G.poss, downBefore, true);   // a TD pass converts the down
       addPBP(`${p.passer.name} ${gain} yd TD pass to ${p.receiver.name}`);
       pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,
         receiver:p.receiver.name, receiverNum:p.receiver.number||null, td:true}});
@@ -1640,6 +1702,7 @@ function confirmPass(){
         pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,receiver:p.receiver.name,safety:true}});
         scoreSafety(defSide());
       } else {
+        G._scrimKind='pass';
         commitPlay(p.toSpot);
         if(p.oob) stopClock();
         applyPendPenalty(p);
@@ -1647,6 +1710,7 @@ function confirmPass(){
     }
   } else if(p.sub==='int'){
     if(!p.passer||!p.defender){ openOv('ovPlay'); msg('Missing player','Pick the passer and the defender who intercepted.'); return; }
+    trackDownEff(offSideStart, downBefore, false);   // interception = failed 3rd/4th-down attempt for the offense
     const ps=statFor(G.poss,p.passer.name,p.passer.number); ps.pa++; ps.pint++;
     const ds=statFor(defSide(),p.defender.name,p.defender.number); ds.dint++;
     const defr=defSide();
@@ -1668,6 +1732,8 @@ function confirmPass(){
   } else if(p.sub==='sack'){
     if(!p.passer||!p.defender){ openOv('ovPlay'); msg('Missing player','Pick the QB and who made the sack.'); return; }
     const loss=Math.round(p.toSpot-G.ballOn);
+    // sack charged to the offense (times sacked / yards lost) for the team-stats table
+    if(G.tstat&&G.tstat[G.poss]){ G.tstat[G.poss].sackAllowed=(G.tstat[G.poss].sackAllowed||0)+1; G.tstat[G.poss].sackYdLost=(G.tstat[G.poss].sackYdLost||0)+Math.max(0,-loss); }
     if(p.defender2){
       const d1=statFor(defSide(),p.defender.name,p.defender.number); d1.sack+=0.5; d1.tkl++;
       const d2=statFor(defSide(),p.defender2.name,p.defender2.number); d2.sack+=0.5; d2.ast=(d2.ast||0)+1;
@@ -1689,7 +1755,7 @@ function confirmPass(){
       });
       applyPendPenalty(p);
     } else if(p.toSpot<=0){ scoreSafety(defSide()); }
-    else { commitPlay(p.toSpot); applyPendPenalty(p); }
+    else { G._scrimKind='pass'; commitPlay(p.toSpot); applyPendPenalty(p); }
   }
   G.pend=null; render();
 }
@@ -1713,14 +1779,14 @@ function openKick(){
   G.pend={ type:'kick', sub:defaultKickTab(),
     // kickoff
     koKicker:null, koReturner:null, koRecAt:5, koAdvTo:25, koTouchback:false,
-    koFumble:false, koFumLost:false, koFumRecoverer:null, koFumAt:50,
+    koFumble:false, koFumLost:false, koFumRecoverer:null, koFumAt:50, koFumAdvTo:null,
     // punt
     puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
     puntFumble:false, puntFumLost:false, puntFumRecoverer:null, puntSafety:false,
-    puntBlocked:false, puntBlockRecov:'kicking', puntBlockRecoverer:null, puntBlockSpot:null, puntBlockTD:false,
+    puntBlocked:false, puntBlockRecov:'kicking', puntBlockRecoverer:null, puntBlockSpot:null, puntBlockTD:false, puntBlocker:null,
     // fg
     fgKicker:null, fgGood:true,
-    fgBlocked:false, fgBlockRecov:'def', fgBlockRecoverer:null, fgBlockSpot:null, fgBlockTD:false,
+    fgBlocked:false, fgBlockRecov:'def', fgBlockRecoverer:null, fgBlockSpot:null, fgBlockTD:false, fgBlocker:null,
     // pat
     patMode:'kick', patKicker:null, patGood:true, patPlayer:null, patConverted:false
   };
@@ -1755,6 +1821,12 @@ function renderKick(){
           <span class="reschip ${p.koFumLost?'active':''}" onclick="G.pend.koFumLost=true;renderKick()">${abbr(kicking)} recovers</span></div>`;
         const rt = p.koFumLost?kicking:recv;
         h += pselRow('Recovered by', p.koFumRecoverer, "pickFor('koFumRecoverer','"+rt+"','Recovered by')");
+        if(p.koFumLost){
+          // Kicking team recovered — where did they advance it? Reaching the
+          // receiving team's end zone is a scoop-and-score TD for the kicking team.
+          h += `<div class="sec-lbl">Returned to (${abbr(kicking)} ball · their end zone = TD)</div>`;
+          h += `<div class="psel-row" onclick="koFumAdvSpot()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.koFumAdvTo!=null?p.koFumAdvTo:100-p.koAdvTo, kicking)}</span></div>`;
+        }
       }
     }
   } else if(p.sub==='punt'){
@@ -1768,6 +1840,7 @@ function renderKick(){
       h += `<div class="sec-lbl" style="color:var(--red)">Safety — 2 pts to ${abbr(kicking)}, ${abbr(recv)} free-kicks</div>`;
     }
     if(p.puntBlocked){
+      h += pselRow('Blocked by (optional)', p.puntBlocker, "pickFor('puntBlocker','"+kicking+"','Blocked by')");
       h += `<div class="sec-lbl">Blocked punt — recovered by</div>`;
       h += `<div class="res-row">
         <span class="reschip ${p.puntBlockRecov==='kicking'?'active':''}" onclick="G.pend.puntBlockRecov='kicking';G.pend.puntBlockRecoverer=null;renderKick()">${abbr(recv)} (kicking)</span>
@@ -1804,6 +1877,7 @@ function renderKick(){
       <span class="reschip ${!p.fgGood&&!p.fgBlocked?'active':''}" onclick="G.pend.fgGood=false;G.pend.fgBlocked=false;renderKick()">Missed</span>
       <span class="reschip ${p.fgBlocked?'active':''}" onclick="G.pend.fgBlocked=true;G.pend.fgGood=false;renderKick()">Blocked</span></div>`;
     if(p.fgBlocked){
+      h += pselRow('Blocked by (optional)', p.fgBlocker, "pickFor('fgBlocker','"+defSide()+"','Blocked by')");
       h += `<div class="sec-lbl">Blocked FG — recovered by</div>`;
       h += `<div class="res-row">
         <span class="reschip ${p.fgBlockRecov==='def'?'active':''}" onclick="G.pend.fgBlockRecov='def';G.pend.fgBlockRecoverer=null;renderKick()">${abbr(defSide())} (defense)</span>
@@ -1838,6 +1912,10 @@ function renderKick(){
 }
 function koRecSpot(){ openSpotPicker(G.poss, G.pend.koRecAt, v=>{G.pend.koRecAt=v;renderKick();}, {showGain:false, title:'Fielded at'}); }
 function koSpot(){ openSpotPicker(G.poss, G.pend.koAdvTo, v=>{G.pend.koAdvTo=v;renderKick();}, {showGain:false, title:'Return ends at'}); }
+// Kicking team recovers a fumbled kickoff and advances — spot in the KICKING team's frame.
+function koFumAdvSpot(){ const kicking=defSide();
+  openSpotPicker(kicking, G.pend.koFumAdvTo!=null?G.pend.koFumAdvTo:100-G.pend.koAdvTo,
+    v=>{G.pend.koFumAdvTo=v;renderKick();}, {showGain:false, title:'Returned to'}); }
 function fgBlockSpotPick(){ const p=G.pend; const recv=G.poss;
   const frt = p.fgBlockRecov==='off'?recv:defSide();
   openSpotPicker(frt, p.fgBlockSpot!=null?p.fgBlockSpot:(frt===G.poss?G.ballOn:100-G.ballOn),
@@ -1865,15 +1943,22 @@ function confirmKick(){
       scoreTD(tdSide);
       pushEvt('touchdown',{player:p.koReturner?.name,num:p.koReturner?.number,points:6,side:tdSide});
     } else if(p.koFumble && p.koFumLost && !p.koTouchback){
-      // kicking team recovers the kickoff — they take over at the fumble spot
+      // Kicking team recovers a fumbled/muffed kickoff. Route through the shared
+      // resolveFumble so a return to the receiving team's end zone is a TD for the
+      // kicking team, and a plain recovery flips possession at the advance spot.
       G.kickoffPending=false;
-      const recName=p.koFumRecoverer?.name||abbr(kicking);
-      addPBP(`Kickoff — ${p.koReturner?p.koReturner.name+' ':''}<strong>FUMBLE</strong>, recovered by ${recName} (${abbr(kicking)})`);
+      if(p.koKicker){ statFor(kicking,p.koKicker.name,p.koKicker.number); }
+      if(p.koReturner){ const rs=statFor(recv,p.koReturner.name,p.koReturner.number); rs.kret++; rs.kretyd += Math.max(0,advTo-p.koRecAt); }
       pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{
         fieldedAt:spotLabel(p.koRecAt,recv), returner:p.koReturner?.name||null, fumble:true, recoverTeam:abbr(kicking)}});
-      pushEvt('fumble',{side:recv,detail:{lost:true,recoveredBy:p.koFumRecoverer?.name||null,recoverTeam:abbr(kicking),onKickoff:true}});
-      // kicking team takes over; mirror the advance spot into their frame
-      changePoss(kicking, 100-advTo, 'kickoff-fumble');
+      // carrier = recv (returner); fumble spot in recv's frame = the return-end spot.
+      // Advance spot (koFumAdvTo) is already in the recovering (kicking) team's frame.
+      resolveFumble(recv, advTo, {
+        lost:true, recoverer:p.koFumRecoverer,
+        advToOwn: (p.koFumAdvTo!=null ? p.koFumAdvTo : 100-advTo),
+        onKind:'kickoff', leadIn:'Kickoff — '
+      });
+      // resolveFumble handles PBP, possession, and any scoop-and-score TD.
     } else {
       G.ballOn=clamp(advTo,1,99); G.down=1; G.distance=Math.min(10,100-G.ballOn);
       if(G.curDrive) G.curDrive.startBallOn=G.ballOn;
@@ -1902,7 +1987,9 @@ function confirmKick(){
       // return it (or score). puntBlockSpot is in the RECOVERING team's frame.
       const recTeam = p.puntBlockRecov==='recv' ? kicking : recv;   // 'recv' toggle = receiving team
       const recName = p.puntBlockRecoverer?.name || abbr(recTeam);
-      const lead = `${p.puntPunter?p.puntPunter.name+' ':''}punt <strong>BLOCKED</strong>`;
+      if(p.puntBlocker){ const bs=statFor(kicking,p.puntBlocker.name,p.puntBlocker.number); bs.blk++; }  // block credited to the receiving team
+      const blkBy = p.puntBlocker ? ` by ${p.puntBlocker.name}` : '';
+      const lead = `${p.puntPunter?p.puntPunter.name+' ':''}punt <strong>BLOCKED</strong>${blkBy}`;
       if(p.puntBlockTD){
         addPBP(`${lead}, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
         pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{blocked:true,recoverTeam:abbr(recTeam),td:true}});
@@ -1970,8 +2057,10 @@ function confirmKick(){
       const defr=defSide();
       const recTeam = p.fgBlockRecov==='off' ? recvSide : defr;
       const recName = p.fgBlockRecoverer?.name || abbr(recTeam);
+      if(p.fgBlocker){ const bs=statFor(defr,p.fgBlocker.name,p.fgBlocker.number); bs.blk++; }  // block credited to the defense
+      const blkBy = p.fgBlocker ? ` by ${p.fgBlocker.name}` : '';
       if(p.fgBlockTD){
-        addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong>, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
+        addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong>${blkBy}, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
         pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam),td:true}});
         G.poss=recTeam; G.lastTD=`${recName} blocked FG return`;
         pushEvt('touchdown',{player:p.fgBlockRecoverer?.name||null,num:p.fgBlockRecoverer?.number||null,points:6,side:recTeam,detail:{via:'blocked_fg'}});
@@ -1979,13 +2068,13 @@ function confirmKick(){
       } else {
         const spotOwn = p.fgBlockSpot!=null ? p.fgBlockSpot : (recTeam===G.poss?G.ballOn:100-G.ballOn);
         if(spotOwn>=100){
-          addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong>, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
+          addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong>${blkBy}, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
           pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam),td:true}});
           G.poss=recTeam; G.lastTD=`${recName} blocked FG return`;
           pushEvt('touchdown',{player:p.fgBlockRecoverer?.name||null,num:p.fgBlockRecoverer?.number||null,points:6,side:recTeam,detail:{via:'blocked_fg'}});
           scoreTD(recTeam);
         } else {
-          addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong> — recovered by ${recName} (${abbr(recTeam)})`);
+          addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong>${blkBy} — recovered by ${recName} (${abbr(recTeam)})`);
           pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam)}});
           if(recTeam===recvSide){ G.kickoffPending=false; commitPlay(spotOwn); }
           else { changePoss(recTeam, spotOwn, 'blocked-fg'); }
@@ -2077,7 +2166,7 @@ function applyPenalty({team, yds, name, autoFirst, lossDown, replay, fromSpot, r
   if(onDef){ const half=Math.floor((100-spot)/2); const eff=Math.min(yds,half); capped=eff<yds; nb=spot+eff; }
   else { const half=Math.floor(spot/2); const eff=Math.min(yds,half); capped=eff<yds; nb=spot-eff; }
   G.ballOn=clamp(nb,1,99);
-  if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); if(G.tstat&&G.tstat[G.poss]) G.tstat[G.poss].fd++; }
+  if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); if(G.tstat&&G.tstat[G.poss]){ G.tstat[G.poss].fd++; G.tstat[G.poss].fdPen=(G.tstat[G.poss].fdPen||0)+1; } }
   else { G.distance=Math.max(1, target-G.ballOn); if(lossDown && !replay) G.down=Math.min(4,G.down+1); }
   if(G.tstat&&G.tstat[team]){ G.tstat[team].pen++; G.tstat[team].penyd+=yds; }
   const nm = (name && name!=='Other') ? name : 'Penalty';
@@ -2240,7 +2329,8 @@ function cloneState(){
     qb:{away:G.qb?.away||null, home:G.qb?.home||null},
     tstat:JSON.parse(JSON.stringify(G.tstat||{away:{fd:0,pen:0,penyd:0},home:{fd:0,pen:0,penyd:0}})),
     pbpLen:G.pbp.length, scoreLogLen:(G.scoreLog?G.scoreLog.length:0),
-    pendingPAT:!!G.pendingPAT, kickoffPending:!!G.kickoffPending
+    pendingPAT:!!G.pendingPAT, kickoffPending:!!G.kickoffPending,
+    pendingDriveSummary:G._pendingDriveSummary||null
   };
 }
 function saveSnapshot(){
@@ -2263,6 +2353,7 @@ function restoreState(s){
   G.pbp=G.pbp.slice(0,s.pbpLen);
   if(G.scoreLog && s.scoreLogLen!=null) G.scoreLog=G.scoreLog.slice(0,s.scoreLogLen);
   G.pendingPAT=s.pendingPAT; G.kickoffPending=s.kickoffPending; G.pend=null;
+  G._pendingDriveSummary = (s.pendingDriveSummary!==undefined) ? s.pendingDriveSummary : null;
   _lastPbpLength=-1;
 }
 function doUndo(){
@@ -2393,6 +2484,7 @@ function advanceQuarter(){
   saveSnapshot();
   stopClock();
   clearQuarterOver();
+  flushDriveSummary();   // a score right before the buzzer keeps its summary in-block
   if(G.quarter<4){
     const endingQ=G.quarter;
     G.quarter++;
@@ -2447,31 +2539,76 @@ function _rows(side, filterFn, cols, mapFn){
 function teamTotals(side){
   const ps=Object.values(G.stats[side]);
   const sum=(f)=>ps.reduce((a,p)=>a+(p[f]||0),0);
-  const rushYd=sum('ryd'), passYd=sum('pyd');
-  const t = (G.tstat&&G.tstat[side])||{fd:0,pen:0,penyd:0};
+  const t=normTStat(G.tstat&&G.tstat[side]);
+  const rushYd=sum('ryd'), rushAtt=sum('ra');
+  const grossPassYd=sum('pyd'), passAtt=sum('pa'), passComp=sum('pc');
+  const sackAllowed=t.sackAllowed||0, sackYdLost=t.sackYdLost||0;
+  const netPassYd=grossPassYd - sackYdLost;                 // ESPN passing = net of sacks
+  const totalPlays=rushAtt + passAtt + sackAllowed;         // offensive scrimmage plays
+  const totalYds=rushYd + netPassYd;
+  const admin=['half','end-reg','end-reg-tie','final','manual'];
+  const drives=(G.drives||[]).filter(d=>d.team===side && !admin.includes(d.result));
+  const totalDrives=drives.length + ((G.curDrive&&G.curDrive.team===side)?1:0);
+  const dec=(n,d)=> d>0 ? (n/d).toFixed(1) : '0.0';
   return {
-    firstDowns: t.fd,
-    totalYds: rushYd+passYd,
-    rush: `${sum('ra')}-${rushYd}`,
-    pass: `${sum('pc')}/${sum('pa')}, ${passYd}`,
-    sacksBy: sum('sack'),
-    turnovers: sum('pint')+sum('fumlost'),
-    penalties: `${t.pen}-${t.penyd}`
+    firstDowns:t.fd, fdPass:t.fdPass||0, fdRush:t.fdRush||0, fdPen:t.fdPen||0,
+    third:`${t.thirdC||0}-${t.thirdA||0}`, fourth:`${t.fourthC||0}-${t.fourthA||0}`,
+    totalPlays, totalYds, totalDrives,
+    yardsPerPlay: dec(totalYds, totalPlays),
+    passYds: netPassYd, passCA:`${passComp}/${passAtt}`,
+    yardsPerPass: dec(netPassYd, passAtt + sackAllowed),
+    intThrown: sum('pint'), sacksLost:`${sackAllowed}-${sackYdLost}`,
+    rushYds: rushYd, rushAtt, yardsPerRush: dec(rushYd, rushAtt),
+    redZone:`${t.rzTD||0}-${t.rzTrips||0}`,
+    penalties:`${t.pen}-${t.penyd}`,
+    fumLost: sum('fumlost'), turnovers: sum('pint')+sum('fumlost'),
+    defstTD: t.defstTD||0,
+    top: fmtClock(t.topSec||0),
+    // legacy fields kept for any other callers
+    totalYards:totalYds, rush:`${rushAtt}-${rushYd}`, pass:`${passComp}/${passAtt}, ${netPassYd}`, sacksBy:sum('sack')
   };
 }
-function buildTeamCompare(){
+// Shared row set for the expanded team-stats comparison (live box + PDF report).
+// Each row: [label, awayValue, homeValue, isSubRow].
+function teamCompareRows(){
   const a=teamTotals('away'), hh=teamTotals('home');
-  const rows=[
-    ['First downs', a.firstDowns, hh.firstDowns],
-    ['Total yards', a.totalYds, hh.totalYds],
-    ['Rushing (att-yds)', a.rush, hh.rush],
-    ['Passing (c/a, yds)', a.pass, hh.pass],
-    ['Sacks', a.sacksBy, hh.sacksBy],
-    ['Turnovers', a.turnovers, hh.turnovers],
-    ['Penalties (no-yds)', a.penalties, hh.penalties],
+  return [
+    ['1st Downs', a.firstDowns, hh.firstDowns, false],
+    ['Passing 1st downs', a.fdPass, hh.fdPass, true],
+    ['Rushing 1st downs', a.fdRush, hh.fdRush, true],
+    ['1st downs from penalties', a.fdPen, hh.fdPen, true],
+    ['3rd down efficiency', a.third, hh.third, true],
+    ['4th down efficiency', a.fourth, hh.fourth, true],
+    ['Total Plays', a.totalPlays, hh.totalPlays, false],
+    ['Total Yards', a.totalYds, hh.totalYds, false],
+    ['Total Drives', a.totalDrives, hh.totalDrives, false],
+    ['Yards per Play', a.yardsPerPlay, hh.yardsPerPlay, false],
+    ['Passing', a.passYds, hh.passYds, false],
+    ['Comp / Att', a.passCA, hh.passCA, true],
+    ['Yards per pass', a.yardsPerPass, hh.yardsPerPass, true],
+    ['Interceptions thrown', a.intThrown, hh.intThrown, true],
+    ['Sacks-Yards Lost', a.sacksLost, hh.sacksLost, true],
+    ['Rushing', a.rushYds, hh.rushYds, false],
+    ['Rushing Attempts', a.rushAtt, hh.rushAtt, true],
+    ['Yards per rush', a.yardsPerRush, hh.yardsPerRush, true],
+    ['Red Zone (Made-Att)', a.redZone, hh.redZone, false],
+    ['Penalties', a.penalties, hh.penalties, false],
+    ['Turnovers', a.turnovers, hh.turnovers, false],
+    ['Fumbles lost', a.fumLost, hh.fumLost, true],
+    ['Interceptions thrown', a.intThrown, hh.intThrown, true],
+    ['Defensive / Special Teams TDs', a.defstTD, hh.defstTD, false],
+    ['Possession', a.top, hh.top, false],
   ];
-  let h=`<table class="box-table"><thead><tr><th>Team Stats</th><th>${abbr('away')}</th><th>${abbr('home')}</th></tr></thead><tbody>`;
-  h+=rows.map(r=>`<tr><td style="text-align:left">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+}
+function buildTeamCompare(){
+  const rows=teamCompareRows();
+  let h=`<table class="box-table team-compare"><thead><tr><th>Team Stats</th><th>${abbr('away')}</th><th>${abbr('home')}</th></tr></thead><tbody>`;
+  h+=rows.map(r=>{
+    const sub=r[3];
+    const lblStyle = sub ? 'text-align:left;font-weight:400;color:var(--dim);padding-left:16px' : 'text-align:left;font-weight:700';
+    const valStyle = sub ? 'font-weight:400;color:var(--dim)' : 'font-weight:700';
+    return `<tr${sub?' class="sub"':''}><td style="${lblStyle}">${r[0]}</td><td style="${valStyle}">${r[1]}</td><td style="${valStyle}">${r[2]}</td></tr>`;
+  }).join('');
   h+='</tbody></table>';
   return h;
 }
@@ -2517,6 +2654,8 @@ function restoreGame(){
   let data; try{ data=JSON.parse(localStorage.getItem('mbr_fb_game')||'null'); }catch(e){ return; }
   if(!data||!data.G) return;
   G=Object.assign(G, data.G); G.pend=null;
+  G.tstat={ away:normTStat(G.tstat&&G.tstat.away), home:normTStat(G.tstat&&G.tstat.home) };  // backfill new counters
+  if(G._pendingDriveSummary===undefined) G._pendingDriveSummary=null;
   G_game_id=data.gid; G_home_team_id=data.hid; G_away_team_id=data.aid; G_test_mode=!!data.test; _gameFinalized=!!data.fin;
   undoStack=[]; G_evt_id_stack=[]; G_evt_current_group=[]; _lastPbpLength=-1;
   document.getElementById('setupScreen').style.display='none';
@@ -2724,22 +2863,37 @@ async function generatePDF(opts={}){
     y+=14;
   }
 
-  // ── TEAM STATS (comparison) ──
+  // ── TEAM STATS (full ESPN-style comparison, own page) ──
   {
+    doc.addPage(); y=M;
+    // page header band with team abbreviations over each column
     sectionTitle('Team Stats');
-    const a=teamTotals('away'), hh=teamTotals('home');
-    const rows=[['First downs',a.firstDowns,hh.firstDowns],['Total yards',a.totalYds,hh.totalYds],
-      ['Rushing (att-yds)',a.rush,hh.rush],['Passing (c/a, yds)',a.pass,hh.pass],
-      ['Sacks',a.sacksBy,hh.sacksBy],['Turnovers',a.turnovers,hh.turnovers],['Penalties (no-yds)',a.penalties,hh.penalties]];
-    const labW=CW-160, colW=80;
-    rct(ML,y,CW,15,[240,240,245]); let cx=ML;
-    cell('',cx,y,labW,'left',true); cx+=labW;
-    cell(abbr('away'),cx,y,colW,'center',true); cx+=colW;
-    cell(abbr('home'),cx,y,colW,'center',true); y+=15;
-    rows.forEach((r,i)=>{ checkY(14); rct(ML,y,CW,14,i%2===0?[255,255,255]:[250,250,252]); cx=ML;
-      cell(r[0],cx,y,labW,'left'); cx+=labW;
-      cell(r[1],cx,y,colW,'center',true); cx+=colW;
-      cell(r[2],cx,y,colW,'center',true); y+=14; });
+    const rows=teamCompareRows();
+    const colW=86, labW=CW-colW*2;
+    // column header
+    rct(ML,y,CW,17,[238,103,48]); let cx=ML;
+    ff(9,'bold'); clr(255,255,255);
+    doc.text('', ML+3, y+11.5);
+    doc.text(abbr('away'), ML+labW+colW/2, y+11.5, {align:'center'});
+    doc.text(abbr('home'), ML+labW+colW+colW/2, y+11.5, {align:'center'});
+    y+=17;
+    rows.forEach((r,i)=>{
+      const sub=r[3]; const rh=sub?13:15;
+      checkY(rh+2);
+      // main rows get a faint fill; sub rows stay white for hierarchy
+      rct(ML,y,CW,rh, sub?[255,255,255]:[245,246,249]);
+      cx=ML;
+      if(sub){ ff(8,'normal'); clr(120,120,120); doc.text(sanitize(r[0]), ML+16, y+8.6, {maxWidth:labW-18}); }
+      else   { ff(9,'bold');   clr(28,28,30);    doc.text(sanitize(r[0]), ML+4,  y+9.7, {maxWidth:labW-6}); }
+      cx=ML+labW;
+      const vf=sub?8:9, vc=sub?[120,120,120]:[28,28,30], vy=sub?y+8.6:y+9.7;
+      ff(vf, sub?'normal':'bold'); clr(...vc);
+      doc.text(String(r[1]), cx+colW/2, vy, {align:'center'}); cx+=colW;
+      doc.text(String(r[2]), cx+colW/2, vy, {align:'center'});
+      // hairline under main rows only
+      if(!sub){ doc.setDrawColor(225,225,228); doc.setLineWidth(.5); doc.line(ML,y+rh,ML+CW,y+rh); }
+      y+=rh;
+    });
     y+=14;
   }
 
@@ -2760,8 +2914,15 @@ async function generatePDF(opts={}){
     y+=12;
   }
   ['away','home'].forEach(side=>{
-    checkY(40);
-    ff(13,'bold'); clr(25,25,25); doc.text(sanitize(G.teams[side].name), ML, y+4); y+=18;
+    doc.addPage(); y=M;
+    // team header band with logo + name + score
+    const logo = side==='away'?aLogo:hLogo;
+    rct(ML,y,CW,40,[248,249,251]);
+    if(logo){ try{ const w=Math.min((logo.w/logo.h)*30,30); doc.addImage(logo.data,'PNG',ML+8,y+5,w,30);}catch(e){} }
+    ff(15,'bold'); clr(25,25,25); doc.text(sanitize(G.teams[side].name), ML+46, y+20);
+    ff(9,'normal'); clr(238,103,48); doc.text('BOX SCORE', ML+46, y+33);
+    ff(20,'bold'); clr(28,28,30); doc.text(String(G.score[side]), ML+CW-10, y+27, {align:'right'});
+    y+=52;
     const P=Object.values(G.stats[side]);
     const nm=p=>p.number?`#${p.number} ${p.name}`:p.name;
     statTable('Passing',[{h:'C/A',w:52},{h:'Yds',w:44},{h:'TD',w:36},{h:'Int',w:36},{h:'Lng',w:40}],
@@ -2770,8 +2931,8 @@ async function generatePDF(opts={}){
       P.filter(p=>p.ra>0).map(p=>[nm(p),p.ra,p.ryd,p.rtd,p.rlong]));
     statTable('Receiving',[{h:'Rec',w:44},{h:'Yds',w:44},{h:'TD',w:36},{h:'Lng',w:40}],
       P.filter(p=>p.rec>0).map(p=>[nm(p),p.rec,p.recyd,p.rectd,p.reclong]));
-    statTable('Defense',[{h:'Tkl',w:42},{h:'Ast',w:38},{h:'Sk',w:34},{h:'Int',w:34},{h:'PD',w:34}],
-      P.filter(p=>(p.tkl+(p.ast||0)+p.sack+p.dint+(p.pd||0))>0).map(p=>[nm(p),p.tkl,p.ast||0,p.sack,p.dint,p.pd||0]));
+    statTable('Defense',[{h:'Tkl',w:40},{h:'Ast',w:36},{h:'Sk',w:32},{h:'Int',w:32},{h:'PD',w:32},{h:'Blk',w:32}],
+      P.filter(p=>(p.tkl+(p.ast||0)+p.sack+p.dint+(p.pd||0)+(p.blk||0)+(p.ff||0)+(p.fr||0))>0).map(p=>[nm(p),p.tkl,p.ast||0,p.sack,p.dint,p.pd||0,p.blk||0]));
     statTable('Kicking',[{h:'FG',w:52},{h:'XP',w:52}],
       P.filter(p=>(p.fga+p.xpa)>0).map(p=>[nm(p),`${p.fgm}/${p.fga}`,`${p.xpm}/${p.xpa}`]));
     statTable('Punting / Returns',[{h:'Punts',w:44},{h:'Yds',w:40},{h:'KR',w:32},{h:'KR Yds',w:46},{h:'PR',w:32},{h:'PR Yds',w:46}],
@@ -2780,6 +2941,7 @@ async function generatePDF(opts={}){
   });
 
   // ── PLAY-BY-PLAY (drive bands + bold scores) ──
+  doc.addPage(); y=M;
   sectionTitle('Play-by-Play');
   const pbpScoreRe=/([A-Z]{2,6})\s+(\d+)\s*[\u00b7.]\s*([A-Z]{2,6})\s+(\d+)\s*$/;
   G.pbp.forEach(e=>{

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-17a'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-17b'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -1176,16 +1176,15 @@ function resolveConversion(good, player, desc){
 // ballOn/target are ABSOLUTE yards measured from that frame team's own goal —
 // NOT possession-relative. Callers convert with absYd().
 function buildFieldSVG(frame, ballOn, target, opts={}){
-  // Render everything in the FIXED label frame so end zones never swap sides.
-  // Ball coords arrive in FIELD_FRAME space; if that differs from the label frame
-  // (after an odd-quarter end change), mirror them and flip the drive arrow.
-  const flip = (FIELD_FRAME !== FIELD_LABEL_FRAME);
-  if(flip){
-    if(ballOn!=null) ballOn = 100 - ballOn;
-    if(target!=null) target = 100 - target;
-    if(opts && typeof opts.dir==='number') opts = Object.assign({}, opts, {dir: -opts.dir});
-  }
-  frame = FIELD_LABEL_FRAME;
+  // End-zone LABELS are pinned to the fixed label frame so they never swap
+  // physical sides all game (press-box view — the stadium doesn't move).
+  // Ball / LOS / first-down target / drive arrow arrive in FIELD_FRAME space and
+  // are drawn AS-IS — no re-mirror. When the teams change ends, FIELD_FRAME flips
+  // (advanceQuarter), so the SAME logical spot renders on the opposite physical
+  // side, and the spot picker (which converts clicks back via absYd() in
+  // FIELD_FRAME space) stays in perfect lockstep with the display. Re-mirroring
+  // here would desync the two — that was the fb-2026-07-17a regression.
+  frame = FIELD_LABEL_FRAME;                // used ONLY for the end-zone labels below
   const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900 (8 units/yd)
   const H = opts.h||430, midY = H/2;        // ~53yd tall vs 100yd field — proportional
   const numF = 34, rx = 20, ry = 12, fdW = 3.5, losW = 2.5;

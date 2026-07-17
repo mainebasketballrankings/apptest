@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-16j'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-17a'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -317,7 +317,7 @@ input,select,button{font-family:inherit;}
   <!-- Action bar -->
   <div class="action-bar">
     <button class="abtn blue"   onclick="openTimeout()">Timeout</button>
-    <button class="abtn"        onclick="advanceQuarter()">End Qtr</button>
+    <button class="abtn" id="endQtrBtn" onclick="advanceQuarter()">End Qtr</button>
     <button class="abtn"        onclick="openSpotEdit()">Set Spot</button>
     <button class="abtn"        onclick="flipPossession()">Flip Poss</button>
     <button class="abtn"        onclick="adjustScore()">Adj Score</button>
@@ -443,6 +443,17 @@ input,select,button{font-family:inherit;}
   </div>
 </div>
 
+<!-- Manual score adjust -->
+<div class="overlay" id="ovAdj">
+  <div class="ocard">
+    <div class="otitle"><span>Adjust Score</span><span class="ox" onclick="closeOv('ovAdj')">Cancel</span></div>
+    <div class="adj-grid" id="adjGrid"></div>
+    <div class="sec-lbl" style="margin-top:10px">Note (optional)</div>
+    <input type="text" id="adjNote" class="adj-note" placeholder="e.g. defensive 2-pt, 1-pt safety">
+    <button class="oconfirm" style="margin-top:12px" onclick="applyAdj()">Done</button>
+  </div>
+</div>
+
 <!-- Box score -->
 <div class="overlay" id="ovBox">
   <div class="ocard" style="max-width:560px">
@@ -469,6 +480,18 @@ input,select,button{font-family:inherit;}
 </div>
 
 <!-- Generic message -->
+<style>
+.adj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px;}
+.adj-team{background:var(--panel,#1b1e27);border:1px solid var(--line,#2a2e3a);border-radius:12px;padding:12px;text-align:center;}
+.adj-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.04em;font-size:15px;color:var(--dim,#9aa);margin-bottom:8px;}
+.adj-ctrl{display:flex;align-items:center;justify-content:center;gap:14px;}
+.adj-btn{width:44px;height:44px;border-radius:10px;border:none;font-size:24px;font-weight:800;cursor:pointer;background:#2a2e3a;color:#fff;line-height:1;}
+.adj-btn:active{transform:scale(.94);}
+.adj-val{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:34px;min-width:48px;color:#fff;}
+.adj-note{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--line,#2a2e3a);background:var(--panel,#1b1e27);color:#fff;font-size:14px;}
+.abtn.qtr-over{background:#ee6730;color:#fff;border-color:#ee6730;animation:qtrpulse 1.3s infinite;}
+@keyframes qtrpulse{0%,100%{box-shadow:0 0 0 0 rgba(238,103,48,.5);}50%{box-shadow:0 0 0 6px rgba(238,103,48,0);}}
+</style>
 <div class="overlay" id="ovMsg">
   <div class="ocard">
     <div class="otitle"><span id="msgTitle">—</span><span class="ox" onclick="closeOv('ovMsg')">Close</span></div>
@@ -480,7 +503,7 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-16j'; } catch(_){}
+  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-17a'; } catch(_){}
 });
 
 // ═══════════════════════════════════════════════
@@ -849,6 +872,7 @@ async function startGame(){
   G.openKick=document.getElementById('openKickSel').value;
   // Field orientation from the coin toss: which team defends the LEFT end zone.
   const fd=document.getElementById('fieldDirSel'); FIELD_FRAME = (fd && fd.value==='home') ? 'home' : 'away';
+  FIELD_LABEL_FRAME = FIELD_FRAME;   // lock label sides for the whole game
   G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
   G.teams.away.abbr=(document.getElementById('awayAbbrInp').value||autoAbbr(G.teams.away.name)||'AWY').toUpperCase();
@@ -1114,7 +1138,17 @@ function tickClock(){
   if(G.clock<=0){ G.clockRunning=false; updateClockUI(); return; }
   G.clock--;
   const el=document.getElementById('sbClock'); if(el) el.textContent=fmtClock(G.clock);
-  if(G.clock<=0){ G.clockRunning=false; updateClockUI(); addPBP(`<strong>End of ${qtrLabel()}</strong> (clock 0:00)`, true); renderPBP(); }
+  if(G.clock<=0){ G.clockRunning=false; updateClockUI(); addPBP(`<strong>End of ${qtrLabel()}</strong> (clock 0:00)`, true); renderPBP(); showQuarterOver(); }
+}
+// Basketball-style end-of-quarter cue: clock turns orange, End Qtr button pulses.
+function showQuarterOver(){
+  const c=document.getElementById('sbClock'); if(c){ c.style.color='var(--orange,#ee6730)'; c.style.fontWeight='800'; }
+  const b=document.getElementById('endQtrBtn'); if(b){ b.classList.add('qtr-over'); b.textContent = (G.quarter>=4?'End Reg':'End Qtr')+' ▸'; }
+  const q=document.getElementById('sbQtr'); if(q){ q.textContent = qtrLabel()+' — OVER'; }
+}
+function clearQuarterOver(){
+  const c=document.getElementById('sbClock'); if(c){ c.style.color=''; c.style.fontWeight=''; }
+  const b=document.getElementById('endQtrBtn'); if(b){ b.classList.remove('qtr-over'); b.textContent='End Qtr'; }
 }
 
 // ── 2-point conversion (when a Run/Pass is logged during a pending PAT) ──
@@ -1142,6 +1176,16 @@ function resolveConversion(good, player, desc){
 // ballOn/target are ABSOLUTE yards measured from that frame team's own goal —
 // NOT possession-relative. Callers convert with absYd().
 function buildFieldSVG(frame, ballOn, target, opts={}){
+  // Render everything in the FIXED label frame so end zones never swap sides.
+  // Ball coords arrive in FIELD_FRAME space; if that differs from the label frame
+  // (after an odd-quarter end change), mirror them and flip the drive arrow.
+  const flip = (FIELD_FRAME !== FIELD_LABEL_FRAME);
+  if(flip){
+    if(ballOn!=null) ballOn = 100 - ballOn;
+    if(target!=null) target = 100 - target;
+    if(opts && typeof opts.dir==='number') opts = Object.assign({}, opts, {dir: -opts.dir});
+  }
+  frame = FIELD_LABEL_FRAME;
   const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900 (8 units/yd)
   const H = opts.h||430, midY = H/2;        // ~53yd tall vs 100yd field — proportional
   const numF = 34, rx = 20, ry = 12, fdW = 3.5, losW = 2.5;
@@ -1210,6 +1254,11 @@ function buildFieldSVG(frame, ballOn, target, opts={}){
 // from the coin toss (the team that won the toss picks a direction). Fixed for
 // the whole game — the field never flips. Halftime swap is handled separately.
 let FIELD_FRAME = 'away';
+// The END ZONE LABELS are fixed for the whole game (you're in the press box; the
+// stadium doesn't move). Only the direction of PLAY reverses each quarter, which
+// is what FIELD_FRAME flips. FIELD_LABEL_FRAME is set once at kickoff and never
+// flips, so "Shrine East" stays on the same side even as teams change ends.
+let FIELD_LABEL_FRAME = 'away';
 function absYd(y, frame){ return frame===FIELD_FRAME ? y : 100-y; }   // involution
 function renderField(){
   const svg = document.getElementById('fieldSVG');
@@ -1416,10 +1465,9 @@ function confirmRun(){
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,td:true,
       tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null}});
     const tdSide=G.poss;
+    G.ballOn = 100;                      // ball reaches the end zone → correct drive yards (endDrive counts the play)
+    G.lastTD = `${p.rusher.name} ${gain} yd run`;   // set BEFORE scoreTD so the scoring log names the play
     scoreTD(tdSide);
-    // Carry how the TD was scored, so the scoreboard can say what happened
-    // instead of just naming whoever crossed the line.
-    G.lastTD = `${p.rusher.name} ${gain} yd run`;
     pushEvt('touchdown',{player:p.rusher.name,num:p.rusher.number,points:6,side:tdSide,
       detail:{via:'run', gain, scoring:G.lastTD}});
   } else if(p.fumble && p.fumRecover==='def'){
@@ -1565,8 +1613,10 @@ function confirmPass(){
       addPBP(`${p.passer.name} ${gain} yd TD pass to ${p.receiver.name}`);
       pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,
         receiver:p.receiver.name, receiverNum:p.receiver.number||null, td:true}});
-      const tdSide=G.poss; scoreTD(tdSide);
+      const tdSide=G.poss;
+      G.ballOn = 100;                      // ball reaches the end zone → correct drive yards (endDrive counts the play)
       G.lastTD = `${p.passer.name} ${gain} yd pass to ${p.receiver.name}`;
+      scoreTD(tdSide);
       pushEvt('touchdown',{player:p.receiver.name,num:p.receiver.number,points:6,side:tdSide,
         detail:{via:'pass', gain, passer:p.passer.name, scoring:G.lastTD}});
     } else {
@@ -1811,7 +1861,9 @@ function confirmKick(){
     if(advTo>=100 && !p.koTouchback){
       addPBP(`<strong>KICK RETURN TD</strong> — ${p.koReturner?p.koReturner.name:abbr(recv)} (${abbr(recv)})`);
       pushEvt('kick_return_td',{player:p.koReturner?.name,num:p.koReturner?.number,side:recv,detail:{}});
-      const tdSide=recv; scoreTD(tdSide);
+      const tdSide=recv;
+      G.lastTD = `${p.koReturner?p.koReturner.name:abbr(recv)} kickoff return`;
+      scoreTD(tdSide);
       pushEvt('touchdown',{player:p.koReturner?.name,num:p.koReturner?.number,points:6,side:tdSide});
     } else if(p.koFumble && p.koFumLost && !p.koTouchback){
       // kicking team recovers the kickoff — they take over at the fumble spot
@@ -1860,16 +1912,22 @@ function confirmKick(){
         scoreTD(recTeam);
       } else {
         const spotOwn = p.puntBlockSpot!=null ? p.puntBlockSpot : (recTeam===G.poss?G.ballOn:100-G.ballOn);
-        addPBP(`${lead}, recovered by ${recName} (${abbr(recTeam)})`);
-        pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{blocked:true,recoverTeam:abbr(recTeam)}});
-        if(recTeam===recv){
-          // punting team recovered its own blocked punt — keep possession, spot it,
-          // down advances (fresh series only if they got past the line to gain).
-          G.kickoffPending=false;
-          commitPlay(spotOwn);
+        if(spotOwn>=100){
+          // advanced into the end zone → touchdown (same as the TD toggle)
+          addPBP(`${lead}, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
+          pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{blocked:true,recoverTeam:abbr(recTeam),td:true}});
+          G.poss=recTeam; G.lastTD=`${recName} blocked punt return`;
+          pushEvt('touchdown',{player:p.puntBlockRecoverer?.name||null,num:p.puntBlockRecoverer?.number||null,points:6,side:recTeam,detail:{via:'blocked_punt'}});
+          scoreTD(recTeam);
         } else {
-          // receiving team recovered — they take over
-          changePoss(recTeam, spotOwn, 'blocked-punt');
+          addPBP(`${lead}, recovered by ${recName} (${abbr(recTeam)})`);
+          pushEvt('punt',{player:p.puntPunter?.name,num:p.puntPunter?.number,side:recv,detail:{blocked:true,recoverTeam:abbr(recTeam)}});
+          if(recTeam===recv){
+            G.kickoffPending=false;
+            commitPlay(spotOwn);
+          } else {
+            changePoss(recTeam, spotOwn, 'blocked-punt');
+          }
         }
       }
       G.pend=null; render(); return;
@@ -1883,6 +1941,7 @@ function confirmKick(){
       addPBP(`<strong>PUNT RETURN TD</strong> — ${p.puntReturner?p.puntReturner.name:abbr(kicking)} (${abbr(kicking)})`);
       const tdSide=kicking;
       G.poss=kicking;                 // scoreTD ends the punting team's drive, then sets PAT for returner's team
+      G.lastTD = `${p.puntReturner?p.puntReturner.name:abbr(kicking)} punt return`;
       scoreTD(tdSide);
       pushEvt('touchdown',{player:p.puntReturner?.name,num:p.puntReturner?.number,points:6,side:tdSide});
     } else if(p.puntFumble && !p.puntTouchback){
@@ -1920,10 +1979,18 @@ function confirmKick(){
         scoreTD(recTeam);
       } else {
         const spotOwn = p.fgBlockSpot!=null ? p.fgBlockSpot : (recTeam===G.poss?G.ballOn:100-G.ballOn);
-        addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong> — recovered by ${recName} (${abbr(recTeam)})`);
-        pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam)}});
-        if(recTeam===recvSide){ G.kickoffPending=false; commitPlay(spotOwn); }
-        else { changePoss(recTeam, spotOwn, 'blocked-fg'); }
+        if(spotOwn>=100){
+          addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong>, recovered by ${recName} — <strong>TD ${abbr(recTeam)}</strong>`);
+          pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam),td:true}});
+          G.poss=recTeam; G.lastTD=`${recName} blocked FG return`;
+          pushEvt('touchdown',{player:p.fgBlockRecoverer?.name||null,num:p.fgBlockRecoverer?.number||null,points:6,side:recTeam,detail:{via:'blocked_fg'}});
+          scoreTD(recTeam);
+        } else {
+          addPBP(`Field goal ${abbr(recvSide)} <strong>BLOCKED</strong> — recovered by ${recName} (${abbr(recTeam)})`);
+          pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{blocked:true,recoverTeam:abbr(recTeam)}});
+          if(recTeam===recvSide){ G.kickoffPending=false; commitPlay(spotOwn); }
+          else { changePoss(recTeam, spotOwn, 'blocked-fg'); }
+        }
       }
     } else if(p.fgGood){
       G.lastFG = `${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd field goal`;
@@ -2276,22 +2343,37 @@ function openSpotEdit(){
 // Manual score correction — for the rare cases the play flow can't capture
 // (defensive 2-pt on a try, 1-pt safety, or a miscount). Adjusts the raw score
 // and logs it so the change is visible in the report.
+let _adjTmp={away:0,home:0};
 function adjustScore(){
-  const who = prompt('Adjust score for which team? Type '+abbr('away')+' or '+abbr('home'));
-  if(!who) return;
-  const key = who.trim().toUpperCase()===abbr('home') ? 'home'
-            : who.trim().toUpperCase()===abbr('away') ? 'away' : null;
-  if(!key){ msg('Not recognized','Type exactly '+abbr('away')+' or '+abbr('home')+'.'); return; }
-  const delta = prompt(`Points to add for ${abbr(key)} (use a negative number to subtract):`, '2');
-  if(delta===null) return;
-  const d = parseInt(delta,10);
-  if(!Number.isFinite(d) || d===0){ return; }
+  _adjTmp={away:G.score.away, home:G.score.home};   // working copy
+  renderAdj();
+  document.getElementById('adjNote').value='';
+  openOv('ovAdj');
+}
+function renderAdj(){
+  const g=document.getElementById('adjGrid');
+  g.innerHTML=['away','home'].map(side=>`
+    <div class="adj-team">
+      <div class="adj-name">${abbr(side)}</div>
+      <div class="adj-ctrl">
+        <button class="adj-btn" onclick="stepAdj('${side}',-1)">−</button>
+        <span class="adj-val" id="adjVal_${side}">${_adjTmp[side]}</span>
+        <button class="adj-btn" onclick="stepAdj('${side}',1)">+</button>
+      </div>
+    </div>`).join('');
+}
+function stepAdj(side,d){ _adjTmp[side]=Math.max(0,_adjTmp[side]+d); document.getElementById('adjVal_'+side).textContent=_adjTmp[side]; }
+function applyAdj(){
+  const note=(document.getElementById('adjNote').value||'').trim();
+  const da=_adjTmp.away-G.score.away, dh=_adjTmp.home-G.score.home;
+  if(da===0 && dh===0){ closeOv('ovAdj'); return; }
   saveSnapshot();
-  G.score[key] = Math.max(0, G.score[key] + d);
-  const note = prompt('Optional note (e.g. "defensive 2-pt", "1-pt safety"):','') || 'manual adjustment';
-  logScore(key, 'ADJ', `${note} (${d>0?'+':''}${d})`);
-  addPBP(`<strong>Score adjustment</strong> — ${abbr(key)} ${d>0?'+':''}${d} (${note}) <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
-  render();
+  G.score.away=_adjTmp.away; G.score.home=_adjTmp.home;
+  ['away','home'].forEach(side=>{ const d=(side==='away'?da:dh); if(d!==0){
+    logScore(side,'ADJ', (note||'score adjustment')+` (${d>0?'+':''}${d})`);
+  }});
+  addPBP(`<strong>Score adjustment</strong>${note?' — '+note:''} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
+  closeOv('ovAdj'); render();
 }
 function openTimeout(){ renderTOTeam(); openOv('ovTimeout'); }
 function renderTOTeam(){
@@ -2311,6 +2393,7 @@ function confirmTimeout(side){
 function advanceQuarter(){
   saveSnapshot();
   stopClock();
+  clearQuarterOver();
   if(G.quarter<4){
     const endingQ=G.quarter;
     G.quarter++;

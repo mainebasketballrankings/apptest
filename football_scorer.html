@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-17d'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-17e'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -479,6 +479,20 @@ input,select,button{font-family:inherit;}
   </div>
 </div>
 
+<!-- Overtime coin toss (NFHS / Kansas plan) -->
+<div class="overlay" id="ovOT">
+  <div class="ocard">
+    <div class="otitle"><span id="otTitle">Overtime</span></div>
+    <div id="otBlurb" style="font-size:14px;color:var(--dim);margin-bottom:12px;line-height:1.55"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Coin toss — who takes the ball first?</div>
+    <div class="oactions" style="flex-direction:column;gap:10px">
+      <button class="oconfirm" id="otAwayBtn" style="width:100%" onclick="otPickFirst('away')"></button>
+      <button class="oconfirm" id="otHomeBtn" style="width:100%;background:#2a2e3a" onclick="otPickFirst('home')"></button>
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-top:10px;text-align:center">Each team gets 1st &amp; Goal at the 10. Four downs to score.</div>
+  </div>
+</div>
+
 <!-- Generic message -->
 <style>
 .adj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px;}
@@ -651,6 +665,7 @@ let G = {
   _scrimKind:null,                // transient marker: 'rush'|'pass' set before commitPlay for down-efficiency tracking
   lineScore:{}, pendingPAT:false, kickoffPending:true, clockRunning:false,
   _pendingDriveSummary:null,        // stashed drive-summary PBP line, flushed after the terminating event
+  otPossCount:0, otFirst:null,      // overtime: possessions taken this period, and which team went first
   // pending interaction state
   pend:null,
 };
@@ -912,7 +927,7 @@ async function startGame(){
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
-  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null;
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null;
 
   // Sort each roster by uniform number, then seed the starting QB. The QB is
   // captured as an object reference BEFORE the sort, so it survives reordering.
@@ -1109,6 +1124,7 @@ function commitPlay(newBallOn){
 function changePoss(newPoss, newBallOn, reason){
   endDrive(reason||'change');
   flushDriveSummary();   // emit this drive's summary now — right after its terminating line
+  if(G.quarter>4){ otAfterPossession(reason); return; }   // OT: no kickoffs; hand off per Kansas plan
   G.poss = newPoss;
   G.ballOn = clamp(newBallOn, 1, 99);
   G.down = 1;
@@ -1137,10 +1153,13 @@ function logScore(side, kind, desc){
 // the TD's row and refresh that row's score — so the summary shows ONE line per
 // score, exactly like the scoreboard feed. Falls back to its own row if there's
 // no immediately-preceding TD by the same team.
-function logTry(side, kind, good){
+function logTry(side, kind, good, player){
   if(!G.scoreLog) G.scoreLog=[];
   const last = G.scoreLog[G.scoreLog.length-1];
-  const label = kind==='2PT' ? (good?'2-PT GOOD':'2-PT FAILED') : (good?'PAT GOOD':'PAT NO GOOD');
+  const lastName = p => { const n=(typeof p==='string'?p:(p&&p.name)||''); const a=n.trim().split(/\s+/); return a[a.length-1]||n; };
+  let label;
+  if(kind==='2PT'){ const who = player ? (lastName(player)+' ') : ''; label = good ? `${who}2-pt GOOD` : '2-pt NO GOOD'; }
+  else            { label = good ? 'PAT GOOD' : 'PAT NO GOOD'; }
   if(last && last.kind==='TD' && last.side===side){
     last.desc = `${last.desc} (${label})`;
     last.away = G.score.away; last.home = G.score.home;   // reflect the point(s) just added
@@ -1226,11 +1245,11 @@ function resolveConversion(good, player, desc){
   const scorer=G.poss;
   if(good){
     addScore(scorer, 2);
-    logTry(scorer, '2PT', true);
+    logTry(scorer, '2PT', true, player);
     addPBP(`2-pt conversion <strong>GOOD</strong> — ${desc} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`);
     pushEvt('two_point',{player:player?.name,num:player?.number,points:2,side:scorer,detail:{good:true,via:desc,scoring:G.lastTD||null}});
   } else {
-    logTry(scorer, '2PT', false);
+    logTry(scorer, '2PT', false, player);
     addPBP(`2-pt conversion failed — ${desc}`);
     pushEvt('two_point',{player:player?.name,num:player?.number,side:scorer,detail:{good:false,via:desc,scoring:G.lastTD||null}});
   }
@@ -2112,8 +2131,8 @@ function confirmKick(){
       if(p.patGood){ addScore(recvSide,1); logTry(recvSide,'PAT',true); addPBP(`Extra point ${abbr(recvSide)} — good <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,points:1,side:recvSide,detail:{good:true, scoring:G.lastTD||null}}); }
       else { logTry(recvSide,'PAT',false); addPBP(`Extra point ${abbr(recvSide)} — no good`); pushEvt('extra_point',{player:p.patKicker?.name,num:p.patKicker?.number,side:recvSide,detail:{good:false, scoring:G.lastTD||null}}); }
     } else {
-      if(p.patConverted){ addScore(recvSide,2); addPBP(`2-pt conversion ${abbr(recvSide)} — good${p.patPlayer?` (${p.patPlayer.name})`:''} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,points:2,side:recvSide,detail:{good:true}}); }
-      else { addPBP(`2-pt conversion ${abbr(recvSide)} — failed`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,side:recvSide,detail:{good:false}}); }
+      if(p.patConverted){ addScore(recvSide,2); logTry(recvSide,'2PT',true,p.patPlayer); addPBP(`2-pt conversion ${abbr(recvSide)} — good${p.patPlayer?` (${p.patPlayer.name})`:''} <span class="pbp-score">${abbr('away')} ${G.score.away} · ${abbr('home')} ${G.score.home}</span>`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,points:2,side:recvSide,detail:{good:true}}); }
+      else { logTry(recvSide,'2PT',false,p.patPlayer); addPBP(`2-pt conversion ${abbr(recvSide)} — failed`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,side:recvSide,detail:{good:false}}); }
     }
     G.pendingPAT=false;
     // scoring team kicks off to the other team
@@ -2344,7 +2363,8 @@ function cloneState(){
     tstat:JSON.parse(JSON.stringify(G.tstat||{away:{fd:0,pen:0,penyd:0},home:{fd:0,pen:0,penyd:0}})),
     pbpLen:G.pbp.length, scoreLogLen:(G.scoreLog?G.scoreLog.length:0),
     pendingPAT:!!G.pendingPAT, kickoffPending:!!G.kickoffPending,
-    pendingDriveSummary:G._pendingDriveSummary||null
+    pendingDriveSummary:G._pendingDriveSummary||null,
+    otPossCount:G.otPossCount||0, otFirst:G.otFirst||null
   };
 }
 function saveSnapshot(){
@@ -2368,6 +2388,7 @@ function restoreState(s){
   if(G.scoreLog && s.scoreLogLen!=null) G.scoreLog=G.scoreLog.slice(0,s.scoreLogLen);
   G.pendingPAT=s.pendingPAT; G.kickoffPending=s.kickoffPending; G.pend=null;
   G._pendingDriveSummary = (s.pendingDriveSummary!==undefined) ? s.pendingDriveSummary : null;
+  G.otPossCount = s.otPossCount||0; G.otFirst = s.otFirst||null;
   _lastPbpLength=-1;
 }
 function doUndo(){
@@ -2499,6 +2520,12 @@ function advanceQuarter(){
   stopClock();
   clearQuarterOver();
   flushDriveSummary();   // a score right before the buzzer keeps its summary in-block
+  if(G.quarter>4){
+    // Overtime is automated (possessions hand off on score/turnover). The End Qtr
+    // button does nothing here.
+    msg('Overtime in progress','OT possessions switch automatically after a score or turnover — no need to end the period manually.');
+    return;
+  }
   if(G.quarter<4){
     const endingQ=G.quarter;
     G.quarter++;
@@ -2518,14 +2545,73 @@ function advanceQuarter(){
       addPBP(`<strong>End of ${({1:'1st',2:'2nd',3:'3rd'}[endingQ])} quarter</strong> — teams change ends`, true);
     }
   } else {
-    // into / through overtime
-    G.quarter++;
-    G.clock=0;
+    // End of the 4th quarter. Tied → overtime (NFHS Kansas plan). Otherwise the
+    // game is over and the operator finalizes with End Game.
     endDrive('end-reg');
-    addPBP(`<strong>${G.quarter===5?'Overtime':'OT'+(G.quarter-4)}</strong> — set possession & spot manually`, true);
+    if(G.score.away===G.score.home){
+      addPBP(`<strong>End of regulation — tied ${G.score.away}-${G.score.home}.</strong> Going to overtime.`, true);
+      otCoinToss(1);
+      return;   // otCoinToss opens the toss overlay and renders
+    }
+    addPBP(`<strong>End of 4th quarter</strong> — ${abbr('away')} ${G.score.away}, ${abbr('home')} ${G.score.home}`, true);
     G.kickoffPending=false; G.pendingPAT=false;
   }
   render();
+}
+
+// ── Overtime (NFHS "Kansas plan") ──────────────────────────────────────────
+// Coin-toss winner takes the ball first; each team gets 1st & Goal at the
+// opponent's 10 with four downs to score. A score, turnover, or turnover-on-downs
+// ends that team's possession. After both teams possess, a different score wins;
+// still tied → another period. No kickoffs or punts.
+function otCoinToss(period){
+  saveSnapshot();
+  stopClock(); clearQuarterOver(); flushDriveSummary();
+  G.quarter = 4 + period;          // 5 = OT1, 6 = OT2 …
+  G.clock = 0; G.otPossCount = 0; G.otFirst = null;
+  G.kickoffPending=false; G.pendingPAT=false;
+  document.getElementById('otTitle').textContent = period===1 ? 'Overtime' : 'Overtime '+period;
+  document.getElementById('otBlurb').textContent =
+    (period===1 ? `Regulation ended tied ${G.score.away}-${G.score.home}. ` : `Still tied ${G.score.away}-${G.score.home} after ${period-1} OT. `)
+    + `Each team gets a possession at the opponent's 10.`;
+  document.getElementById('otAwayBtn').textContent = G.teams.away.name + ' ball first';
+  document.getElementById('otHomeBtn').textContent = G.teams.home.name + ' ball first';
+  openOv('ovOT');
+  render();
+}
+function otPickFirst(team){
+  closeOv('ovOT');
+  G.otFirst = team; G.otPossCount = 0;
+  addPBP(`<strong>OT${G.quarter-4} — ${abbr(team)} wins the toss, ball first.</strong>`, true);
+  otStartPossession(team);
+}
+function otStartPossession(team){
+  G.poss = team; G.ballOn = 90; G.down = 1; G.distance = 10;   // 1st & Goal at opponent's 10
+  G.kickoffPending = false; G.pendingPAT = false;
+  startDrive();
+  addPBP(`<strong>${abbr(team)} ball</strong> — 1st &amp; Goal at the ${abbr(other(team))} 10`, true);
+  render();
+}
+function otAfterPossession(reason){
+  // Called when an OT possession ends (score, turnover, or downs). The drive was
+  // already ended + summarized by changePoss before delegating here.
+  G.pendingPAT=false; G.kickoffPending=false;
+  G.otPossCount = (G.otPossCount||0) + 1;
+  if(G.otPossCount < 2){
+    otStartPossession(other(G.otFirst));      // second team's turn
+  } else if(G.score.away !== G.score.home){
+    otEndGame();                              // a winner after both possessions
+  } else {
+    otCoinToss((G.quarter-4) + 1);            // still tied — next OT period
+  }
+}
+function otEndGame(){
+  const win = G.score.away>G.score.home ? 'away' : 'home';
+  addPBP(`<strong>FINAL (OT) — ${abbr('away')} ${G.score.away}, ${abbr('home')} ${G.score.home}. ${abbr(win)} wins.</strong>`, true);
+  G.kickoffPending=false; G.pendingPAT=false;
+  render();
+  // prompt the operator to finalize
+  try{ openEndGame(); }catch(e){}
 }
 
 // ═══════════════════════════════════════════════

@@ -1,0 +1,24 @@
+{
+  "name": "Maine Basketball Rankings Football Scorer",
+  "short_name": "Football Scorer",
+  "description": "Maine Basketball Rankings live football scoring",
+  "start_url": "./football_scorer.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "icons": [
+    {
+      "src": "https://pub-607e71f4996b41a88bb949335554456d.r2.dev/Maine%20Basketball%20Rankings%20football%20scorer%20logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://pub-607e71f4996b41a88bb949335554456d.r2.dev/Maine%20Basketball%20Rankings%20football%20scorer%20logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

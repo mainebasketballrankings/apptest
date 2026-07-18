@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-17e'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-17f'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -1255,7 +1255,8 @@ function resolveConversion(good, player, desc){
   }
   G.pendingPAT=false;
   changePoss(other(scorer), 25, 'kickoff-pending');
-  G.kickoffPending=true; stopClock();
+  if(G.quarter<=4) G.kickoffPending=true;   // OT hands off via changePoss (no kickoff)
+  stopClock();
 }
 
 // ═══════════════════════════════════════════════
@@ -2118,7 +2119,7 @@ function confirmKick(){
       addPBP(`<strong>FIELD GOAL</strong> ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — good`);
       pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,points:3,side:recvSide,detail:{good:true, dist:fgDist}});
       scoreFG(recvSide);
-      G.kickoffPending=true;
+      if(G.quarter<=4) G.kickoffPending=true;   // OT hands off via changePoss (no kickoff)
     } else {
       addPBP(`Field goal ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — <strong>missed</strong>`);
       pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{good:false, dist:fgDist}});
@@ -2135,9 +2136,9 @@ function confirmKick(){
       else { logTry(recvSide,'2PT',false,p.patPlayer); addPBP(`2-pt conversion ${abbr(recvSide)} — failed`); pushEvt('two_point',{player:p.patPlayer?.name,num:p.patPlayer?.number,side:recvSide,detail:{good:false}}); }
     }
     G.pendingPAT=false;
-    // scoring team kicks off to the other team
+    // scoring team kicks off to the other team (regulation only; OT hands off at the 10)
     changePoss(other(recvSide), 25, 'kickoff-pending');
-    G.kickoffPending=true;
+    if(G.quarter<=4) G.kickoffPending=true;
   }
   stopClock();
   G.pend=null; render();

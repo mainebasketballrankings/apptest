@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19g'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19h'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -209,6 +209,11 @@ input,select,button{font-family:inherit;}
     <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
     <div id="gamePickerList"><div style="font-size:13px;color:var(--dim)">Loading today's football games…</div></div>
     <div id="gamePickerStatus" style="font-size:12px;margin-top:6px"></div>
+    <button class="pill" id="adhocBtn" onclick="createUnscheduledGame()"
+            style="width:100%;margin-top:8px;font-size:13px">+ Unscheduled / Emergency Game</button>
+    <div id="adhocStatus" style="font-size:12px;margin-top:6px;color:var(--dim)">
+      Not on the schedule? Enter both schools and the date below, then tap this.
+    </div>
   </div>
 
   <div class="setup-card">
@@ -556,6 +561,9 @@ if (typeof MBR === 'undefined') {
 }
 MBR.init({
   queueKey  : 'mbr_fb_push_queue',
+  sportId   : 'fa905ca5-f416-409b-81ac-777179ee5576',
+  // Fall 2026 football is season_year 2026 — football never rolls the year.
+  seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear(),
   isTestMode: () => G_test_mode,
   gameId    : () => G_game_id,
   makePDF   : () => generatePDF({ returnBlob:true })
@@ -853,6 +861,37 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
   fetchRoster(awayId,'away'); fetchRoster(homeId,'home');
 }
 
+// Create a real games row for a matchup that isn't on the schedule, so it still
+// syncs to the scoreboard, live page, XML feed and report email. Uses the shared
+// MBR.createGame() promoted from the basketball/field scorers.
+async function createUnscheduledGame(){
+  const st = document.getElementById('adhocStatus');
+  const set = (t,c) => { if(st){ st.textContent=t; st.style.color=c||'var(--dim)'; } };
+  if(G_game_id){ set('A game is already selected — reload to start over.', 'var(--red)'); return; }
+  const aName=(document.getElementById('awayNameInp').value||'').trim();
+  const hName=(document.getElementById('homeNameInp').value||'').trim();
+  if(!aName||!hName){ set('Enter both school names first.', 'var(--red)'); return; }
+  set('Creating…');
+  const [aId,hId] = await Promise.all([
+    MBR.resolveTeamId(aName, FOOTBALL_SPORT_ID),
+    MBR.resolveTeamId(hName, FOOTBALL_SPORT_ID)
+  ]);
+  if(!aId||!hId){
+    set(`Couldn't match ${!aId?aName:hName} to a football team. Check the spelling, or use Test Mode.`, 'var(--red)');
+    return;
+  }
+  const gid = await MBR.createGame({
+    homeTeamId:hId, awayTeamId:aId,
+    date: document.getElementById('gameDateInp').value || null,
+    venue: document.getElementById('gameLocInp').value || null,
+    sportId: FOOTBALL_SPORT_ID
+  });
+  if(!gid){ set('Could not create the game (offline?). Test Mode will still score locally.', 'var(--red)'); return; }
+  G_game_id=gid; G_home_team_id=hId; G_away_team_id=aId; _gameFinalized=false;
+  set(`Game created — ${aName} at ${hName}. You can start scoring.`, 'var(--green)');
+  const b=document.getElementById('adhocBtn'); if(b){ b.disabled=true; b.style.opacity=.5; }
+  try{ await Promise.all([loadRosterByName(aName,'away'), loadRosterByName(hName,'home')]); renderLU(); }catch(e){}
+}
 async function startGame(){
   G.level=document.getElementById('levelSel').value;
   G.date=document.getElementById('gameDateInp').value;
@@ -870,7 +909,7 @@ async function startGame(){
   G.teams.away.roster = G.teams.away.roster.filter(p=>p.name && p.name.trim());
   G.teams.home.roster = G.teams.home.roster.filter(p=>p.name && p.name.trim());
 
-  if(!G_test_mode && !G_game_id){ msg('No game selected','Pick a game from the schedule, or enable Test Mode to score without saving.'); return; }
+  if(!G_test_mode && !G_game_id){ msg('No game selected','Pick a game from the schedule, tap "+ Unscheduled / Emergency Game" to create one, or enable Test Mode to score without saving.'); return; }
 
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};

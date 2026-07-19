@@ -42,6 +42,11 @@
     isTestMode: () => false,
     gameId    : () => null,
     makePDF   : null,
+    sportId   : null,                      // this scorer's sport uuid
+    // season_year rule. Default: the calendar year of the game date. Basketball
+    // is the only sport that crosses New Year's, so it overrides this.
+    seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear(),
+    trackingLevel: 'full_stats',           // NB: constraint rejects 'full'
   };
 
   const hdr = (extra) => Object.assign(
@@ -206,6 +211,65 @@
     } catch (e) { console.warn('email trigger failed', e); }
   }
 
+  // ── Unscheduled / emergency game ─────────────────────────────────────────
+  // Turns an ad-hoc matchup into a real games row so it syncs to the scoreboard,
+  // the live page, the XML feed and the report email. Returns the new game id, or
+  // null so the caller can fall back to a local-only (test-mode) game.
+  //
+  // Merged from the basketball and field scorers: basketball's response-body
+  // error logging and `event` support, field's pluggable season-year rule.
+  async function createGame(opts) {
+    const o = opts || {};
+    try {
+      const iso = o.date || new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD, local
+      const row = {
+        sport_id      : o.sportId || cfg.sportId,
+        season_year   : (o.seasonYear != null) ? o.seasonYear : cfg.seasonYearFor(iso),
+        home_team_id  : o.homeTeamId,
+        away_team_id  : o.awayTeamId,
+        game_date     : iso,
+        status        : 'scheduled',
+        location      : o.venue || null,
+        tracking_level: o.trackingLevel || cfg.trackingLevel,
+      };
+      if (o.event) row.event = o.event;
+      if (o.isSummer != null) row.is_summer = !!o.isSummer;
+      if (!row.sport_id || !row.home_team_id || !row.away_team_id) {
+        console.warn('createGame: missing sport or team ids', row);
+        return null;
+      }
+      const res = await fetch(`${SB_URL}/rest/v1/games`, {
+        method: 'POST',
+        headers: hdr({ Prefer: 'return=representation' }),
+        body: JSON.stringify(row)
+      });
+      if (!res.ok) {
+        console.warn('createGame insert failed', res.status, await res.text().catch(() => ''));
+        return null;
+      }
+      const data = await res.json();
+      const g = Array.isArray(data) ? data[0] : data;
+      return (g && g.id) ? g.id : null;
+    } catch (e) { console.warn('createGame error', e); return null; }
+  }
+
+  // Resolve a school name to a team id for this sport. A school can own several
+  // team rows (gender / sport), so prefer one whose sport matches, then one that
+  // actually has players, then whatever is left.
+  async function resolveTeamId(schoolName, sportId) {
+    if (!schoolName) return null;
+    const sid = sportId || cfg.sportId;
+    const name = String(schoolName).trim();
+    if (!name) return null;
+    try {
+      const rows = await sbFetch(
+        `teams?select=id,sport_id,school_name&school_name=eq.${encodeURIComponent(name)}&limit=25`);
+      if (!rows || !rows.length) return null;
+      const match = rows.find(r => r.sport_id === sid);
+      return (match || rows[0]).id;
+    } catch (e) { console.warn('resolveTeamId failed', e); return null; }
+  }
+
   // ── Small shared utility ─────────────────────────────────────────────────
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -220,7 +284,7 @@
     SB_URL, SB_KEY, init, cfg,
     sbFetch, sbInsert, evtStamp,
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
-    loadSchools, schoolIds,
+    loadSchools, schoolIds, createGame, resolveTeamId,
     autoUploadGameReport, emailGameReport,
     clamp,
     get droppedRows() { return _droppedRows; },
@@ -230,7 +294,8 @@
   // step is a move rather than a rewrite. New code should prefer MBR.*.
   global.MBR = MBR;
   ['sbFetch','sbInsert','evtStamp','queueLoad','queueSave','flushQueue','setQueueStatus',
-   'isPermanentReject','loadSchools','autoUploadGameReport','emailGameReport','clamp']
+   'isPermanentReject','loadSchools','autoUploadGameReport','emailGameReport','clamp',
+   'createGame','resolveTeamId']
     .forEach(n => { global[n] = MBR[n]; });
   global.SB_URL = SB_URL;
   global.SB_KEY = SB_KEY;

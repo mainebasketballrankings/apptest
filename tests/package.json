@@ -1,0 +1,8 @@
+{
+  "name": "mbr-scorer-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Regression tests for the Maine Basketball Rankings scorers",
+  "scripts": { "test": "node run-all.js" },
+  "dependencies": { "jsdom": "^24.0.0", "jspdf": "^2.5.1" }
+}

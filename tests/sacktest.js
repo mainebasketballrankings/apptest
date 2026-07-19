@@ -1,0 +1,33 @@
+const {JSDOM}=require('jsdom'); const fs=require('fs');
+const html=require('./loadapp.js')();
+const dom=new JSDOM(html,{runScripts:'dangerously',pretendToBeVisual:true,url:'https://x/'});
+const {window}=dom, d=window.document;
+window.fetch=()=>Promise.resolve({ok:true,json:()=>Promise.resolve([]),text:()=>Promise.resolve('')});
+window.Image=class{constructor(){this.w=10;this.h=10;setTimeout(()=>this.onload&&this.onload(),0);}};
+window.HTMLCanvasElement.prototype.getContext=()=>new Proxy({},{get:()=>()=>({addColorStop(){}})});
+window.scrollTo=()=>{};window.alert=()=>{};const ev=c=>window.eval(c);const R=(s,i=0)=>`G.teams.${s}.roster[${i}]`;
+let fails=0; const chk=(n,c,x='')=>{ if(!c)fails++; console.log((c?'PASS':'FAIL'),n,x?('| '+x):''); };
+(async()=>{
+  await new Promise(r=>setTimeout(r,60));
+  window.toggleTestMode();
+  d.getElementById('awayNameInp').value='Shrine East'; d.getElementById('homeNameInp').value='Shrine West';
+  d.getElementById('awayAbbrInp').value='EAST'; d.getElementById('homeAbbrInp').value='WEST';
+  d.getElementById('fieldDirSel').value='away'; d.getElementById('openKickSel').value='home'; d.getElementById('qlenSel').value='12';
+  ev('G_test_mode=true'); await window.startGame(); await new Promise(r=>setTimeout(r,20));
+  // West drive: 1 completion for 9, then 2 sacks (each -7)
+  ev("G.kickoffPending=false; G.poss='home'; G.ballOn=40; G.down=1; G.distance=10;");
+  window.openPass(); ev(`G.pend.sub='comp'; G.pend.passer=${R('home',0)}; G.pend.receiver=${R('home',3)}; G.pend.toSpot=49;`); window.confirmPass();
+  window.openPass(); ev(`G.pend.sub='sack'; G.pend.passer=${R('home',0)}; G.pend.defender=${R('away',1)}; G.pend.toSpot=${ev('G.ballOn')-7};`); window.confirmPass();
+  window.openPass(); ev(`G.pend.sub='sack'; G.pend.passer=${R('home',0)}; G.pend.defender=${R('away',2)}; G.pend.toSpot=${ev('G.ballOn')-7};`); window.confirmPass();
+  const tt=JSON.parse(ev("JSON.stringify(teamTotals('home'))"));
+  console.log('  totals:', JSON.stringify({plays:tt.totalPlays,yds:tt.totalYds,ypp:tt.yardsPerPlay,pass:tt.passYds,ca:tt.passCA,yppass:tt.yardsPerPass,sacks:tt.sacksLost}));
+  chk('Passing = GROSS 9 (sacks not subtracted)', tt.passYds===9, 'pass='+tt.passYds);
+  chk('Comp/Att = 1/1', tt.passCA==='1/1', tt.passCA);
+  chk('Yards per pass = 9.0 (gross/att)', tt.yardsPerPass==='9.0', tt.yardsPerPass);
+  chk('Sacks-Yards Lost = 2-14', tt.sacksLost==='2-14', tt.sacksLost);
+  chk('Total Plays = 3 (1 pass + 2 sacks)', tt.totalPlays===3, 'plays='+tt.totalPlays);
+  chk('Total Yards = 9 (sacks not subtracted)', tt.totalYds===9, 'yds='+tt.totalYds);
+  chk('Yards per Play = 3.0', tt.yardsPerPlay==='3.0', tt.yardsPerPlay);
+  console.log('\n'+(fails?fails+' FAIL(s)':'SACK/PASSING FIX PASS'));
+  process.exit(fails?1:0);
+})().catch(e=>{console.error('ERR',e&&e.stack||e);process.exit(2);});

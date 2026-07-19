@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19f'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19g'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -521,7 +521,11 @@ input,select,button{font-family:inherit;}
 <script>
 // Show the deployed build in the header so it can be verified without devtools.
 window.addEventListener('DOMContentLoaded', ()=>{
-  try { const b=document.getElementById('buildBadge'); if(b) b.textContent='fb-2026-07-17a'; } catch(_){}
+  // Badge reads MBR_BUILD directly — it used to be a hardcoded literal, which
+  // silently drifted from the real build for days. Also reports whether
+  // mbr-core.js actually loaded, so one glance confirms a good deploy.
+  try { const b=document.getElementById('buildBadge');
+        if(b) b.textContent = MBR_BUILD + (typeof MBR!=='undefined' ? ' · core ok' : ' · NO CORE'); } catch(_){}
 });
 
 // ═══════════════════════════════════════════════

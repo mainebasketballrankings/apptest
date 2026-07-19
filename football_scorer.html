@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
+<script src="mbr-core.js?v=1"></script>
 <link rel="apple-touch-icon" href="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/Maine%20Basketball%20Rankings%20football%20scorer%20logo.png"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -12,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19d'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19e'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -526,13 +527,22 @@ window.addEventListener('DOMContentLoaded', ()=>{
 // ═══════════════════════════════════════════════
 // SUPABASE + LIVE PUSH   (ported from baseball_scorer)
 // ═══════════════════════════════════════════════
-const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
 
 // ⚠️ CONFIRM THIS: full football sport_id UUID. Memory has the short prefix fa905ca5.
 // Paste the full UUID here once confirmed; otherwise the app tries to resolve it at runtime.
 let FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';   // confirmed
 const FOOTBALL_PREFIX = 'fa905ca5';
+
+// Shared plumbing (Supabase transport, offline queue, school lookup, report
+// upload/email) lives in mbr-core.js. It needs closures over this file's own
+// top-level state, since another script cannot read our `let` bindings.
+MBR.init({
+  queueKey  : 'mbr_fb_push_queue',
+  isTestMode: () => G_test_mode,
+  gameId    : () => G_game_id,
+  makePDF   : () => generatePDF({ returnBlob:true })
+});
 
 let G_game_id = null;
 let G_home_team_id = null;
@@ -545,102 +555,17 @@ let undoStack = [];
 let _gameFinalized = false;
 let _gameListVersion = 0, _gameListAbort = null;
 let _rosterVersion = 0;
-let _schoolIds = {};
 let G_side_team_id = { away:null, home:null };   // resolved team ids for manual entry
 let _saveStateTimer = null;
 let _lastPbpLength = -1;
 
 function scheduleSave(){ clearTimeout(_saveStateTimer); _saveStateTimer = setTimeout(saveState, 1500); }
 
-async function sbFetch(path){
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
-    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
-  });
-  return r.json();
-}
 
-// ── Push queue (offline resilience) ──
-const QUEUE_KEY = 'mbr_fb_push_queue';
-let _lastStamp = 0;
-function evtStamp(){
-  const now = Date.now();
-  _lastStamp = (now <= _lastStamp) ? _lastStamp + 1 : now;   // strictly increasing
-  return new Date(_lastStamp).toISOString();
-}
-let _flushing = false;
-function queueLoad(){ try { return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); } catch(e){ return []; } }
-function queueSave(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e){} }
-function setQueueStatus(){
-  const q = queueLoad();
-  let el = document.getElementById('push-queue-status');
-  if(!el){ el = document.createElement('div'); el.id='push-queue-status';
-    el.style.cssText='position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
-    document.body.appendChild(el); }
-  const drop = (typeof _droppedRows==='number' && _droppedRows>0)
-    ? `<span style="color:#c00">· ${_droppedRows} rejected</span>` : '';
-  el.innerHTML = (q.length===0 && !drop) ? ''
-    : `${q.length?'<span>🟡</span><span style="color:#888">'+q.length+' event'+(q.length>1?'s':'')+' queued</span>':''}${drop}`;
-}
-// A 4xx means the row will NEVER be accepted (bad enum, bad column, duplicate).
-// Retrying it forever just blocks everything behind it. 408/429 are the
-// exceptions — those are "try again", not "never".
-function isPermanentReject(status){
-  return status >= 400 && status < 500 && status !== 408 && status !== 429;
-}
-let _droppedRows = 0;
-async function flushQueue(){
-  if(_flushing) return; _flushing=true;
-  let q = queueLoad();
-  while(q.length>0){
-    const {table,row}=q[0];
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-        method:'POST',
-        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-        body: JSON.stringify(row)
-      });
-      if(r.ok || r.status===409){ q.shift(); queueSave(q); setQueueStatus(); continue; }
-      if(isPermanentReject(r.status)){
-        // Drop it and keep going — do NOT let one bad row wedge the whole queue.
-        let body=''; try{ body = await r.text(); }catch(_){}
-        console.error('DROPPING permanently-rejected event', r.status, body, row);
-        _droppedRows++;
-        q.shift(); queueSave(q); setQueueStatus();
-        continue;
-      }
-      throw new Error(`HTTP ${r.status}`);          // 5xx / 429 → transient, retry later
-    } catch(e){ console.warn('flush failed (transient), will retry', e); break; }
-  }
-  _flushing=false;
-}
-window.addEventListener('online', ()=>flushQueue());
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && navigator.onLine) flushQueue(); });
-setInterval(()=>{ if(navigator.onLine && !document.hidden) flushQueue(); }, 30000);
 
-async function sbInsert(table, row){
-  if(G_test_mode) return;
-  if(navigator.onLine){
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-        method:'POST',
-        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-        body: JSON.stringify(row)
-      });
-      if(!r.ok && r.status!==409){
-        if(isPermanentReject(r.status)){
-          let body=''; try{ body = await r.text(); }catch(_){}
-          console.error('event REJECTED (not queued — it would never succeed)', r.status, body, row);
-          _droppedRows++; setQueueStatus(); return;
-        }
-        throw new Error(`HTTP ${r.status}`);
-      }
-      // only pay for a drain when there is actually something queued
-      if(queueLoad().length) flushQueue();
-      return;
-    } catch(e){ console.warn('sbInsert failed, queuing', e); }
-  }
-  const q=queueLoad(); q.push({table,row}); queueSave(q); setQueueStatus();
-}
+
+
+
 
 // ═══════════════════════════════════════════════
 // STATE
@@ -1092,7 +1017,7 @@ function endDrive(result){
 // ═══════════════════════════════════════════════
 // FIELD MATH / TRANSITIONS
 // ═══════════════════════════════════════════════
-function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+
 
 // Record a 3rd/4th-down attempt + conversion for a scrimmage play by `side`.
 function trackDownEff(side, downBefore, converted){
@@ -2993,19 +2918,7 @@ function discardSave(){ localStorage.removeItem('mbr_fb_game'); const b=document
 // ═══════════════════════════════════════════════
 // SCHOOL AUTOCOMPLETE
 // ═══════════════════════════════════════════════
-let _schools=null;
-async function loadSchools(){
-  if(_schools) return _schools;
-  try{
-    const rows=await sbFetch(`teams?select=id,school_name&order=school_name.asc&limit=2000`);
-    // keep every id per name; a school can have >1 team row (gender/sport)
-    const byName={};
-    (rows||[]).forEach(r=>{ if(r.school_name){ (byName[r.school_name]=byName[r.school_name]||[]).push(r.id); } });
-    _schools=Object.keys(byName).sort();
-    _schoolIds=byName;
-  }catch(e){ _schools=[]; _schoolIds={}; }
-  return _schools;
-}
+
 // Pull a roster for a manually-typed team by matching its school name to a
 // team_id, then loading that team's football players — the emergency-game path.
 async function loadRosterByName(name, side){
@@ -3302,35 +3215,7 @@ async function generatePDF(opts={}){
 
 // Ask the backend to email this game's report to matching subscribers (deduped
 // server-side). No-op for test/manual games with no game_id.
-async function emailGameReport(){
-  if(!G_game_id || G_test_mode) return;
-  try{
-    const r=await fetch(`${SB_URL}/functions/v1/email-game-report`,{
-      method:'POST',
-      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
-      body:JSON.stringify({ game_id:G_game_id })
-    });
-    console.log('email-game-report', await r.json().catch(()=>({status:r.status})));
-  }catch(e){ console.warn('email trigger failed', e); }
-}
-async function autoUploadGameReport(){
-  if(!G_game_id || G_test_mode) return;
-  try{
-    const blob=await generatePDF({returnBlob:true});
-    const path=`${G_game_id}.pdf`;
-    const up=await fetch(`${SB_URL}/storage/v1/object/game-reports/${path}`, {
-      method:'POST',
-      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/pdf', 'x-upsert':'true' },
-      body:blob
-    });
-    if(!up.ok){ console.warn('report upload failed', up.status); return; }
-    const url=`${SB_URL}/storage/v1/object/public/game-reports/${path}`;
-    await fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
-      method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body:JSON.stringify({ report_url:url })
-    });
-  }catch(e){ console.warn('autoUploadGameReport error', e); }
-}
+
 
 // ═══════════════════════════════════════════════
 // END GAME

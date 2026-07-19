@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19e'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19f'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -537,6 +537,19 @@ const FOOTBALL_PREFIX = 'fa905ca5';
 // Shared plumbing (Supabase transport, offline queue, school lookup, report
 // upload/email) lives in mbr-core.js. It needs closures over this file's own
 // top-level state, since another script cannot read our `let` bindings.
+// Fail LOUDLY if the core did not load — otherwise a forgotten upload or a stale
+// service-worker cache shows up as mysterious half-broken behaviour mid-game.
+if (typeof MBR === 'undefined') {
+  document.addEventListener('DOMContentLoaded', function(){
+    var b = document.createElement('div');
+    b.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#7f1d1d;color:#fff;font:600 16px/1.5 sans-serif;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center';
+    b.innerHTML = '<div style="font-size:22px;margin-bottom:10px">mbr-core.js did not load</div>' +
+      '<div style="font-weight:400;max-width:520px">The scorer cannot save or push events without it. ' +
+      'Upload <code>mbr-core.js</code> alongside this file, then hard-reload.</div>';
+    document.body.appendChild(b);
+  });
+  throw new Error('mbr-core.js missing');
+}
 MBR.init({
   queueKey  : 'mbr_fb_push_queue',
   isTestMode: () => G_test_mode,

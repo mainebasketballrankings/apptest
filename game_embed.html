@@ -469,6 +469,7 @@ async function init() {
 
   // Build linescore from box_score_json if present
   const bsj = g.box_score_json;
+  const isFootball = g.sport_id === FOOTBALL_SPORT_ID;
 
   // Team colors — neutral defaults until primary_color is in DB
   const aColor = at.primary_color || '#2563a8'; // away = blue
@@ -593,18 +594,26 @@ async function init() {
     <div class="section">
       <div class="section-head">
         Box Score
-        ${!bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
-        ${bsj ? `<div class="section-tabs">
+        ${isFootball ? `<div class="section-tabs">
+          <button class="sec-tab active" onclick="showFbTab('passing',this)">Passing</button>
+          <button class="sec-tab" onclick="showFbTab('rushing',this)">Rushing</button>
+          <button class="sec-tab" onclick="showFbTab('receiving',this)">Receiving</button>
+          <button class="sec-tab" onclick="showFbTab('defense',this)">Defense</button>
+          <button class="sec-tab" onclick="showFbTab('kicking',this)">Kicking</button>
+        </div>` : ''}
+        ${!isFootball && !bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
+        ${!isFootball && bsj ? `<div class="section-tabs">
           <button class="sec-tab active" onclick="showBoxTab('batting',this)">Batting</button>
           <button class="sec-tab" onclick="showBoxTab('pitching',this)">Pitching</button>
         </div>` : ''}
       </div>
       <div class="box-wrap" id="boxContent">
-        ${bsj ? renderBatting(bsj, ht.school_name, at.school_name) : `
+        ${isFootball ? '<div class="loading" style="padding:24px">Loading box score…</div>'
+          : (bsj ? renderBatting(bsj, ht.school_name, at.school_name) : `
           <div class="no-boxscore">
             <strong>No box score imported yet</strong>
             <a href="boxscore-import.html">Import stats from a PDF box score →</a>
-          </div>`}
+          </div>`)}
       </div>
     </div>
 
@@ -623,12 +632,135 @@ async function init() {
   window._htName = ht.school_name;
   window._atName = at.school_name;
 
+  // Football: pull the live scorer's player_final_stats and fill the box score
+  if (isFootball) {
+    window._fbHomeId = g.home_team_id;
+    window._fbAwayId = g.away_team_id;
+    loadFootballBox(g.id).then(box => {
+      window._fbBox = box;
+      const el = document.getElementById('boxContent');
+      if (!el) return;
+      if (!box) {
+        el.innerHTML = '<div class="no-boxscore"><strong>No player stats for this game</strong></div>';
+        return;
+      }
+      // open on the first tab that actually has data
+      const order = ['passing','rushing','receiving','defense','kicking'];
+      const teams = [g.away_team_id, g.home_team_id];
+      const first = order.find(c => teams.some(t => (box[t]||[]).some(FB_CATS[c].has))) || 'passing';
+      const btns = document.querySelectorAll('.sec-tab');
+      const idx = order.indexOf(first);
+      showFbTab(first, btns[idx] || btns[0]);
+    });
+  }
+
   // Load season records for both teams
   loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel);
   if (bsj) loadBoxScoreRosters(g).then(() => {
     // Re-render box score with full names
     showBoxTab(activeTab || 'batting', document.querySelector('.sec-tab.active'));
   });
+}
+
+// ══════════════════════════════════════════════════════
+// FOOTBALL BOX SCORE
+// The live scorer writes one `player_final_stats` game_event per player with the
+// full stat line as JSON in `notes`, so football reads from there rather than
+// games.box_score_json (which is baseball-shaped: batting/pitching).
+// ══════════════════════════════════════════════════════
+const FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+
+const FB_CATS = {
+  passing: { label: 'Passing',
+    cols: [['C/A', p => `${p.pc||0}/${p.pa||0}`], ['YDS', p => p.pyd||0], ['TD', p => p.ptd||0], ['INT', p => p.pint||0]],
+    has: p => (p.pa||0) > 0,
+    hot: p => (p.ptd||0) > 0 },
+  rushing: { label: 'Rushing',
+    cols: [['ATT', p => p.ra||0], ['YDS', p => p.ryd||0], ['TD', p => p.rtd||0], ['LNG', p => p.rlong||0]],
+    has: p => (p.ra||0) > 0,
+    hot: p => (p.rtd||0) > 0 },
+  receiving: { label: 'Receiving',
+    cols: [['REC', p => p.rec||0], ['YDS', p => p.recyd||0], ['TD', p => p.rectd||0], ['LNG', p => p.reclong||0]],
+    has: p => (p.rec||0) > 0,
+    hot: p => (p.rectd||0) > 0 },
+  defense: { label: 'Defense',
+    cols: [['TKL', p => p.tkl||0], ['AST', p => p.ast||0], ['SK', p => p.sack||0], ['INT', p => p.dint||0], ['PD', p => p.pd||0], ['BLK', p => p.blk||0]],
+    has: p => ((p.tkl||0)+(p.ast||0)+(p.sack||0)+(p.dint||0)+(p.pd||0)+(p.blk||0)+(p.ff||0)+(p.fr||0)) > 0,
+    hot: p => (p.sack||0) > 0 || (p.dint||0) > 0 },
+  kicking: { label: 'Kicking',
+    cols: [['FG', p => `${p.fgm||0}/${p.fga||0}`], ['XP', p => `${p.xpm||0}/${p.xpa||0}`], ['PUNT', p => p.punts||0], ['P YDS', p => p.puntyd||0]],
+    has: p => ((p.fga||0)+(p.xpa||0)+(p.punts||0)) > 0,
+    hot: p => false },
+};
+
+async function loadFootballBox(gameId) {
+  let rows = [];
+  try {
+    rows = await api(`game_events?game_id=eq.${gameId}&event_type=eq.player_final_stats&select=team_id,player_name,player_num,notes`);
+  } catch (e) { return null; }
+  if (!rows || !rows.length) return null;
+  const byTeam = {};
+  rows.forEach(r => {
+    let s = {};
+    try { s = JSON.parse(r.notes || '{}'); } catch (e) { return; }
+    s.name   = s.name || r.player_name || '';
+    s.number = (s.number != null && s.number !== '') ? s.number : (r.player_num != null ? r.player_num : '');
+    if (!s.name) return;
+    (byTeam[r.team_id] = byTeam[r.team_id] || []).push(s);
+  });
+  return Object.keys(byTeam).length ? byTeam : null;
+}
+
+function renderFootballBox(cat, homeId, awayId, homeName, awayName) {
+  const data = window._fbBox;
+  const spec = FB_CATS[cat] || FB_CATS.passing;
+  if (!data) return '<div class="no-boxscore"><strong>No player stats for this game</strong></div>';
+
+  const sortFor = list => list.slice().sort((a, b) => {
+    // headline stat descending, so the leaders sit on top
+    const key = cat === 'passing' ? 'pyd' : cat === 'rushing' ? 'ryd' : cat === 'receiving' ? 'recyd'
+              : cat === 'defense' ? 'tkl' : 'fga';
+    return (b[key]||0) - (a[key]||0);
+  });
+
+  function rowsFor(teamId) {
+    const list = sortFor((data[teamId] || []).filter(spec.has));
+    if (!list.length) return null;
+    return list.map(p => {
+      const cells = spec.cols.map(([, fn]) => `<td class="${spec.hot(p) ? 'highlight' : ''}">${fn(p)}</td>`).join('');
+      return `<tr>
+        <td class="left player-name">${p.number !== '' ? '#' + p.number + ' ' : ''}${esc2(p.name)}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+  }
+
+  const away = rowsFor(awayId), home = rowsFor(homeId);
+  if (!away && !home) return `<div class="no-boxscore"><strong>No ${spec.label.toLowerCase()} stats</strong></div>`;
+
+  const span = spec.cols.length + 1;
+  const thead = `<thead><tr><th class="left">Player</th>${spec.cols.map(([h]) => `<th>${h}</th>`).join('')}</tr></thead>`;
+  return `<table class="box">
+    ${thead}
+    <tbody>
+      ${away ? `<tr class="team-divider"><td colspan="${span}">${esc2(awayName)} (Away)</td></tr>${away}` : ''}
+      ${home ? `<tr class="team-divider"><td colspan="${span}">${esc2(homeName)} (Home)</td></tr>${home}` : ''}
+    </tbody>
+  </table>`;
+}
+
+function showFbTab(cat, btn) {
+  window._fbTab = cat;
+  document.querySelectorAll('.sec-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('boxContent').innerHTML =
+    renderFootballBox(cat, window._fbHomeId, window._fbAwayId, window._htName, window._atName);
+}
+
+// minimal escaper (game.html has esc() in some builds; keep this self-contained)
+function esc2(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
 // ── LINESCORE ────────────────────────────────────────

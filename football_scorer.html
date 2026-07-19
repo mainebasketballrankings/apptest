@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19b'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -1358,10 +1358,11 @@ function renderField(){
   const svg = document.getElementById('fieldSVG');
   if(!svg) return;
   if(G.kickoffPending){
-    // Kickoff view: kicking team = other(G.poss). Ball on the kicking team's 40,
-    // arrow toward the RECEIVER's end zone (the direction the ball is kicked).
+    // Kickoff view: kicking team = other(G.poss). Ball sits on the tracked
+    // free-kick spot (NFHS 40; 20 after a safety; walked back 5 per out-of-bounds
+    // re-kick), arrow toward the RECEIVER's end zone (the direction of the kick).
     const kicking = other(G.poss);
-    const koSpotAbs = absYd(40, kicking);              // kicking team's own 40
+    const koSpotAbs = absYd(clamp(G.koFrom==null?40:G.koFrom,1,99), kicking);
     svg.innerHTML = buildFieldSVG(
       FIELD_FRAME,
       koSpotAbs,
@@ -2515,8 +2516,18 @@ function render(){
   document.getElementById('possHome').classList.toggle('on', G.poss==='home');
   document.getElementById('sbQtr').textContent=qtrLabel();
   document.getElementById('sbClock').textContent=fmtClock(G.clock);
-  document.getElementById('sbDD').innerHTML=ddLabel().replace('&','&amp;');
-  document.getElementById('sbBallOn').textContent='ball on '+fieldLabelPhys();
+  // During a pending kickoff there is no down & distance, and the ball sits on the
+  // kicking team's free-kick spot — not G.ballOn (which holds the receiver's
+  // presumed starting spot). Label both to match what the field is drawing.
+  if(G.kickoffPending){
+    const kicking = other(G.poss);
+    const koAt = clamp(G.koFrom==null?40:G.koFrom,1,99);
+    document.getElementById('sbDD').textContent='Kickoff';
+    document.getElementById('sbBallOn').textContent='kick from '+fieldLabelPhys(koAt, kicking);
+  } else {
+    document.getElementById('sbDD').innerHTML=ddLabel().replace('&','&amp;');
+    document.getElementById('sbBallOn').textContent='ball on '+fieldLabelPhys();
+  }
   document.getElementById('toAway').innerHTML=renderTimeouts('away');
   document.getElementById('toHome').innerHTML=renderTimeouts('home');
   // game id bar

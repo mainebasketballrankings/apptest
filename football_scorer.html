@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19c'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19d'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -168,6 +168,8 @@ input,select,button{font-family:inherit;}
 
 /* Result chips */
 .res-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 4px;}
+.gain-row{flex-wrap:wrap;gap:5px;margin:4px 0 8px}
+.gain-chip{min-width:44px;text-align:center;padding:9px 6px;font-size:15px;font-weight:700}
 .reschip{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;}
 .reschip.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 .reschip.td.active{background:#fef3c7;border-color:#fcd34d;color:#b45309;}
@@ -1390,6 +1392,20 @@ function pselRow(lbl, player, onclick){
   const v = player ? `#${player.number||'?'} ${player.name}` : 'Tap to select';
   return `<div class="psel-row" onclick="${onclick}"><span class="psel-lbl">${lbl}</span><span class="psel-val ${player?'':'empty'}">${v}</span></div>`;
 }
+// One-tap gain chips. Football is called in yards GAINED ("he got about four"),
+// not absolute yard lines, so making gain the primary input removes the mental
+// conversion + the whole spot-picker round trip on routine plays. The spot row
+// below still handles anything unusual.
+const GAIN_CHIPS = [-5,-3,-1,0,1,2,3,4,5,7,10,15,20];
+function gainRow(toSpot, base, setter){
+  const cur = Math.round(toSpot - base);
+  const chips = GAIN_CHIPS.map(g=>{
+    const spot = clamp(base+g, 0, 100);
+    const active = (cur===g) ? ' active' : '';
+    return `<span class="reschip gain-chip${active}" onclick="${setter}(${spot})">${g>0?'+':''}${g}</span>`;
+  }).join('');
+  return `<div class="res-row gain-row">${chips}</div>`;
+}
 function spotRow(toSpot, base, onclick){
   const gain = Math.round(toSpot - base);
   return `<div class="psel-row" onclick="${onclick}"><span class="psel-lbl">Ball ends at</span><span class="psel-val">${spotLabel(toSpot)} <span style="color:${gain>=0?'var(--green)':'var(--red)'};font-size:13px">(${gain>=0?'+':''}${gain})</span></span></div>`;
@@ -1499,7 +1515,8 @@ function openRun(){
 function renderRun(){
   const p=G.pend;
   let h = pselRow('Rusher', p.rusher, "pickFor('rusher','"+G.poss+"','Select Rusher')");
-  h += `<div class="sec-lbl">Result</div>`;
+  h += `<div class="sec-lbl">Result — tap the yards gained</div>`;
+  h += gainRow(p.toSpot, G.ballOn, 'setRunGain');
   h += spotRow(p.toSpot, G.ballOn, "runSpot()");
   h += `<div class="sec-lbl">Tackle (optional)</div>`;
   h += pselRow('Tackle', p.tackler, "pickFor('tackler','"+defSide()+"','Tackled by')");
@@ -1520,6 +1537,8 @@ function renderRun(){
   h += `<div class="oactions"><button class="oconfirm" onclick="confirmRun()">Save Play</button></div>`;
   document.getElementById('ovPlayBody').innerHTML=h;
 }
+function setRunGain(v){ G.pend.toSpot=v; renderRun(); }
+function setPassGain(v){ G.pend.toSpot=v; renderPass(); }
 function runSpot(){ openSpotPicker(G.poss, G.pend.toSpot, v=>{ G.pend.toSpot=v; renderRun(); }, {base:G.ballOn, target:firstDownTarget(), title:'Ball ends at'}); }
 function fumbleUI(carrierSide, rerender){
   const p=G.pend; const defr=other(carrierSide);
@@ -1699,7 +1718,12 @@ function renderPass(){
     h += pselRow('Sacked QB', p.passer, "pickFor('passer','"+G.poss+"','QB / Passer')");
     h += pselRow('Sack by', p.defender, "pickFor('defender','"+defSide()+"','Sack by')");
     h += pselRow('Sack by (2) — half sack', p.defender2, "pickFor('defender2','"+defSide()+"','2nd defender (½ sack)')");
-    h += `<div class="sec-lbl">Tackled at</div>`;
+    h += `<div class="sec-lbl">Tackled at — tap the yards lost</div>`;
+    h += `<div class="res-row gain-row">` + [-15,-12,-10,-8,-7,-6,-5,-4,-3,-2,-1,0].map(g=>{
+      const spot = clamp(G.ballOn+g, 0, 100);
+      const active = (Math.round(p.toSpot-G.ballOn)===g) ? ' active' : '';
+      return `<span class="reschip gain-chip${active}" onclick="setPassGain(${spot})">${g}</span>`;
+    }).join('') + `</div>`;
     h += spotRow(p.toSpot, G.ballOn, "passSpotBack()");
     h += fumbleUI(G.poss, 'renderPass');
   } else {
@@ -1714,7 +1738,8 @@ function renderPass(){
       h += `<div class="psel-row" onclick="intSpot()"><span class="psel-lbl">Return to</span><span class="psel-val">${spotLabel(p.intSpot, defSide())}</span></div>`;
     }
     if(p.sub==='comp'){
-      h += `<div class="sec-lbl">Caught / ends at</div>`;
+      h += `<div class="sec-lbl">Caught / ends at — tap the yards gained</div>`;
+      h += gainRow(p.toSpot, G.ballOn, 'setPassGain');
       h += spotRow(p.toSpot, G.ballOn, "passSpot()");
       h += pselRow('Tackle (optional)', p.tackler, "pickFor('tackler','"+defSide()+"','Tackled by')");
       h += `<div class="res-row" style="margin-top:8px"><span class="toggle-pill ${p.oob?'on':''}" onclick="G.pend.oob=!G.pend.oob;renderPass()">Out of bounds</span></div>`;

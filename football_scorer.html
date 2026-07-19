@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-17j'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19a'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -662,6 +662,8 @@ let G = {
   drives:[], curDrive:null,
   pbp:[],
   qb:{away:null, home:null},      // remembered starting/last passer per side
+  kicker:{away:null, home:null},  // remembered placekicker (kickoff/FG/PAT) per side
+  punter:{away:null, home:null},  // remembered punter per side
   tstat:{ away:{fd:0,pen:0,penyd:0}, home:{fd:0,pen:0,penyd:0} },  // team counters (see blankTStat)
   _scrimKind:null,                // transient marker: 'rush'|'pass' set before commitPlay for down-efficiency tracking
   lineScore:{}, pendingPAT:false, kickoffPending:true, clockRunning:false,
@@ -928,7 +930,7 @@ async function startGame(){
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
-  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null;
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.kicker={away:null,home:null}; G.punter={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null;
 
   // Sort each roster by uniform number, then seed the starting QB. The QB is
   // captured as an object reference BEFORE the sort, so it survives reordering.
@@ -1392,26 +1394,64 @@ function spotRow(toSpot, base, onclick){
 
 // ── Reusable player picker ──
 let _pickerCtx=null;
-function openPicker(side, title, cb){ _pickerCtx={side,cb}; document.getElementById('ovPickerTitle').textContent=title; document.getElementById('pickerSearch').value=''; renderPicker(); openOv('ovPicker'); }
+// Which positions are likely for a given picker role. The picker floats these to
+// the top under a "Likely" header so you're not scrolling 45 names mid-drive.
+const ROLE_POS = {
+  rusher:['RB','QB','WR','ATH','FB','HB','TB'],
+  passer:['QB','ATH'],
+  receiver:['WR','TE','RB','ATH','FB'],
+  tackler:['LB','DB','DL','DE','OLB','ILB','MLB','S','CB','NT'],
+  assist:['LB','DB','DL','DE','OLB','ILB','MLB','S','CB','NT'],
+  defender:['DB','CB','S','LB','OLB','ILB','MLB','DE','DL'],
+  defender2:['DB','CB','S','LB','OLB','ILB','MLB','DE','DL'],
+  koKicker:['K','P','ATH','QB'], patKicker:['K','P','ATH','QB'], fgKicker:['K','P','ATH','QB'],
+  puntPunter:['P','K','ATH','QB'],
+  koReturner:['WR','RB','DB','ATH'], puntReturner:['WR','RB','DB','ATH'],
+  puntBlocker:['DL','DE','LB','DB','NT'], fgBlocker:['DL','DE','LB','DB','NT'],
+};
+function openPicker(side, title, cb, role){ _pickerCtx={side,cb,role:role||null}; document.getElementById('ovPickerTitle').textContent=title; document.getElementById('pickerSearch').value=''; renderPicker(); openOv('ovPicker'); }
 function renderPicker(){
   const q=(document.getElementById('pickerSearch').value||'').toLowerCase();
   const roster=G.teams[_pickerCtx.side].roster;
+  const byNum=(a,b)=>{
+    const na=parseInt(a.p.number), nb=parseInt(b.p.number);
+    if(isNaN(na)&&isNaN(nb)) return 0;
+    if(isNaN(na)) return 1;
+    if(isNaN(nb)) return -1;
+    return na-nb;
+  };
   const items=roster.map((p,i)=>({p,i}))
     .filter(({p})=>p.name && (!q || p.name.toLowerCase().includes(q) || String(p.number).includes(q)))
-    .sort((a,b)=>{
-      const na=parseInt(a.p.number), nb=parseInt(b.p.number);
-      if(isNaN(na)&&isNaN(nb)) return 0;
-      if(isNaN(na)) return 1;
-      if(isNaN(nb)) return -1;
-      return na-nb;
-    });
-  const list=document.getElementById('pickerList');
-  list.innerHTML = items.length ? items.map(({p,i})=>`
+    .sort(byNum);
+  const want = ROLE_POS[_pickerCtx.role] || null;
+  const row = ({p,i})=>`
     <div class="sub-player" onclick="pickerChoose(${i})">
       <div class="sub-num">${p.number?'#'+p.number:'—'}</div>
       <div class="sub-name">${p.name}</div>
       <div class="sub-pos">${p.pos||''}</div>
-    </div>`).join('') : '<div style="font-size:13px;color:var(--dim);padding:8px">No players match. Add players in setup.</div>';
+    </div>`;
+  const hdr = t=>`<div class="sec-lbl" style="margin:4px 0 2px">${t}</div>`;
+  let html='';
+  if(!items.length){
+    html='<div style="font-size:13px;color:var(--dim);padding:8px">No players match. Add players in setup.</div>';
+  } else if(want && !q){
+    const norm=s=>(s||'').toUpperCase().trim();
+    const likely=items.filter(it=>want.includes(norm(it.p.pos)));
+    const rest  =items.filter(it=>!want.includes(norm(it.p.pos)));
+    if(likely.length && rest.length){
+      // keep "likely" in position order (as listed in ROLE_POS), then by number
+      likely.sort((a,b)=>{
+        const ra=want.indexOf(norm(a.p.pos)), rb=want.indexOf(norm(b.p.pos));
+        return ra!==rb ? ra-rb : byNum(a,b);
+      });
+      html = hdr('Likely') + likely.map(row).join('') + hdr('Everyone else') + rest.map(row).join('');
+    } else {
+      html = items.map(row).join('');
+    }
+  } else {
+    html = items.map(row).join('');
+  }
+  document.getElementById('pickerList').innerHTML = html;
 }
 function pickerChoose(i){ const cb=_pickerCtx.cb, side=_pickerCtx.side; closeOv('ovPicker'); cb(i==null?null:G.teams[side].roster[i]); }
 
@@ -1449,7 +1489,7 @@ function confirmSpot(){ const c=_spotCtx; closeOv('ovSpot'); c.cb(c.val); }
 function openRun(){
   saveSnapshot();
   G.pend={type:'run', rusher:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, assist:null, fumble:false, fumRecover:'off', fumRecoverer:null, fumAdvTo:null, oob:false,
-          addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
+          addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false, penNullify:true};
   document.getElementById('ovPlayTitle').textContent='Run';
   renderRun(); openOv('ovPlay');
 }
@@ -1509,6 +1549,19 @@ function resolveFumble(carrierSide, fumSpotOwn, opts={}){
     const recName = recPlayer?.name || abbr(carrierSide);
     addPBP(`${lead}<strong>FUMBLE</strong> — recovered by ${recName} (${abbr(carrierSide)})`);
     pushEvt('fumble',{side:carrierSide,detail:{lost:false,recoveredBy:recPlayer?.name||null,on:opts.onKind||null}});
+    if(spot<=0){
+      // recovered in his OWN end zone — his team put it there, so it's a safety
+      scoreSafety(other(carrierSide));
+      return {lost:false,td:false,safety:true};
+    }
+    if(spot>=100){
+      // recovered in the OPPONENT's end zone — touchdown for the carrier's team
+      if(carrierSide!==G.poss) G.poss=carrierSide;
+      G.ballOn=100; G.lastTD=`${recName} fumble recovery in the end zone`;
+      pushEvt('touchdown',{player:recPlayer?.name||null,num:recPlayer?.number||null,points:6,side:carrierSide,detail:{via:'fumble_recovery',scoring:G.lastTD}});
+      scoreTD(carrierSide);
+      return {lost:false,td:true};
+    }
     if(carrierSide===G.poss){ commitPlay(clamp(spot,0,100)); }
     else { G.ballOn=clamp(spot,1,99); }
     return {lost:false,td:false};
@@ -1528,6 +1581,13 @@ function resolveFumble(carrierSide, fumSpotOwn, opts={}){
     return {lost:true,td:true,retYds};
   }
   const retTxt = retYds>0 ? `, ${recName} ${retYds} yd return` : (recPlayer?`, recovered by ${recName}`:'');
+  if(endDef<=0){
+    // the ball went into the DEFENSE's own end zone and they recovered → touchback
+    addPBP(`${lead}<strong>FUMBLE</strong> — recovered by ${recName} in the end zone, <strong>touchback</strong>`);
+    pushEvt('fumble',{side:carrierSide,detail:{lost:true,recoveredBy:recPlayer?.name||null,recoverTeam:abbr(defr),touchback:true,on:opts.onKind||null}});
+    changePoss(defr, 20, 'fumble');
+    return {lost:true,td:false,touchback:true};
+  }
   addPBP(`${lead}<strong>FUMBLE</strong> — ${abbr(defr)} ball${retTxt}`);
   pushEvt('fumble',{side:carrierSide,detail:{lost:true,recoveredBy:recPlayer?.name||null,recoverTeam:abbr(defr),retYds,on:opts.onKind||null}});
   changePoss(defr, endDef, 'fumble');
@@ -1541,6 +1601,16 @@ function confirmRun(){
   const p=G.pend;
   if(!p.rusher){ msg('Pick a rusher','Tap Rusher to choose who carried the ball.'); return; }
   if(G.pendingPAT){ closeOv('ovPlay'); resolveConversion(p.toSpot>=100, p.rusher, `${p.rusher.name} run`); G.pend=null; render(); return; }
+  // An ACCEPTED penalty wipes the play: no stats, no yardage, no score, and the
+  // down replays (holding on 1st & 10 → 1st & 20, not 2nd & 20). Because we bail
+  // out before commitPlay, G.down/G.ballOn are still the pre-play values, so
+  // applyPendPenalty enforces from the original LOS and the down stands.
+  if(penaltyNullifies(p)){
+    closeOv('ovPlay');
+    addPBP(`${p.rusher.name} run — <strong>play nullified by penalty</strong>`);
+    applyPendPenalty(p);
+    G.pend=null; render(); return;
+  }
   const downBefore=G.down;   // for 3rd/4th-down efficiency
   const gain=Math.round(p.toSpot-G.ballOn);
   const st=statFor(G.poss, p.rusher.name, p.rusher.number);
@@ -1594,8 +1664,19 @@ function confirmRun(){
     addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — recovered by ${recName} (${abbr(G.poss)})`);
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,tackler:p.tackler?.name||null,tacklerNum:p.tackler?.number||null}});
     pushEvt('fumble',{side:G.poss,detail:{lost:false,recoveredBy:p.fumRecoverer?.name||null}});
-    commitPlay(spot);
-    applyPendPenalty(p);
+    if(spot<=0){
+      // recovered in his OWN end zone — the offense put it there, so it's a safety
+      scoreSafety(other(G.poss));
+    } else if(spot>=100){
+      // recovered in the OPPONENT's end zone — touchdown for the offense
+      const tdSide=G.poss;
+      G.ballOn=100; G.lastTD=`${recName} fumble recovery in the end zone`;
+      pushEvt('touchdown',{player:p.fumRecoverer?.name||null,num:p.fumRecoverer?.number||null,points:6,side:tdSide,detail:{via:'fumble_recovery',scoring:G.lastTD}});
+      scoreTD(tdSide);
+    } else {
+      commitPlay(spot);
+      applyPendPenalty(p);
+    }
   } else if(p.toSpot<=0){
     // ball carrier down in his own end zone → safety for the defense
     st.ra++; st.ryd+=gain;
@@ -1623,7 +1704,7 @@ function openPass(){
   saveSnapshot();
   G.pend={type:'pass', sub:'comp', passer:G.qb[G.poss]||null, receiver:null, defender:null, defender2:null, toSpot:G.ballOn, losBefore:G.ballOn, distBefore:G.distance, tackler:null, intSpot:Math.max(1,100-G.ballOn), oob:false,
           fumble:false, fumRecover:'off', fumRecoverer:null, fumAdvTo:null,
-          addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false};
+          addPen:false, penName:'', penYds:5, penTeam:null, penAuto:false, penNullify:true};
   document.getElementById('ovPlayTitle').textContent='Pass';
   renderPass(); openOv('ovPlay');
 }
@@ -1680,6 +1761,13 @@ function confirmPass(){
     else if(p.sub==='incomp'){ good=false; desc=`${p.passer?p.passer.name:''} pass incomplete`; }
     else { good=false; desc=p.sub; }
     resolveConversion(good, p.receiver||p.passer, desc); G.pend=null; render(); return;
+  }
+  // Accepted penalty wipes the play (incl. an interception or sack) — see confirmRun.
+  if(penaltyNullifies(p)){
+    const who = p.passer ? p.passer.name+' ' : '';
+    addPBP(`${who}pass — <strong>play nullified by penalty</strong>`);
+    applyPendPenalty(p);
+    G.pend=null; render(); return;
   }
   const offSideStart=G.poss, downBefore=G.down;   // for 3rd/4th-down efficiency (before any possession flip)
   if(p.sub==='incomp'){
@@ -1796,7 +1884,7 @@ function confirmPass(){
 }
 
 // shared picker dispatch for pending play
-function pickFor(field, side, title){ openPicker(side, title, pl=>{ if(G.pend){ G.pend[field]=pl; rerenderPend(); } }); }
+function pickFor(field, side, title){ openPicker(side, title, pl=>{ if(G.pend){ G.pend[field]=pl; rerenderPend(); } }, field); }
 function rerenderPend(){ if(!G.pend) return; if(G.pend.type==='run') renderRun(); else if(G.pend.type==='pass') renderPass(); else if(G.pend.type==='kick') renderKick(); }
 
 // ═══════════════════════════════════════════════
@@ -1811,25 +1899,40 @@ function defaultKickTab(){
 function openKick(){
   saveSnapshot();
   const recv=G.poss, kicking=defSide();
+  // Remembered specialists, like the QB. On a kickoff the kicking team is the
+  // DEFENSE (G.poss is receiving); on punts/FG/PAT the kicker is on offense.
+  const koK  = G.kicker[kicking] || null;
+  const plaK = G.kicker[recv] || null;
+  const puntP= G.punter[recv] || null;
   G.pend={ type:'kick', sub:defaultKickTab(),
     // kickoff
-    koKicker:null, koReturner:null, koRecAt:5, koAdvTo:25, koTouchback:false,
+    koKicker:koK, koReturner:null, koRecAt:5, koAdvTo:25, koTouchback:false,
     koFumble:false, koFumLost:false, koFumRecoverer:null, koFumAt:50, koFumAdvTo:null,
     koOnside:false, koOnsideRecov:'kicking', koOnsideSpot:null, koOnsideRecoverer:null,
+    koOOB:false, koOOBChoice:'rekick',
     // punt
-    puntPunter:null, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
+    puntPunter:puntP, puntReturner:null, puntLand:Math.min(100,G.ballOn+38), puntEnd:Math.min(100,G.ballOn+38), puntTouchback:false,
     puntFumble:false, puntFumLost:false, puntFumRecoverer:null, puntSafety:false,
     puntBlocked:false, puntBlockRecov:'kicking', puntBlockRecoverer:null, puntBlockSpot:null, puntBlockTD:false, puntBlocker:null,
     // fg
-    fgKicker:null, fgGood:true,
+    fgKicker:plaK, fgGood:true,
     fgBlocked:false, fgBlockRecov:'def', fgBlockRecoverer:null, fgBlockSpot:null, fgBlockTD:false, fgBlocker:null,
     // pat
-    patMode:'kick', patKicker:null, patGood:true, patPlayer:null, patConverted:false
+    patMode:'kick', patKicker:plaK, patGood:true, patPlayer:null, patConverted:false
   };
   document.getElementById('ovPlayTitle').textContent='Kick';
   renderKick(); openOv('ovPlay');
 }
 function kickTab(s){ G.pend.sub=s; renderKick(); }
+// Fake punt / fake FG: abandon the kick and log the play as a normal run or pass.
+// Nothing about the kick was committed, so down & distance carry over untouched.
+function fakeKick(kind){
+  const from = (G.pend && G.pend.sub==='fg') ? 'field goal' : 'punt';
+  closeOv('ovPlay');
+  G.pend=null;
+  G._fakeKick = from;               // one-shot: the next play line is tagged as a fake
+  if(kind==='pass') openPass(); else openRun();
+}
 function renderKick(){
   const p=G.pend, recv=G.poss, kicking=defSide();
   let h = `<div class="ptabs">
@@ -1842,8 +1945,16 @@ function renderKick(){
   if(p.sub==='kickoff'){
     h += `<div class="sec-lbl">${abbr(kicking)} kicks · ${abbr(recv)} returns</div>`;
     h += pselRow('Kicker', p.koKicker, "pickFor('koKicker','"+kicking+"','Kicker')");
-    h += `<div class="res-row" style="margin:6px 0"><span class="toggle-pill ${p.koOnside?'on':''}" onclick="G.pend.koOnside=!G.pend.koOnside;renderKick()">Onside kick</span></div>`;
-    if(p.koOnside){
+    h += `<div class="res-row" style="margin:6px 0"><span class="toggle-pill ${p.koOnside?'on':''}" onclick="G.pend.koOnside=!G.pend.koOnside;G.pend.koOOB=false;renderKick()">Onside kick</span><span class="toggle-pill ${p.koOOB?'on':''}" onclick="G.pend.koOOB=!G.pend.koOOB;G.pend.koOnside=false;renderKick()">Out of bounds</span></div>`;
+    if(p.koOOB){
+      h += `<div class="sec-lbl">${abbr(recv)} elects</div>`;
+      h += `<div class="res-row">
+        <span class="reschip ${p.koOOBChoice==='rekick'?'active':''}" onclick="G.pend.koOOBChoice='rekick';renderKick()">Re-kick (5 yd penalty)</span>
+        <span class="reschip ${p.koOOBChoice==='spot'?'active':''}" onclick="G.pend.koOOBChoice='spot';renderKick()">Take it at their 35</span></div>`;
+      h += `<div class="sec-lbl" style="opacity:.7">${p.koOOBChoice==='rekick'
+        ? abbr(kicking)+' is penalized 5 yards and kicks again — the kickoff stays pending.'
+        : abbr(recv)+' takes over at their own 35.'}</div>`;
+    } else if(p.koOnside){
       h += `<div class="sec-lbl">Recovered by</div>`;
       h += `<div class="res-row">
         <span class="reschip ${p.koOnsideRecov==='kicking'?'active':''}" onclick="G.pend.koOnsideRecov='kicking';G.pend.koOnsideRecoverer=null;renderKick()">${abbr(kicking)} recovers</span>
@@ -1879,6 +1990,9 @@ function renderKick(){
     }
   } else if(p.sub==='punt'){
     h += `<div class="sec-lbl">${abbr(recv)} punts · ${abbr(kicking)} receives</div>`;
+    h += `<div class="res-row" style="margin-bottom:8px;gap:6px">
+      <span class="reschip" onclick="fakeKick('run')">Fake — log a run</span>
+      <span class="reschip" onclick="fakeKick('pass')">Fake — log a pass</span></div>`;
     h += pselRow('Punter', p.puntPunter, "pickFor('puntPunter','"+recv+"','Punter')");
     h += `<div class="res-row" style="margin:6px 0;flex-wrap:wrap;gap:4px">
       <span class="toggle-pill ${p.puntTouchback?'on':''}" onclick="G.pend.puntTouchback=!G.pend.puntTouchback;G.pend.puntSafety=false;G.pend.puntBlocked=false;renderKick()">Touchback</span>
@@ -1916,6 +2030,9 @@ function renderKick(){
       }
     }
   } else if(p.sub==='fg'){
+    h += `<div class="res-row" style="margin-bottom:8px;gap:6px">
+      <span class="reschip" onclick="fakeKick('run')">Fake — log a run</span>
+      <span class="reschip" onclick="fakeKick('pass')">Fake — log a pass</span></div>`;
     const dist=(100-G.ballOn)+17;
     h += `<div class="sec-lbl">${abbr(recv)} field goal · ${dist} yd attempt</div>`;
     h += pselRow('Kicker', p.fgKicker, "pickFor('fgKicker','"+recv+"','Kicker')");
@@ -1982,9 +2099,30 @@ function puntEndSpot(){ openSpotPicker(G.poss, G.pend.puntEnd, v=>{G.pend.puntEn
 function confirmKick(){
   const p=G.pend, recv=G.poss, kicking=defSide();
   closeOv('ovPlay');
+  // Remember the specialists so the next kick prefills them (like the QB).
+  // On a kickoff the kicker belongs to the DEFENSE (G.poss is the receiving team).
+  if(p.sub==='kickoff' && p.koKicker) G.kicker[kicking]=p.koKicker;
+  if(p.sub==='punt'    && p.puntPunter) G.punter[recv]=p.puntPunter;
+  if(p.sub==='fg'      && p.fgKicker)  G.kicker[recv]=p.fgKicker;
+  if(p.sub==='pat' && p.patMode==='kick' && p.patKicker) G.kicker[recv]=p.patKicker;
 
   if(p.sub==='kickoff'){
-    if(p.koOnside){
+    if(p.koOOB){
+      // Kickoff out of bounds untouched. Receiving team's choice: make them re-kick
+      // (5-yard penalty on the kicking team) or take the ball at their own 35.
+      if(p.koKicker) statFor(kicking,p.koKicker.name,p.koKicker.number);
+      if(G.tstat&&G.tstat[kicking]){ G.tstat[kicking].pen++; G.tstat[kicking].penyd+=5; }
+      pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{outOfBounds:true, choice:p.koOOBChoice}});
+      pushEvt('penalty',{side:kicking,detail:{name:'Kickoff out of bounds', yds:5, on:abbr(kicking)}});
+      if(p.koOOBChoice==='spot'){
+        addPBP(`Kickoff <strong>out of bounds</strong> — ${abbr(recv)} ball at their 35`);
+        G.kickoffPending=false; G.ballOn=35; G.down=1; G.distance=10;
+        if(G.curDrive) G.curDrive.startBallOn=G.ballOn; else startDrive();
+      } else {
+        addPBP(`Kickoff <strong>out of bounds</strong> — 5 yd penalty on ${abbr(kicking)}, re-kick`);
+        G.kickoffPending=true;   // stays pending so the next kick is logged as a kickoff
+      }
+    } else if(p.koOnside){
       // ── Onside kick ── either team can recover. Kicking team recovers → they
       // take over; receiving team recovers → they keep the ball. No return TD path
       // (an onside that reaches the end zone is vanishingly rare; use Set Spot).
@@ -2308,10 +2446,20 @@ function inlinePenaltyForm(p){
       <span class="qchip" onclick="G.pend.penYds=15;rerenderPend()">15</span>
       <span style="margin-left:auto;font-weight:700">${p.penYds||0} yd</span></div>`;
     h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.penAuto?'on':''}" onclick="G.pend.penAuto=!G.pend.penAuto;rerenderPend()">Automatic 1st down</span></div>`;
+    // Accepted penalty = the play is wiped and the down replays. Turn OFF only for
+    // a dead-ball foul where the play counts and the penalty is marked off after it.
+    h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.penNullify!==false?'on':''}" onclick="G.pend.penNullify=(G.pend.penNullify===false);rerenderPend()">Accepted — wipes the play, replay down</span></div>`;
+    if(p.penNullify!==false){
+      h += `<div class="sec-lbl" style="opacity:.7">No stats or yardage from this play will count. Down replays from the previous spot.</div>`;
+    }
     // Most penalties enforce from the previous LOS. A spot foul (e.g. backfield
     // holding) enforces from where the play ended instead.
-    h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.penSpotFoul?'on':''}" onclick="G.pend.penSpotFoul=!G.pend.penSpotFoul;rerenderPend()">Spot foul (enforce from end of play)</span></div>`;
-    h += `<div class="sec-lbl" style="opacity:.7">${p.penSpotFoul?'From end of play':'From previous line of scrimmage'}</div>`;
+    // Spot-foul enforcement only matters when the play STANDS — on a nullified
+    // play the ball never left the previous LOS, so hide it to avoid confusion.
+    if(p.penNullify===false){
+      h += `<div class="res-row" style="margin-top:6px"><span class="toggle-pill ${p.penSpotFoul?'on':''}" onclick="G.pend.penSpotFoul=!G.pend.penSpotFoul;rerenderPend()">Spot foul (enforce from end of play)</span></div>`;
+      h += `<div class="sec-lbl" style="opacity:.7">${p.penSpotFoul?'From end of play':'From previous line of scrimmage'}</div>`;
+    }
   }
   return h;
 }
@@ -2327,6 +2475,11 @@ function pendPenType(i){
   rerenderPend();
 }
 function pendPenTeam(s){ G.pend.penTeam=s; rerenderPend(); }
+// True when the pending play carries an ACCEPTED penalty that wipes the play.
+// Default is true whenever a penalty is attached — that's the normal football
+// outcome. Turn the toggle off for a dead-ball foul (late hit, unsportsmanlike
+// after the whistle) where the play stands and the penalty is marked off after it.
+function penaltyNullifies(p){ return !!(p && p.addPen && p.penTeam && p.penNullify!==false); }
 // called after a normal commit to tack the penalty on
 function applyPendPenalty(p){
   if(!p.addPen || !p.penTeam) return;
@@ -2344,6 +2497,8 @@ function applyPendPenalty(p){
 // PLAY-BY-PLAY + RENDER
 // ═══════════════════════════════════════════════
 function addPBP(text, isDriveHead){
+  // A fake punt/FG tags the next play line so the log reads "Fake punt — ..."
+  if(G._fakeKick && !isDriveHead){ text = `<strong>Fake ${G._fakeKick}</strong> — ` + text; G._fakeKick=null; }
   G.pbp.push({ qtr:qtrLabel(), clock:fmtClock(G.clock), text, drive:!!isDriveHead });
 }
 function renderPBP(){

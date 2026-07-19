@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19a'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19b'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -669,6 +669,7 @@ let G = {
   lineScore:{}, pendingPAT:false, kickoffPending:true, clockRunning:false,
   _pendingDriveSummary:null,        // stashed drive-summary PBP line, flushed after the terminating event
   otPossCount:0, otFirst:null,      // overtime: possessions taken this period, and which team went first
+  koFrom:40,                        // free-kick spot, kicking team's own frame (NFHS 40; 20 after a safety; -5 per OOB re-kick)
   // pending interaction state
   pend:null,
 };
@@ -930,7 +931,7 @@ async function startGame(){
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
-  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.kicker={away:null,home:null}; G.punter={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null;
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.kicker={away:null,home:null}; G.punter={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null; G.koFrom=40;
 
   // Sort each roster by uniform number, then seed the starting QB. The QB is
   // captured as an object reference BEFORE the sort, so it survives reordering.
@@ -1208,6 +1209,7 @@ function scoreSafety(side){
   // the SCORING team receives. changePoss puts the receiver on offense; marking
   // kickoffPending makes the field render the kickoff (conceding team kicking
   // toward the scoring team's end) and defaults the Kick overlay to Kickoff.
+  G.koFrom=20;   // NFHS: free kick after a safety is from the conceding team's 20
   changePoss(side, 25, 'free-kick');
   G.freeKick = true;          // a safety free kick (conceding team kicks from their 20)
   G.kickoffPending = true;
@@ -1503,13 +1505,15 @@ function renderRun(){
   h += pselRow('Assist', p.assist, "pickFor('assist','"+defSide()+"','Assist')");
   h += `<div class="res-row" style="margin-top:10px"><span class="toggle-pill ${p.fumble?'on':''}" onclick="G.pend.fumble=!G.pend.fumble;renderRun()">Fumble on play</span><span class="toggle-pill ${p.oob?'on':''}" onclick="G.pend.oob=!G.pend.oob;renderRun()">Out of bounds</span></div>`;
   if(p.fumble){
+    h += `<div class="sec-lbl" style="opacity:.7">Above spot = where he fumbled (${p.rusher?p.rusher.name+' ':''}keeps the yardage to there)</div>`;
     h += `<div class="sec-lbl">Recovered by</div><div class="res-row">
       <span class="reschip ${p.fumRecover==='off'?'active':''}" onclick="G.pend.fumRecover='off';G.pend.fumRecoverer=null;renderRun()">${abbr(G.poss)} (offense)</span>
       <span class="reschip ${p.fumRecover==='def'?'active':''}" onclick="G.pend.fumRecover='def';G.pend.fumRecoverer=null;renderRun()">${abbr(defSide())} (defense)</span></div>`;
     const recTeam = p.fumRecover==='def'?defSide():G.poss;
     h += pselRow('Recovered by (player)', p.fumRecoverer, "pickFor('fumRecoverer','"+recTeam+"','Recovered by')");
-    h += `<div class="sec-lbl">Ball ends at (after any return)</div>`;
-    h += `<div class="psel-row" onclick="fumRunSpot()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.fumAdvTo!=null?p.fumAdvTo:p.toSpot, recTeam)}</span></div>`;
+    h += `<div class="sec-lbl">Recovered / returned to — in ${abbr(recTeam)}'s frame</div>`;
+    h += `<div class="psel-row" onclick="fumRunSpot()"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.fumAdvTo!=null?p.fumAdvTo:(p.fumRecover==='def'?100-p.toSpot:p.toSpot), recTeam)}</span></div>`;
+    h += `<div class="sec-lbl" style="opacity:.7">Their own goal line = recovered in that end zone (safety, touchback, or TD as appropriate)</div>`;
   }
   h += inlinePenaltyForm(p);
   h += `<div class="oactions"><button class="oconfirm" onclick="confirmRun()">Save Play</button></div>`;
@@ -1525,8 +1529,9 @@ function fumbleUI(carrierSide, rerender){
       <span class="reschip ${p.fumRecover==='def'?'active':''}" onclick="G.pend.fumRecover='def';G.pend.fumRecoverer=null;${rerender}()">${abbr(defr)} recovers</span></div>`;
     const rt = p.fumRecover==='def'?defr:carrierSide;
     h += pselRow('Recovered by (player)', p.fumRecoverer, "pickFor('fumRecoverer','"+rt+"','Recovered by')");
-    h += `<div class="sec-lbl">Ball ends at (after any return)</div>`;
-    h += `<div class="psel-row" onclick="fumSpotPick('${carrierSide}','${rerender}')"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.fumAdvTo!=null?p.fumAdvTo:(p.toSpot!=null?p.toSpot:G.ballOn), rt)}</span></div>`;
+    h += `<div class="sec-lbl">Recovered / returned to — in ${abbr(rt)}'s frame</div>`;
+    h += `<div class="psel-row" onclick="fumSpotPick('${carrierSide}','${rerender}')"><span class="psel-lbl">Ball at</span><span class="psel-val">${spotLabel(p.fumAdvTo!=null?p.fumAdvTo:(p.fumRecover==='def'?100-(p.toSpot!=null?p.toSpot:G.ballOn):(p.toSpot!=null?p.toSpot:G.ballOn)), rt)}</span></div>`;
+    h += `<div class="sec-lbl" style="opacity:.7">Their own goal line = recovered in that end zone (safety, touchback, or TD as appropriate)</div>`;
   }
   return h;
 }
@@ -1632,51 +1637,23 @@ function confirmRun(){
     scoreTD(tdSide);
     pushEvt('touchdown',{player:p.rusher.name,num:p.rusher.number,points:6,side:tdSide,
       detail:{via:'run', gain, scoring:G.lastTD}});
-  } else if(p.fumble && p.fumRecover==='def'){
-    st.fumlost++;
-    const defr=other(G.poss);
-    const recName = p.fumRecoverer?.name || abbr(defr);
-    // fumble spot in defense frame; advance to fumAdvTo (defense frame) if set
-    const fumAtDef = 100 - clamp(p.toSpot,0,100);
-    const endDef = (p.fumAdvTo!=null) ? p.fumAdvTo : fumAtDef;
-    const retYds = Math.max(0, endDef - fumAtDef);
-    if(endDef>=100){
-      // scoop and score — fumble six
-      addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — recovered by ${recName}, ${retYds} yd return <strong>TD ${abbr(defr)}</strong>`);
-      pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,fumbleLost:true}});
-      pushEvt('fumble',{side:G.poss,detail:{lost:true,recoveredBy:p.fumRecoverer?.name||null,recoverTeam:abbr(defr),retYds,td:true}});
-      G.poss=defr;
-      G.lastTD=`${recName} ${retYds} yd fumble return`;
-      pushEvt('touchdown',{player:p.fumRecoverer?.name||null,num:p.fumRecoverer?.number||null,points:6,side:defr,detail:{via:'fumble_return',scoring:G.lastTD}});
-      scoreTD(defr);
-    } else {
-      const retTxt = retYds>0 ? `, ${recName} ${retYds} yd return` : (p.fumRecoverer?`, recovered by ${recName}`:'');
-      addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — ${abbr(defr)} ball${retTxt}`);
-      pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,fumbleLost:true}});
-      pushEvt('fumble',{side:G.poss,detail:{lost:true,recoveredBy:p.fumRecoverer?.name||null,recoverTeam:abbr(defr),retYds}});
-      changePoss(defr, endDef, 'fumble');
-    }
   } else if(p.fumble){
-    // offense keeps it — ball at recovery spot, down continues from there
-    st.fum++;
-    const spot = (p.fumAdvTo!=null)?p.fumAdvTo:p.toSpot;
-    const recName = p.fumRecoverer?.name || abbr(G.poss);
-    addPBP(`${p.rusher.name} ${gain>=0?'+':''}${gain} run, <strong>FUMBLE</strong> — recovered by ${recName} (${abbr(G.poss)})`);
-    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,tackler:p.tackler?.name||null,tacklerNum:p.tackler?.number||null}});
-    pushEvt('fumble',{side:G.poss,detail:{lost:false,recoveredBy:p.fumRecoverer?.name||null}});
-    if(spot<=0){
-      // recovered in his OWN end zone — the offense put it there, so it's a safety
-      scoreSafety(other(G.poss));
-    } else if(spot>=100){
-      // recovered in the OPPONENT's end zone — touchdown for the offense
-      const tdSide=G.poss;
-      G.ballOn=100; G.lastTD=`${recName} fumble recovery in the end zone`;
-      pushEvt('touchdown',{player:p.fumRecoverer?.name||null,num:p.fumRecoverer?.number||null,points:6,side:tdSide,detail:{via:'fumble_recovery',scoring:G.lastTD}});
-      scoreTD(tdSide);
-    } else {
-      commitPlay(spot);
-      applyPendPenalty(p);
-    }
+    // Route ALL run fumbles through the shared resolver so the end-zone cases
+    // (safety / scoop-6 / recovery TD / touchback) behave identically to fumbles
+    // on a pass, sack, punt or kickoff. The runner keeps credit for the yardage
+    // up to the fumble spot (p.toSpot); the recovery/return spot is p.fumAdvTo.
+    const lost = p.fumRecover==='def';
+    if(lost) st.fumlost++; else st.fum++;
+    pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain, fumbleLost:lost,
+      tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null}});
+    resolveFumble(G.poss, p.toSpot, {
+      lost,
+      recoverer: p.fumRecoverer||null,
+      advToOwn: p.fumAdvTo,
+      leadIn: `${p.rusher.name} ${gain>=0?'+':''}${gain} run, `,
+      onKind: 'run'
+    });
+    applyPendPenalty(p);
   } else if(p.toSpot<=0){
     // ball carrier down in his own end zone → safety for the defense
     st.ra++; st.ryd+=gain;
@@ -1943,17 +1920,20 @@ function renderKick(){
   </div>`;
 
   if(p.sub==='kickoff'){
-    h += `<div class="sec-lbl">${abbr(kicking)} kicks · ${abbr(recv)} returns</div>`;
+    h += `<div class="sec-lbl">${abbr(kicking)} kicks from their ${G.koFrom==null?40:G.koFrom} · ${abbr(recv)} returns</div>`;
     h += pselRow('Kicker', p.koKicker, "pickFor('koKicker','"+kicking+"','Kicker')");
     h += `<div class="res-row" style="margin:6px 0"><span class="toggle-pill ${p.koOnside?'on':''}" onclick="G.pend.koOnside=!G.pend.koOnside;G.pend.koOOB=false;renderKick()">Onside kick</span><span class="toggle-pill ${p.koOOB?'on':''}" onclick="G.pend.koOOB=!G.pend.koOOB;G.pend.koOnside=false;renderKick()">Out of bounds</span></div>`;
     if(p.koOOB){
+      const from = (G.koFrom==null?40:G.koFrom);
+      const takeAt = clamp(100-(from+25), 1, 99);      // 25 yds beyond the kick spot
+      const reAt   = Math.max(1, from-5);
       h += `<div class="sec-lbl">${abbr(recv)} elects</div>`;
       h += `<div class="res-row">
-        <span class="reschip ${p.koOOBChoice==='rekick'?'active':''}" onclick="G.pend.koOOBChoice='rekick';renderKick()">Re-kick (5 yd penalty)</span>
-        <span class="reschip ${p.koOOBChoice==='spot'?'active':''}" onclick="G.pend.koOOBChoice='spot';renderKick()">Take it at their 35</span></div>`;
+        <span class="reschip ${p.koOOBChoice==='rekick'?'active':''}" onclick="G.pend.koOOBChoice='rekick';renderKick()">Re-kick from the ${reAt}</span>
+        <span class="reschip ${p.koOOBChoice==='spot'?'active':''}" onclick="G.pend.koOOBChoice='spot';renderKick()">Take it at their ${takeAt}</span></div>`;
       h += `<div class="sec-lbl" style="opacity:.7">${p.koOOBChoice==='rekick'
-        ? abbr(kicking)+' is penalized 5 yards and kicks again — the kickoff stays pending.'
-        : abbr(recv)+' takes over at their own 35.'}</div>`;
+        ? '5 yd penalty on '+abbr(kicking)+' — they kick again from their '+reAt+'.'
+        : abbr(recv)+' takes over at their own '+takeAt+' (25 yds beyond the '+from+').'}</div>`;
     } else if(p.koOnside){
       h += `<div class="sec-lbl">Recovered by</div>`;
       h += `<div class="res-row">
@@ -2109,17 +2089,22 @@ function confirmKick(){
   if(p.sub==='kickoff'){
     if(p.koOOB){
       // Kickoff out of bounds untouched. Receiving team's choice: make them re-kick
-      // (5-yard penalty on the kicking team) or take the ball at their own 35.
+      // (5-yard penalty walked off the free-kick spot) or take the ball 25 yards
+      // beyond the spot of the kick.
+      const from = (G.koFrom==null?40:G.koFrom);
       if(p.koKicker) statFor(kicking,p.koKicker.name,p.koKicker.number);
       if(G.tstat&&G.tstat[kicking]){ G.tstat[kicking].pen++; G.tstat[kicking].penyd+=5; }
-      pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{outOfBounds:true, choice:p.koOOBChoice}});
+      pushEvt('kickoff',{player:p.koKicker?.name,num:p.koKicker?.number,side:kicking,detail:{outOfBounds:true, choice:p.koOOBChoice, from}});
       pushEvt('penalty',{side:kicking,detail:{name:'Kickoff out of bounds', yds:5, on:abbr(kicking)}});
       if(p.koOOBChoice==='spot'){
-        addPBP(`Kickoff <strong>out of bounds</strong> — ${abbr(recv)} ball at their 35`);
-        G.kickoffPending=false; G.ballOn=35; G.down=1; G.distance=10;
+        const takeAt = clamp(100-(from+25), 1, 99);
+        addPBP(`Kickoff <strong>out of bounds</strong> — ${abbr(recv)} ball at their ${takeAt}`);
+        G.kickoffPending=false; G.ballOn=takeAt; G.down=1; G.distance=Math.min(10,100-takeAt);
+        G.koFrom=40;                                   // next free kick is a normal one
         if(G.curDrive) G.curDrive.startBallOn=G.ballOn; else startDrive();
       } else {
-        addPBP(`Kickoff <strong>out of bounds</strong> — 5 yd penalty on ${abbr(kicking)}, re-kick`);
+        G.koFrom = Math.max(1, from-5);                // walk the free-kick spot back 5
+        addPBP(`Kickoff <strong>out of bounds</strong> — 5 yd penalty on ${abbr(kicking)}, re-kick from their ${G.koFrom}`);
         G.kickoffPending=true;   // stays pending so the next kick is logged as a kickoff
       }
     } else if(p.koOnside){
@@ -2318,6 +2303,9 @@ function confirmKick(){
     changePoss(other(recvSide), 25, 'kickoff-pending');
     if(G.quarter<=4) G.kickoffPending=true;
   }
+  // A completed kickoff clears any accumulated out-of-bounds penalty on the
+  // free-kick spot; only a re-kick keeps the walked-back spot.
+  if(p.sub==='kickoff' && !(p.koOOB && p.koOOBChoice==='rekick')) G.koFrom=40;
   stopClock();
   G.pend=null; render();
 }
@@ -2560,7 +2548,7 @@ function cloneState(){
     pbpLen:G.pbp.length, scoreLogLen:(G.scoreLog?G.scoreLog.length:0),
     pendingPAT:!!G.pendingPAT, kickoffPending:!!G.kickoffPending,
     pendingDriveSummary:G._pendingDriveSummary||null,
-    otPossCount:G.otPossCount||0, otFirst:G.otFirst||null
+    otPossCount:G.otPossCount||0, otFirst:G.otFirst||null, koFrom:(G.koFrom==null?40:G.koFrom)
   };
 }
 function saveSnapshot(){
@@ -2585,6 +2573,7 @@ function restoreState(s){
   G.pendingPAT=s.pendingPAT; G.kickoffPending=s.kickoffPending; G.pend=null;
   G._pendingDriveSummary = (s.pendingDriveSummary!==undefined) ? s.pendingDriveSummary : null;
   G.otPossCount = s.otPossCount||0; G.otFirst = s.otFirst||null;
+  G.koFrom = (s.koFrom==null?40:s.koFrom);
   _lastPbpLength=-1;
 }
 function doUndo(){

@@ -270,6 +270,9 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
     <input type="checkbox" id="su-playoff" style="width:15px;height:15px;"> Playoff game — tournament overtime, no ties
   </label>
   <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin-top:6px;justify-content:center;cursor:pointer;">
+    <input type="checkbox" id="su-sub" style="width:15px;height:15px;"> Sub-varsity (JV) — one overtime period only
+  </label>
+  <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin-top:6px;justify-content:center;cursor:pointer;">
     <input type="checkbox" id="su-test" style="width:15px;height:15px;"> Test mode — nothing writes to the database
   </label>
  </div>
@@ -293,6 +296,8 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
       <div id="elapsed">0:00</div>
       <div id="playoff-chip" style="display:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;
            font-size:10px;letter-spacing:.1em;color:#1d4ed8;">PLAYOFF</div>
+      <div id="sub-chip" style="display:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+           font-size:10px;letter-spacing:.1em;color:var(--dim);">JV</div>
       <div id="buildChip" style="font-family:'Barlow Condensed',sans-serif;font-size:9px;color:var(--dim);opacity:.6;"></div>
       <div id="mercy-flag"></div>
     </div>
@@ -465,8 +470,15 @@ const SPORTS={
     key:'lacrosse', label:'Lacrosse', sub:'4 × 12 min',
     sport_id:'9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
     periods:4, periodSecs:720, plbl:['1ST','2ND','3RD','4TH'],
+    // Boys: "Four-minute sudden victory periods ... until resolved."
     ot:{secs:240, max:99, sudden:true}, ties:false,
-    otGirls:{secs:360, max:99, sudden:true},
+    // Girls (USA Lacrosse): "Six minute (two 3-minute halves) sudden victory
+    // overtime periods ... until resolved." Modelled as the 3-minute halves the
+    // officials actually run, so the clock on screen matches the clock on the field.
+    otGirls:{secs:180, max:99, sudden:true, note:'3-min halves'},
+    // Sub-varsity plays ONE overtime and then stops, so a JV game CAN end level.
+    otSub:{secs:240, max:1, sudden:true, ties:true},
+    otGirlsSub:{secs:180, max:1, sudden:true, ties:true, note:'stop time'},
     secondYellowRed:true,   // girls lacrosse: a second yellow removes the player
     mercy:{diff:12, end:false, txt:'no MPA mercy rule — End Game is manual'},
     field:'lax', gkTracked:true,
@@ -507,7 +519,7 @@ let SP=SPORTS.soccer;
 const GAME={
   home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
   away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
-  period:1, clockSec:2400, running:false, possession:'home', playoff:false, so:null,
+  period:1, clockSec:2400, running:false, possession:'home', playoff:false, subVarsity:false, so:null,
   gender:'boys', mercyRunning:false, ended:false, endReason:'final'
 };
 const PL={home:[],away:[]};
@@ -566,7 +578,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-20g';
+const MBR_BUILD='fs-2026-07-20h';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -741,9 +753,10 @@ function setSport(k){
   SP=SPORTS[SPORT_KEY];
   document.getElementById('soccer8-wrap').style.display = base==='soccer'?'block':'none';
   renderSportGrid();
-  const ot=SP.ot;
+  const ot=otRules();
   const otTxt = SPORT_KEY==='lacrosse'
-    ? `OT ${fmt(SP.ot.secs)} sudden victory, repeats (girls ${fmt(SP.otGirls.secs)}) · no ties`
+    ? `OT boys ${fmt(SP.ot.secs)} · girls ${fmt(SP.otGirls.secs)} sudden victory, repeats · no ties`
+      + (SP.otSub?`\nSub-varsity: one period only, may end level`:'')
     : `OT ${ot.max} × ${fmt(ot.secs)} sudden victory${ot.note?' ('+ot.note+')':''} · ties allowed`
       + (SP.otPlayoff ? `\nPlayoff: ${SP.otPlayoff.max} × ${fmt(SP.otPlayoff.secs)} sudden victory, then penalty kicks` : '');
   document.getElementById('rules-note').innerHTML =
@@ -1012,6 +1025,7 @@ async function suKickOff(){
   suSync('home'); suSync('away');
   G_test_mode=document.getElementById('su-test').checked;
   GAME.playoff = !!(document.getElementById('su-playoff')||{}).checked;
+  GAME.subVarsity = !!(document.getElementById('su-sub')||{}).checked;
   const err=document.getElementById('su-error');
   const hName=document.getElementById('su-home-name').value.trim();
   const aName=document.getElementById('su-away-name').value.trim();
@@ -1320,6 +1334,8 @@ function updBtns(){
   });
   const pf=document.getElementById('playoff-chip');
   if(pf){ pf.style.display = GAME.playoff?'':'none'; }
+  const sv=document.getElementById('sub-chip');
+  if(sv){ sv.style.display = GAME.subVarsity?'':'none'; }
   document.getElementById('nm-home').classList.toggle('has-ball',GAME.possession==='home');
   document.getElementById('nm-away').classList.toggle('has-ball',GAME.possession==='away');
 }
@@ -1471,10 +1487,20 @@ function applyClkEdit(){
 // Which overtime rules apply right now: girls lacrosse has its own, and a
 // playoff game uses the tournament procedure when the sport defines one.
 function otRules(){
-  if(SPORT_KEY==='lacrosse' && GAME.gender==='girls' && SP.otGirls) return SP.otGirls;
+  const girls = GAME.gender==='girls';
+  if(GAME.subVarsity){
+    // Sub-varsity overrides everything: one period, then the game is over.
+    if(girls && SP.otGirlsSub) return SP.otGirlsSub;
+    if(SP.otSub) return SP.otSub;
+  }
+  if(SPORT_KEY==='lacrosse' && girls && SP.otGirls) return SP.otGirls;
   if(GAME.playoff && SP.otPlayoff) return SP.otPlayoff;
   return SP.ot;
 }
+// Can this game be recorded as a tie? Sub-varsity rules can allow it even where
+// the varsity sport does not (lacrosse has no varsity ties, but JV plays one
+// overtime and stops).
+function tiesAllowed(){ const o=otRules(); return (o && o.ties!=null) ? !!o.ties : !!SP.ties; }
 function setPlayoff(on){
   GAME.playoff=!!on;
   const b=document.getElementById('playoff-toggle');
@@ -2063,12 +2089,12 @@ function openEndModal(suddenVictory){
     msg += otDone
       ? `<br><b>Tied after overtime</b> — settle it with ${tb}.`
       : `<br><b>Tied</b> — playoff game: ${o.max} × ${fmt(o.secs)} sudden victory, then ${tb}.`;
-  } else if(tied && GAME.period>=SP.periods && SP.ties){
+  } else if(tied && GAME.period>=SP.periods && tiesAllowed()){
     msg += otDone
       ? '<br><b>Tied</b> — recorded as a tie (MPA: still tied after the second overtime is a tie game).'
       : `<br><b>Tied</b> — regular season: ${SP.ot.max} × ${fmt(SP.ot.secs)} sudden victory, then it is a tie.`;
   }
-  if(tied && !SP.ties && !GAME.playoff) msg+='<br><b>Tied</b> — lacrosse has no ties; keep playing overtime.';
+  if(tied && !tiesAllowed() && !GAME.playoff) msg+='<br><b>Tied</b> — lacrosse has no ties; keep playing overtime.';
   // Offer the tiebreaker rather than leaving a tied playoff game in limbo.
   const canShoot = tied && GAME.playoff && (o.shootout||o.corners) && otDone && !(GAME.so && GAME.so.done);
   if(canShoot || (GAME.so && GAME.so.kicks.length)){

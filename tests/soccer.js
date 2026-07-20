@@ -95,11 +95,12 @@ async function game(ctx,{playoff=false}={}){
     await new Promise(r=>setTimeout(r,150));
     await game(ctx,{playoff:true});
     chk('playoff flagged from setup', ev('GAME.playoff')===true);
-    chk('playoff OT is 10 minutes', ev('otRules().secs')===600, String(ev('otRules().secs')));
+    // MPA: 11-player playoff OT is 2 x 15 min (8-player is 2 x 10).
+    chk('playoff OT is 15 minutes', ev('otRules().secs')===900, String(ev('otRules().secs')));
     chk('playoff OT is 2 periods', ev('otRules().max')===2);
     chk('playoff OT ends in kicks', ev('otRules().shootout')===true);
     ev("GAME.period=3");
-    chk('OT period clock seeds to 10:00', ev('periodSecs(3)')===600, String(ev('periodSecs(3)')));
+    chk('OT period clock seeds to 15:00', ev('periodSecs(3)')===900, String(ev('periodSecs(3)')));
     // end modal should name the shootout, not a tie
     ev("GAME.home.score=1; GAME.away.score=1; GAME.period=4; GAME.clockSec=0;");
     window.openEndModal(false);

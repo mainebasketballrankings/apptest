@@ -379,8 +379,14 @@ const SPORTS={
     sport_id:'ff80a695-0e78-4432-98f2-141b2b571e0e',
     periods:2, periodSecs:2400, plbl:['1ST','2ND'],
     ot:{secs:300, max:2, sudden:true}, ties:true,
-    // MPA tournament play: longer sudden-victory halves, then kicks from the mark.
-    otPlayoff:{secs:600, max:2, sudden:true, shootout:true},
+    // MPA bulletin, TIE GAMES — ALL TOURNAMENT & CHAMPIONSHIP GAMES:
+    // "extended by a maximum of 2 fifteen-minute sudden victory overtime periods
+    //  in 11 player and 2 ten-minute sudden victory overtime periods in 8-player.
+    //  ... If still tied after the second overtime, the penalty kick alternative
+    //  will be used."
+    // Regular season stays 2 × 5 then a recorded tie (see `ot` above).
+    otPlayoff:{secs:900, max:2, sudden:true, shootout:true},
+    otPlayoff8:{secs:600, max:2, sudden:true, shootout:true},
     mercy:{diff:8, afterElapsed:3600, end:true, txt:'Mercy: 8-goal margin at 60:00 or later ends the game'},
     // MPA bulletin: "Two yellow cards in the same game result in a red card. For the
     // purposes of card counting, they would be reported as one yellow card and one red."
@@ -538,7 +544,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-19c';
+const MBR_BUILD='fs-2026-07-19d';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};

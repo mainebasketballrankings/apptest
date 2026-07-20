@@ -291,6 +291,9 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
       <div id="clock-btn" onclick="toggleClock()" ondblclick="openClkEdit(event)">40:00</div>
       <div id="pdisplay" onclick="chgPeriod(1)" oncontextmenu="chgPeriod(-1);return false;">1ST</div>
       <div id="elapsed">0:00</div>
+      <div id="playoff-chip" style="display:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+           font-size:10px;letter-spacing:.1em;color:#1d4ed8;">PLAYOFF</div>
+      <div id="buildChip" style="font-family:'Barlow Condensed',sans-serif;font-size:9px;color:var(--dim);opacity:.6;"></div>
       <div id="mercy-flag"></div>
     </div>
     <div class="tscore home">
@@ -313,6 +316,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
         <div id="shot-ov"><div class="ov-box" id="ov-inner"></div></div>
       </div>
       <div id="btnbar">
+        <div id="so-cta" style="display:none;margin:0 0 6px;"></div>
         <div id="bgrid"></div>
         <div id="toolbar">
           <div class="sbtn" onclick="undoLast()">↩ Undo</div>
@@ -536,8 +540,9 @@ if (typeof MBR === 'undefined') {
 }
 // One glance confirms which build is live and whether mbr-core.js came with it.
 try{ document.addEventListener('DOMContentLoaded',function(){
-  var b=document.getElementById('buildBadge');
-  if(b) b.textContent = MBR_BUILD + (typeof MBR!=='undefined' ? ' · core ok' : ' · NO CORE');
+  var txt = MBR_BUILD + (typeof MBR!=='undefined' ? ' · core ok' : ' · NO CORE');
+  var b=document.getElementById('buildBadge'); if(b) b.textContent = txt;
+  var c=document.getElementById('buildChip'); if(c) c.textContent = MBR_BUILD;
 }); }catch(_){}
 MBR.init({
   queueKey   : 'mbr_field_push_queue',
@@ -556,7 +561,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-20b';
+const MBR_BUILD='fs-2026-07-20c';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1308,6 +1313,8 @@ function updBtns(){
       el.textContent = 'POSS → '+GAME[tgt].short;
     }
   });
+  const pf=document.getElementById('playoff-chip');
+  if(pf){ pf.style.display = GAME.playoff?'':'none'; }
   document.getElementById('nm-home').classList.toggle('has-ball',GAME.possession==='home');
   document.getElementById('nm-away').classList.toggle('has-ball',GAME.possession==='away');
 }
@@ -1643,6 +1650,53 @@ function soUndo(){
   }
   GAME.so.kicks.pop();
   renderSO(); updAll(); scheduleSave();
+}
+// The tiebreaker used to live only inside the End Game dialog, which meant you
+// had to already know it was there. When a game reaches the point where it
+// matters, say so on the main screen.
+function renderSoCta(){
+  const el=document.getElementById('so-cta'); if(!el) return;
+  if(GAME.ended && !(GAME.so&&!GAME.so.done)){ el.style.display='none'; return; }
+  const tied  = GAME.home.score===GAME.away.score;
+  const o     = otRules();
+  const otDone= GAME.period >= SP.periods + (o.max===99?9:o.max);
+  const inProgress = GAME.so && GAME.so.kicks.length && !GAME.so.done;
+  const decided    = GAME.so && GAME.so.done;
+
+  if(decided){
+    const w=GAME.so.winner;
+    el.style.display='';
+    el.innerHTML = `<div style="background:#dcfce7;border:1.5px solid #15803d;border-radius:7px;padding:9px 12px;
+      font-size:14px;font-weight:700;color:#14532d;text-align:center;">
+      ${GAME[w].short} wins on penalty kicks ${soMade(w)}–${soMade(opp(w))} · finish with End Game</div>`;
+    return;
+  }
+  if(inProgress){
+    el.style.display='';
+    el.innerHTML = `<div onclick="soStart()" style="cursor:pointer;background:#fef3c7;border:1.5px solid #b45309;
+      border-radius:7px;padding:10px 12px;font-size:15px;font-weight:800;color:#7c2d12;text-align:center;">
+      ⚽ Penalty kicks in progress — ${soMade('away')}–${soMade('home')} · tap to continue</div>`;
+    return;
+  }
+  if(tied && otDone && GAME.playoff && o.shootout){
+    el.style.display='';
+    el.innerHTML = `<div onclick="soStart()" style="cursor:pointer;background:#1d4ed8;border-radius:7px;
+      padding:12px;font-size:16px;font-weight:800;color:#fff;text-align:center;letter-spacing:.02em;">
+      ⚽ TIED AFTER OVERTIME — START PENALTY KICKS</div>`;
+    return;
+  }
+  if(tied && otDone && !GAME.playoff && SP.otPlayoff){
+    // Most likely they simply forgot the checkbox at kickoff, so offer the switch
+    // rather than silently recording a tie in a game that cannot end in one.
+    el.style.display='';
+    el.innerHTML = `<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:7px;
+      padding:9px 12px;font-size:13px;color:var(--dim);text-align:center;">
+      Tied after overtime — recorded as a tie.
+      <a href="#" onclick="setPlayoff(true);return false;" style="color:#1d4ed8;font-weight:700;">
+      This is a playoff game →</a></div>`;
+    return;
+  }
+  el.style.display='none';
 }
 function renderSO(){
   const b=document.getElementById('so-body'); if(!b) return;
@@ -2324,6 +2378,7 @@ function discardSave(){localStorage.removeItem(SAVE_KEY);document.getElementById
 
 // ══ MISC UI ══════════════════════════════════════════════════
 function updAll(){
+  try{ renderSoCta(); }catch(e){}
   document.getElementById('sc-home').textContent=GAME.home.score;
   document.getElementById('sc-away').textContent=GAME.away.score;
   document.getElementById('sh-home').textContent=GAME.home.shots;

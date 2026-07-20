@@ -119,6 +119,37 @@ async function game(ctx,{playoff=false}={}){
     const body=ctx.d.getElementById('end-body').innerHTML;
     chk('tied regular season records a tie', /recorded as a tie/i.test(body), body.slice(-120));
   }
+  // ── the shootout must be reachable from the MAIN screen, not only End Game ──
+  {
+    const ctx=boot(); const {window,d,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150));
+    await game(ctx,{playoff:true});
+    ev("GAME.home.score=1; GAME.away.score=1; GAME.period=3; GAME.clockSec=0;");
+    window.updAll();
+    chk('no prompt during OT1 (still time to play)', d.getElementById('so-cta').style.display==='none');
+    ev("GAME.period=4;"); window.updAll();
+    const cta=d.getElementById('so-cta');
+    chk('prompt appears on the main screen after the final OT', cta.style.display!=='none', 'display='+cta.style.display);
+    chk('prompt is the call to action', /START PENALTY KICKS/i.test(cta.innerHTML), cta.innerHTML.slice(0,80));
+    chk('PLAYOFF chip shows while scoring', d.getElementById('playoff-chip').style.display!=='none');
+    // and tapping it opens the shootout
+    window.soStart();
+    chk('tapping it opens the shootout', d.getElementById('so-modal').classList.contains('show'));
+  }
+  // ── forgot the checkbox: offer the switch rather than silently recording a tie ──
+  {
+    const ctx=boot(); const {window,d,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150));
+    await game(ctx,{playoff:false});
+    ev("GAME.home.score=1; GAME.away.score=1; GAME.period=4; GAME.clockSec=0;");
+    window.updAll();
+    const cta=d.getElementById('so-cta');
+    chk('regular season tie explains itself', /recorded as a tie/i.test(cta.innerHTML), cta.innerHTML.slice(0,90));
+    chk('offers to switch to playoff', /This is a playoff game/i.test(cta.innerHTML));
+    window.setPlayoff(true); window.updAll();
+    chk('switching mid-game surfaces the shootout', /START PENALTY KICKS/i.test(d.getElementById('so-cta').innerHTML));
+    chk('and OT length switches to 15:00', ev('otRules().secs')===900, String(ev('otRules().secs')));
+  }
   console.log('\n'+(fails?fails+' FAIL(s)':'SOCCER FIXES PASS'));
   process.exit(fails?1:0);
 })().catch(e=>{console.error('ERR',e&&e.stack||e);process.exit(2);});

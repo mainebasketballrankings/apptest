@@ -357,7 +357,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
   </select></div>
   <button class="btn btn-p" style="background:var(--al);" onclick="endGame()">Finalize &amp; Send Report</button>
   <button class="btn btn-s" style="width:100%;margin-top:7px;" onclick="closeModal('end-modal')">Cancel</button></div></div>
-<div class="modal" id="so-modal"><div class="mbox" style="max-width:460px;"><div class="mh">Penalty Kicks</div>
+<div class="modal" id="so-modal"><div class="mbox" style="max-width:460px;"><div class="mh" id="so-title">Penalty Kicks</div>
   <div id="so-body"></div>
   <button class="btn btn-s" style="width:100%;margin-top:10px;" onclick="closeModal('so-modal')">Close</button></div></div>
 <div class="modal" id="clk-edit"><div class="mbox" style="max-width:300px;"><div class="mh">Set Clock</div>
@@ -432,6 +432,11 @@ const SPORTS={
     sport_id:'1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
     periods:4, periodSecs:900, plbl:['1ST','2ND','3RD','4TH'],
     ot:{secs:480, max:2, sudden:true, note:'7v7'}, ties:true,
+    // Tournament: same two 8-minute 7v7 sudden-victory periods, but a game still
+    // level then goes to "Reduced Number of Corners — 6 on 6 until there is a
+    // winner", NOT strokes. A set is three equal-opportunity corners each side,
+    // and it ends the moment one team leads with equal opportunity given.
+    otPlayoff:{secs:480, max:2, sudden:true, note:'7v7', corners:true},
     mercy:{diff:5, secondHalfOnly:true, end:false, txt:'5+ goals in 2nd half → running clock'},
     // Field hockey cards escalate at the umpire's discretion — there is no automatic
     // second-yellow red. Warn the scorer, but never issue it for them.
@@ -561,7 +566,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-20e';
+const MBR_BUILD='fs-2026-07-20g';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1478,7 +1483,7 @@ function setPlayoff(on){
   if(GAME.period>SP.periods && !GAME.running) GAME.clockSec=periodSecs(GAME.period);
   const o=otRules();
   flash(GAME.playoff
-    ? `Playoff: ${o.max} × ${fmt(o.secs)} sudden victory, then kicks`
+    ? `Playoff: ${o.max} × ${fmt(o.secs)} sudden victory, then ${(o.corners?'corners':'kicks')}`
     : (SP.ties?`Regular season: ${SP.ot.max} × ${fmt(SP.ot.secs)} sudden victory, ties allowed`:'Regular season'),'');
   try{ updAll(); }catch(e){} scheduleSave();
 }
@@ -1581,11 +1586,26 @@ function subPick(side,pid,dir){
 // the moment a team is mathematically eliminated. The winner gets one goal added
 // to the final score and is credited with the victory.
 const SO_PER_ROUND = 5;
+// Two different tiebreakers share this machinery.
+//   kicks   — soccer PKs: sets of five, decided when a team cannot be caught.
+//   corners — field hockey: sets of three, "equal opportunity" sudden victory,
+//             so it ends the moment the sides are level on attempts and apart
+//             on goals. That can happen part-way through a set.
+function soMode(){ const o=otRules(); return (o && o.corners) ? 'corners' : 'kicks'; }
+function soCfg(){
+  return soMode()==='corners'
+    ? { title:'Penalty Corners', unit:'corner', setSize:3, scored:'Goal ✓', missed:'No goal ✗',
+        who:'Scored by (optional)', needPlayer:false,
+        note:'A set is three equal-opportunity corners each. Sudden victory — the game ends as soon as one team leads with equal opportunity given.' }
+    : { title:'Penalty Kicks', unit:'kick', setSize:5, scored:'Scored ✓', missed:'Missed ✗',
+        who:'Kicker', needPlayer:true,
+        note:'Reduce to equate — if either side is short of eligible kickers, both sides shrink.' };
+}
 // MPA "Reduce to Equate": kicks are always taken in equal sets, but if a team
 // cannot field five eligible kickers the set shrinks for BOTH teams (4v4, 3v3,
 // 2v2, 1v1). The roster is not a reliable guide — players dress, get hurt, get
 // sent off — so the operator sets the size for each round.
-function soSize(r){ return (GAME.so && GAME.so.sizes && GAME.so.sizes[r]) || SO_PER_ROUND; }
+function soSize(r){ return (GAME.so && GAME.so.sizes && GAME.so.sizes[r]) || soCfg().setSize; }
 function soSetSize(n){
   if(!GAME.so) return;
   const k=GAME.so.kicks, r=soRound();
@@ -1621,6 +1641,7 @@ function soEndManual(side){
 }
 
 function soStart(){
+  const t=document.getElementById('so-title'); if(t) t.textContent=soCfg().title;
   if(!GAME.so){
     GAME.so = { first:null, kicks:[], done:false, winner:null };
   }
@@ -1640,7 +1661,7 @@ function soRound(){
   let r=1, seen=0;
   const k=GAME.so.kicks;
   while(true){
-    const need=((GAME.so.sizes&&GAME.so.sizes[r])||SO_PER_ROUND)*2;
+    const need=((GAME.so.sizes&&GAME.so.sizes[r])||soCfg().setSize)*2;
     if(k.length < seen+need) return r;
     seen+=need; r++;
     if(r>50) return r;
@@ -1665,6 +1686,16 @@ function soDecide(){
   const mF=soMade(f), mO=soMade(o);
   const size=soSize(r);
   const remF=size-soTaken(f,r), remO=size-soTaken(o,r);
+
+  // Field hockey: "Equal Opportunity — Sudden Victory". Both sides having taken
+  // the same number of corners IS the equal opportunity, so any lead at that
+  // moment ends it — mid-set included.
+  if(soMode()==='corners'){
+    const tF=GAME.so.kicks.filter(x=>x.side===f).length;
+    const tO=GAME.so.kicks.filter(x=>x.side===o).length;
+    if(tF===tO && tF>0 && mF!==mO) return mF>mO ? f : o;
+    return null;
+  }
   if(mF > mO + remO) return f;
   if(mO > mF + remF) return o;
   if(remF===0 && remO===0){                 // set complete
@@ -1679,13 +1710,15 @@ function soKick(pid, made){
   if(!GAME.so || GAME.so.done) return;
   if(!GAME.so.first){ flash('Coin toss first — who kicks first?','bad'); return; }
   const side=soTurn(), r=soRound();
-  const p=findP(pid,side); if(!p) return;
-  GAME.so.kicks.push({side, pid, pname:pName(p), pnum:p.num||'', made:!!made, round:r});
+  const p = pid ? findP(pid,side) : null;
+  if(soCfg().needPlayer && !p) return;              // a PK always has a taker
+  GAME.so.kicks.push({side, pid:pid||null, pname:p?pName(p):'', pnum:p?(p.num||''):'', made:!!made, round:r});
   // Logged with the existing PK event types so nothing new is needed in the enum;
   // notes.shootout marks it as a tiebreaker kick rather than an in-game penalty.
+  const isC = soMode()==='corners';
   pushEvt({side, p, key: made?'penalty_kick_made':'penalty_kick_miss',
-           label:(made?'PK ✓':'PK ✗')+' (shootout R'+r+')',
-           meta:{shootout:true, round:r, order:GAME.so.kicks.length, made:!!made}});
+           label:(isC ? (made?'Corner GOAL':'Corner no goal') : (made?'PK ✓':'PK ✗'))+' (R'+r+')',
+           meta:{shootout:true, mode:soMode(), round:r, order:GAME.so.kicks.length, made:!!made}});
   const w=soDecide();
   if(w) soAward(w);
   renderSO(); updAll(); scheduleSave();
@@ -1716,21 +1749,21 @@ function renderSoCta(){
     el.style.display='';
     el.innerHTML = `<div style="background:#dcfce7;border:1.5px solid #15803d;border-radius:7px;padding:9px 12px;
       font-size:14px;font-weight:700;color:#14532d;text-align:center;">
-      ${GAME[w].short} wins on penalty kicks ${soMade(w)}–${soMade(opp(w))} · finish with End Game</div>`;
+      ${GAME[w].short} wins on ${soCfg().title.toLowerCase()} ${soMade(w)}–${soMade(opp(w))} · finish with End Game</div>`;
     return;
   }
   if(inProgress){
     el.style.display='';
     el.innerHTML = `<div onclick="soStart()" style="cursor:pointer;background:#fef3c7;border:1.5px solid #b45309;
       border-radius:7px;padding:10px 12px;font-size:15px;font-weight:800;color:#7c2d12;text-align:center;">
-      ⚽ Penalty kicks in progress — ${soMade('away')}–${soMade('home')} · tap to continue</div>`;
+      ⚽ ${soCfg().title} in progress — ${soMade('away')}–${soMade('home')} · tap to continue</div>`;
     return;
   }
-  if(tied && otDone && GAME.playoff && o.shootout){
+  if(tied && otDone && GAME.playoff && (o.shootout||o.corners)){
     el.style.display='';
     el.innerHTML = `<div onclick="soStart()" style="cursor:pointer;background:#1d4ed8;border-radius:7px;
       padding:12px;font-size:16px;font-weight:800;color:#fff;text-align:center;letter-spacing:.02em;">
-      ⚽ TIED AFTER OVERTIME — START PENALTY KICKS</div>`;
+      ⚽ TIED AFTER OVERTIME — START ${soCfg().title.toUpperCase()}</div>`;
     return;
   }
   // Ask about playoff status the moment regulation ends level — NOT only after
@@ -1784,6 +1817,7 @@ function renderSO(){
   // kickers), all players become eligible." Below that threshold, stop excluding.
   const pool = PL[side].filter(p=>!p.dq);
   const allEligible = pool.length < 6;
+  const C=soCfg();
   const list = pool.map(p=>{
     const usedNow = !allEligible && used.has(p.id);
     const usedPrev = !allEligible && mustDiffer && prev.has(p.id);
@@ -1805,13 +1839,14 @@ function renderSO(){
     </div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:8px;padding:6px 8px;background:var(--surface2);
          border-radius:6px;line-height:1.7">
-      Kickers this set ${sizeBtns}
-      <br><i style="font-size:11px">Reduce to equate — if either side is short of eligible kickers, both sides shrink.</i>
+      ${soMode()==='corners'?'Corners this set':'Kickers this set'} ${sizeBtns}
+      <br><i style="font-size:11px">${C.note}</i>
     </div>
-    <div id="so-pick" style="max-height:210px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:8px">${list}</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:3px">${C.who}</div>
+    <div id="so-pick" style="max-height:190px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:8px">${list}</div>
     <div class="su-row">
-      <button class="btn btn-p" id="so-made" onclick="soResult(true)" disabled>Scored ✓</button>
-      <button class="btn btn-s" id="so-miss" onclick="soResult(false)" disabled>Missed ✗</button>
+      <button class="btn btn-p" id="so-made" onclick="soResult(true)" ${C.needPlayer?'disabled':''}>${C.scored}</button>
+      <button class="btn btn-s" id="so-miss" onclick="soResult(false)" ${C.needPlayer?'disabled':''}>${C.missed}</button>
     </div>
     <button class="btn btn-s" style="width:100%;margin-top:7px" onclick="soUndo()">Undo last kick</button>
     <div style="margin-top:9px;border-top:1px solid var(--border);padding-top:9px">
@@ -1836,7 +1871,8 @@ function soPick(pid){
   document.getElementById('so-miss').disabled=false;
 }
 function soResult(made){
-  if(!_soPick){ flash('Pick the kicker first','bad'); return; }
+  const C=soCfg();
+  if(C.needPlayer && !_soPick){ flash('Pick the kicker first','bad'); return; }
   const pid=_soPick; _soPick=null;
   soKick(pid, made);
 }
@@ -1847,7 +1883,7 @@ function soGrid(){
   const rounds=[...new Set(so.kicks.map(k=>k.round))].sort((a,b)=>a-b);
   const cell=k=>{
     if(!k) return '<td style="width:26px;height:26px;border:1px solid var(--border);"></td>';
-    return `<td title="${(k.pnum?'#'+k.pnum+' ':'')+k.pname}" style="width:26px;height:26px;text-align:center;
+    return `<td title="${(k.pnum?'#'+k.pnum+' ':'')+(k.pname||'team')}" style="width:26px;height:26px;text-align:center;
       border:1px solid var(--border);background:${k.made?'#15803d':'transparent'};
       color:${k.made?'#fff':'#c0392b'};font-size:14px;line-height:1;">${k.made?'●':'✕'}</td>`;
   };
@@ -1883,7 +1919,7 @@ function soHistory(){
     const mine=so.kicks.filter(k=>k.side===side);
     const rows=mine.map(k=>`<div style="font-size:12px;padding:2px 0;color:${k.made?'#14532d':'#7f1d1d'}">
         <span style="display:inline-block;width:26px;color:var(--dim);font-size:10px">R${k.round}</span>
-        ${k.pnum?'#'+k.pnum+' ':''}${k.pname} ${k.made?'✓':'✗'}</div>`).join('')
+        ${k.pnum?'#'+k.pnum+' ':''}${k.pname||'(team)'} ${k.made?'✓':'✗'}</div>`).join('')
       || '<div style="font-size:12px;color:var(--dim);padding:2px 0">—</div>';
     return `<div style="flex:1;min-width:0">
         <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;
@@ -2022,10 +2058,11 @@ function openEndModal(suddenVictory){
   if(suddenVictory) msg='Sudden victory. '+msg;
   const o=otRules();
   const otDone = GAME.period >= SP.periods + (o.max===99?9:o.max);
-  if(tied && GAME.playoff && o.shootout){
+  if(tied && GAME.playoff && (o.shootout||o.corners)){
+    const tb = o.corners ? 'penalty corners' : 'penalty kicks';
     msg += otDone
-      ? '<br><b>Tied after overtime</b> — settle it with penalty kicks.'
-      : `<br><b>Tied</b> — playoff game: ${o.max} × ${fmt(o.secs)} sudden victory, then kicks from the mark.`;
+      ? `<br><b>Tied after overtime</b> — settle it with ${tb}.`
+      : `<br><b>Tied</b> — playoff game: ${o.max} × ${fmt(o.secs)} sudden victory, then ${tb}.`;
   } else if(tied && GAME.period>=SP.periods && SP.ties){
     msg += otDone
       ? '<br><b>Tied</b> — recorded as a tie (MPA: still tied after the second overtime is a tie game).'
@@ -2033,10 +2070,10 @@ function openEndModal(suddenVictory){
   }
   if(tied && !SP.ties && !GAME.playoff) msg+='<br><b>Tied</b> — lacrosse has no ties; keep playing overtime.';
   // Offer the tiebreaker rather than leaving a tied playoff game in limbo.
-  const canShoot = tied && GAME.playoff && o.shootout && otDone && !(GAME.so && GAME.so.done);
+  const canShoot = tied && GAME.playoff && (o.shootout||o.corners) && otDone && !(GAME.so && GAME.so.done);
   if(canShoot || (GAME.so && GAME.so.kicks.length)){
     msg += `<div style="margin-top:10px"><button class="btn btn-p" style="width:100%"
-      onclick="closeModal('end-modal');soStart()">${GAME.so&&GAME.so.kicks.length?'Resume':'Start'} penalty kicks</button></div>`;
+      onclick="closeModal('end-modal');soStart()">${GAME.so&&GAME.so.kicks.length?'Resume':'Start'} ${soCfg().title.toLowerCase()}</button></div>`;
   }
   document.getElementById('end-body').innerHTML=msg;
   const sel=document.getElementById('end-reason');

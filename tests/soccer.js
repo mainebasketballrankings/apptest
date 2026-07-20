@@ -105,7 +105,9 @@ async function game(ctx,{playoff=false}={}){
     ev("GAME.home.score=1; GAME.away.score=1; GAME.period=4; GAME.clockSec=0;");
     window.openEndModal(false);
     const body=ctx.d.getElementById('end-body').innerHTML;
-    chk('tied playoff points at kicks, not a tie', /kicks from the penalty mark/i.test(body), body.slice(-120));
+    // the end screen now offers the tiebreaker outright rather than just describing it
+    chk('tied playoff offers penalty kicks, not a tie',
+        /settle it with penalty kicks/i.test(body) && /Start penalty kicks/.test(body), body.slice(-140));
   }
   // ── regular-season tie wording ──
   {

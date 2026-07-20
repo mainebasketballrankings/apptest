@@ -348,9 +348,13 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
     <option value="mercy">Mercy rule</option>
     <option value="weather">Weather / suspended, called complete</option>
     <option value="forfeit">Forfeit</option>
+    <option value="shootout">Decided by penalty kicks</option>
   </select></div>
   <button class="btn btn-p" style="background:var(--al);" onclick="endGame()">Finalize &amp; Send Report</button>
   <button class="btn btn-s" style="width:100%;margin-top:7px;" onclick="closeModal('end-modal')">Cancel</button></div></div>
+<div class="modal" id="so-modal"><div class="mbox" style="max-width:460px;"><div class="mh">Penalty Kicks</div>
+  <div id="so-body"></div>
+  <button class="btn btn-s" style="width:100%;margin-top:10px;" onclick="closeModal('so-modal')">Close</button></div></div>
 <div class="modal" id="clk-edit"><div class="mbox" style="max-width:300px;"><div class="mh">Set Clock</div>
   <div class="su-row"><div class="su-f"><label>Min</label><input id="ce-m" type="number" min="0" max="99"></div>
   <div class="su-f"><label>Sec</label><input id="ce-s" type="number" min="0" max="59"></div></div>
@@ -491,7 +495,7 @@ let SP=SPORTS.soccer;
 const GAME={
   home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
   away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
-  period:1, clockSec:2400, running:false, possession:'home', playoff:false,
+  period:1, clockSec:2400, running:false, possession:'home', playoff:false, so:null,
   gender:'boys', mercyRunning:false, ended:false, endReason:'final'
 };
 const PL={home:[],away:[]};
@@ -544,7 +548,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-19d';
+const MBR_BUILD='fs-2026-07-19e';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1550,6 +1554,157 @@ function subPick(side,pid,dir){
   closeModal('sub-modal'); renderPl(side); scheduleSave();
 }
 
+// ══ PENALTY KICK TIEBREAKER ══════════════════════════════════
+// MPA procedure: sets of five alternating kicks. Round 1 is any five including
+// the keeper; round 2 must be five DIFFERENT players; round 3 any five; round 4
+// five other than the third set; and so on until someone wins. A set ends early
+// the moment a team is mathematically eliminated. The winner gets one goal added
+// to the final score and is credited with the victory.
+const SO_PER_ROUND = 5;
+
+function soStart(){
+  if(!GAME.so){
+    GAME.so = { first:null, kicks:[], done:false, winner:null };
+  }
+  renderSO();
+  document.getElementById('so-modal').classList.add('show');
+}
+function soSetFirst(side){
+  if(!GAME.so || GAME.so.kicks.length) return;
+  GAME.so.first = side;
+  flash(GAME[side].short+' kicks first','');
+  renderSO(); scheduleSave();
+}
+// Which round a kick index belongs to, and whose turn it is.
+function soRound(){ return Math.floor(GAME.so.kicks.length / (SO_PER_ROUND*2)) + 1; }
+function soRoundKicks(r){ return GAME.so.kicks.filter(k=>k.round===r); }
+function soMade(side){ return GAME.so.kicks.filter(k=>k.side===side && k.made).length; }
+function soTaken(side,r){ return soRoundKicks(r).filter(k=>k.side===side).length; }
+function soTurn(){
+  const r=soRound(), f=GAME.so.first, o=opp(f);
+  // alternate within the round, first-kicker leads each set
+  return soTaken(f,r) <= soTaken(o,r) ? f : o;
+}
+// Decided when someone cannot be caught with the kicks that remain in this set.
+function soDecide(){
+  const r=soRound(), f=GAME.so.first, o=opp(f);
+  const mF=soMade(f), mO=soMade(o);
+  const remF=SO_PER_ROUND-soTaken(f,r), remO=SO_PER_ROUND-soTaken(o,r);
+  if(mF > mO + remO) return f;
+  if(mO > mF + remF) return o;
+  if(remF===0 && remO===0){                 // set complete
+    if(mF!==mO) return mF>mO ? f : o;
+    return null;                            // still level — another set
+  }
+  return null;
+}
+// Players already used, for the "five different players" rules.
+function soUsed(r){ return new Set(GAME.so.kicks.filter(k=>k.round===r).map(k=>k.pid)); }
+function soKick(pid, made){
+  if(!GAME.so || GAME.so.done) return;
+  if(!GAME.so.first){ flash('Coin toss first — who kicks first?','bad'); return; }
+  const side=soTurn(), r=soRound();
+  const p=findP(pid,side); if(!p) return;
+  GAME.so.kicks.push({side, pid, pname:pName(p), pnum:p.num||'', made:!!made, round:r});
+  // Logged with the existing PK event types so nothing new is needed in the enum;
+  // notes.shootout marks it as a tiebreaker kick rather than an in-game penalty.
+  pushEvt({side, p, key: made?'penalty_kick_made':'penalty_kick_miss',
+           label:(made?'PK ✓':'PK ✗')+' (shootout R'+r+')',
+           meta:{shootout:true, round:r, order:GAME.so.kicks.length, made:!!made}});
+  const w=soDecide();
+  if(w){
+    GAME.so.done=true; GAME.so.winner=w;
+    GAME[w].score++;                                   // MPA: add one goal to the winner
+    pushEvt({side:w, p:null, key:'goal',
+             label:'Wins on penalty kicks ('+soMade(w)+'–'+soMade(opp(w))+')',
+             meta:{shootout_winner:true, so_home:soMade('home'), so_away:soMade('away')}});
+    flash(GAME[w].short+' wins on penalty kicks','made');
+  }
+  renderSO(); updAll(); scheduleSave();
+}
+function soUndo(){
+  if(!GAME.so || !GAME.so.kicks.length) return;
+  if(GAME.so.done){                                    // unwind the awarded goal too
+    GAME[GAME.so.winner].score=Math.max(0,GAME[GAME.so.winner].score-1);
+    GAME.so.done=false; GAME.so.winner=null;
+  }
+  GAME.so.kicks.pop();
+  renderSO(); updAll(); scheduleSave();
+}
+function renderSO(){
+  const b=document.getElementById('so-body'); if(!b) return;
+  const so=GAME.so;
+  if(!so){ b.innerHTML=''; return; }
+  const line = `<div style="font-size:22px;font-weight:800;text-align:center;margin:2px 0 10px">
+      ${GAME.away.short} ${soMade('away')} – ${soMade('home')} ${GAME.home.short}</div>`;
+  if(!so.first){
+    b.innerHTML = line + `<div style="font-size:13px;color:var(--dim);margin-bottom:8px">Coin toss — who kicks first?</div>
+      <div class="su-row">
+        <button class="btn btn-s" onclick="soSetFirst('away')">${GAME.away.short} first</button>
+        <button class="btn btn-s" onclick="soSetFirst('home')">${GAME.home.short} first</button>
+      </div>`;
+    return;
+  }
+  if(so.done){
+    const w=so.winner;
+    b.innerHTML = line + `<div style="font-size:15px;font-weight:700;text-align:center;color:var(--gd);margin-bottom:6px">
+        ${GAME[w].name} wins on penalty kicks</div>
+      <div style="font-size:12px;color:var(--dim);text-align:center;margin-bottom:10px">
+        One goal has been added to their score. Finish with End Game.</div>
+      ${soHistory()}
+      <button class="btn btn-s" style="width:100%;margin-top:8px" onclick="soUndo()">Undo last kick</button>`;
+    return;
+  }
+  const r=soRound(), side=soTurn(), used=soUsed(r);
+  const prev = r>1 ? soUsed(r-1) : new Set();
+  // Rounds 2 and 4 (even sets) require players who did not kick in the set before.
+  const mustDiffer = (r%2===0);
+  const list = PL[side].filter(p=>!p.dq).map(p=>{
+    const usedNow = used.has(p.id);
+    const usedPrev = mustDiffer && prev.has(p.id);
+    const dis = usedNow || usedPrev;
+    const why = usedNow ? 'already kicked this set' : (usedPrev ? 'kicked in the previous set' : '');
+    return `<div class="ast-item${dis?' dis':''}" ${dis?'':`onclick="soPick('${p.id}')"`}
+       style="${dis?'opacity:.38;cursor:not-allowed;':''}">
+       <b>${p.num||'–'}</b><span>${pName(p)}${why?` <i style="font-size:11px;color:var(--dim)">— ${why}</i>`:''}</span></div>`;
+  }).join('');
+  b.innerHTML = line + `
+    <div style="font-size:13px;color:var(--dim);margin-bottom:6px">
+      Round ${r} · ${GAME[side].short} to kick · ${soTaken(side,r)+1} of ${SO_PER_ROUND}
+      ${mustDiffer?'<br><i>This set must use players who did not kick in the previous set.</i>':''}
+    </div>
+    <div id="so-pick" style="max-height:210px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:8px">${list}</div>
+    <div class="su-row">
+      <button class="btn btn-p" id="so-made" onclick="soResult(true)" disabled>Scored ✓</button>
+      <button class="btn btn-s" id="so-miss" onclick="soResult(false)" disabled>Missed ✗</button>
+    </div>
+    <button class="btn btn-s" style="width:100%;margin-top:7px" onclick="soUndo()">Undo last kick</button>
+    ${soHistory()}`;
+}
+let _soPick=null;
+function soPick(pid){
+  _soPick=pid;
+  [...document.querySelectorAll('#so-pick .ast-item')].forEach(el=>el.classList.remove('sel'));
+  const els=[...document.querySelectorAll('#so-pick .ast-item')];
+  const side=soTurn();
+  const idx=PL[side].filter(p=>!p.dq).findIndex(p=>p.id===pid);
+  if(els[idx]) els[idx].classList.add('sel');
+  document.getElementById('so-made').disabled=false;
+  document.getElementById('so-miss').disabled=false;
+}
+function soResult(made){
+  if(!_soPick){ flash('Pick the kicker first','bad'); return; }
+  const pid=_soPick; _soPick=null;
+  soKick(pid, made);
+}
+function soHistory(){
+  const so=GAME.so; if(!so.kicks.length) return '';
+  const rows=so.kicks.map(k=>`<span style="display:inline-block;margin:2px 4px 0 0;font-size:12px;
+      padding:2px 6px;border-radius:4px;background:${k.made?'#dcfce7':'#fee2e2'};color:#111">
+      R${k.round} ${GAME[k.side].short} ${k.pnum?'#'+k.pnum+' ':''}${k.pname.split(' ').pop()} ${k.made?'✓':'✗'}</span>`).join('');
+  return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${rows}</div>`;
+}
+
 // ══ UNDO / LOG ═══════════════════════════════════════════════
 function undoLast(){
   if(!evts.length)return;
@@ -1680,7 +1835,7 @@ function openEndModal(suddenVictory){
   const otDone = GAME.period >= SP.periods + (o.max===99?9:o.max);
   if(tied && GAME.playoff && o.shootout){
     msg += otDone
-      ? '<br><b>Tied after overtime</b> — decide it by kicks from the penalty mark, then use Adjust Score to record the winner.'
+      ? '<br><b>Tied after overtime</b> — settle it with penalty kicks.'
       : `<br><b>Tied</b> — playoff game: ${o.max} × ${fmt(o.secs)} sudden victory, then kicks from the mark.`;
   } else if(tied && GAME.period>=SP.periods && SP.ties){
     msg += otDone
@@ -1688,6 +1843,12 @@ function openEndModal(suddenVictory){
       : `<br><b>Tied</b> — regular season: ${SP.ot.max} × ${fmt(SP.ot.secs)} sudden victory, then it is a tie.`;
   }
   if(tied && !SP.ties && !GAME.playoff) msg+='<br><b>Tied</b> — lacrosse has no ties; keep playing overtime.';
+  // Offer the tiebreaker rather than leaving a tied playoff game in limbo.
+  const canShoot = tied && GAME.playoff && o.shootout && otDone && !(GAME.so && GAME.so.done);
+  if(canShoot || (GAME.so && GAME.so.kicks.length)){
+    msg += `<div style="margin-top:10px"><button class="btn btn-p" style="width:100%"
+      onclick="closeModal('end-modal');soStart()">${GAME.so&&GAME.so.kicks.length?'Resume':'Start'} penalty kicks</button></div>`;
+  }
   document.getElementById('end-body').innerHTML=msg;
   const sel=document.getElementById('end-reason');
   const m=SP.mercy;
@@ -1698,6 +1859,10 @@ async function endGame(){
   closeModal('end-modal');
   GAME.running=false; clearInterval(clkInt); GAME.ended=true;
   GAME.endReason=document.getElementById('end-reason').value;
+  if(GAME.so && GAME.so.done){
+    GAME.endReason='shootout';
+    GAME.soResult={winner:GAME.so.winner, home:soMade('home'), away:soMade('away')};
+  }
   generateCSV();
   setTimeout(()=>{generatePDF().catch(e=>console.warn('pdf',e));},400);
   scheduleSave();

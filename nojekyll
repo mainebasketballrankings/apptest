@@ -1,0 +1,5 @@
+This file's presence tells GitHub Pages to skip Jekyll and publish the repo
+exactly as-is. The site is plain static HTML/JS, so there is nothing for Jekyll
+to build — and letting it run only creates ways for a deploy to fail.
+
+The content of this file does not matter; only that it exists at the repo root.

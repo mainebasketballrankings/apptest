@@ -561,7 +561,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-20d';
+const MBR_BUILD='fs-2026-07-20e';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1581,6 +1581,44 @@ function subPick(side,pid,dir){
 // the moment a team is mathematically eliminated. The winner gets one goal added
 // to the final score and is credited with the victory.
 const SO_PER_ROUND = 5;
+// MPA "Reduce to Equate": kicks are always taken in equal sets, but if a team
+// cannot field five eligible kickers the set shrinks for BOTH teams (4v4, 3v3,
+// 2v2, 1v1). The roster is not a reliable guide — players dress, get hurt, get
+// sent off — so the operator sets the size for each round.
+function soSize(r){ return (GAME.so && GAME.so.sizes && GAME.so.sizes[r]) || SO_PER_ROUND; }
+function soSetSize(n){
+  if(!GAME.so) return;
+  const k=GAME.so.kicks, r=soRound();
+  GAME.so.sizes = GAME.so.sizes || {};
+  const taken=Math.max(soTaken('home',r), soTaken('away',r));
+  if(n < taken){ flash(`${taken} kick${taken>1?'s':''} already taken this set`,'bad'); return; }
+  GAME.so.sizes[r]=n;
+  flash(`Set ${r}: ${n} v ${n}`,'');
+  const w=soDecide(); if(w) soAward(w);
+  renderSO(); scheduleSave();
+}
+// Award the win. Shared by the automatic decision and the manual override.
+function soAward(w){
+  if(!GAME.so || GAME.so.done) return;
+  GAME.so.done=true; GAME.so.winner=w;
+  GAME[w].score++;                                   // MPA: add one goal to the winner
+  pushEvt({side:w, p:null, key:'goal',
+           label:'Wins on penalty kicks ('+soMade(w)+'–'+soMade(opp(w))+')',
+           meta:{shootout_winner:true, so_home:soMade('home'), so_away:soMade('away')}});
+  flash(GAME[w].short+' wins on penalty kicks','made');
+  updAll(); scheduleSave();
+}
+// Manual end — for anything the automatic reading cannot know: a team out of
+// eligible kickers, a disputed kick, an official's decision.
+function soEndManual(side){
+  if(!GAME.so) return;
+  if(!side){
+    const h=soMade('home'), a=soMade('away');
+    if(h===a){ flash('Still level — pick the winner','bad'); return; }
+    side = h>a ? 'home' : 'away';
+  }
+  soAward(side); renderSO();
+}
 
 function soStart(){
   if(!GAME.so){
@@ -1596,7 +1634,18 @@ function soSetFirst(side){
   renderSO(); scheduleSave();
 }
 // Which round a kick index belongs to, and whose turn it is.
-function soRound(){ return Math.floor(GAME.so.kicks.length / (SO_PER_ROUND*2)) + 1; }
+// Rounds can be different sizes, so count forward through the completed sets
+// rather than dividing by a fixed five.
+function soRound(){
+  let r=1, seen=0;
+  const k=GAME.so.kicks;
+  while(true){
+    const need=((GAME.so.sizes&&GAME.so.sizes[r])||SO_PER_ROUND)*2;
+    if(k.length < seen+need) return r;
+    seen+=need; r++;
+    if(r>50) return r;
+  }
+}
 function soRoundKicks(r){ return GAME.so.kicks.filter(k=>k.round===r); }
 function soMade(side){ return GAME.so.kicks.filter(k=>k.side===side && k.made).length; }
 function soTaken(side,r){ return soRoundKicks(r).filter(k=>k.side===side).length; }
@@ -1606,10 +1655,16 @@ function soTurn(){
   return soTaken(f,r) <= soTaken(o,r) ? f : o;
 }
 // Decided when someone cannot be caught with the kicks that remain in this set.
+// NB: judge the set the LAST KICK belonged to. soRound() is derived from the kick
+// count, so the moment a set's final kick lands it already reports the NEXT set —
+// measuring that one finds it empty and never declares the winner.
 function soDecide(){
-  const r=soRound(), f=GAME.so.first, o=opp(f);
+  const k=GAME.so.kicks;
+  const r = k.length ? k[k.length-1].round : soRound();
+  const f=GAME.so.first, o=opp(f);
   const mF=soMade(f), mO=soMade(o);
-  const remF=SO_PER_ROUND-soTaken(f,r), remO=SO_PER_ROUND-soTaken(o,r);
+  const size=soSize(r);
+  const remF=size-soTaken(f,r), remO=size-soTaken(o,r);
   if(mF > mO + remO) return f;
   if(mO > mF + remF) return o;
   if(remF===0 && remO===0){                 // set complete
@@ -1632,14 +1687,7 @@ function soKick(pid, made){
            label:(made?'PK ✓':'PK ✗')+' (shootout R'+r+')',
            meta:{shootout:true, round:r, order:GAME.so.kicks.length, made:!!made}});
   const w=soDecide();
-  if(w){
-    GAME.so.done=true; GAME.so.winner=w;
-    GAME[w].score++;                                   // MPA: add one goal to the winner
-    pushEvt({side:w, p:null, key:'goal',
-             label:'Wins on penalty kicks ('+soMade(w)+'–'+soMade(opp(w))+')',
-             meta:{shootout_winner:true, so_home:soMade('home'), so_away:soMade('away')}});
-    flash(GAME[w].short+' wins on penalty kicks','made');
-  }
+  if(w) soAward(w);
   renderSO(); updAll(); scheduleSave();
 }
 function soUndo(){
@@ -1732,19 +1780,33 @@ function renderSO(){
   const prev = r>1 ? soUsed(r-1) : new Set();
   // Rounds 2 and 4 (even sets) require players who did not kick in the set before.
   const mustDiffer = (r%2===0);
-  const list = PL[side].filter(p=>!p.dq).map(p=>{
-    const usedNow = used.has(p.id);
-    const usedPrev = mustDiffer && prev.has(p.id);
+  // "If no kickers are eligible in a given round (a team has fewer than 6 total
+  // kickers), all players become eligible." Below that threshold, stop excluding.
+  const pool = PL[side].filter(p=>!p.dq);
+  const allEligible = pool.length < 6;
+  const list = pool.map(p=>{
+    const usedNow = !allEligible && used.has(p.id);
+    const usedPrev = !allEligible && mustDiffer && prev.has(p.id);
     const dis = usedNow || usedPrev;
     const why = usedNow ? 'already kicked this set' : (usedPrev ? 'kicked in the previous set' : '');
     return `<div class="ast-item${dis?' dis':''}" ${dis?'':`onclick="soPick('${p.id}')"`}
        style="${dis?'opacity:.38;cursor:not-allowed;':''}">
        <b>${p.num||'–'}</b><span>${pName(p)}${why?` <i style="font-size:11px;color:var(--dim)">— ${why}</i>`:''}</span></div>`;
   }).join('');
+  const sz=soSize(r);
+  const sizeBtns=[5,4,3,2,1].map(n=>`<span onclick="soSetSize(${n})" style="cursor:pointer;display:inline-block;
+      padding:3px 9px;margin-left:4px;border-radius:5px;font-size:12px;font-weight:700;
+      border:1px solid ${n===sz?'#1d4ed8':'var(--border)'};
+      background:${n===sz?'#1d4ed8':'transparent'};color:${n===sz?'#fff':'var(--dim)'}">${n}</span>`).join('');
   b.innerHTML = line + soGrid() + `
-    <div style="font-size:13px;color:var(--dim);margin-bottom:6px">
-      Round ${r} · ${GAME[side].short} to kick · ${soTaken(side,r)+1} of ${SO_PER_ROUND}
+    <div style="font-size:13px;color:var(--dim);margin-bottom:4px">
+      Round ${r} · ${GAME[side].short} to kick · ${soTaken(side,r)+1} of ${sz}
       ${mustDiffer?'<br><i>This set must use players who did not kick in the previous set.</i>':''}
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:8px;padding:6px 8px;background:var(--surface2);
+         border-radius:6px;line-height:1.7">
+      Kickers this set ${sizeBtns}
+      <br><i style="font-size:11px">Reduce to equate — if either side is short of eligible kickers, both sides shrink.</i>
     </div>
     <div id="so-pick" style="max-height:210px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:8px">${list}</div>
     <div class="su-row">
@@ -1752,6 +1814,14 @@ function renderSO(){
       <button class="btn btn-s" id="so-miss" onclick="soResult(false)" disabled>Missed ✗</button>
     </div>
     <button class="btn btn-s" style="width:100%;margin-top:7px" onclick="soUndo()">Undo last kick</button>
+    <div style="margin-top:9px;border-top:1px solid var(--border);padding-top:9px">
+      <div style="font-size:11px;color:var(--dim);margin-bottom:5px;text-align:center">
+        End it manually — a side out of eligible kickers, or an official's call</div>
+      <div class="su-row">
+        <button class="btn btn-s" onclick="soEndManual('away')">${GAME.away.short} wins</button>
+        <button class="btn btn-s" onclick="soEndManual('home')">${GAME.home.short} wins</button>
+      </div>
+    </div>
     ${soHistory()}`;
 }
 let _soPick=null;

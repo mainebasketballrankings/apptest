@@ -110,6 +110,70 @@ const kick=(ctx,i,made)=>{ const side=ctx.ev('soTurn()'); const pid=ctx.ev(`PL['
     chk('kicks carry shootout metadata', ev("evts.filter(e=>e.meta&&e.meta.shootout).length")>=2,
         ev("JSON.stringify((evts.find(e=>e.meta&&e.meta.shootout)||{}).meta)"));
   }
+  // ── THE BUG: a completed set with a clear winner must END, not roll to round 2 ──
+  {
+    const ctx=boot(); const {window,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150)); await game(ctx);
+    window.soStart(); window.soSetFirst('away');
+    // away 4/5, home 3/5 -> away wins on the last kick of the set
+    const seq=[['a',true],['h',false],['a',true],['h',true],['a',false],
+               ['h',true],['a',true],['h',true],['a',true],['h',false]];
+    seq.forEach(([_,made],i)=>kick(ctx,(i%5)+1,made));
+    chk('set finished 4-3', ev("soMade('away')")===4 && ev("soMade('home')")===3,
+        `${ev("soMade('away')")}-${ev("soMade('home')")}`);
+    chk('game ENDS on a decided set (does not roll to round 2)', ev('GAME.so.done')===true, 'done='+ev('GAME.so.done'));
+    chk('away declared winner', ev("GAME.so.winner")==='away');
+    chk('winner got the extra goal', ev('GAME.away.score')===2, String(ev('GAME.away.score')));
+  }
+  // ── a genuinely level set does roll on ──
+  {
+    const ctx=boot(); const {window,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150)); await game(ctx);
+    window.soStart(); window.soSetFirst('away');
+    for(let i=0;i<5;i++){ kick(ctx,i+1,true); kick(ctx,i+1,true); }
+    chk('level 5-5 rolls to round 2', ev('GAME.so.done')===false && ev('soRound()')===2, 'round='+ev('soRound()'));
+  }
+  // ── reduce to equate: smaller sets ──
+  {
+    const ctx=boot(); const {window,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150)); await game(ctx);
+    window.soStart(); window.soSetFirst('away');
+    window.soSetSize(3);
+    chk('set size can be reduced to 3', ev('soSize(1)')===3, String(ev('soSize(1)')));
+    kick(ctx,1,true); kick(ctx,1,false);
+    kick(ctx,2,true); kick(ctx,2,false);
+    chk('decided early in a 3v3 set (2-0 with one left)', ev('GAME.so.done')===true, 'done='+ev('GAME.so.done'));
+    chk('winner is away', ev("GAME.so.winner")==='away');
+  }
+  // ── a 3v3 set that stays level rolls on with the reduced size ──
+  {
+    const ctx=boot(); const {window,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150)); await game(ctx);
+    window.soStart(); window.soSetFirst('away'); window.soSetSize(2);
+    kick(ctx,1,true); kick(ctx,1,true);
+    kick(ctx,2,false); kick(ctx,2,false);
+    chk('2v2 level -> round 2', ev('soRound()')===2 && ev('GAME.so.done')===false, 'round='+ev('soRound()'));
+  }
+  // ── cannot shrink below kicks already taken ──
+  {
+    const ctx=boot(); const {window,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150)); await game(ctx);
+    window.soStart(); window.soSetFirst('away');
+    kick(ctx,1,true); kick(ctx,1,true); kick(ctx,2,true);
+    window.soSetSize(1);
+    chk('refuses a size smaller than kicks already taken', ev('soSize(1)')===5, String(ev('soSize(1)')));
+  }
+  // ── manual end ──
+  {
+    const ctx=boot(); const {window,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150)); await game(ctx);
+    window.soStart(); window.soSetFirst('away');
+    kick(ctx,1,true); kick(ctx,1,false);
+    window.soEndManual('away');
+    chk('manual end declares the winner', ev('GAME.so.done')===true && ev("GAME.so.winner")==='away');
+    chk('manual end awards the goal', ev('GAME.away.score')===2, String(ev('GAME.away.score')));
+    chk('manual end is undoable', (window.soUndo(), ev('GAME.so.done')===false && ev('GAME.away.score')===1));
+  }
   console.log('\n'+(fails?fails+' FAIL(s)':'PENALTY SHOOTOUT PASS'));
   process.exit(fails?1:0);
 })().catch(e=>{console.error('ERR',e&&e.stack||e);process.exit(2);});

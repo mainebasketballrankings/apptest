@@ -173,12 +173,22 @@
   // kept per name and the caller picks whichever actually has a roster.
   let _schools = null;
   let _schoolIds = {};
+  // Supabase caps ANY single response at 1000 rows, whatever `limit` asks for.
+  // With ~1040 team rows a one-shot fetch silently lost everything after "Wi" —
+  // Wiscasset, Wisdom, Woodland, Yarmouth and York never appeared in any
+  // autocomplete. Page through until the tail is exhausted.
+  const SCHOOL_PAGE = 1000;
   async function loadSchools() {
     if (_schools) return _schools;
     try {
-      const rows = await sbFetch('teams?select=id,school_name&order=school_name.asc&limit=2000');
       const byName = {};
-      (rows || []).forEach(r => { if (r.school_name) { (byName[r.school_name] = byName[r.school_name] || []).push(r.id); } });
+      for (let offset = 0, guard = 0; guard < 25; offset += SCHOOL_PAGE, guard++) {
+        const rows = await sbFetch(
+          `teams?select=id,school_name&order=school_name.asc&limit=${SCHOOL_PAGE}&offset=${offset}`);
+        if (!Array.isArray(rows) || rows.length === 0) break;
+        rows.forEach(r => { if (r.school_name) { (byName[r.school_name] = byName[r.school_name] || []).push(r.id); } });
+        if (rows.length < SCHOOL_PAGE) break;      // short page = last page
+      }
       _schools = Object.keys(byName).sort();
       _schoolIds = byName;
     } catch (e) { _schools = []; _schoolIds = {}; }

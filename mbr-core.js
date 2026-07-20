@@ -41,6 +41,7 @@
     queueKey  : 'mbr_push_queue',
     isTestMode: () => false,
     gameId    : () => null,
+    isFinalized: () => false,
     makePDF   : null,
     sportId   : null,                      // this scorer's sport uuid
     // season_year rule. Default: the calendar year of the game date. Basketball
@@ -58,6 +59,16 @@
   async function sbFetch(path) {
     const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: hdr() });
     return r.json();
+  }
+
+  // ── Supabase update ──────────────────────────────────────────────────────
+  // Promoted from the field scorer; football was hand-rolling PATCH at each site.
+  function sbPatch(table, filter, body) {
+    return fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
+      method: 'PATCH',
+      headers: hdr({ Prefer: 'return=minimal' }),
+      body: JSON.stringify(body)
+    });
   }
 
   // ── Monotonic event stamp ────────────────────────────────────────────────
@@ -253,22 +264,50 @@
     } catch (e) { console.warn('createGame error', e); return null; }
   }
 
-  // Resolve a school name to a team id for this sport. A school can own several
-  // team rows (gender / sport), so prefer one whose sport matches, then one that
-  // actually has players, then whatever is left.
-  async function resolveTeamId(schoolName, sportId) {
-    if (!schoolName) return null;
+  // Resolve a school name to a team id. A school owns one team row per
+  // sport-and-gender, so both filters run server-side. Gender is optional and
+  // falls back gracefully — football has a single team per school, but soccer,
+  // lacrosse and basketball are split boys/girls and WILL pick the wrong roster
+  // without it. Merged up from the field scorer's fetchTeamIdByName.
+  async function resolveTeamId(schoolName, sportId, gender) {
+    const name = String(schoolName || '').trim();
     const sid = sportId || cfg.sportId;
-    const name = String(schoolName).trim();
-    if (!name) return null;
-    try {
-      const rows = await sbFetch(
-        `teams?select=id,sport_id,school_name&school_name=eq.${encodeURIComponent(name)}&limit=25`);
-      if (!rows || !rows.length) return null;
-      const match = rows.find(r => r.sport_id === sid);
-      return (match || rows[0]).id;
-    } catch (e) { console.warn('resolveTeamId failed', e); return null; }
+    if (!name || !sid) return null;
+    const enc = encodeURIComponent(name);
+    const tries = [];
+    if (gender) {
+      const g = /girl|women|f$/i.test(String(gender)) ? 'girls' : 'boys';
+      tries.push(`teams?school_name=eq.${enc}&sport_id=eq.${sid}&gender=ilike.${g}&select=id&limit=1`);
+    }
+    tries.push(`teams?school_name=eq.${enc}&sport_id=eq.${sid}&select=id&limit=1`);
+    for (const q of tries) {
+      try {
+        const rows = await sbFetch(q);
+        if (rows && rows.length && rows[0].id) return rows[0].id;
+      } catch (e) { console.warn('resolveTeamId query failed', e); }
+    }
+    return null;
   }
+
+  // ── Live clock sync ──────────────────────────────────────────────────────
+  // The XML feed's <GameClock> reads games.game_clock. Scoring events alone do
+  // not move the clock, so without this the broadcast clock freezes between
+  // plays. Promoted from the field scorer, which had it and football did not.
+  // Skips identical writes, so a stopped clock costs nothing.
+  let _clkTimer = null, _lastClkLabel = null;
+  function startClockSync(labelFn, everyMs) {
+    stopClockSync();
+    if (typeof labelFn !== 'function') return;
+    _clkTimer = setInterval(() => {
+      const gid = cfg.gameId();
+      if (!gid || cfg.isTestMode() || (cfg.isFinalized && cfg.isFinalized())) return;
+      let lbl; try { lbl = labelFn(); } catch (e) { return; }
+      if (lbl == null || lbl === _lastClkLabel) return;
+      _lastClkLabel = lbl;
+      sbPatch('games', 'id=eq.' + gid, { game_clock: lbl }).catch(() => {});
+    }, everyMs || 20000);
+  }
+  function stopClockSync() { if (_clkTimer) { clearInterval(_clkTimer); _clkTimer = null; } }
 
   // ── Small shared utility ─────────────────────────────────────────────────
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -282,7 +321,8 @@
 
   const MBR = {
     SB_URL, SB_KEY, init, cfg,
-    sbFetch, sbInsert, evtStamp,
+    sbFetch, sbInsert, sbPatch, evtStamp,
+    startClockSync, stopClockSync,
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
     loadSchools, schoolIds, createGame, resolveTeamId,
     autoUploadGameReport, emailGameReport,
@@ -295,7 +335,7 @@
   global.MBR = MBR;
   ['sbFetch','sbInsert','evtStamp','queueLoad','queueSave','flushQueue','setQueueStatus',
    'isPermanentReject','loadSchools','autoUploadGameReport','emailGameReport','clamp',
-   'createGame','resolveTeamId']
+   'createGame','resolveTeamId','sbPatch','startClockSync','stopClockSync']
     .forEach(n => { global[n] = MBR[n]; });
   global.SB_URL = SB_URL;
   global.SB_KEY = SB_KEY;

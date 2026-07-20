@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
-<script src="mbr-core.js?v=1"></script>
+<script src="mbr-core.js?v=2"></script>
 <link rel="apple-touch-icon" href="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/Maine%20Basketball%20Rankings%20football%20scorer%20logo.png"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-19h'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-19i'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -566,6 +566,7 @@ MBR.init({
   seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear(),
   isTestMode: () => G_test_mode,
   gameId    : () => G_game_id,
+  isFinalized: () => _gameFinalized,
   makePDF   : () => generatePDF({ returnBlob:true })
 });
 
@@ -892,6 +893,15 @@ async function createUnscheduledGame(){
   const b=document.getElementById('adhocBtn'); if(b){ b.disabled=true; b.style.opacity=.5; }
   try{ await Promise.all([loadRosterByName(aName,'away'), loadRosterByName(hName,'home')]); renderLU(); }catch(e){}
 }
+// Broadcast-facing clock label, mirroring the field scorer's. The XML feed reads
+// games.game_clock; scoring events alone never move the clock, so it needs its
+// own timer or the truck's clock sits frozen between plays.
+function gameClockLabel(){
+  if(G.kickoffPending && G.clock===G.qLen*60) return qtrLabel()+' | '+fmtClock(G.clock);
+  if(G.clock===0 && G.quarter===2) return 'Halftime';
+  if(G.clock===0) return 'End '+qtrLabel();
+  return qtrLabel()+' | '+fmtClock(G.clock);
+}
 async function startGame(){
   G.level=document.getElementById('levelSel').value;
   G.date=document.getElementById('gameDateInp').value;
@@ -913,6 +923,7 @@ async function startGame(){
 
   // reset game state
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
+  MBR.startClockSync(gameClockLabel, 20000);   // keep games.game_clock fresh for the XML feed
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
   G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.kicker={away:null,home:null}; G.punter={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null; G.koFrom=40;
 

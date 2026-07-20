@@ -8,11 +8,11 @@ function boot(){
       return Promise.resolve({ok:true,status:201,json:()=>Promise.resolve([{id:'NEWGAME-123'}]),text:()=>Promise.resolve('')});
     }
     let data=[];
-    if(/teams\?select=id,sport_id,school_name/.test(u)){
+    // resolveTeamId now filters server-side: teams?school_name=eq.X&sport_id=eq.Y&select=id&limit=1
+    if(/teams\?school_name=eq\./.test(u)){
       const nm=decodeURIComponent((u.match(/school_name=eq\.([^&]+)/)||[])[1]||'');
-      data = nm==='Nowhere High' ? [] : [{id:'TEAM-'+nm.replace(/\W/g,''), sport_id:'fa905ca5-f416-409b-81ac-777179ee5576', school_name:nm}];
-    }
-    if(/teams\?select=id,school_name/.test(u)) data=[{id:'T1',school_name:'Bangor'}];
+      data = nm==='Nowhere High' ? [] : [{id:'TEAM-'+nm.replace(/\W/g,'')}];
+    } else if(/teams\?select=/.test(u)) data=[{id:'T1',school_name:'Bangor'}];
     return Promise.resolve({ok:true,status:200,json:()=>Promise.resolve(data),text:()=>Promise.resolve('[]')});
   };
   const dom=new JSDOM(require('./loadapp.js')(),{runScripts:'dangerously',pretendToBeVisual:true,url:'https://x/',

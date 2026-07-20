@@ -6,6 +6,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
+<script src="mbr-core.js?v=2"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -363,8 +364,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
    ════════════════════════════════════════════════════════════ */
 
 // ══ SUPABASE ══
-const SB_URL='https://vtwupenqieesoktonbzg.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
 
 // ══ SPORT CONFIG ══════════════════════════════════════════════
 // periodSecs / otSecs in seconds. mercy.end=true → game is over.
@@ -488,12 +488,46 @@ let selP=null, selSide=null, chartSide='home', clkInt=null, flashTmr=null;
 let pendingShot=null;   // {pt:{x,y}, side, player}
 
 let G_game_id=null, G_home_team_id=null, G_away_team_id=null, G_test_mode=false;
+
+// ── Shared plumbing (mbr-core.js) ────────────────────────────────────────────
+// Supabase transport, offline queue, school lookup, team resolution, unscheduled
+// game creation and live clock sync all live in the core now. Fail loudly if it
+// is missing, rather than half-working mid-game.
+if (typeof MBR === 'undefined') {
+  document.addEventListener('DOMContentLoaded', function(){
+    var b=document.createElement('div');
+    b.style.cssText='position:fixed;inset:0;z-index:99999;background:#7f1d1d;color:#fff;font:600 16px/1.5 sans-serif;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center';
+    b.innerHTML='<div style="font-size:22px;margin-bottom:10px">mbr-core.js did not load</div>'+
+      '<div style="font-weight:400;max-width:520px">The scorer cannot save or push events without it. '+
+      'Upload <code>mbr-core.js</code> alongside this file, then hard-reload.</div>';
+    document.body.appendChild(b);
+  });
+  throw new Error('mbr-core.js missing');
+}
+MBR.init({
+  queueKey   : 'mbr_field_push_queue',
+  isTestMode : () => G_test_mode,
+  gameId     : () => G_game_id,
+  isFinalized: () => _gameFinalized,
+  // sport_id and the season-year rule change with the selected sport, so these
+  // are read live rather than captured once.
+  get sportId(){ return SP && SP.sport_id; },
+  seasonYearFor: (iso) => seasonYearFor(iso)
+});
+
+// Thin shims so existing call sites keep their original names/signatures.
+const fetchTeamIdByName = (name, gender) => MBR.resolveTeamId(name, SP && SP.sport_id, gender);
+const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
+  MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
+                   sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
+const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
+const MBR_BUILD='fs-2026-07-19a';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
 
 const SAVE_KEY='mbr_field_game';
-const QUEUE_KEY='mbr_field_push_queue';
+
 
 // ══ HELPERS ══════════════════════════════════════════════════
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
@@ -535,58 +569,9 @@ function seasonYearFor(iso){
 }
 function opp(s){return s==='home'?'away':'home';}
 
-// ══ SUPABASE LAYER ═══════════════════════════════════════════
-async function sbFetch(path){
-  const r=await fetch(`${SB_URL}/rest/v1/${path}`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json'}});
-  return r.json();
-}
-function sbPatch(table,filter,body){
-  return fetch(`${SB_URL}/rest/v1/${table}?${filter}`,{method:'PATCH',
-    headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},
-    body:JSON.stringify(body)});
-}
-function queueLoad(){try{return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');}catch(e){return [];}}
-function queueSave(q){try{localStorage.setItem(QUEUE_KEY,JSON.stringify(q));}catch(e){}}
-function setQueueStatus(){
-  const q=queueLoad();let el=document.getElementById('push-queue-status');
-  if(!el){el=document.createElement('div');el.id='push-queue-status';
-    el.style.cssText='position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;z-index:999;opacity:.85;color:#888;';
-    document.body.appendChild(el);}
-  el.textContent=q.length?`🟡 ${q.length} event${q.length>1?'s':''} queued`:'';
-}
-let _flushing=false;
-async function flushQueue(){
-  if(_flushing)return; _flushing=true;
-  let q=queueLoad();
-  while(q.length){
-    const {table,row}=q[0];
-    try{
-      const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',
-        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},
-        body:JSON.stringify(row)});
-      if(!r.ok&&r.status!==409) throw new Error('HTTP '+r.status);
-      q.shift();queueSave(q);setQueueStatus();
-    }catch(e){console.warn('flush failed',e);break;}
-  }
-  _flushing=false;
-}
-window.addEventListener('online',flushQueue);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&navigator.onLine)flushQueue();});
-setInterval(()=>{if(navigator.onLine&&!document.hidden)flushQueue();},30000);
 
-async function sbInsert(table,row){
-  if(G_test_mode)return;
-  if(navigator.onLine){
-    try{
-      const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',
-        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},
-        body:JSON.stringify(row)});
-      if(!r.ok&&r.status!==409) throw new Error('HTTP '+r.status);
-      await flushQueue();return;
-    }catch(e){console.warn('sbInsert failed, queuing',e);}
-  }
-  const q=queueLoad();q.push({table,row});queueSave(q);setQueueStatus();
-}
+
+
 
 // Player's running line for the live ticker
 function playerLine(pid){
@@ -652,42 +637,11 @@ function patchLiveScore(){
   sbPatch('games','id=eq.'+G_game_id,{home_score_live:GAME.home.score,away_score_live:GAME.away.score,
     game_clock:gameClockLabel()}).catch(()=>{});
 }
-// The score alone doesn't move the clock, so sync it on its own timer.
-// Skips identical writes, so a stopped clock costs nothing.
-let _clkSync=null,_lastClkLbl=null;
-function startClockSync(){
-  clearInterval(_clkSync);
-  _clkSync=setInterval(()=>{
-    if(!G_game_id||G_test_mode||_gameFinalized)return;
-    const lbl=gameClockLabel();
-    if(lbl===_lastClkLbl)return;
-    _lastClkLbl=lbl;
-    sbPatch('games','id=eq.'+G_game_id,{game_clock:lbl}).catch(()=>{});
-  },20000);
-}
+
 
 // ══ TEAMS / ROSTERS ══════════════════════════════════════════
-let _schools=null;
-async function loadSchools(){
-  if(_schools)return _schools;
-  try{
-    const rows=await sbFetch('teams?select=school_name&order=school_name.asc&limit=3000');
-    const set=new Set();(rows||[]).forEach(r=>{if(r.school_name)set.add(r.school_name);});
-    _schools=[...set];
-  }catch(e){_schools=[];}
-  return _schools;
-}
-async function fetchTeamIdByName(name,gender){
-  try{
-    const g=/girl/i.test(gender||'')?'girls':'boys';
-    let q=`teams?school_name=eq.${encodeURIComponent(name)}&sport_id=eq.${SP.sport_id}&gender=ilike.${g}&select=id&limit=1`;
-    let rows=await sbFetch(q);
-    if(!rows||!rows.length){
-      rows=await sbFetch(`teams?school_name=eq.${encodeURIComponent(name)}&sport_id=eq.${SP.sport_id}&select=id&limit=1`);
-    }
-    return rows&&rows[0]?rows[0].id:null;
-  }catch(e){return null;}
-}
+
+
 // Scoped to the ACTIVE sport_id — never guess, or another sport's roster leaks in.
 async function loadTeamRoster(teamId){
   if(!teamId||!SP.sport_id)return [];
@@ -1002,19 +956,7 @@ async function suGenderChange(side){
 }
 
 // ══ START GAME ═══════════════════════════════════════════════
-async function createEmergencyGame({home_team_id,away_team_id,date,venue}){
-  try{
-    const iso=date||new Date().toLocaleDateString('en-CA');
-    const row={sport_id:SP.sport_id,season_year:seasonYearFor(iso),home_team_id,away_team_id,
-      game_date:iso,status:'scheduled',location:venue||null};
-    const res=await fetch(`${SB_URL}/rest/v1/games`,{method:'POST',
-      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=representation'},
-      body:JSON.stringify(row)});
-    if(!res.ok){console.warn('emergency game insert failed',res.status);return null;}
-    const data=await res.json(); const g=Array.isArray(data)?data[0]:data;
-    return g&&g.id?g.id:null;
-  }catch(e){return null;}
-}
+
 
 async function suKickOff(){
   suSync('home'); suSync('away');

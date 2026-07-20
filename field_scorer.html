@@ -198,6 +198,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
 <div id="setup">
  <div class="su-wrap">
   <div class="su-brand">Maine Basketball Rankings</div>
+  <div id="buildBadge" style="text-align:center;font-size:11px;color:var(--dim);margin-bottom:6px;font-family:'Barlow Condensed',sans-serif"></div>
   <div class="su-sub">Field Scoring · Soccer · Field Hockey · Lacrosse</div>
 
   <div class="su-card">
@@ -390,7 +391,6 @@ const SPORTS={
     //  will be used."
     // Regular season stays 2 × 5 then a recorded tie (see `ot` above).
     otPlayoff:{secs:900, max:2, sudden:true, shootout:true},
-    otPlayoff8:{secs:600, max:2, sudden:true, shootout:true},
     mercy:{diff:8, afterElapsed:3600, end:true, txt:'Mercy: 8-goal margin at 60:00 or later ends the game'},
     // MPA bulletin: "Two yellow cards in the same game result in a red card. For the
     // purposes of card counting, they would be reported as one yellow card and one red."
@@ -418,7 +418,10 @@ const SPORTS={
     key:'soccer8', label:'Soccer (8P)', sub:'2 × 30 min', hidden:true,
     inherit:'soccer', periodSecs:1800,
     mercy:{diff:8, afterElapsed:2700, end:true, txt:'Mercy: 8-goal margin at 45:00 or later ends the game'},
-    ot:{secs:300, max:2, sudden:true}
+    ot:{secs:300, max:2, sudden:true},
+    // Bulletin: playoff overtime is "2 fifteen-minute ... in 11 player and
+    // 2 ten-minute ... in 8-player". Same penalty-kick tiebreaker after.
+    otPlayoff:{secs:600, max:2, sudden:true, shootout:true}
   },
   field_hockey:{
     key:'field_hockey', label:'Field Hockey', sub:'4 × 15 min',
@@ -531,6 +534,11 @@ if (typeof MBR === 'undefined') {
   });
   throw new Error('mbr-core.js missing');
 }
+// One glance confirms which build is live and whether mbr-core.js came with it.
+try{ document.addEventListener('DOMContentLoaded',function(){
+  var b=document.getElementById('buildBadge');
+  if(b) b.textContent = MBR_BUILD + (typeof MBR!=='undefined' ? ' · core ok' : ' · NO CORE');
+}); }catch(_){}
 MBR.init({
   queueKey   : 'mbr_field_push_queue',
   isTestMode : () => G_test_mode,
@@ -548,7 +556,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-19e';
+const MBR_BUILD='fs-2026-07-20b';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -645,7 +653,11 @@ function sbPushEvent(e){
       pens:{ home:GAME.home.pens.map(x=>({num:x.num,lbl:x.lbl,secs:x.secs,perm:!!x.perm})),
              away:GAME.away.pens.map(x=>({num:x.num,lbl:x.lbl,secs:x.secs,perm:!!x.perm})) },
       score:{home:GAME.home.score,away:GAME.away.score},
-      ln:playerLine(e.pid)
+      ln:playerLine(e.pid),
+      // Event-specific extras (card type, penalty length, shootout round/order…).
+      // These were previously kept only on the local event object and never
+      // reached the database, so nothing downstream could see them.
+      ...(e.meta||{})
     })
   };
   sbInsert('game_events',row);
@@ -722,7 +734,8 @@ function setSport(k){
   const ot=SP.ot;
   const otTxt = SPORT_KEY==='lacrosse'
     ? `OT ${fmt(SP.ot.secs)} sudden victory, repeats (girls ${fmt(SP.otGirls.secs)}) · no ties`
-    : `OT ${ot.max} × ${fmt(ot.secs)} sudden victory${ot.note?' ('+ot.note+')':''} · ties allowed`;
+    : `OT ${ot.max} × ${fmt(ot.secs)} sudden victory${ot.note?' ('+ot.note+')':''} · ties allowed`
+      + (SP.otPlayoff ? `\nPlayoff: ${SP.otPlayoff.max} × ${fmt(SP.otPlayoff.secs)} sudden victory, then penalty kicks` : '');
   document.getElementById('rules-note').innerHTML =
     `${SP.periods} × ${fmt(SP.periodSecs)} · ${otTxt}<br>${SP.mercy.txt||''}`;
   loadTodaysGames();

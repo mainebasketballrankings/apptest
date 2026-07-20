@@ -753,6 +753,10 @@ body.sport-football #fb-col{display:flex !important;flex-direction:column;gap:10
 
   <!-- FIELD SPORTS CENTRE COLUMN -->
   <div id="fd-col">
+    <div id="so-panel" style="display:none;background:var(--paper2);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;margin-bottom:8px;">
+      <div class="feed-hdr" id="so-hdr">Penalty Kicks</div>
+      <div id="so-grid" style="padding:8px 10px;overflow-x:auto;"></div>
+    </div>
     <div id="fd-field-wrap">
       <div style="padding:6px 6px 0;">
         <svg id="fd-fsvg" viewBox="0 0 1000 554" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;"></svg>
@@ -2740,6 +2744,7 @@ const FD = {
   keeper:{home:null,away:null},
   line:{home:[],away:[]},
   period:1, clock:'--:--', elapsed:'0:00',
+  so:null,                       // penalty-kick tiebreaker, populated only if one happens
   _replaying:false
 };
 let fdEvts=[], fdDots=[], fdSimTmr=null, fdSimIdx=0;
@@ -2906,6 +2911,57 @@ function fdP(side,name,num){
   return p;
 }
 
+// ── Penalty-kick grid ──
+// One row per team, one column per kick in the round, in the order taken.
+// Rounds are separated so a set of five reads as a set of five.
+function renderShootout(){
+  const panel=document.getElementById('so-panel'); if(!panel) return;
+  const so=FD.so;
+  if(!so || !so.kicks.length){ panel.style.display='none'; return; }
+  panel.style.display='';
+
+  const rounds=[...new Set(so.kicks.map(k=>k.round))].sort((a,b)=>a-b);
+  const cell=(k)=>{
+    if(!k) return '<td style="width:30px;height:30px;border:1px solid var(--rule);"></td>';
+    const bg = k.made ? '#15803d' : 'transparent';
+    const fg = k.made ? '#fff' : '#c0392b';
+    const mark = k.made ? '●' : '✕';
+    return `<td title="${(k.num?'#'+k.num+' ':'')+k.name}"
+      style="width:30px;height:30px;text-align:center;border:1px solid var(--rule);
+             background:${bg};color:${fg};font-size:15px;line-height:1;">${mark}</td>`;
+  };
+  let html='<table style="border-collapse:collapse;font-family:inherit;">';
+  // header: round groupings
+  html+='<tr><td style="padding-right:8px"></td>';
+  rounds.forEach(r=>{
+    const n=Math.max(so.kicks.filter(k=>k.round===r&&k.side==='home').length,
+                     so.kicks.filter(k=>k.round===r&&k.side==='away').length);
+    html+=`<td colspan="${n}" style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+            color:var(--ink3);text-align:center;padding-bottom:3px;">Round ${r}</td>`;
+    if(r!==rounds[rounds.length-1]) html+='<td style="width:10px"></td>';
+  });
+  html+='<td style="width:14px"></td><td></td></tr>';
+
+  ['away','home'].forEach(side=>{
+    const nm=(FD[side] && FD[side].short) || side.toUpperCase();
+    const won = so.winner===side;
+    html+=`<tr><td style="padding-right:8px;white-space:nowrap;font-weight:${won?800:600};
+             ${won?'color:#15803d;':''}font-size:13px;">${nm}${won?' ✓':''}</td>`;
+    rounds.forEach(r=>{
+      const mine=so.kicks.filter(k=>k.round===r&&k.side===side).sort((a,b)=>a.order-b.order);
+      const n=Math.max(mine.length, so.kicks.filter(k=>k.round===r&&k.side!==side).length);
+      for(let i=0;i<n;i++) html+=cell(mine[i]);
+      if(r!==rounds[rounds.length-1]) html+='<td></td>';
+    });
+    html+=`<td></td><td style="padding-left:6px;font-weight:800;font-size:16px;
+            ${won?'color:#15803d;':''}">${so[side]}</td></tr>`;
+  });
+  html+='</table>';
+  document.getElementById('so-grid').innerHTML=html;
+  document.getElementById('so-hdr').textContent = so.winner
+    ? `Penalty Kicks — ${(FD[so.winner]&&FD[so.winner].short)||so.winner.toUpperCase()} wins ${so[so.winner]}–${so[so.winner==='home'?'away':'home']}`
+    : 'Penalty Kicks';
+}
 function fdOnEvent(e){
   const opp = e.side==='home'?'away':'home';
   const n = e.notes||{};
@@ -2933,6 +2989,27 @@ function fdOnEvent(e){
   if(n.pens){ FD.home.pens=n.pens.home||[]; FD.away.pens=n.pens.away||[]; }
 
   const p = fdP(e.side, e.pname, e.pnum);
+
+  // ── Penalty-kick tiebreaker ──
+  // Shootout kicks are NOT goals. They decide the match but never touch the
+  // score, the line score, or anybody's shot totals — the scorer adds a single
+  // goal to the winner at the end, and that arrives as its own `goal` event.
+  if(n.shootout){
+    FD.so = FD.so || {kicks:[], winner:null, home:0, away:0};
+    FD.so.kicks.push({side:e.side, name:e.pname||'', num:e.pnum||'',
+                      made:e.key==='penalty_kick_made', round:n.round||1, order:n.order||FD.so.kicks.length+1});
+    if(e.key==='penalty_kick_made') FD.so[e.side]++;
+    renderShootout();
+    return;
+  }
+  if(n.shootout_winner){
+    FD.so = FD.so || {kicks:[], winner:null, home:0, away:0};
+    FD.so.winner=e.side;
+    if(typeof n.so_home==='number'){ FD.so.home=n.so_home; FD.so.away=n.so_away; }
+    renderShootout();
+    // fall through: the awarded goal is a real goal and belongs on the scoreboard
+  }
+
   const isGoal = !!n.goal || e.key==='goal' || e.key==='penalty_kick_made' || e.key==='penalty_stroke_made';
 
   if(isGoal){

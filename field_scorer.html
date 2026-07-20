@@ -128,6 +128,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .ast-list{max-height:190px;overflow-y:auto;}
 .ast-item{display:grid;grid-template-columns:36px 1fr;gap:8px;align-items:center;padding:11px 6px;border-bottom:1px solid var(--border);cursor:pointer;font-size:17px;font-weight:600;}
 .ast-item:hover{background:var(--surface2);}
+.ast-item.sel{background:#dbeafe;box-shadow:inset 3px 0 0 #2563eb;border-radius:4px;}
 
 /* buttons */
 #btnbar{background:var(--surface);border-top:2px solid var(--border);padding:4px;flex-shrink:0;}
@@ -265,6 +266,9 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
 
   <button class="btn btn-p" onclick="suKickOff()">Kick Off →</button>
   <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin-top:9px;justify-content:center;cursor:pointer;">
+    <input type="checkbox" id="su-playoff" style="width:15px;height:15px;"> Playoff game — tournament overtime, no ties
+  </label>
+  <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin-top:6px;justify-content:center;cursor:pointer;">
     <input type="checkbox" id="su-test" style="width:15px;height:15px;"> Test mode — nothing writes to the database
   </label>
  </div>
@@ -375,6 +379,8 @@ const SPORTS={
     sport_id:'ff80a695-0e78-4432-98f2-141b2b571e0e',
     periods:2, periodSecs:2400, plbl:['1ST','2ND'],
     ot:{secs:300, max:2, sudden:true}, ties:true,
+    // MPA tournament play: longer sudden-victory halves, then kicks from the mark.
+    otPlayoff:{secs:600, max:2, sudden:true, shootout:true},
     mercy:{diff:8, afterElapsed:3600, end:true, txt:'Mercy: 8-goal margin at 60:00 or later ends the game'},
     // MPA bulletin: "Two yellow cards in the same game result in a red card. For the
     // purposes of card counting, they would be reported as one yellow card and one red."
@@ -477,14 +483,25 @@ let SP=SPORTS.soccer;
 
 // ══ GAME STATE ═══════════════════════════════════════════════
 const GAME={
-  home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null},
-  away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null},
-  period:1, clockSec:2400, running:false, possession:'home',
+  home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
+  away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
+  period:1, clockSec:2400, running:false, possession:'home', playoff:false,
   gender:'boys', mercyRunning:false, ended:false, endReason:'final'
 };
 const PL={home:[],away:[]};
 let evts=[], dots=[];
 let selP=null, selSide=null, chartSide='home', clkInt=null, flashTmr=null;
+// Drop any player/team highlight and repaint. setTeamMode() lights the team name
+// via .team-active, so that has to come off too or the name stays lit after the
+// action is already logged.
+function clearSel(){
+  selP=null; selSide=null;
+  try{
+    document.getElementById('nm-home').classList.remove('team-active');
+    document.getElementById('nm-away').classList.remove('team-active');
+    renderPl('home'); renderPl('away'); updBtns();
+  }catch(e){}
+}
 let pendingShot=null;   // {pt:{x,y}, side, player}
 
 let G_game_id=null, G_home_team_id=null, G_away_team_id=null, G_test_mode=false;
@@ -521,7 +538,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-19b';
+const MBR_BUILD='fs-2026-07-19c';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -540,7 +557,7 @@ function periodLbl(p){
 function periodSecs(p){
   const n=SP.periods;
   if(p<=n) return SP.periodSecs;
-  const ot=(SPORT_KEY==='lacrosse'&&GAME.gender==='girls'&&SP.otGirls)?SP.otGirls:SP.ot;
+  const ot=otRules();
   return ot.secs;
 }
 // Elapsed game time (regulation only counts up through regulation; OT keeps climbing)
@@ -961,6 +978,7 @@ async function suGenderChange(side){
 async function suKickOff(){
   suSync('home'); suSync('away');
   G_test_mode=document.getElementById('su-test').checked;
+  GAME.playoff = !!(document.getElementById('su-playoff')||{}).checked;
   const err=document.getElementById('su-error');
   const hName=document.getElementById('su-home-name').value.trim();
   const aName=document.getElementById('su-away-name').value.trim();
@@ -1341,6 +1359,10 @@ function doStat(i){
   const e=pushEvt({side,p,key:b.key,label:b.lbl,meta});
   if(b.key==='turnover') GAME[side].to++;
   if(b.key==='save'){ GAME[side].saves++; }
+  // A team-only action (corner, goal kick, injury…) is finished the moment it is
+  // logged, so drop the highlight. Leaving it lit made the next tap look armed
+  // for a team that was no longer chosen.
+  if(b.team && !p) clearSel();
   renderPl(side); updAll(); scheduleSave();
   flash(`${b.lbl}${p?' · '+pName(p):''}`,'');
 }
@@ -1377,7 +1399,14 @@ function toggleClock(){
   clearInterval(clkInt);
   if(GAME.running){
     clkInt=setInterval(()=>{
-      if(GAME.clockSec>0){GAME.clockSec--;tickPens();}
+      if(GAME.clockSec>0){
+        GAME.clockSec--;
+        // Time of possession: the ball is always with somebody, so bank a second
+        // against whoever holds it. Only ticks while the clock runs, which is
+        // what possession means for a running-clock sport.
+        if(GAME.possession && GAME[GAME.possession]) GAME[GAME.possession].topSec=(GAME[GAME.possession].topSec||0)+1;
+        tickPens();
+      }
       else{GAME.running=false;clearInterval(clkInt);flash('End of '+periodLbl(GAME.period),'');}
       updClk();
     },1000);
@@ -1404,15 +1433,35 @@ function applyClkEdit(){
   GAME.clockSec=Math.min(m*60+s, periodSecs(GAME.period));
   closeModal('clk-edit'); updClk(); scheduleSave();
 }
+// Which overtime rules apply right now: girls lacrosse has its own, and a
+// playoff game uses the tournament procedure when the sport defines one.
+function otRules(){
+  if(SPORT_KEY==='lacrosse' && GAME.gender==='girls' && SP.otGirls) return SP.otGirls;
+  if(GAME.playoff && SP.otPlayoff) return SP.otPlayoff;
+  return SP.ot;
+}
+function setPlayoff(on){
+  GAME.playoff=!!on;
+  const b=document.getElementById('playoff-toggle');
+  if(b){ b.classList.toggle('on', GAME.playoff); b.textContent = GAME.playoff?'Playoff game':'Regular season'; }
+  // resize an overtime period already on the clock
+  if(GAME.period>SP.periods && !GAME.running) GAME.clockSec=periodSecs(GAME.period);
+  const o=otRules();
+  flash(GAME.playoff
+    ? `Playoff: ${o.max} × ${fmt(o.secs)} sudden victory, then kicks`
+    : (SP.ties?`Regular season: ${SP.ot.max} × ${fmt(SP.ot.secs)} sudden victory, ties allowed`:'Regular season'),'');
+  try{ updAll(); }catch(e){} scheduleSave();
+}
 function chgPeriod(d){
-  const max=SP.periods + (SP.ot.max===99?9:SP.ot.max);
+  const o=otRules();
+  const max=SP.periods + (o.max===99?9:o.max);
   const np=Math.min(Math.max(1,GAME.period+d),max);
   if(np===GAME.period)return;
   GAME.period=np;
   GAME.clockSec=periodSecs(np);
   GAME.running=false; clearInterval(clkInt);
   // FH & soccer: teams start OT at full strength (timed cards carry, but re-check)
-  if(np>SP.periods) flash(`${periodLbl(np)} — ${SP.ot.note||'sudden victory'}`,'');
+  if(np>SP.periods) flash(`${periodLbl(np)} — ${otRules().note||'sudden victory'}`,'');
   updAll(); scheduleSave();
 }
 function checkMercy(){
@@ -1465,6 +1514,7 @@ function setTeamMode(side){
 }
 
 // ══ SUBS ═════════════════════════════════════════════════════
+let _subOut=null;
 function openSubBox(){
   if(!selSide){flash('Pick a side first','bad');return;}
   const side=selSide;
@@ -1473,17 +1523,18 @@ function openSubBox(){
   body.innerHTML=`<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">${GAME[side].short} — tap OUT then IN</div>
     <div class="su-row"><div>
       <div class="su-h">On Field</div>
-      ${onF.map(p=>`<div class="ast-item" onclick="subPick('${side}','${p.id}','out')"><b>${p.num||'–'}</b><span>${pName(p)}</span></div>`).join('')}
+      ${onF.map(p=>`<div class="ast-item${_subOut&&_subOut.id===p.id?' sel':''}" onclick="subPick('${side}','${p.id}','out')"><b>${p.num||'–'}</b><span>${pName(p)}</span></div>`).join('')}
     </div><div>
       <div class="su-h">Bench</div>
       ${off.map(p=>`<div class="ast-item" onclick="subPick('${side}','${p.id}','in')"><b>${p.num||'–'}</b><span>${pName(p)}</span></div>`).join('')}
     </div></div>`;
   document.getElementById('sub-modal').classList.add('show');
 }
-let _subOut=null;
 function subPick(side,pid,dir){
   const p=findP(pid,side);
-  if(dir==='out'){ _subOut=p; flash('OUT: '+pName(p),''); return; }
+  // Re-open the sheet so the chosen player stays visibly lit while you pick the
+  // replacement — otherwise the highlight is just the tap flash and vanishes.
+  if(dir==='out'){ _subOut=p; openSubBox(); flash('OUT: '+pName(p)+' — now tap who comes IN',''); return; }
   if(!_subOut){ flash('Pick who comes OUT first','bad'); return; }
   _subOut.on=false; p.on=true;
   if(_subOut.gk){ _subOut.gk=false; p.gk=true; p.wasGK=true; GAME[side].gk=p.id; }
@@ -1619,8 +1670,18 @@ function openEndModal(suddenVictory){
   const tied=GAME.home.score===GAME.away.score;
   let msg=`${GAME.away.short} ${GAME.away.score} – ${GAME.home.score} ${GAME.home.short} · ${periodLbl(GAME.period)} ${fmt(GAME.clockSec)}`;
   if(suddenVictory) msg='Sudden victory. '+msg;
-  if(tied && GAME.period>=SP.periods && SP.ties) msg+='<br><b>Tied</b> — this sport allows ties once overtime is exhausted.';
-  if(tied && !SP.ties) msg+='<br><b>Tied</b> — lacrosse has no ties; keep playing overtime.';
+  const o=otRules();
+  const otDone = GAME.period >= SP.periods + (o.max===99?9:o.max);
+  if(tied && GAME.playoff && o.shootout){
+    msg += otDone
+      ? '<br><b>Tied after overtime</b> — decide it by kicks from the penalty mark, then use Adjust Score to record the winner.'
+      : `<br><b>Tied</b> — playoff game: ${o.max} × ${fmt(o.secs)} sudden victory, then kicks from the mark.`;
+  } else if(tied && GAME.period>=SP.periods && SP.ties){
+    msg += otDone
+      ? '<br><b>Tied</b> — recorded as a tie (MPA: still tied after the second overtime is a tie game).'
+      : `<br><b>Tied</b> — regular season: ${SP.ot.max} × ${fmt(SP.ot.secs)} sudden victory, then it is a tie.`;
+  }
+  if(tied && !SP.ties && !GAME.playoff) msg+='<br><b>Tied</b> — lacrosse has no ties; keep playing overtime.';
   document.getElementById('end-body').innerHTML=msg;
   const sel=document.getElementById('end-reason');
   const m=SP.mercy;

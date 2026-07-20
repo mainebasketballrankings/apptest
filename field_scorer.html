@@ -561,7 +561,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-20c';
+const MBR_BUILD='fs-2026-07-20d';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1685,15 +1685,21 @@ function renderSoCta(){
       ⚽ TIED AFTER OVERTIME — START PENALTY KICKS</div>`;
     return;
   }
-  if(tied && otDone && !GAME.playoff && SP.otPlayoff){
-    // Most likely they simply forgot the checkbox at kickoff, so offer the switch
-    // rather than silently recording a tie in a game that cannot end in one.
+  // Ask about playoff status the moment regulation ends level — NOT only after
+  // overtime. Marking it late means the overtime periods already ran at the
+  // regular-season length, which cannot be undone by then.
+  const regDone = GAME.period > SP.periods || (GAME.period===SP.periods && GAME.clockSec===0);
+  if(tied && regDone && !GAME.playoff && SP.otPlayoff){
+    const started = GAME.period > SP.periods;
     el.style.display='';
-    el.innerHTML = `<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:7px;
-      padding:9px 12px;font-size:13px;color:var(--dim);text-align:center;">
-      Tied after overtime — recorded as a tie.
-      <a href="#" onclick="setPlayoff(true);return false;" style="color:#1d4ed8;font-weight:700;">
-      This is a playoff game →</a></div>`;
+    el.innerHTML = `<div style="background:#fffbeb;border:1.5px solid #d97706;border-radius:7px;
+      padding:10px 12px;font-size:13px;color:#78350f;text-align:center;line-height:1.5;">
+      <b>Tied ${started?'after overtime':'after regulation'}</b> —
+      ${started
+        ? `this will be recorded as a tie.`
+        : `overtime is ${fmt(SP.ot.secs)} in the regular season, ${fmt(SP.otPlayoff.secs)} in the playoffs.`}
+      <br><a href="#" onclick="setPlayoff(true);return false;"
+        style="color:#1d4ed8;font-weight:800;font-size:14px;">Is this a playoff game? →</a></div>`;
     return;
   }
   el.style.display='none';
@@ -1714,7 +1720,7 @@ function renderSO(){
   }
   if(so.done){
     const w=so.winner;
-    b.innerHTML = line + `<div style="font-size:15px;font-weight:700;text-align:center;color:var(--gd);margin-bottom:6px">
+    b.innerHTML = line + soGrid() + `<div style="font-size:15px;font-weight:700;text-align:center;color:var(--gd);margin-bottom:6px">
         ${GAME[w].name} wins on penalty kicks</div>
       <div style="font-size:12px;color:var(--dim);text-align:center;margin-bottom:10px">
         One goal has been added to their score. Finish with End Game.</div>
@@ -1735,7 +1741,7 @@ function renderSO(){
        style="${dis?'opacity:.38;cursor:not-allowed;':''}">
        <b>${p.num||'–'}</b><span>${pName(p)}${why?` <i style="font-size:11px;color:var(--dim)">— ${why}</i>`:''}</span></div>`;
   }).join('');
-  b.innerHTML = line + `
+  b.innerHTML = line + soGrid() + `
     <div style="font-size:13px;color:var(--dim);margin-bottom:6px">
       Round ${r} · ${GAME[side].short} to kick · ${soTaken(side,r)+1} of ${SO_PER_ROUND}
       ${mustDiffer?'<br><i>This set must use players who did not kick in the previous set.</i>':''}
@@ -1764,12 +1770,58 @@ function soResult(made){
   const pid=_soPick; _soPick=null;
   soKick(pid, made);
 }
+// Compact grid, directly under the score: one row per team, one cell per kick in
+// the order taken, rounds separated. Reads at a glance the way a scoreboard does.
+function soGrid(){
+  const so=GAME.so; if(!so.kicks.length) return '';
+  const rounds=[...new Set(so.kicks.map(k=>k.round))].sort((a,b)=>a-b);
+  const cell=k=>{
+    if(!k) return '<td style="width:26px;height:26px;border:1px solid var(--border);"></td>';
+    return `<td title="${(k.pnum?'#'+k.pnum+' ':'')+k.pname}" style="width:26px;height:26px;text-align:center;
+      border:1px solid var(--border);background:${k.made?'#15803d':'transparent'};
+      color:${k.made?'#fff':'#c0392b'};font-size:14px;line-height:1;">${k.made?'●':'✕'}</td>`;
+  };
+  let h='<table style="border-collapse:collapse;margin:0 auto 10px;">';
+  h+='<tr><td></td>';
+  rounds.forEach((r,ri)=>{
+    const n=Math.max(soRoundKicks(r).filter(k=>k.side==='home').length,
+                     soRoundKicks(r).filter(k=>k.side==='away').length,1);
+    h+=`<td colspan="${n}" style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+         color:var(--dim);text-align:center;padding-bottom:2px;">R${r}</td>`;
+    if(ri<rounds.length-1) h+='<td style="width:8px"></td>';
+  });
+  h+='<td style="width:10px"></td><td></td></tr>';
+  ['away','home'].forEach(side=>{
+    const won=so.winner===side;
+    h+=`<tr><td style="padding-right:7px;font-size:12px;font-weight:${won?800:700};
+         ${won?'color:#15803d;':''}white-space:nowrap;">${GAME[side].short}</td>`;
+    rounds.forEach((r,ri)=>{
+      const mine=soRoundKicks(r).filter(k=>k.side===side).sort((a,b)=>a.order-b.order);
+      const n=Math.max(mine.length, soRoundKicks(r).filter(k=>k.side!==side).length,1);
+      for(let i=0;i<n;i++) h+=cell(mine[i]);
+      if(ri<rounds.length-1) h+='<td></td>';
+    });
+    h+=`<td></td><td style="padding-left:5px;font-weight:800;font-size:15px;
+         ${won?'color:#15803d;':''}">${soMade(side)}</td></tr>`;
+  });
+  return h+'</table>';
+}
+// Kick log split by team, so it is obvious at a glance who kicked for whom.
 function soHistory(){
   const so=GAME.so; if(!so.kicks.length) return '';
-  const rows=so.kicks.map(k=>`<span style="display:inline-block;margin:2px 4px 0 0;font-size:12px;
-      padding:2px 6px;border-radius:4px;background:${k.made?'#dcfce7':'#fee2e2'};color:#111">
-      R${k.round} ${GAME[k.side].short} ${k.pnum?'#'+k.pnum+' ':''}${k.pname.split(' ').pop()} ${k.made?'✓':'✗'}</span>`).join('');
-  return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${rows}</div>`;
+  const col=side=>{
+    const mine=so.kicks.filter(k=>k.side===side);
+    const rows=mine.map(k=>`<div style="font-size:12px;padding:2px 0;color:${k.made?'#14532d':'#7f1d1d'}">
+        <span style="display:inline-block;width:26px;color:var(--dim);font-size:10px">R${k.round}</span>
+        ${k.pnum?'#'+k.pnum+' ':''}${k.pname} ${k.made?'✓':'✗'}</div>`).join('')
+      || '<div style="font-size:12px;color:var(--dim);padding:2px 0">—</div>';
+    return `<div style="flex:1;min-width:0">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;
+             letter-spacing:.1em;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border);
+             margin-bottom:4px;padding-bottom:2px;">${GAME[side].short}</div>${rows}</div>`;
+  };
+  return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;
+      display:flex;gap:14px;max-height:150px;overflow:auto">${col('away')}${col('home')}</div>`;
 }
 
 // ══ UNDO / LOG ═══════════════════════════════════════════════

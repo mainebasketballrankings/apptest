@@ -136,19 +136,43 @@ async function game(ctx,{playoff=false}={}){
     window.soStart();
     chk('tapping it opens the shootout', d.getElementById('so-modal').classList.contains('show'));
   }
-  // ── forgot the checkbox: offer the switch rather than silently recording a tie ──
+  // ── forgot the checkbox: ask at END OF REGULATION, before the OT length matters ──
   {
     const ctx=boot(); const {window,d,ev}=ctx;
     await new Promise(r=>setTimeout(r,150));
     await game(ctx,{playoff:false});
-    ev("GAME.home.score=1; GAME.away.score=1; GAME.period=4; GAME.clockSec=0;");
+    // still playing the second half — nothing to ask yet
+    ev("GAME.home.score=1; GAME.away.score=1; GAME.period=2; GAME.clockSec=120;");
     window.updAll();
+    chk('no prompt while regulation is still running', d.getElementById('so-cta').style.display==='none');
+    // regulation just ended level — this is the moment that matters
+    ev("GAME.clockSec=0;"); window.updAll();
     const cta=d.getElementById('so-cta');
-    chk('regular season tie explains itself', /recorded as a tie/i.test(cta.innerHTML), cta.innerHTML.slice(0,90));
-    chk('offers to switch to playoff', /This is a playoff game/i.test(cta.innerHTML));
-    window.setPlayoff(true); window.updAll();
-    chk('switching mid-game surfaces the shootout', /START PENALTY KICKS/i.test(d.getElementById('so-cta').innerHTML));
-    chk('and OT length switches to 15:00', ev('otRules().secs')===900, String(ev('otRules().secs')));
+    chk('prompt appears at END OF REGULATION', cta.style.display!=='none', 'display='+cta.style.display);
+    chk('it asks about playoff status', /Is this a playoff game/i.test(cta.innerHTML), cta.innerHTML.slice(0,100));
+    chk('it explains the OT lengths differ', /5:00/.test(cta.innerHTML) && /15:00/.test(cta.innerHTML), cta.innerHTML.slice(0,220));
+    window.setPlayoff(true);
+    chk('switching before OT gives the playoff length', ev('otRules().secs')===900, String(ev('otRules().secs')));
+    chk('and the OT clock seeds to 15:00', ev('periodSecs(3)')===900, String(ev('periodSecs(3)')));
+    // and after OT it still offers the shootout
+    ev("GAME.period=4; GAME.clockSec=0;"); window.updAll();
+    chk('after final OT it offers penalty kicks', /START PENALTY KICKS/i.test(d.getElementById('so-cta').innerHTML));
+  }
+  // ── the shootout modal shows a grid and a per-team log ──
+  {
+    const ctx=boot(); const {window,d,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150));
+    await game(ctx,{playoff:true});
+    ev("GAME.home.score=1; GAME.away.score=1; GAME.period=4; GAME.clockSec=0;");
+    window.soStart(); window.soSetFirst('away');
+    // the shared helper builds small rosters, so reuse a valid index each time —
+    // soKick records whatever it is given; eligibility is a UI affordance.
+    const kick=(made)=>{ const sd=ev('soTurn()'); window.soKick(ev(`PL['${sd}'][1].id`), made); };
+    kick(true); kick(false); kick(true);
+    const body=d.getElementById('so-body').innerHTML;
+    chk('modal renders a grid', /<table/.test(body) && /●/.test(body) && /✕/.test(body));
+    chk('grid sits above the picker', body.indexOf('<table') < body.indexOf('so-pick'), 'grid should come first');
+    chk('log is split by team', (body.match(/ZTN|ZTS/g)||[]).length>=3, 'team headers present');
   }
   console.log('\n'+(fails?fails+' FAIL(s)':'SOCCER FIXES PASS'));
   process.exit(fails?1:0);

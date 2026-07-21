@@ -7,6 +7,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
+<script src="mbr-core.js?v=3"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -865,6 +866,7 @@ body{
     <div class="su-header">
       <div class="su-wordmark">Maine Basketball Rankings<br><span style="font-size:0.5em;letter-spacing:.15em;font-weight:500">LIVE SCORING</span></div>
       <div class="su-tagline">Game Setup</div>
+      <div id="buildBadge" style="text-align:center;font-size:11px;color:#888;margin-top:4px;font-family:'Barlow Condensed',sans-serif"></div>
     </div>
 
     <!-- Mode toggle: pick scheduled game OR create new -->
@@ -1073,12 +1075,53 @@ const SWPX=28;
 // Ported from the baseball + football scorers: real Supabase game loading,
 // per-event push, offline queue, crash-recovery autosave, undo, test mode,
 // and automatic PDF report upload on finalize.
-const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
 
 // Basketball sport_id — confirmed from the database.
 let BASKETBALL_SPORT_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const BASKETBALL_PREFIX = 'b31ab283';
+
+const MBR_BUILD='bb-2026-07-21a';
+
+// ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
+// Supabase transport, offline queue, school lookup, team resolution, unscheduled
+// game creation and the report upload/email all live in the core now.
+if (typeof MBR === 'undefined') {
+  document.addEventListener('DOMContentLoaded', function(){
+    var b=document.createElement('div');
+    b.style.cssText='position:fixed;inset:0;z-index:99999;background:#7f1d1d;color:#fff;font:600 16px/1.5 sans-serif;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center';
+    b.innerHTML='<div style="font-size:22px;margin-bottom:10px">mbr-core.js did not load</div>'+
+      '<div style="font-weight:400;max-width:520px">The scorer cannot save or push events without it. '+
+      'Upload <code>mbr-core.js</code> alongside this file, then hard-reload.</div>';
+    document.body.appendChild(b);
+  });
+  throw new Error('mbr-core.js missing');
+}
+try{ document.addEventListener('DOMContentLoaded',function(){
+  var b=document.getElementById('buildBadge');
+  if(b) b.textContent = MBR_BUILD + (typeof MBR!=='undefined' ? ' · core ok' : ' · NO CORE');
+}); }catch(_){}
+MBR.init({
+  queueKey   : 'mbr_bb_push_queue',
+  isTestMode : () => G_test_mode,
+  gameId     : () => G_game_id,
+  isFinalized: () => _gameFinalized,
+  makePDF    : () => generatePDF({ returnBlob:true }),
+  get sportId(){ return BASKETBALL_SPORT_ID; },
+  // Basketball is the ONE sport whose season crosses New Year's: a November 2025
+  // game belongs to the 2026 season. Every other sport uses the calendar year,
+  // which is the core's default.
+  seasonYearFor: (iso) => {
+    const d = new Date(iso + 'T12:00:00'), y = d.getFullYear();
+    return (d.getMonth() >= 9) ? y + 1 : y;
+  }
+});
+
+// Thin shims so existing call sites keep their original names and signatures.
+const fetchTeamIdByName = (name, gender) => MBR.resolveTeamId(name, BASKETBALL_SPORT_ID, gender);
+const createEmergencyGame = ({home_team_id, away_team_id, date, venue, event}) =>
+  MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue, event,
+                   sportId: BASKETBALL_SPORT_ID });
 
 let G_game_id = null;
 let G_home_team_id = null;
@@ -1092,19 +1135,8 @@ let SCHED_GAMES = [];              // scheduled games fetched from Supabase
 
 function scheduleSave(){ clearTimeout(_saveStateTimer); _saveStateTimer = setTimeout(saveState, 1200); }
 
-async function sbFetch(path){
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
-    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
-  });
-  return r.json();
-}
-function sbPatch(table, filter, body){
-  return fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
-    method:'PATCH',
-    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-    body: JSON.stringify(body)
-  });
-}
+
+
 
 async function resolveBasketballSport(){
   if(BASKETBALL_SPORT_ID) return BASKETBALL_SPORT_ID;
@@ -1126,54 +1158,14 @@ async function resolveBasketballSport(){
 }
 
 // ── Push queue (offline resilience) ──
-const QUEUE_KEY = 'mbr_bb_push_queue';
 let _flushing = false;
-function queueLoad(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); }catch(e){ return []; } }
-function queueSave(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch(e){} }
-function setQueueStatus(){
-  const q = queueLoad();
-  let el = document.getElementById('push-queue-status');
-  if(!el){ el = document.createElement('div'); el.id='push-queue-status';
-    el.style.cssText='position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
-    document.body.appendChild(el); }
-  el.innerHTML = q.length===0 ? '' : `<span>🟡</span><span style="color:#888">${q.length} event${q.length>1?'s':''} queued</span>`;
-}
-async function flushQueue(){
-  if(_flushing) return; _flushing=true;
-  let q = queueLoad();
-  while(q.length>0){
-    const {table,row}=q[0];
-    try{
-      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-        method:'POST',
-        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-        body: JSON.stringify(row)
-      });
-      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
-      q.shift(); queueSave(q); setQueueStatus();
-    }catch(e){ console.warn('flush failed, retry later', e); break; }
-  }
-  _flushing=false;
-}
+
+
 window.addEventListener('online', ()=>flushQueue());
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && navigator.onLine) flushQueue(); });
 setInterval(()=>{ if(navigator.onLine && !document.hidden) flushQueue(); }, 30000);
 
-async function sbInsert(table, row){
-  if(G_test_mode) return;
-  if(navigator.onLine){
-    try{
-      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-        method:'POST',
-        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-        body: JSON.stringify(row)
-      });
-      if(!r.ok && r.status!==409) throw new Error(`HTTP ${r.status}`);
-      await flushQueue(); return;
-    }catch(e){ console.warn('sbInsert failed, queuing', e); }
-  }
-  const q=queueLoad(); q.push({table,row}); queueSave(q); setQueueStatus();
-}
+
 
 // Push one basketball scoring/stat event to game_events. Mirrors the football
 // row shape (baseball-flavoured columns are nullable placeholders); basketball
@@ -1244,36 +1236,12 @@ setInterval(()=>{
 
 // ── School autocomplete source (DB, with the hardcoded list as fallback) ──
 let _schools=null;
-async function loadSchools(){
-  if(_schools) return _schools;
-  try{
-    const rows=await sbFetch(`teams?select=school_name&order=school_name.asc&limit=2000`);
-    const set=new Set(); (rows||[]).forEach(r=>{ if(r.school_name) set.add(r.school_name); });
-    _schools=[...set];
-  }catch(e){ _schools=[]; }
-  return _schools;
-}
+
 // Resolve a team_id by school name — scoped to BASKETBALL and the given gender,
 // because teams has one row per (school, sport, gender). Without this scope the
 // lookup can return a baseball/softball/wrong-gender team_id whose basketball
 // roster is empty (that was the "no roster" bug).
-async function fetchTeamIdByName(name, gender){
-  try{
-    const sportId = await resolveBasketballSport();
-    const g = (gender==='girls' || gender==='Girls') ? 'girls' : 'boys';
-    let q = `teams?school_name=eq.${encodeURIComponent(name)}&select=id,gender,sport_id&limit=1`;
-    if(sportId) q += `&sport_id=eq.${sportId}`;
-    q += `&gender=ilike.${g}`;
-    let rows = await sbFetch(q);
-    if((!rows || !rows.length)){
-      // fallback: basketball team of either gender (school may only field one)
-      let q2 = `teams?school_name=eq.${encodeURIComponent(name)}&select=id,gender&limit=1`;
-      if(sportId) q2 += `&sport_id=eq.${sportId}`;
-      rows = await sbFetch(q2);
-    }
-    return rows && rows[0] ? rows[0].id : null;
-  }catch(e){ return null; }
-}
+
 
 // Robust roster loader. ALWAYS scopes to the basketball sport_id so another
 // sport's roster (e.g. softball) can never leak in; only the season_year filter
@@ -2570,27 +2538,7 @@ function enterScorer(){
 // Emergency option: turn an unscheduled New Game into a real games row so it
 // syncs to the scoreboard, live page, and report email. Returns the new game id,
 // or null if it can't (falls back to a local-only game).
-async function createEmergencyGame({home_team_id, away_team_id, date, venue, event}){
-  try{
-    const iso = date || new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD (local)
-    const d = new Date(iso+'T12:00:00'), y = d.getFullYear();
-    const season = (d.getMonth() >= 9) ? y+1 : y;                 // basketball season-ending year
-    const row = {
-      sport_id: BASKETBALL_SPORT_ID, season_year: season,
-      home_team_id, away_team_id, game_date: iso,
-      status: 'scheduled', location: venue || null, event: event || null
-    };
-    const res = await fetch(`${SB_URL}/rest/v1/games`, {
-      method:'POST',
-      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' },
-      body: JSON.stringify(row)
-    });
-    if(!res.ok){ console.warn('emergency game insert failed', res.status, await res.text().catch(()=>'')); return null; }
-    const data = await res.json();
-    const g = Array.isArray(data) ? data[0] : data;
-    return (g && g.id) ? g.id : null;
-  }catch(e){ console.warn('createEmergencyGame error', e); return null; }
-}
+
 async function startGameBackend(){
   if(!G_game_id || G_test_mode) return;
   try{
@@ -3681,32 +3629,8 @@ async function generatePDF(opts={}){
 // Upload the finalized report to Supabase storage and link it on the games row.
 // Ask the backend to email this game's report to matching subscribers (deduped
 // server-side). No-op for test/manual games with no game_id.
-async function emailGameReport(){
-  if(!G_game_id || G_test_mode) return;
-  try{
-    const r=await fetch(`${SB_URL}/functions/v1/email-game-report`,{
-      method:'POST',
-      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json'},
-      body:JSON.stringify({game_id:G_game_id})
-    });
-    console.log('email-game-report', await r.json().catch(()=>({status:r.status})));
-  }catch(e){ console.warn('email trigger failed', e); }
-}
-async function autoUploadGameReport(){
-  if(!G_game_id || G_test_mode) return;
-  try{
-    const blob = await generatePDF({returnBlob:true});
-    const path = `${G_game_id}.pdf`;
-    const up = await fetch(`${SB_URL}/storage/v1/object/game-reports/${path}`, {
-      method:'POST',
-      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/pdf', 'x-upsert':'true' },
-      body: blob
-    });
-    if(!up.ok){ console.warn('report upload failed', up.status); return; }
-    const url = `${SB_URL}/storage/v1/object/public/game-reports/${path}`;
-    await sbPatch('games','id=eq.'+G_game_id,{ report_url:url });
-  }catch(e){ console.warn('autoUploadGameReport error', e); }
-}
+
+
 </script>
 </body>
 </html>

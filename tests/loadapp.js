@@ -7,7 +7,7 @@ const APP=path.join(__dirname,'..');
 module.exports=function(){
   const html=fs.readFileSync(path.join(APP,'football_scorer.html'),'utf8');
   const core=fs.readFileSync(path.join(APP,'mbr-core.js'),'utf8');
-  const tag='<script src="mbr-core.js?v=3"></script>';
+  const tag='<script src="mbr-core.js?v=4"></script>';
   if(!html.includes(tag)) throw new Error('core script tag not found in football_scorer.html');
   return html.replace(tag, ()=> '<script>\n'+core+'\n</script>');
 };

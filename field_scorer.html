@@ -6,7 +6,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=3"></script>
+<script src="mbr-core.js?v=4"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -568,7 +568,7 @@ MBR.init({
   isFinalized: () => _gameFinalized,
   // sport_id and the season-year rule change with the selected sport, so these
   // are read live rather than captured once.
-  get sportId(){ return SP && SP.sport_id; },
+  sportId    : () => (typeof SP !== 'undefined' && SP) ? SP.sport_id : null,
   seasonYearFor: (iso) => seasonYearFor(iso)
 });
 

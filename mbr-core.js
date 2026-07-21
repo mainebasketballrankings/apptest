@@ -50,6 +50,15 @@
     trackingLevel: 'full_stats',           // NB: constraint rejects 'full'
   };
 
+  // sportId may be supplied as a plain value OR a function. A function is safer:
+  // init() runs early, and a getter would be evaluated immediately by
+  // Object.assign — before the sport file's own state exists. Baseball picks its
+  // sport at setup, so it must be resolved lazily.
+  const sportIdNow = (override) => {
+    const v = (override != null) ? override : cfg.sportId;
+    return (typeof v === 'function') ? v() : v;
+  };
+
   const hdr = (extra) => Object.assign(
     { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
     extra || {}
@@ -244,7 +253,7 @@
     try {
       const iso = o.date || new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD, local
       const row = {
-        sport_id      : o.sportId || cfg.sportId,
+        sport_id      : sportIdNow(o.sportId),
         season_year   : (o.seasonYear != null) ? o.seasonYear : cfg.seasonYearFor(iso),
         home_team_id  : o.homeTeamId,
         away_team_id  : o.awayTeamId,
@@ -281,7 +290,7 @@
   // without it. Merged up from the field scorer's fetchTeamIdByName.
   async function resolveTeamId(schoolName, sportId, gender) {
     const name = String(schoolName || '').trim();
-    const sid = sportId || cfg.sportId;
+    const sid = sportIdNow(sportId);
     if (!name || !sid) return null;
     const enc = encodeURIComponent(name);
     const tries = [];

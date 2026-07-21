@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Baseball Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
+<script src="mbr-core.js?v=4"></script>
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
@@ -786,8 +787,40 @@ input,select,button{font-family:inherit;}
 // ═══════════════════════════════════════════════
 // SUPABASE + LIVE PUSH
 // ═══════════════════════════════════════════════
-const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+
+const MBR_BUILD='bs-2026-07-21a';
+
+// ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
+if (typeof MBR === 'undefined') {
+  document.addEventListener('DOMContentLoaded', function(){
+    var b=document.createElement('div');
+    b.style.cssText='position:fixed;inset:0;z-index:99999;background:#7f1d1d;color:#fff;font:600 16px/1.5 sans-serif;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center';
+    b.innerHTML='<div style="font-size:22px;margin-bottom:10px">mbr-core.js did not load</div>'+
+      '<div style="font-weight:400;max-width:520px">The scorer cannot save or push events without it. '+
+      'Upload <code>mbr-core.js</code> alongside this file, then hard-reload.</div>';
+    document.body.appendChild(b);
+  });
+  throw new Error('mbr-core.js missing');
+}
+// Baseball and softball share this file; the sport is chosen at setup, so the
+// core reads it live rather than capturing one value at load.
+const BASEBALL_SPORT_ID = 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';
+const SOFTBALL_SPORT_ID = '095c9841-7261-4cb1-824e-6304792b53d0';
+MBR.init({
+  queueKey   : 'mbr_push_queue',            // unchanged, so nothing already queued is orphaned
+  isTestMode : () => G_test_mode,
+  gameId     : () => G_game_id,
+  isFinalized: () => (typeof _gameFinalized !== 'undefined' ? _gameFinalized : false),
+  makePDF    : () => generatePDF({ returnBlob:true }),
+  sportId    : () => (typeof G !== 'undefined' && G && G.sport === 'softball') ? SOFTBALL_SPORT_ID : BASEBALL_SPORT_ID,
+  // Spring sports: the season year is simply the calendar year of the game.
+  seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear()
+});
+
+// The core owns the school list now. Populate the existing ALL_SCHOOLS array
+// (declared further down, next to the autocomplete) so call sites are unchanged.
+MBR.loadSchools().then(list => { try{ ALL_SCHOOLS = list || []; }catch(e){} }).catch(()=>{});
 
 let G_game_id = null; // set from schedule picker or URL param
 // Undo event group stack: each entry is an array of event IDs pushed since the last saveSnapshot.
@@ -819,55 +852,14 @@ function scheduleSave(){
 // PBP render cache — skip innerHTML rebuild if nothing new was added
 let _lastPbpLength = -1;
 
-async function sbFetch(path){
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
-    headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
-  });
-  return r.json();
-}
+
 // ── Push queue (offline resilience) ──────────────────────────
-const QUEUE_KEY = 'mbr_push_queue';
 let _flushing = false;
 
-function queueLoad(){ try { return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); } catch(e){ return []; } }
-function queueSave(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e){} }
 
-function setQueueStatus(){
-  const q = queueLoad();
-  let el = document.getElementById('push-queue-status');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'push-queue-status';
-    el.style.cssText = 'position:fixed;bottom:8px;left:10px;font-size:11px;font-family:sans-serif;display:flex;align-items:center;gap:5px;z-index:9999;opacity:0.85;';
-    document.body.appendChild(el);
-  }
-  if(q.length === 0){ el.innerHTML = ''; return; }
-  el.innerHTML = `<span>🟡</span><span style="color:#ccc">${q.length} event${q.length>1?'s':''} queued</span>`;
-}
 
-async function flushQueue(){
-  if(_flushing) return;
-  _flushing = true;
-  let q = queueLoad();
-  while(q.length > 0){
-    const {table, row} = q[0];
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-        method:'POST',
-        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-        body: JSON.stringify(row)
-      });
-      if(!r.ok && r.status !== 409) throw new Error(`HTTP ${r.status}`); // 409 = duplicate, safe to discard
-      q.shift();
-      queueSave(q);
-      setQueueStatus();
-    } catch(e){
-      console.warn('flush failed, will retry', e);
-      break; // stop flushing, try again on next online event
-    }
-  }
-  _flushing = false;
-}
+
+
 
 // Flush whenever we come back online
 window.addEventListener('online', () => { flushQueue(); });
@@ -877,27 +869,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && nav
 // Skip flush if tab is hidden — no point hammering Supabase from background tabs
 setInterval(() => { if(navigator.onLine && !document.hidden) flushQueue(); }, 30000);
 
-async function sbInsert(table, row){
-  if(G_test_mode) return; // test mode — no Supabase writes
-  if(navigator.onLine){
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-        method:'POST',
-        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-        body: JSON.stringify(row)
-      });
-      if(!r.ok && r.status !== 409) throw new Error(`HTTP ${r.status}`);
-      await flushQueue(); // catch up any previously queued events
-      return;
-    } catch(e){ console.warn('sbInsert failed, queuing', e); }
-  }
-  // Offline or failed — queue it
-  const q = queueLoad();
-  q.push({table, row});
-  queueSave(q);
-  setQueueStatus();
-  console.warn(`Queued event (${q.length} total)`);
-}
+
 
 function basesArr(){
   return [
@@ -3221,57 +3193,8 @@ async function loadImgBase64(url){
 
 // Ask the backend to email this game's report to matching subscribers (deduped
 // server-side). No-op for test/manual games with no game_id.
-async function emailGameReport(){
-  if(!G_game_id || G_test_mode) return;
-  try{
-    const r=await fetch(`${SB_URL}/functions/v1/email-game-report`,{
-      method:'POST',
-      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
-      body:JSON.stringify({ game_id:G_game_id })
-    });
-    console.log('email-game-report', await r.json().catch(()=>({status:r.status})));
-  }catch(e){ console.warn('email trigger failed', e); }
-}
-async function autoUploadGameReport(){
-  // Silently generate PDF blob and upload to Supabase Storage, then patch games.report_url
-  if(!G_game_id) return;
-  try {
-    const blob = await generatePDF({ returnBlob: true });
-    if(!blob) return;
-    const away = G.teams.away.name.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-]/g,'');
-    const home = G.teams.home.name.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-]/g,'');
-    const d = G.date || (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
-    const filename = `${d}_${away}_vs_${home}_${G_game_id.slice(0,8)}.pdf`;
-    const path = `game-reports/${filename}`;
 
-    // Upload to Supabase Storage bucket "game-reports"
-    const uploadRes = await fetch(`${SB_URL}/storage/v1/object/game-reports/${encodeURIComponent(filename)}`, {
-      method: 'POST',
-      headers: {
-        apikey: SB_KEY,
-        Authorization: `Bearer ${SB_KEY}`,
-        'Content-Type': 'application/pdf',
-        'x-upsert': 'true',
-      },
-      body: blob,
-    });
-    if(!uploadRes.ok){
-      const t = await uploadRes.text();
-      console.warn('Game report upload failed:', uploadRes.status, t);
-      return;
-    }
-    // Build the public URL and patch games.report_url
-    const reportUrl = `${SB_URL}/storage/v1/object/public/game-reports/${encodeURIComponent(filename)}`;
-    await fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
-      method: 'PATCH',
-      headers: { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body: JSON.stringify({ report_url: reportUrl }),
-    });
-    console.log('Game report uploaded:', reportUrl);
-  } catch(e){
-    console.warn('autoUploadGameReport error:', e);
-  }
-}
+
 
 async function generatePDF({ returnBlob = false } = {}){
   const { jsPDF } = window.jspdf;
@@ -3809,14 +3732,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── SCHOOL AUTOCOMPLETE ──────────────────────────────────────────────────
 let ALL_SCHOOLS = [];
-(async function loadSchools(){
-  try {
-    const r = await fetch(`${SB_URL}/rest/v1/teams?select=school_name&order=school_name.asc`,
-      {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});
-    const data = await r.json();
-    ALL_SCHOOLS = [...new Set(data.map(t=>t.school_name))].sort();
-  } catch(e){ console.warn('school load failed',e); }
-})();
+
 
 function schoolAC(inp, side){
   const q = inp.value.trim().toLowerCase();

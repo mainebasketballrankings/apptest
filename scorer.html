@@ -7,7 +7,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=3"></script>
+<script src="mbr-core.js?v=4"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -1107,7 +1107,7 @@ MBR.init({
   gameId     : () => G_game_id,
   isFinalized: () => _gameFinalized,
   makePDF    : () => generatePDF({ returnBlob:true }),
-  get sportId(){ return BASKETBALL_SPORT_ID; },
+  sportId    : () => BASKETBALL_SPORT_ID,
   // Basketball is the ONE sport whose season crosses New Year's: a November 2025
   // game belongs to the 2026 season. Every other sport uses the calendar year,
   // which is the core's default.

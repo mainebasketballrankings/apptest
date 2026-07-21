@@ -153,7 +153,11 @@ const sel=(ctx,side,i)=>ctx.ev(`selP=PL.${side}[${i}]; selSide='${side}'; teamMo
       chk('September game is the season starting that autumn',
           ev("MBR.cfg.seasonYearFor('2026-09-05')")===2026, String(ev("MBR.cfg.seasonYearFor('2026-09-05')")));
       chk('October rolls over', ev("MBR.cfg.seasonYearFor('2026-10-05')")===2027, String(ev("MBR.cfg.seasonYearFor('2026-10-05')")));
-      chk('core knows this is basketball', ev("MBR.cfg.sportId")==='b31ab283-b28e-4ba8-9684-b1cf30cea219', ev('MBR.cfg.sportId'));
+      // sportId is supplied as a function so it resolves lazily (baseball picks
+      // its sport at setup); call it rather than comparing the raw config.
+      chk('core knows this is basketball',
+          ev("typeof MBR.cfg.sportId==='function' ? MBR.cfg.sportId() : MBR.cfg.sportId")==='b31ab283-b28e-4ba8-9684-b1cf30cea219',
+          ev("typeof MBR.cfg.sportId==='function' ? MBR.cfg.sportId() : MBR.cfg.sportId"));
       chk('queue is basketball-specific', ev("MBR.cfg.queueKey")==='mbr_bb_push_queue', ev('MBR.cfg.queueKey'));
       chk('build badge reports the core loaded', /core ok/.test(d.getElementById('buildBadge').textContent),
           d.getElementById('buildBadge').textContent);

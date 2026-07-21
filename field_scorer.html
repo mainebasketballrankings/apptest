@@ -578,7 +578,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-20h';
+const MBR_BUILD='fs-2026-07-20i';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -2060,6 +2060,36 @@ function openBoxScore(){
     <tr><td colspan="2">${GAME.away.name}</td>${ps.away.map(v=>`<td>${v}</td>`).join('')}<td><b>${GAME.away.score}</b></td></tr>
     <tr><td colspan="2">${GAME.home.name}</td>${ps.home.map(v=>`<td>${v}</td>`).join('')}<td><b>${GAME.home.score}</b></td></tr>
     </tbody></table>`;
+
+  // ── Team stats, head to head ──
+  // Possession is banked a second at a time while the clock runs, so it only
+  // means anything as a share of the time actually played.
+  {
+    const ta=teamTotals('away'), th=teamTotals('home');
+    const pa=GAME.away.topSec||0, ph=GAME.home.topSec||0, tot=pa+ph;
+    const pct=v=>tot? Math.round(v*100/tot)+'%' : '—';
+    const rows=[
+      ['Goals', GAME.away.score, GAME.home.score],
+      ['Shots', ta.sh||0, th.sh||0],
+      ['On goal', ta.sog||0, th.sog||0],
+      ['Saves', GAME.away.saves||0, GAME.home.saves||0],
+      ['Corners', ta.corners||0, th.corners||0],
+      [SPORT_KEY==='lacrosse'?'Ground balls':'Fouls', SPORT_KEY==='lacrosse'?(ta.gb||0):(ta.fl||0),
+                                                     SPORT_KEY==='lacrosse'?(th.gb||0):(th.fl||0)],
+      ...(SPORT_KEY==='field_hockey' ? [['Penalty corners', ta.pc||0, th.pc||0],
+                                        ['Green cards', ta.gc||0, th.gc||0]] : []),
+      ['Turnovers', ta.to||0, th.to||0],
+      ['Yellow cards', ta.yc||0, th.yc||0],
+      ['Red cards', ta.rc||0, th.rc||0],
+      ['Possession', `${fmt(pa)} (${pct(pa)})`, `${fmt(ph)} (${pct(ph)})`],
+    ];
+    html+=`<div class="mh" style="font-size:15px;">Team Stats</div>
+      <table class="bs"><thead><tr><th style="text-align:left">&nbsp;</th>
+        <th>${GAME.away.short}</th><th>${GAME.home.short}</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td style="text-align:left">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}
+      </tbody></table>`;
+  }
+
   ['away','home'].forEach(side=>{
     const b=boxStats(side), gks=keeperRows(side);
     const t=teamTotals(side);

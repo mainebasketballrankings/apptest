@@ -174,6 +174,19 @@ async function game(ctx,{playoff=false}={}){
     chk('grid sits above the picker', body.indexOf('<table') < body.indexOf('so-pick'), 'grid should come first');
     chk('log is split by team', (body.match(/ZTN|ZTS/g)||[]).length>=3, 'team headers present');
   }
+  // ── possession appears in the team stats ──
+  {
+    const ctx=boot(); const {window,d,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150));
+    await game(ctx);
+    ev("GAME.home.topSec=1200; GAME.away.topSec=600; GAME.home.score=2; GAME.away.score=1;");
+    window.openBoxScore();
+    const box=d.getElementById('bs-body').innerHTML;
+    chk('box score has a Team Stats table', /Team Stats/.test(box));
+    chk('possession row present', /Possession/.test(box));
+    chk('possession shown as time', /20:00/.test(box) && /10:00/.test(box), box.slice(box.indexOf('Possession'), box.indexOf('Possession')+120));
+    chk('possession shown as a share', /67%/.test(box) && /33%/.test(box), 'expected 67/33 split');
+  }
   console.log('\n'+(fails?fails+' FAIL(s)':'SOCCER FIXES PASS'));
   process.exit(fails?1:0);
 })().catch(e=>{console.error('ERR',e&&e.stack||e);process.exit(2);});

@@ -171,7 +171,12 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'DM S
   .sb-middle{gap:4px;}
   #main{grid-template-columns:1fr;grid-template-areas:"centre" "home" "away";padding:8px;gap:8px;}
   #court-col, #bb-col{grid-area:centre;}
-  #home-panel, #away-panel{grid-area:home;}
+  /* These must occupy DIFFERENT rows. Assigning both to "home" stacked the two
+     team panels in one grid cell, so on a phone the home and away box scores
+     rendered on top of each other. Basketball and baseball hide these panels on
+     mobile, which is why only football and the field sports showed it. */
+  #home-panel{grid-area:home;}
+  #away-panel{grid-area:away;}
   /* Basketball mobile */
   body.sport-basketball #court-col{display:none !important;}
   body.sport-basketball #mobile-panel{display:block !important;}
@@ -2482,6 +2487,25 @@ function fbAccumulate(e){
     case 'pass_incomp': { T[off].pa++; const ps=fbPlayer(off,e.plast,e.pnum); if(ps)ps.pa++; break; }
     case 'sack': { T[def].sack+=1; const ds=fbPlayer(def,e.plast,e.pnum); if(ds)ds.sack+=(d.half?0.5:1); if(d.with){ const d2=fbPlayer(def,d.with,d.withNum); if(d2)d2.sack+=0.5; } break; }
     case 'interception': { T[off].to++; const ds=fbPlayer(def,e.plast,e.pnum); if(ds)ds.dint++; break; }
+    // Fumbles were not handled at all, so a lost fumble never counted as a
+    // turnover — the Lobster Bowl finished showing 0-0 turnovers with a fumble
+    // in the play-by-play. Only a LOST fumble is a turnover; recovering your own
+    // is not. The recovering side gets credit for the recovery.
+    case 'fumble': {
+      const lostBy = e.side;                       // the scorer logs the fumbling side
+      const fp = fbPlayer(lostBy, e.plast, e.pnum);
+      if(fp) fp.fum = (fp.fum||0)+1;
+      if(d.lost){
+        T[lostBy].to++;
+        if(fp) fp.fumlost = (fp.fumlost||0)+1;
+        const rec = fbPlayer(fbOther(lostBy), d.recoveredBy, d.recoveredByNum);
+        if(rec) rec.fr = (rec.fr||0)+1;
+      } else if(d.recoveredBy){
+        const rec = fbPlayer(lostBy, d.recoveredBy, d.recoveredByNum);
+        if(rec) rec.fr = (rec.fr||0)+1;
+      }
+      break;
+    }
     case 'penalty': { const on=e.side; T[on].pen++; T[on].penyd+=(d.yds||0); if(d.autoFirst) fbCheckFirstDown(e,true); break; }
   }
   if(['run','pass_comp','pass_incomp','sack'].includes(e.key)){ FB._prevPoss=e.side; FB._prevDown=(e.notes||{}).down; }

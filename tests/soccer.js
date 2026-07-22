@@ -187,6 +187,30 @@ async function game(ctx,{playoff=false}={}){
     chk('possession shown as time', /20:00/.test(box) && /10:00/.test(box), box.slice(box.indexOf('Possession'), box.indexOf('Possession')+120));
     chk('possession shown as a share', /67%/.test(box) && /33%/.test(box), 'expected 67/33 split');
   }
+  // ── test mode must be impossible to miss ──
+  {
+    const ctx=boot(); const {window,d,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150));
+    const btn=d.getElementById('su-test-btn');
+    chk('setup has a prominent test-mode button', !!btn, 'missing');
+    // the DOM normalises ".4" to "0.4"
+    chk('it starts OFF and dimmed', /OFF/.test(btn.textContent) && parseFloat(btn.style.opacity)<1,
+        btn.textContent.trim()+' opacity='+btn.style.opacity);
+    window.toggleTestMode();
+    chk('tapping it turns test mode on', ev('G_test_mode')===true);
+    chk('button reads ON and brightens', /ON/.test(btn.textContent) && btn.style.opacity==='1', btn.textContent.trim());
+    window.toggleTestMode();
+    chk('tapping again turns it off', ev('G_test_mode')===false && /OFF/.test(btn.textContent));
+    // and the in-game reminder
+    window.toggleTestMode();
+    await game(ctx);
+    window.updAll();
+    const ban=d.getElementById('test-banner');
+    chk('a banner warns while scoring in test mode', ban && ban.style.display!=='none', 'display='+(ban?ban.style.display:'no element'));
+    chk('banner says nothing is saved', /NOTHING IS BEING SAVED/i.test(ban.textContent));
+    ev("G_test_mode=false;"); window.updAll();
+    chk('banner hidden for a real game', d.getElementById('test-banner').style.display==='none');
+  }
   console.log('\n'+(fails?fails+' FAIL(s)':'SOCCER FIXES PASS'));
   process.exit(fails?1:0);
 })().catch(e=>{console.error('ERR',e&&e.stack||e);process.exit(2);});

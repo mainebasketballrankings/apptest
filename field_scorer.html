@@ -272,9 +272,16 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
   <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin-top:6px;justify-content:center;cursor:pointer;">
     <input type="checkbox" id="su-sub" style="width:15px;height:15px;"> Sub-varsity (JV) — one overtime period only
   </label>
-  <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin-top:6px;justify-content:center;cursor:pointer;">
-    <input type="checkbox" id="su-test" style="width:15px;height:15px;"> Test mode — nothing writes to the database
-  </label>
+  <button type="button" id="su-test-btn" onclick="toggleTestMode()"
+    style="width:100%;margin-top:8px;padding:11px;border-radius:9px;border:1.5px solid #f59e0b;
+           background:#f59e0b;color:#fff;font-weight:800;font-size:14px;cursor:pointer;opacity:.4;
+           font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em;">
+    🧪 TEST MODE: OFF
+  </button>
+  <div style="font-size:11px;color:var(--dim);text-align:center;margin-top:4px">
+    On = scores and stats are not written to the database
+  </div>
+  <input type="checkbox" id="su-test" style="display:none">
  </div>
 </div>
 
@@ -300,6 +307,9 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
            font-size:10px;letter-spacing:.1em;color:var(--dim);">JV</div>
       <div id="buildChip" style="font-family:'Barlow Condensed',sans-serif;font-size:9px;color:var(--dim);opacity:.6;"></div>
       <div id="mercy-flag"></div>
+      <div id="test-banner" style="display:none;background:#fef3c7;color:#b45309;font-weight:800;
+           font-size:12px;letter-spacing:.06em;text-align:center;padding:5px 8px;border-radius:6px;
+           font-family:'Barlow Condensed',sans-serif;">🧪 TEST MODE — NOTHING IS BEING SAVED</div>
     </div>
     <div class="tscore home">
       <div class="snum" id="sc-home">0</div>
@@ -578,7 +588,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-20i';
+const MBR_BUILD='fs-2026-07-21a';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1021,9 +1031,27 @@ async function suGenderChange(side){
 // ══ START GAME ═══════════════════════════════════════════════
 
 
+// Test mode is a big obvious switch here, the way it is in the football and
+// basketball scorers — a small grey checkbox was far too easy to miss, and
+// scoring a real game in test mode loses the whole game.
+function toggleTestMode(){
+  G_test_mode = !G_test_mode;
+  const cb=document.getElementById('su-test'); if(cb) cb.checked=G_test_mode;
+  const b=document.getElementById('su-test-btn');
+  if(b){
+    b.textContent = G_test_mode ? '🧪 TEST MODE: ON' : '🧪 TEST MODE: OFF';
+    b.style.opacity = G_test_mode ? '1' : '.4';
+  }
+  try{ updTestBanner(); }catch(e){}
+}
+// Persistent reminder while scoring, so it cannot be forgotten mid-game.
+function updTestBanner(){
+  const el=document.getElementById('test-banner'); if(!el) return;
+  el.style.display = G_test_mode ? '' : 'none';
+}
 async function suKickOff(){
   suSync('home'); suSync('away');
-  G_test_mode=document.getElementById('su-test').checked;
+  G_test_mode = G_test_mode || !!(document.getElementById('su-test')||{}).checked;
   GAME.playoff = !!(document.getElementById('su-playoff')||{}).checked;
   GAME.subVarsity = !!(document.getElementById('su-sub')||{}).checked;
   const err=document.getElementById('su-error');
@@ -2593,6 +2621,7 @@ function discardSave(){localStorage.removeItem(SAVE_KEY);document.getElementById
 
 // ══ MISC UI ══════════════════════════════════════════════════
 function updAll(){
+  try{ updTestBanner(); }catch(e){}
   try{ renderSoCta(); }catch(e){}
   document.getElementById('sc-home').textContent=GAME.home.score;
   document.getElementById('sc-away').textContent=GAME.away.score;

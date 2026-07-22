@@ -55,6 +55,24 @@ function boot(rows){
   chk('mobile: away panel has its own row', /#away-panel\{grid-area:away;\}/.test(mob));
   chk('mobile grid still declares both areas', /grid-template-areas:"centre" "home" "away"/.test(mob));
 
+  // ── fumbles must READ properly in the play-by-play, not just count ──
+  {
+    const rows2=[
+      ev('fumble','away','Doucette',7,{lost:true, recoveredBy:'Porter', recoveredByNum:2, recoverTeam:'WEST'}),
+      ev('fumble','away','Morin',2,{lost:false, recoveredBy:'Morin'}),
+      ev('fumble','home','Ayoob',33,{lost:true, recoveredBy:'Cota', recoveredByNum:40, retYds:35, td:true}),
+      ev('fumble','away','Bowden',1,{lost:true, touchback:true}),
+    ];
+    const c=boot(rows2);
+    await new Promise(r=>setTimeout(r,900));
+    const feed=c.d.getElementById('fb-feed-list');
+    const txt=feed?feed.textContent:'';
+    chk('fumble no longer renders as a bare word', !/—\s*fumble\s*$/m.test(txt) && /FUMBLE/.test(txt), txt.slice(0,90));
+    chk('lost fumble names the recovering team', /WEST ball/.test(txt), txt.slice(0,140));
+    chk('own recovery is marked as such', /own ball/.test(txt));
+    chk('scoop-and-score shows the return TD', /35 yd return/.test(txt) && /TD/.test(txt));
+    chk('end-zone recovery reads as a touchback', /touchback/i.test(txt));
+  }
   console.log('\n'+(fails?fails+' FAIL(s)':'LIVE FOOTBALL FIXES PASS'));
   process.exit(fails?1:0);
 })().catch(e=>{console.error('ERR',e&&e.stack||e);process.exit(2);});

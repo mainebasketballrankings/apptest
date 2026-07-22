@@ -2439,7 +2439,7 @@ const FB_KLBL = {
   run:'Run', pass_comp:'Pass', pass_incomp:'Incomplete', interception:'Interception',
   sack:'Sack', touchdown:'Touchdown', field_goal:'Field goal', extra_point:'Extra point',
   two_point:'2-pt conversion', kickoff:'Kickoff', punt:'Punt', kick_return_td:'Kick return TD',
-  penalty:'Penalty', timeout:'Timeout', safety:'Safety', game_over:'Final',
+  penalty:'Penalty', timeout:'Timeout', safety:'Safety', game_over:'Final', fumble:'Fumble',
 };
 
 const fbFmt = s => (s==null?'':`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`);
@@ -2617,6 +2617,17 @@ function fbFeedDesc(e){
     case 'penalty': return `Penalty — <b>${d.name||'Penalty'}</b> on ${fbAbbr(e.side)}, ${d.yds||0} yd${d.autoFirst?', auto 1st':''}`;
     case 'timeout': return `Timeout ${fbAbbr(e.side)}`;
     case 'safety': return `<b style="color:var(--green)">SAFETY</b> ${fbAbbr(e.side)}`;
+    // Fumbles had no case at all, so the biggest swing in football rendered as a
+    // bare "— fumble". Say who lost it, who got it, and what happened next.
+    case 'fumble': {
+      const F = '<b style="color:var(--away)">FUMBLE</b>';
+      const by = who ? `${who} ` : '';
+      if (d.touchback) return `${by}${F} — recovered in the end zone, <b>touchback</b>`;
+      if (!d.lost) return `${by}${F} — recovered by ${d.recoveredBy || fbAbbr(e.side)} (own ball)`;
+      const rec = d.recoveredBy ? `${d.recoveredByNum?'#'+d.recoveredByNum+' ':''}${d.recoveredBy}` : fbAbbr(fbOther(e.side));
+      if (d.td) return `${by}${F} — recovered by ${rec}${d.retYds?`, ${d.retYds} yd return`:''} <b style="color:var(--green)">TD</b>`;
+      return `${by}${F} — <b>${d.recoverTeam || fbAbbr(fbOther(e.side))} ball</b>, recovered by ${rec}${d.retYds?`, ${d.retYds} yd return`:''}`;
+    }
     case 'game_over': return `<b>FINAL</b>`;
     default: return `${who} — ${FB_KLBL[e.key]||e.key}`;
   }

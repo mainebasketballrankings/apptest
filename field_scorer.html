@@ -291,6 +291,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
     <div class="side-block" id="sb-away">
       <div><span class="side-lbl">Shots</span> <span class="side-val" id="sh-away">0</span></div>
       <div><span class="side-lbl">Saves</span> <span class="side-val" id="sv-away">0</span></div>
+      <div><span class="side-lbl">Poss</span> <span class="side-val" id="top-away">0:00</span></div>
       <div id="pen-away"></div>
     </div>
     <div class="tscore away">
@@ -318,6 +319,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
     <div class="side-block" id="sb-home">
       <div><span class="side-lbl">Shots</span> <span class="side-val" id="sh-home">0</span></div>
       <div><span class="side-lbl">Saves</span> <span class="side-val" id="sv-home">0</span></div>
+      <div><span class="side-lbl">Poss</span> <span class="side-val" id="top-home">0:00</span></div>
       <div id="pen-home"></div>
     </div>
   </div>
@@ -588,7 +590,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-21a';
+const MBR_BUILD='fs-2026-07-21b';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1244,6 +1246,10 @@ function finishGoal(assistId){
     assistName:assist?pName(assist):null, gkName:gk?pName(gk):null});
   if(assist) link(ge, pushEvt({side,p:assist,key:'assist',label:'Assist',pt:null}));
   addDot(pt,'goal',side);
+  // The officials stop the clock for the restart, so the scorer should too —
+  // otherwise time bleeds away while the teams walk back for the kickoff, and
+  // it lands on whichever side happened to hold possession.
+  if(GAME.running) toggleClock();
   closeShotOverlay(); checkMercy(); updAll(); scheduleSave();
   const t = SPORT_KEY.startsWith('soccer') ? fmt(elapsedSecs()) : `${periodLbl(GAME.period)} ${fmt(GAME.clockSec)}`;
   flash(`GOAL! ${t} ${pName(p)}${assist?' (assist '+pName(assist)+')':''}`,'made');
@@ -1582,7 +1588,7 @@ function renderPl(side){
   const onF=PL[side].filter(p=>p.on), off=PL[side].filter(p=>!p.on);
   const card=p=>`<div class="pcard${p.on?'':' off'}${selP&&selP.id===p.id?' sel':''}${p.gk?' gk':''}" onclick="selPlayer('${p.id}','${side}')">
       <div class="pnum">${p.num||'–'}</div>
-      <div><div class="pnm">${pName(p)}${p.gk?' <span style="color:var(--green);font-size:9px">GK</span>':''}</div>
+      <div><div class="pnm">${pName(p)}${p.gk?' <span style="display:inline-block;background:var(--green);color:#fff;font-size:11px;font-weight:800;letter-spacing:.06em;padding:1px 6px;border-radius:4px;vertical-align:middle;font-family:\'Barlow Condensed\',sans-serif">GK</span>':''}</div>
       <div class="pst">${stat(p)}</div></div>
       <div>${cards(p)}</div></div>`;
   c.innerHTML = onF.map(card).join('')
@@ -2621,6 +2627,15 @@ function discardSave(){localStorage.removeItem(SAVE_KEY);document.getElementById
 
 // ══ MISC UI ══════════════════════════════════════════════════
 function updAll(){
+  // Time of possession on the top bar, so it is visible during play rather than
+  // only in the box score.
+  try{
+    const ta=GAME.away.topSec||0, th=GAME.home.topSec||0, tot=ta+th;
+    const pc=v=> tot>=30 ? ' '+Math.round(v*100/tot)+'%' : '';
+    const ea=document.getElementById('top-away'), eh=document.getElementById('top-home');
+    if(ea) ea.textContent=fmt(ta)+pc(ta);
+    if(eh) eh.textContent=fmt(th)+pc(th);
+  }catch(e){}
   try{ updTestBanner(); }catch(e){}
   try{ renderSoCta(); }catch(e){}
   document.getElementById('sc-home').textContent=GAME.home.score;

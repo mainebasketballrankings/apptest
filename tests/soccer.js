@@ -211,6 +211,36 @@ async function game(ctx,{playoff=false}={}){
     ev("G_test_mode=false;"); window.updAll();
     chk('banner hidden for a real game', d.getElementById('test-banner').style.display==='none');
   }
+  // ── possession on the top bar, bigger GK badge, clock stops on a goal ──
+  {
+    const ctx=boot(); const {window,d,ev}=ctx;
+    await new Promise(r=>setTimeout(r,150));
+    await game(ctx);
+    chk('top bar has a possession readout per side',
+        !!d.getElementById('top-away') && !!d.getElementById('top-home'));
+    ev("GAME.home.topSec=1200; GAME.away.topSec=600;"); window.updAll();
+    chk('possession shows as a clock', /20:00/.test(d.getElementById('top-home').textContent),
+        d.getElementById('top-home').textContent);
+    chk('and a share once there is enough time', /67%/.test(d.getElementById('top-home').textContent),
+        d.getElementById('top-home').textContent);
+    ev("GAME.home.topSec=5; GAME.away.topSec=3;"); window.updAll();
+    chk('no misleading share in the first seconds', !/%/.test(d.getElementById('top-home').textContent),
+        d.getElementById('top-home').textContent);
+    // GK badge is a real chip now, not 9px text
+    const bench=d.getElementById('pl-home').innerHTML;
+    chk('goalkeeper is clearly marked', /background:var\(--green\)[^>]*>GK</.test(bench), 'GK chip missing');
+    // clock stops on a goal
+    ev("GAME.running=false;"); window.toggleClock();
+    chk('clock running before the goal', ev('GAME.running')===true);
+    ev(`pendingShot={pt:{x:50,y:50}, side:'home', p:PL.home[1]};`);
+    window.finishGoal(null);
+    chk('goal scored', ev('GAME.home.score')===1, String(ev('GAME.home.score')));
+    chk('clock stops automatically on a goal', ev('GAME.running')===false, 'running='+ev('GAME.running'));
+    // and does not "un-stop" a clock that was already stopped
+    ev(`pendingShot={pt:{x:50,y:50}, side:'home', p:PL.home[1]};`);
+    window.finishGoal(null);
+    chk('a goal with the clock stopped leaves it stopped', ev('GAME.running')===false);
+  }
   console.log('\n'+(fails?fails+' FAIL(s)':'SOCCER FIXES PASS'));
   process.exit(fails?1:0);
 })().catch(e=>{console.error('ERR',e&&e.stack||e);process.exit(2);});

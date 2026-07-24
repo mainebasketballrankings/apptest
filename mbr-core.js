@@ -59,10 +59,109 @@
     return (typeof v === 'function') ? v() : v;
   };
 
-  const hdr = (extra) => Object.assign(
-    { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-    extra || {}
-  );
+  // Signed in -> send the user's token so Postgres can resolve auth.uid().
+  // Signed out -> the anon key, exactly as before. Scoring is unaffected.
+  const hdr = (extra) => {
+    const s = sessionLoad();
+    const bearer = (s && s.access_token && !isExpired(s)) ? s.access_token : SB_KEY;
+    return Object.assign(
+      { apikey: SB_KEY, Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      extra || {}
+    );
+  };
+
+  // ── Sign-in (Google) ─────────────────────────────────────────────────────
+  // Scoring an MBR game stays login-free — this is only needed to CREATE your
+  // own team (travel, JV, rec), so the rows can be owned by somebody.
+  //
+  // No supabase-js: the whole flow is a redirect out and a token back in the URL
+  // hash. Once signed in, requests carry the user's token instead of the anon
+  // key, which is how Postgres knows who auth.uid() is.
+  const AUTH_KEY = 'mbr_auth';
+
+  function sessionLoad() {
+    try {
+      const s = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
+      if (!s || !s.access_token) return null;
+      // treat as expired a minute early, so a request never dies mid-flight
+      if (s.expires_at && (s.expires_at * 1000) < Date.now() + 60000) return s;  // stale: refresh below
+      return s;
+    } catch (e) { return null; }
+  }
+  function sessionSave(s) {
+    try { s ? localStorage.setItem(AUTH_KEY, JSON.stringify(s)) : localStorage.removeItem(AUTH_KEY); } catch (e) {}
+  }
+  function isExpired(s) { return !!(s && s.expires_at && (s.expires_at * 1000) < Date.now() + 60000); }
+
+  // Capture the token Supabase appends to the URL after Google sends the user
+  // back, then scrub it from the address bar so it is not left lying around.
+  function captureRedirect() {
+    if (!global.location || !location.hash || location.hash.indexOf('access_token=') === -1) return false;
+    const p = new URLSearchParams(location.hash.slice(1));
+    const s = {
+      access_token : p.get('access_token'),
+      refresh_token: p.get('refresh_token'),
+      expires_at   : parseInt(p.get('expires_at') || '0', 10) || (Math.floor(Date.now()/1000) + 3600),
+    };
+    if (!s.access_token) return false;
+    sessionSave(s);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    return true;
+  }
+
+  async function refreshSession() {
+    const s = sessionLoad();
+    if (!s || !s.refresh_token) return null;
+    try {
+      const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token })
+      });
+      if (!r.ok) { sessionSave(null); return null; }
+      const d = await r.json();
+      const ns = { access_token: d.access_token, refresh_token: d.refresh_token || s.refresh_token,
+                   expires_at: d.expires_at || (Math.floor(Date.now()/1000) + (d.expires_in || 3600)) };
+      sessionSave(ns); return ns;
+    } catch (e) { return null; }
+  }
+
+  // A long game can outlive a token, so top it up before it lapses.
+  async function ensureSession() {
+    let s = sessionLoad();
+    if (s && isExpired(s)) s = await refreshSession();
+    return s;
+  }
+
+  // Split out so it can be tested, and so a caller can render it as a link
+  // rather than a redirect if that suits the UI better.
+  function authUrl(returnTo) {
+    const back = returnTo || (global.location ? location.href.split('#')[0] : '');
+    return `${SB_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(back)}`;
+  }
+  function signInWithGoogle(returnTo) { location.href = authUrl(returnTo); }
+  function signOut() { sessionSave(null); }
+  function isSignedIn() { return !!sessionLoad(); }
+
+  // Who is signed in. Cached, because the scorer asks on every render.
+  let _me = null;
+  async function currentUser(force) {
+    const s = await ensureSession();
+    if (!s) { _me = null; return null; }
+    if (_me && !force) return _me;
+    try {
+      const r = await fetch(`${SB_URL}/auth/v1/user`, {
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${s.access_token}` }
+      });
+      if (!r.ok) { if (r.status === 401) sessionSave(null); return null; }
+      const u = await r.json();
+      _me = { id: u.id, email: u.email,
+              name: (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email };
+      return _me;
+    } catch (e) { return null; }
+  }
+
+  captureRedirect();
 
   // ── Supabase read ────────────────────────────────────────────────────────
   async function sbFetch(path) {
@@ -344,6 +443,7 @@
     startClockSync, stopClockSync,
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
     loadSchools, schoolIds, createGame, resolveTeamId,
+    signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, ensureSession,
     autoUploadGameReport, emailGameReport,
     clamp,
     get droppedRows() { return _droppedRows; },

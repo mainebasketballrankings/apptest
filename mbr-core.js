@@ -161,6 +161,11 @@
     } catch (e) { return null; }
   }
 
+  // The async currentUser() caches into _me; once a team has been created we
+  // have already awaited it, so callers can read the id synchronously to stamp
+  // the matching game without a second round-trip.
+  function currentUserId() { return _me && _me.id ? _me.id : null; }
+
   captureRedirect();
 
   // ── Supabase read ────────────────────────────────────────────────────────
@@ -363,6 +368,10 @@
       };
       if (o.event) row.event = o.event;
       if (o.isSummer != null) row.is_summer = !!o.isSummer;
+      // A game that involves a user-created team must itself be owned, so it is
+      // hidden from public listings exactly like the team is. Two canonical
+      // Maine teams leave this null and the row stays public + login-free.
+      if (o.ownerId) row.owner_id = o.ownerId;
       if (!row.sport_id || !row.home_team_id || !row.away_team_id) {
         console.warn('createGame: missing sport or team ids', row);
         return null;
@@ -407,6 +416,58 @@
     return null;
   }
 
+  // ── User-created team ────────────────────────────────────────────────────
+  // Scoring a Maine game is anon/login-free. But a team that is NOT in the
+  // master schedule — a non-Maine scrimmage opponent, a travel / JV / rec squad
+  // — has to be created, and the database only lets a SIGNED-IN user do it: the
+  // teams INSERT policy is `with_check (owner_id = auth.uid())`, authenticated
+  // role only. So this stamps ownership AND, by requiring a live session, IS the
+  // gate — the server rejects an anonymous attempt outright.
+  //
+  // (NH football teams that count against Maine records live in the master
+  // schedule already, so they resolve as canonical and never reach here.)
+  async function createTeam(schoolName, sportId, gender) {
+    const name = String(schoolName || '').trim();
+    const sid  = sportIdNow(sportId);
+    const g    = /girl|women|f$/i.test(String(gender || '')) ? 'Girls' : 'Boys';
+    if (!name || !sid) return null;
+    const me = await currentUser();
+    if (!me) return null;                 // no session — caller should prompt sign-in
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/teams`, {
+        method : 'POST',
+        headers: hdr({ Prefer: 'return=representation' }),
+        body   : JSON.stringify({
+          school_name: name, sport_id: sid, gender: g,
+          owner_id: me.id, visibility: 'private'
+        })
+      });
+      if (!res.ok) {
+        console.warn('createTeam failed', res.status, await res.text().catch(() => ''));
+        return null;
+      }
+      const data = await res.json();
+      const t = Array.isArray(data) ? data[0] : data;
+      return (t && t.id) ? t.id : null;
+    } catch (e) { console.warn('createTeam error', e); return null; }
+  }
+
+  // Resolve a school to a team id, CREATING an owner-stamped team when the name
+  // is not a known Maine (or master-schedule) team. Return shapes let the setup
+  // UI react without eating a silent 403:
+  //   { id, created:false }        existing canonical (or already-owned) team
+  //   { id, created:true }         a new team owned by the signed-in user
+  //   { id:null, needsAuth:true }  not in the DB and nobody is signed in — prompt
+  //   { id:null, failed:true }     signed in, but the insert did not take
+  async function resolveOrCreateTeamId(schoolName, sportId, gender) {
+    const existing = await resolveTeamId(schoolName, sportId, gender);
+    if (existing) return { id: existing, created: false };
+    if (!isSignedIn()) return { id: null, needsAuth: true, name: String(schoolName || '').trim() };
+    const id = await createTeam(schoolName, sportId, gender);
+    if (id) return { id, created: true };
+    return { id: null, failed: true, needsAuth: !isSignedIn() };
+  }
+
   // ── Live clock sync ──────────────────────────────────────────────────────
   // The XML feed's <GameClock> reads games.game_clock. Scoring events alone do
   // not move the clock, so without this the broadcast clock freezes between
@@ -442,8 +503,8 @@
     sbFetch, sbInsert, sbPatch, evtStamp,
     startClockSync, stopClockSync,
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
-    loadSchools, schoolIds, createGame, resolveTeamId,
-    signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, ensureSession,
+    loadSchools, schoolIds, createGame, resolveTeamId, createTeam, resolveOrCreateTeamId,
+    signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
     clamp,
     get droppedRows() { return _droppedRows; },

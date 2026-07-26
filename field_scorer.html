@@ -590,7 +590,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-21b';
+const MBR_BUILD='fs-2026-07-25a';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1588,7 +1588,7 @@ function renderPl(side){
   const onF=PL[side].filter(p=>p.on), off=PL[side].filter(p=>!p.on);
   const card=p=>`<div class="pcard${p.on?'':' off'}${selP&&selP.id===p.id?' sel':''}${p.gk?' gk':''}" onclick="selPlayer('${p.id}','${side}')">
       <div class="pnum">${p.num||'–'}</div>
-      <div><div class="pnm">${pName(p)}${p.gk?' <span style="display:inline-block;background:var(--green);color:#fff;font-size:11px;font-weight:800;letter-spacing:.06em;padding:1px 6px;border-radius:4px;vertical-align:middle;font-family:\'Barlow Condensed\',sans-serif">GK</span>':''}</div>
+      <div><div class="pnm">${pName(p)}${p.gk?' <span style="display:inline-block;background:var(--green);color:#fff;font-size:14px;font-weight:800;letter-spacing:.07em;padding:3px 10px;border-radius:5px;vertical-align:middle;font-family:\'Barlow Condensed\',sans-serif">GK</span>':''}</div>
       <div class="pst">${stat(p)}</div></div>
       <div>${cards(p)}</div></div>`;
   c.innerHTML = onF.map(card).join('')

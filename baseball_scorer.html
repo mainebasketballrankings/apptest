@@ -796,7 +796,7 @@ input,select,button{font-family:inherit;}
 // ═══════════════════════════════════════════════
 
 
-const MBR_BUILD='bs-2026-07-25a';
+const MBR_BUILD='bs-2026-07-25b';
 
 // ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
 if (typeof MBR === 'undefined') {
@@ -1183,7 +1183,7 @@ function renderAuthLine(){
   MBR.currentUser().then(u=>{
     el.innerHTML = u
       ? `<span style="color:var(--green)">✓ signed in as ${u.email}</span> · `
-        + `<a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
+        + `<a href="my_games.html" style="color:#2b3fd4">my teams &amp; games</a> · <a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
       : '';
     loadMyTeams();
   });

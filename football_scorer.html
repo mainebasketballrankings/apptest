@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Football Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script>
-const MBR_BUILD='fb-2026-07-25a'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
+const MBR_BUILD='fb-2026-07-25b'; console.log('%cfootball_scorer build '+MBR_BUILD,'font-weight:700;color:#0a0');
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
@@ -3383,7 +3383,7 @@ function renderAuthLine(){
   MBR.currentUser().then(u=>{
     el.innerHTML = u
       ? `<span style="color:var(--green)">✓ signed in as ${u.email}</span> · `
-        + `<a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
+        + `<a href="my_games.html" style="color:#2b3fd4">my teams &amp; games</a> · <a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
       : '';
     loadMyTeams();
   });

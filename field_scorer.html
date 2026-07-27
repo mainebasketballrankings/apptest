@@ -596,7 +596,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-25c';
+const MBR_BUILD='fs-2026-07-25d';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -2738,7 +2738,7 @@ function renderAuthLine(){
   MBR.currentUser().then(u=>{
     el.innerHTML = u
       ? `<span style="color:var(--green)">✓ signed in as ${u.email}</span> · `
-        + `<a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
+        + `<a href="my_games.html" style="color:#2b3fd4">my teams &amp; games</a> · <a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
       : '';
     loadMyTeams();
   });

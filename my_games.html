@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My Teams & Games · Maine Basketball Rankings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="mbr-core.js?v=7"></script>
+<style>
+:root{
+  --bg:#e9edf3; --card:#fff; --ink:#141a22; --dim:#6b7684; --line:#e6e9ef;
+  --blue:#2b3fd4; --green:#188038; --red:#c0392b; --orange:#ee6730;
+  --cond:'Barlow Condensed',sans-serif; --body:'Barlow',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);
+  -webkit-font-smoothing:antialiased;padding:0 0 60px}
+.wrap{max-width:820px;margin:0 auto;padding:20px 16px}
+.brand{text-align:center;font-family:Georgia,serif;font-weight:700;font-size:30px;letter-spacing:-.5px}
+.sub{text-align:center;font-family:var(--cond);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);font-size:13px;margin-top:2px}
+#auth{text-align:center;font-family:var(--cond);font-size:12px;margin:8px 0 4px}
+#auth a{color:var(--dim)}
+.section-h{font-family:var(--cond);text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+  font-size:15px;color:var(--dim);margin:22px 4px 8px;display:flex;align-items:center;gap:8px}
+.section-h .count{background:#dfe4ec;color:var(--dim);border-radius:20px;padding:1px 9px;font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.sport-group{margin-bottom:6px}
+.sport-tag{display:inline-block;font-family:var(--cond);text-transform:uppercase;letter-spacing:.08em;
+  font-size:11px;font-weight:700;color:var(--orange);margin:12px 4px 4px}
+.team-row,.game-row{display:flex;align-items:center;gap:10px}
+.team-main{flex:1;min-width:0}
+.team-name{font-weight:700;font-size:17px}
+.team-meta{color:var(--dim);font-size:13px;font-family:var(--cond);letter-spacing:.03em}
+.btn{border:1px solid var(--line);background:#f4f6fa;color:var(--ink);border-radius:8px;
+  padding:7px 12px;font-family:var(--cond);font-weight:600;font-size:13px;letter-spacing:.03em;
+  cursor:pointer;white-space:nowrap}
+.btn:hover{background:#eef1f6}
+.btn-p{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-p:hover{filter:brightness(1.05)}
+.btn-d{color:var(--red);border-color:#f0d3ce;background:#fdf3f1}
+.btn-d:hover{background:#fbe9e6}
+.roster-toggle{cursor:pointer;color:var(--blue);font-family:var(--cond);font-size:13px;font-weight:600;
+  margin-top:6px;display:inline-block}
+.roster{margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:none}
+.roster.open{display:block}
+.rp{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px}
+.rp .num{font-family:var(--cond);font-weight:700;min-width:26px;color:var(--dim)}
+.rp .badge{font-family:var(--cond);font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:.05em}
+.badge-st{background:#fdecc8;color:#8a6d00}
+.badge-gk{background:#d7f0df;color:var(--green)}
+.game-score{font-family:var(--cond);font-weight:700;font-size:20px;min-width:64px;text-align:center}
+.game-teams{flex:1;min-width:0}
+.game-teams b{font-weight:700}
+.game-date{font-family:var(--cond);color:var(--dim);font-size:12px;letter-spacing:.03em}
+.status{font-family:var(--cond);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  padding:2px 8px;border-radius:20px}
+.st-live{background:#fde7e7;color:var(--red)}
+.st-final{background:#e4e8ef;color:var(--dim)}
+.st-sched{background:#e2ecff;color:var(--blue)}
+.empty{color:var(--dim);font-size:14px;padding:8px 4px}
+.gate{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 22px;text-align:center;margin-top:24px}
+.gate h2{margin:0 0 8px;font-family:Georgia,serif}
+.gate p{color:var(--dim);font-size:14px;line-height:1.5;margin:0 auto 16px;max-width:420px}
+.gate button{padding:12px 20px;border:none;border-radius:9px;background:var(--blue);color:#fff;
+  font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.04em;cursor:pointer}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(15,20,30,.55);display:none;align-items:flex-start;
+  justify-content:center;padding:28px 14px;z-index:50;overflow:auto}
+.modal.open{display:flex}
+.modal-box{background:var(--card);border-radius:14px;padding:18px;max-width:520px;width:100%;margin:auto}
+.modal-h{font-family:Georgia,serif;font-weight:700;font-size:20px;margin:0 0 4px}
+.modal-sub{color:var(--dim);font-size:13px;margin-bottom:12px}
+.er{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.er input[type=text]{flex:1;min-width:0}
+.er input{border:1px solid var(--line);border-radius:7px;padding:8px;font-size:14px;font-family:var(--body)}
+.er input.num{width:52px;text-align:center}
+.er .tog{border:1px solid var(--line);background:#f4f6fa;border-radius:7px;padding:7px 9px;cursor:pointer;
+  font-family:var(--cond);font-weight:700;font-size:12px}
+.er .tog.on-st{background:#fdecc8;border-color:#f0dca0;color:#8a6d00}
+.er .tog.on-gk{background:#d7f0df;border-color:#aeddbb;color:var(--green)}
+.er .x{color:var(--red);cursor:pointer;font-weight:700;padding:4px 8px}
+.modal-actions{display:flex;gap:8px;margin-top:14px}
+.modal-actions .btn{flex:1;text-align:center;padding:11px}
+.spin{text-align:center;color:var(--dim);padding:30px;font-family:var(--cond)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">Maine Basketball Rankings</div>
+  <div class="sub">My Teams &amp; Games</div>
+  <div id="auth"></div>
+
+  <div id="gate" class="gate" hidden>
+    <h2>Sign in to see your teams</h2>
+    <p>The teams and games you create in the scorers are saved privately to your account. Sign in with Google to view, reuse, and manage them here.</p>
+    <button onclick="MBR.signInWithGoogle(location.href.split('#')[0])">Sign in with Google</button>
+  </div>
+
+  <div id="dash" hidden>
+    <div class="section-h">My Teams <span class="count" id="teams-count">0</span></div>
+    <div id="teams"><div class="spin">Loading…</div></div>
+    <div class="section-h">My Games <span class="count" id="games-count">0</span></div>
+    <div id="games"><div class="spin">Loading…</div></div>
+  </div>
+</div>
+
+<!-- Roster editor -->
+<div class="modal" id="roster-modal">
+  <div class="modal-box">
+    <div class="modal-h" id="rm-title">Edit Roster</div>
+    <div class="modal-sub" id="rm-sub"></div>
+    <div id="rm-rows"></div>
+    <button class="btn" style="width:100%;margin-top:8px" onclick="rmAddRow()">+ Player</button>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('roster-modal')">Cancel</button>
+      <button class="btn btn-p" onclick="rmSave()">Save Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div class="modal" id="confirm-modal">
+  <div class="modal-box">
+    <div class="modal-h" id="cf-title">Are you sure?</div>
+    <div class="modal-sub" id="cf-body"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('confirm-modal')">Cancel</button>
+      <button class="btn btn-d" id="cf-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Sport map: id → { name, scorer, shape }. shape.mode 'name'=name+pos, 'split'=first/last.
+const SPORTS = {
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0': {name:'Baseball',   scorer:'baseball_scorer.html', mode:'name',  starter:false, gk:false},
+  '095c9841-7261-4cb1-824e-6304792b53d0': {name:'Softball',   scorer:'baseball_scorer.html', mode:'name',  starter:false, gk:false},
+  'b31ab283-b28e-4ba8-9684-b1cf30cea219': {name:'Basketball', scorer:'scorer.html',          mode:'split', starter:true,  gk:false},
+  'fa905ca5-f416-409b-81ac-777179ee5576': {name:'Football',   scorer:'football_scorer.html', mode:'name',  starter:false, gk:false},
+  'ff80a695-0e78-4432-98f2-141b2b571e0e': {name:'Soccer',     scorer:'field_scorer.html',    mode:'split', starter:true,  gk:true},
+  '1054869a-20d4-465f-8ca9-4bc4d2bafe1b': {name:'Field Hockey',scorer:'field_scorer.html',   mode:'split', starter:true,  gk:true},
+  '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d': {name:'Lacrosse',   scorer:'field_scorer.html',    mode:'split', starter:true,  gk:true},
+  'e26b0fcc-e661-4945-8b2d-063c37ace44f': {name:'Volleyball', scorer:null,                   mode:'name',  starter:false, gk:false}
+};
+const sportInfo = id => SPORTS[id] || {name:'Other', scorer:null, mode:'name', starter:false, gk:false};
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let TEAMS=[], GAMES=[];
+
+function renderAuth(){
+  const el=document.getElementById('auth');
+  if(!MBR.isSignedIn()){ el.innerHTML=''; return; }
+  MBR.currentUser().then(u=>{
+    el.innerHTML = u ? `<span style="color:var(--green)">✓ ${esc(u.email)}</span> · <a href="#" onclick="doSignOut();return false;">sign out</a>` : '';
+  });
+}
+function doSignOut(){ MBR.signOut(); location.reload(); }
+
+async function boot(){
+  renderAuth();
+  if(!MBR.isSignedIn()){
+    document.getElementById('gate').hidden=false;
+    document.getElementById('dash').hidden=true;
+    return;
+  }
+  document.getElementById('gate').hidden=true;
+  document.getElementById('dash').hidden=false;
+  await loadAll();
+}
+async function loadAll(){
+  const [teams, games] = await Promise.all([ MBR.myTeamsAll(), MBR.myGames() ]);
+  TEAMS=teams||[]; GAMES=games||[];
+  renderTeams(); renderGames();
+}
+
+function renderTeams(){
+  const box=document.getElementById('teams');
+  document.getElementById('teams-count').textContent=TEAMS.length;
+  if(!TEAMS.length){ box.innerHTML=`<div class="empty">No teams yet. Create one in any scorer by entering a team that isn't in the schedule.</div>`; return; }
+  // group by sport
+  const groups={};
+  TEAMS.forEach(t=>{ (groups[t.sport_id]=groups[t.sport_id]||[]).push(t); });
+  let html='';
+  Object.keys(groups).forEach(sid=>{
+    html += `<div class="sport-tag">${esc(sportInfo(sid).name)}</div>`;
+    groups[sid].forEach(t=>{
+      const n=(t.roster&&t.roster.length)||0;
+      html += `<div class="card sport-group">
+        <div class="team-row">
+          <div class="team-main">
+            <div class="team-name">${esc(t.school_name)}</div>
+            <div class="team-meta">${esc(t.gender||'')}${n?` · ${n} player${n===1?'':'s'}`:' · no roster'}</div>
+          </div>
+          <button class="btn" onclick="editRoster('${t.id}')">Edit Roster</button>
+          <button class="btn btn-d" onclick="askDeleteTeam('${t.id}')">Delete</button>
+        </div>
+        ${ n ? `<span class="roster-toggle" onclick="this.nextElementSibling.classList.toggle('open')">Show roster ▾</span>
+        <div class="roster">${ (t.roster||[]).map(rosterLine).join('') }</div>` : '' }
+      </div>`;
+    });
+  });
+  box.innerHTML=html;
+}
+function rosterLine(p){
+  const name = p.name || [p.first,p.last].filter(Boolean).join(' ') || '—';
+  return `<div class="rp"><span class="num">${esc(p.num||'')||'–'}</span>
+    <span style="flex:1">${esc(name)}${p.pos?` <span style="color:var(--dim)">(${esc(p.pos)})</span>`:''}</span>
+    ${p.starter?'<span class="badge badge-st">START</span>':''}
+    ${p.gk?'<span class="badge badge-gk">GK</span>':''}</div>`;
+}
+
+function renderGames(){
+  const box=document.getElementById('games');
+  document.getElementById('games-count').textContent=GAMES.length;
+  if(!GAMES.length){ box.innerHTML=`<div class="empty">No games yet.</div>`; return; }
+  box.innerHTML = GAMES.map(g=>{
+    const info=sportInfo(g.sport_id);
+    const live = /active|progress|in_progress|live/i.test(g.status||'');
+    const finalish = /final|complete|done/i.test(g.status||'');
+    const hs = (g.home_score!=null?g.home_score:g.home_score_live);
+    const as = (g.away_score!=null?g.away_score:g.away_score_live);
+    const scoreTxt = (hs!=null&&as!=null) ? `${as}–${hs}` : '—';
+    const stCls = live?'st-live':(finalish?'st-final':'st-sched');
+    const stTxt = live?'Live':(finalish?'Final':(g.status||'—'));
+    const home = g.home_team?.school_name || 'Home';
+    const away = g.away_team?.school_name || 'Away';
+    const canResume = info.scorer;
+    return `<div class="card">
+      <div class="game-row">
+        <div class="game-score">${scoreTxt}</div>
+        <div class="game-teams">
+          <div><b>${esc(away)}</b> <span style="color:var(--dim)">@</span> <b>${esc(home)}</b></div>
+          <div class="game-date">${esc(info.name)} · ${esc(g.game_date||'')}${g.event?' · '+esc(g.event):''}</div>
+        </div>
+        <span class="status ${stCls}">${esc(stTxt)}</span>
+        ${canResume?`<button class="btn ${live?'btn-p':''}" onclick="location.href='${info.scorer}?game_id=${g.id}'">${live?'Resume':'Open'}</button>`:''}
+        <button class="btn btn-d" onclick="askDeleteGame('${g.id}','${esc(away)} @ ${esc(home)}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Roster editor ────────────────────────────────────────────
+let RM_TEAM=null, RM_INFO=null;
+function editRoster(teamId){
+  const t=TEAMS.find(x=>x.id===teamId); if(!t) return;
+  RM_TEAM=t; RM_INFO=sportInfo(t.sport_id);
+  document.getElementById('rm-title').textContent=`Edit Roster · ${t.school_name}`;
+  document.getElementById('rm-sub').textContent=`${RM_INFO.name} · changes are saved to this team and load next time you pick it.`;
+  const rows=document.getElementById('rm-rows'); rows.innerHTML='';
+  const list=(t.roster&&t.roster.length)?t.roster:[{}];
+  list.forEach(p=>rows.appendChild(rmRow(p)));
+  openModal('roster-modal');
+}
+function rmRow(p){
+  p=p||{};
+  const div=document.createElement('div'); div.className='er';
+  const name = p.name || [p.first,p.last].filter(Boolean).join(' ') || '';
+  let h=`<input class="num" placeholder="#" value="${esc(p.num||'')}">`;
+  if(RM_INFO.mode==='name'){
+    h+=`<input type="text" class="pname" placeholder="Player name" value="${esc(name)}">`;
+    h+=`<input type="text" class="ppos" placeholder="Pos" style="width:60px" value="${esc(p.pos||'')}">`;
+  } else {
+    h+=`<input type="text" class="pname" placeholder="Full name" value="${esc(name)}">`;
+  }
+  if(RM_INFO.starter) h+=`<span class="tog st ${p.starter?'on-st':''}" onclick="this.classList.toggle('on-st')">★</span>`;
+  if(RM_INFO.gk)      h+=`<span class="tog gk ${p.gk?'on-gk':''}" onclick="this.classList.toggle('on-gk')">GK</span>`;
+  h+=`<span class="x" onclick="this.parentElement.remove()">✕</span>`;
+  div.innerHTML=h;
+  return div;
+}
+function rmAddRow(){ document.getElementById('rm-rows').appendChild(rmRow({})); }
+async function rmSave(){
+  const rows=[...document.querySelectorAll('#rm-rows .er')];
+  const roster=[];
+  rows.forEach(r=>{
+    const num=r.querySelector('.num').value.trim();
+    const nm=(r.querySelector('.pname')?.value||'').trim();
+    if(!num && !nm) return;
+    if(RM_INFO.mode==='name'){
+      roster.push({num, name:nm, pos:(r.querySelector('.ppos')?.value||'').trim()});
+    } else {
+      const parts=nm.split(/\s+/); const first=parts.shift()||''; const last=parts.join(' ');
+      const o={num, first, last, starter:!!r.querySelector('.st.on-st')};
+      if(RM_INFO.gk) o.gk=!!r.querySelector('.gk.on-gk');
+      roster.push(o);
+    }
+  });
+  const ok=await MBR.saveTeamRoster(RM_TEAM.id, roster);
+  if(ok){ RM_TEAM.roster=roster; closeModal('roster-modal'); renderTeams(); }
+  else alert('Could not save roster. Try again.');
+}
+
+// ── Deletes ──────────────────────────────────────────────────
+function askDeleteGame(id, label){
+  document.getElementById('cf-title').textContent='Delete this game?';
+  document.getElementById('cf-body').textContent=`${label} — this removes the game and its play-by-play. This can't be undone.`;
+  const ok=document.getElementById('cf-ok'); ok.textContent='Delete Game';
+  ok.onclick=async()=>{ ok.disabled=true; const done=await MBR.deleteGame(id); ok.disabled=false;
+    if(done){ closeModal('confirm-modal'); await loadAll(); } else alert('Delete failed.'); };
+  openModal('confirm-modal');
+}
+async function askDeleteTeam(id, cascade){
+  const t=TEAMS.find(x=>x.id===id);
+  const res=await MBR.deleteTeam(id, !!cascade);
+  if(res.ok){ await loadAll(); closeModal('confirm-modal'); return; }
+  if(res.blocked){
+    document.getElementById('cf-title').textContent='This team has games';
+    document.getElementById('cf-body').textContent=`${t?t.school_name:'This team'} is used in ${res.gameCount} game${res.gameCount===1?'':'s'}. Deleting the team will also delete ${res.gameCount===1?'that game':'those games'} and their play-by-play.`;
+    const ok=document.getElementById('cf-ok'); ok.textContent='Delete Team + Games';
+    ok.onclick=()=>askDeleteTeam(id, true);
+    openModal('confirm-modal');
+    return;
+  }
+  alert('Delete failed.');
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+boot();
+</script>
+</body>
+</html>

@@ -1087,7 +1087,7 @@ const SWPX=28;
 let BASKETBALL_SPORT_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const BASKETBALL_PREFIX = 'b31ab283';
 
-const MBR_BUILD='bb-2026-07-25a';
+const MBR_BUILD='bb-2026-07-25b';
 
 // ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
 // Supabase transport, offline queue, school lookup, team resolution, unscheduled
@@ -2823,7 +2823,7 @@ function renderAuthLine(){
   MBR.currentUser().then(u=>{
     el.innerHTML = u
       ? `<span style="color:#188038">✓ signed in as ${u.email}</span> · `
-        + `<a href="#" onclick="doSignOut();return false;" style="color:#888">sign out</a>`
+        + `<a href="my_games.html" style="color:#2b3fd4">my teams &amp; games</a> · <a href="#" onclick="doSignOut();return false;" style="color:#888">sign out</a>`
       : '';
     loadMyTeams();
   });

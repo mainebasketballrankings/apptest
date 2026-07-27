@@ -499,6 +499,65 @@
     } catch (e) { console.warn('saveTeamRoster failed', e); return false; }
   }
 
+  // ── Coach dashboard (my-games page) ──────────────────────────────────────
+  // All of the signed-in user's own teams, across every sport.
+  async function myTeamsAll() {
+    const me = await currentUser();
+    if (!me) return [];
+    try {
+      const rows = await sbFetch(
+        `teams?owner_id=eq.${me.id}` +
+        `&select=id,school_name,gender,sport_id,roster&order=school_name.asc`);
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) { console.warn('myTeamsAll failed', e); return []; }
+  }
+  // All of the signed-in user's own games, newest first, with team names + scores.
+  async function myGames() {
+    const me = await currentUser();
+    if (!me) return [];
+    try {
+      const rows = await sbFetch(
+        `games?owner_id=eq.${me.id}` +
+        `&select=id,game_date,status,sport_id,event,location,` +
+        `home_score,away_score,home_score_live,away_score_live,` +
+        `home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
+        `&order=game_date.desc`);
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) { console.warn('myGames failed', e); return []; }
+  }
+  // Delete one owned game and its events. game_events has RLS disabled; the games
+  // DELETE is owner-scoped so it can only ever remove the caller's own row.
+  async function deleteGame(gameId) {
+    if (!gameId) return false;
+    const me = await currentUser();
+    if (!me) return false;
+    try {
+      await fetch(`${SB_URL}/rest/v1/game_events?game_id=eq.${gameId}`,
+        { method: 'DELETE', headers: hdr({ Prefer: 'return=minimal' }) });
+      const r = await fetch(`${SB_URL}/rest/v1/games?id=eq.${gameId}&owner_id=eq.${me.id}`,
+        { method: 'DELETE', headers: hdr({ Prefer: 'return=minimal' }) });
+      return r.ok;
+    } catch (e) { console.warn('deleteGame failed', e); return false; }
+  }
+  // Delete an owned team. If games still reference it, block (unless cascade) so a
+  // coach doesn't silently lose game history. cascade=true removes those games too.
+  async function deleteTeam(teamId, cascade) {
+    if (!teamId) return { ok: false };
+    const me = await currentUser();
+    if (!me) return { ok: false };
+    try {
+      const g = await sbFetch(
+        `games?owner_id=eq.${me.id}` +
+        `&or=(home_team_id.eq.${teamId},away_team_id.eq.${teamId})&select=id`);
+      const gameIds = (g || []).map(x => x.id);
+      if (gameIds.length && !cascade) return { ok: false, blocked: true, gameCount: gameIds.length };
+      for (const gid of gameIds) { await deleteGame(gid); }
+      const r = await fetch(`${SB_URL}/rest/v1/teams?id=eq.${teamId}&owner_id=eq.${me.id}`,
+        { method: 'DELETE', headers: hdr({ Prefer: 'return=minimal' }) });
+      return { ok: r.ok };
+    } catch (e) { console.warn('deleteTeam failed', e); return { ok: false }; }
+  }
+
   // ── Live clock sync ──────────────────────────────────────────────────────
   // The XML feed's <GameClock> reads games.game_clock. Scoring events alone do
   // not move the clock, so without this the broadcast clock freezes between
@@ -535,7 +594,7 @@
     startClockSync, stopClockSync,
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
     loadSchools, schoolIds, createGame, resolveTeamId, createTeam, resolveOrCreateTeamId,
-    listMyTeams, saveTeamRoster,
+    listMyTeams, saveTeamRoster, myTeamsAll, myGames, deleteGame, deleteTeam,
     signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
     clamp,

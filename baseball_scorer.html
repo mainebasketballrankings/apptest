@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Baseball Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
-<script src="mbr-core.js?v=5"></script>
+<script src="mbr-core.js?v=7"></script>
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
@@ -284,6 +284,12 @@ input,select,button{font-family:inherit;}
 <div id="setupScreen">
   <div class="setup-logo">Maine Basketball Rankings</div>
   <div class="setup-title">Baseball Scorer <span style="font-size:12px;font-weight:400;color:var(--dim);font-family:'Barlow Condensed',sans-serif">v2.1</span></div>
+  <div id="su-auth" style="text-align:center;font-size:11px;margin:-10px 0 12px;font-family:'Barlow Condensed',sans-serif"></div>
+
+  <div class="setup-card" id="su-myteams" style="display:none;">
+    <div class="setup-card-title">My Teams <span style="font-weight:400;color:var(--ldim);font-size:9px">— your saved teams, lineup included</span></div>
+    <div id="su-myteams-list"></div>
+  </div>
 
   <div class="setup-card">
     <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
@@ -341,7 +347,7 @@ input,select,button{font-family:inherit;}
     </div>
     <div id="awaySetup">
       <div class="srow"><span class="slabel">Team Name</span>
-        <div style="position:relative"><input type="text" class="sinput" id="awayNameInp" placeholder="Visiting Team" autocomplete="off" oninput="schoolAC(this,'away')" onblur="closeAC('away')"/><div id="awayAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
+        <div style="position:relative"><input type="text" class="sinput" id="awayNameInp" placeholder="Visiting Team" autocomplete="off" oninput="clearPicked('away');schoolAC(this,'away')" onblur="closeAC('away')"/><div id="awayAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:8px 0 6px">Order · Name · # · Pos</div>
       <div id="awayLU"></div>
       <button class="add-btn" onclick="addPlayer('away')">+ Add to Lineup</button>
@@ -358,7 +364,7 @@ input,select,button{font-family:inherit;}
     </div>
     <div id="homeSetup" style="display:none">
       <div class="srow"><span class="slabel">Team Name</span>
-        <div style="position:relative"><input type="text" class="sinput" id="homeNameInp" placeholder="Home Team" autocomplete="off" oninput="schoolAC(this,'home')" onblur="closeAC('home')"/><div id="homeAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
+        <div style="position:relative"><input type="text" class="sinput" id="homeNameInp" placeholder="Home Team" autocomplete="off" oninput="clearPicked('home');schoolAC(this,'home')" onblur="closeAC('home')"/><div id="homeAC" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div></div></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:8px 0 6px">Order · Name · # · Pos</div>
       <div id="homeLU"></div>
       <button class="add-btn" onclick="addPlayer('home')">+ Add to Lineup</button>
@@ -379,6 +385,7 @@ input,select,button{font-family:inherit;}
     <button id="testModePill" class="pill" onclick="toggleTestMode()" style="background:#f59e0b;border-color:#f59e0b;color:#fff;font-size:13px;padding:8px 18px;border-radius:20px;font-weight:700;opacity:0.4">🧪 Test Mode: OFF</button>
     <span style="font-size:12px;color:var(--dim);max-width:200px;line-height:1.4">Test games won't appear on the scoreboard</span>
   </div>
+  <div id="su-error" style="font-size:13px;margin:0 0 8px"></div>
   <button class="start-btn" onclick="startGame()">Start Game →</button>
 </div>
 
@@ -789,7 +796,7 @@ input,select,button{font-family:inherit;}
 // ═══════════════════════════════════════════════
 
 
-const MBR_BUILD='bs-2026-07-21a';
+const MBR_BUILD='bs-2026-07-25a';
 
 // ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
 if (typeof MBR === 'undefined') {
@@ -1153,6 +1160,133 @@ function curPitcher(){
 // ═══════════════════════════════════════════════
 let setupTab='away';
 
+// ══ TEAM-CREATION AUTH GATE + MY TEAMS ════════════
+// Scoring scheduled games stays login-free. An unscheduled game whose team isn't
+// in the schedule requires Google sign-in; owned teams are private and carry
+// their lineup game to game.
+const AUTH_RESUME_KEY='mbr_bs_setup_resume';
+let MY_TEAMS=[];
+
+function bbSportId(){ return (document.getElementById('sportSel')?.value==='softball') ? SOFTBALL_SPORT_ID : BASEBALL_SPORT_ID; }
+
+function renderAuthLine(){
+  const el=document.getElementById('su-auth'); if(!el) return;
+  if(!MBR.isSignedIn()){
+    el.innerHTML =
+      `<button onclick="signInFromSetup()" style="padding:5px 11px;border:1px solid #1d4ed8;border-radius:6px;`
+      +`background:#fff;color:#1d4ed8;font-weight:700;font-size:11px;cursor:pointer;`
+      +`font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">Sign in with Google</button>`
+      +` <span style="color:var(--dim)">to reuse your saved teams</span>`;
+    hideMyTeams();
+    return;
+  }
+  MBR.currentUser().then(u=>{
+    el.innerHTML = u
+      ? `<span style="color:var(--green)">✓ signed in as ${u.email}</span> · `
+        + `<a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
+      : '';
+    loadMyTeams();
+  });
+}
+function signInFromSetup(){ startSignIn(); }
+function doSignOut(){ MBR.signOut(); MY_TEAMS=[]; hideMyTeams(); renderAuthLine(); }
+
+async function loadMyTeams(){
+  if(!MBR.isSignedIn()){ hideMyTeams(); return; }
+  try{ MY_TEAMS = await MBR.listMyTeams(bbSportId()); }catch(e){ MY_TEAMS=[]; }
+  renderMyTeams();
+}
+function hideMyTeams(){ const c=document.getElementById('su-myteams'); if(c) c.style.display='none'; }
+function renderMyTeams(){
+  const card=document.getElementById('su-myteams'), list=document.getElementById('su-myteams-list');
+  if(!card||!list) return;
+  if(!MY_TEAMS.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  list.innerHTML = MY_TEAMS.map(t=>{
+    const n=(t.roster&&t.roster.length)||0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0"><b>${t.school_name}</b>
+        <span style="color:var(--dim);font-size:12px">${n?`${n} players`:'no lineup yet'}</span></div>
+      <button class="pill" style="width:auto;padding:5px 10px;font-size:12px;white-space:nowrap" onclick="pickMyTeam('home','${t.id}')">→ Home</button>
+      <button class="pill" style="width:auto;padding:5px 10px;font-size:12px;white-space:nowrap" onclick="pickMyTeam('away','${t.id}')">→ Away</button>
+    </div>`;
+  }).join('');
+}
+function pickMyTeam(side, id){
+  const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;
+  document.getElementById(`${side}NameInp`).value=t.school_name;
+  if(side==='home') G_home_team_id=t.id; else G_away_team_id=t.id;   // reuse, never recreate
+  loadOwnedRoster(side, t.roster||[]);
+  if(typeof switchTab==='function') switchTab(side);
+  const st=document.getElementById('gamePickerStatus');
+  if(st){ st.textContent=`${t.school_name} loaded into ${side}.`; st.style.color='var(--green)'; }
+}
+function loadOwnedRoster(side, roster){
+  G.teams[side].lineup = (roster||[]).map((p,i)=>{
+    const pl=newPlayer(i+1, p.name||'', p.pos||''); pl.number=p.num||''; return pl;
+  });
+  if(!G.teams[side].lineup.length) G.teams[side].lineup.push(newPlayer(1,''));
+  renderLU(side);
+}
+function clearPicked(side){ if(side==='home') G_home_team_id=null; else G_away_team_id=null; }
+
+// Persist the half-built setup so the sign-in redirect doesn't lose the lineup.
+function stashSetup(){
+  const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  const on=id=>{const e=document.getElementById(id);return !!(e&&e.classList.contains('on'));};
+  const s={
+    home:{name:g('homeNameInp')}, away:{name:g('awayNameInp')},
+    sport:g('sportSel'), level:g('levelSel'), date:g('gameDateInp'), loc:g('gameLocInp'),
+    inning:g('inningSel'), mode:g('modeSel'), mercy:on('mercyPill'), pitch:on('pitchPill'),
+    lineups:{home:G.teams.home.lineup, away:G.teams.away.lineup},
+    hId:G_home_team_id, aId:G_away_team_id
+  };
+  try{ localStorage.setItem(AUTH_RESUME_KEY, JSON.stringify(s)); }catch(e){}
+}
+function checkAuthResume(){
+  let s; try{ s=JSON.parse(localStorage.getItem(AUTH_RESUME_KEY)||'null'); }catch(e){ s=null; }
+  if(!s) return;
+  localStorage.removeItem(AUTH_RESUME_KEY);
+  if(!MBR.isSignedIn()) return;
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=v||'';};
+  set('homeNameInp',s.home.name); set('awayNameInp',s.away.name);
+  set('sportSel',s.sport); set('levelSel',s.level); set('gameDateInp',s.date); set('gameLocInp',s.loc);
+  set('inningSel',s.inning); set('modeSel',s.mode);
+  const setPill=(id,want)=>{const e=document.getElementById(id); if(e&&e.classList.contains('on')!==want){ e.classList.toggle('on'); e.textContent=e.classList.contains('on')?'On':'Off'; }};
+  setPill('mercyPill',s.mercy); setPill('pitchPill',s.pitch);
+  G.teams.home.lineup=(s.lineups&&s.lineups.home)||[];
+  G.teams.away.lineup=(s.lineups&&s.lineups.away)||[];
+  if(!G.teams.home.lineup.length) G.teams.home.lineup.push(newPlayer(1,''));
+  if(!G.teams.away.lineup.length) G.teams.away.lineup.push(newPlayer(1,''));
+  if(typeof onSportChange==='function') onSportChange();
+  renderLU('home'); renderLU('away');
+  G_home_team_id=s.hId||null; G_away_team_id=s.aId||null;
+  renderAuthLine();
+  const errEl=document.getElementById('su-error');
+  if(errEl){ errEl.style.color='var(--green)'; errEl.textContent='Signed in — creating team and starting game…'; }
+  setTimeout(()=>{ try{ startGame(); }catch(e){ console.warn('resume start failed',e); } }, 300);
+}
+function promptSignIn(teamName){
+  const el=document.getElementById('su-error'); if(!el) return;
+  el.style.color='';
+  el.innerHTML =
+    `<div style="background:#0b1f3a;border:1px solid #1d4ed8;border-radius:9px;padding:12px;margin-top:6px;color:#e5edff;text-align:left">
+       <div style="font-weight:800;margin-bottom:4px">“${teamName}” isn't in the schedule</div>
+       <div style="font-size:12px;line-height:1.5;color:#b9c8e8;margin-bottom:9px">
+         Maine and master-schedule teams score without signing in. To add a team that isn't in the
+         database — a non-Maine opponent, or a travel/JV/rec squad — sign in with Google so it's saved
+         under your account. It stays private to you and off the public rankings.</div>
+       <button onclick="startSignIn()" style="width:100%;padding:10px;border:none;border-radius:7px;
+         background:#fff;color:#1a1a1a;font-weight:800;font-size:14px;cursor:pointer;
+         font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">
+         Sign in with Google to add this team</button>
+       <button onclick="document.getElementById('su-error').textContent=''"
+         style="width:100%;margin-top:6px;padding:8px;border:none;border-radius:7px;background:transparent;
+         color:#8ea3c9;font-size:12px;cursor:pointer">Cancel — I'll fix the name</button>
+     </div>`;
+}
+function startSignIn(){ stashSetup(); MBR.signInWithGoogle(location.href.split('#')[0]); }
+
 function init(skipTestPlayers){
   document.getElementById('gameDateInp').value = (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`})();
   if(!skipTestPlayers){
@@ -1181,6 +1315,7 @@ function onSportChange(){
     if(cr) cr.style.display = isSoftball ? '' : 'none';
   });
   renderLU('away'); renderLU('home'); // re-render to show/hide FLEX buttons
+  if(typeof loadMyTeams==='function') loadMyTeams();
 }
 function onLevelChange(){ updatePitchHint(); }
 function updatePitchHint(){ const l=document.getElementById('levelSel').value; document.getElementById('pitchHint').textContent=`${l==='varsity'?'Varsity':'JV'}: max ${PITCH_LIMITS[l].max}`; }
@@ -1329,10 +1464,43 @@ async function startGame(){
   G.mode=document.getElementById('modeSel').value;
   G.teams.away.name=document.getElementById('awayNameInp').value||'Away';
   G.teams.home.name=document.getElementById('homeNameInp').value||'Home';
-  // Block start if no game selected (unless Test Mode)
+  // Block start if no game selected (unless Test Mode). An unscheduled game with
+  // both names entered resolves/creates its teams here — a team not in the
+  // schedule requires Google sign-in (owned team → owned game).
   if(!G_test_mode && !G_game_id){
-    showAlert('⚠️ No game selected. Please select a game from the schedule picker before starting.');
-    return;
+    const hName=G.teams.home.name, aName=G.teams.away.name;
+    if(!hName||!aName||hName==='Home'||aName==='Away'){
+      showAlert('⚠️ Pick a scheduled game, or enter both team names, before starting.');
+      return;
+    }
+    const sportId = G.sport==='softball' ? SOFTBALL_SPORT_ID : BASEBALL_SPORT_ID;
+    const bbRoster = side => G.teams[side].lineup
+      .filter(p=>p.name&&p.name.trim())
+      .map(p=>({num:p.number||'',name:p.name||'',pos:p.pos||''}));
+    const errEl=document.getElementById('su-error');
+    if(errEl){ errEl.style.color='var(--dim)'; errEl.textContent='Setting up game…'; }
+    let ownerGame=false;
+    const rh=await MBR.resolveOrCreateTeamId(hName, sportId, null, bbRoster('home'));
+    if(rh.needsAuth){ if(errEl)errEl.textContent=''; promptSignIn(hName); return; }
+    if(rh.failed||!rh.id){ if(errEl){errEl.style.color='var(--red)';errEl.textContent='Could not create “'+hName+'” — try again.';} return; }
+    if(rh.created) ownerGame=true;
+    const ra=await MBR.resolveOrCreateTeamId(aName, sportId, null, bbRoster('away'));
+    if(ra.needsAuth){ if(errEl)errEl.textContent=''; promptSignIn(aName); return; }
+    if(ra.failed||!ra.id){ if(errEl){errEl.style.color='var(--red)';errEl.textContent='Could not create “'+aName+'” — try again.';} return; }
+    if(ra.created) ownerGame=true;
+    G_home_team_id=rh.id; G_away_team_id=ra.id;
+    if(MBR.isSignedIn() && !ownerGame) ownerGame=MY_TEAMS.some(t=>t.id===rh.id||t.id===ra.id);
+    const me = ownerGame ? await MBR.currentUser() : null;
+    const gid = await MBR.createGame({
+      homeTeamId:rh.id, awayTeamId:ra.id, date:G.date||null, venue:G.loc||null,
+      sportId, ownerId: me?me.id:null
+    });
+    if(gid) G_game_id=gid;
+    if(MBR.isSignedIn()){
+      MBR.saveTeamRoster(rh.id, bbRoster('home')).catch(()=>{});
+      MBR.saveTeamRoster(ra.id, bbRoster('away')).catch(()=>{});
+    }
+    if(errEl){ errEl.style.color=''; errEl.textContent=''; }
   }
   // Reset all game state
   G.inning=1; G.half='top'; G.outs=0; G.balls=0; G.strikes=0;
@@ -3728,6 +3896,8 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     loadTodaysGames();
   }
+  renderAuthLine();
+  checkAuthResume();
 });
 
 // ── SCHOOL AUTOCOMPLETE ──────────────────────────────────────────────────

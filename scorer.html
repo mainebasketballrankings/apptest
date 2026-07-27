@@ -7,7 +7,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=5"></script>
+<script src="mbr-core.js?v=7"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -867,12 +867,18 @@ body{
       <div class="su-wordmark">Maine Basketball Rankings<br><span style="font-size:0.5em;letter-spacing:.15em;font-weight:500">LIVE SCORING</span></div>
       <div class="su-tagline">Game Setup</div>
       <div id="buildBadge" style="text-align:center;font-size:11px;color:#888;margin-top:4px;font-family:'Barlow Condensed',sans-serif"></div>
+      <div id="su-auth" style="text-align:center;font-size:11px;margin-top:5px;font-family:'Barlow Condensed',sans-serif"></div>
     </div>
 
     <!-- Mode toggle: pick scheduled game OR create new -->
     <div class="su-mode-toggle">
       <button class="su-mode-btn active" id="su-mode-pick" onclick="suSetMode('pick')">Pick Scheduled Game</button>
       <button class="su-mode-btn" id="su-mode-new" onclick="suSetMode('new')">New Game</button>
+    </div>
+
+    <div class="su-card" id="su-myteams" style="display:none;">
+      <div class="su-card-title">My Teams <span style="font-weight:400;color:#888;font-size:12px">— your saved teams, roster included</span></div>
+      <div id="su-myteams-list"></div>
     </div>
 
     <!-- PICK SCHEDULED GAME -->
@@ -920,7 +926,7 @@ body{
             <div class="su-field su-field-grow su-name-wrap">
               <label>Team Name</label>
               <input id="su-home-name" type="text" placeholder="e.g. Portland" autocomplete="off"
-                oninput="suAutoShort('home');suAcShow('home')" onfocus="suAcShow('home')" onblur="suAcHide('home')" onkeydown="suAcKey(event,'home')">
+                oninput="clearPicked('home');suAutoShort('home');suAcShow('home')" onfocus="suAcShow('home')" onblur="suAcHide('home')" onkeydown="suAcKey(event,'home')">
               <div class="su-autocomplete" id="su-home-ac" style="display:none"></div>
             </div>
             <div class="su-field su-field-xs">
@@ -950,7 +956,7 @@ body{
             <div class="su-field su-field-grow su-name-wrap">
               <label>Team Name</label>
               <input id="su-away-name" type="text" placeholder="e.g. Camden Hills" autocomplete="off"
-                oninput="suAutoShort('away');suAcShow('away')" onfocus="suAcShow('away')" onblur="suAcHide('away')" onkeydown="suAcKey(event,'away')">
+                oninput="clearPicked('away');suAutoShort('away');suAcShow('away')" onfocus="suAcShow('away')" onblur="suAcHide('away')" onkeydown="suAcKey(event,'away')">
               <div class="su-autocomplete" id="su-away-ac" style="display:none"></div>
             </div>
             <div class="su-field su-field-xs">
@@ -1081,7 +1087,7 @@ const SWPX=28;
 let BASKETBALL_SPORT_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const BASKETBALL_PREFIX = 'b31ab283';
 
-const MBR_BUILD='bb-2026-07-21a';
+const MBR_BUILD='bb-2026-07-25a';
 
 // ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
 // Supabase transport, offline queue, school lookup, team resolution, unscheduled
@@ -1278,11 +1284,31 @@ async function fetchRosterIntoForm(teamId, side){
   const myV = ++_rosterVersion[side];
   const roster = await loadTeamRoster(teamId);
   if(myV!==_rosterVersion[side]) return roster.length;
-  if(!roster.length) return 0;
+  if(roster.length){
+    SU[side].players = [];
+    roster.forEach((p,i)=> suAddPlayer(side, p.num, p.name, i<5));
+    suRenderRoster(side);
+    return roster.length;
+  }
+  // Owned team fallback: lineup saved as jsonb on the team row.
+  try{
+    const rows = await sbFetch(`teams?id=eq.${teamId}&select=roster&limit=1`);
+    if(myV!==_rosterVersion[side]) return 0;
+    const jr = rows && rows[0] && rows[0].roster;
+    if(jr && jr.length){ loadOwnedRoster(side, jr); return jr.length; }
+  }catch(e){}
+  return 0;
+}
+// Load a saved owned-team lineup ({num,first,last,starter}) into the setup form.
+function loadOwnedRoster(side, roster){
   SU[side].players = [];
-  roster.forEach((p,i)=> suAddPlayer(side, p.num, p.name, i<5));
+  (roster||[]).forEach(p=>{
+    const first=p.first||'', last=p.last||'';
+    SU[side].players.push({ id:`su-p-${++suPidCount}`, num:p.num||'',
+      last, fi:(first?first[0].toUpperCase():(last?last[0].toUpperCase():'')), first,
+      starter:!!p.starter });
+  });
   suRenderRoster(side);
-  return roster.length;
 }
 
 // ── Autosave / crash recovery ──
@@ -2487,25 +2513,47 @@ function suTipOff() {
   if(G_game_id){ enterScorer(); if(!G_test_mode) startGameBackend(); else scheduleSave(); return; }
   if(G_test_mode){ enterScorer(); scheduleSave(); return; }
 
-  // Unscheduled New Game — emergency option: resolve both teams by name and create
-  // a real games row so it syncs (scoreboard / live / report). Falls back to a
-  // local-only game if the teams aren't in the DB or the insert fails.
+  // Unscheduled New Game — resolve each team; a name that isn't in the schedule
+  // becomes a user-created team, which requires Google sign-in. An owned team on
+  // either side makes the game itself owned/hidden. Two canonical teams stay
+  // login-free exactly as before.
   const hg=document.getElementById('su-home-gender').value, ag=document.getElementById('su-away-gender').value;
+  const rosterJSON = side => SU[side].players
+    .filter(p=>(p.num!==''&&p.num!=null)||p.last||p.first)
+    .map(p=>({num:p.num||'',first:p.first||'',last:p.last||'',starter:!!p.starter}));
   errEl.textContent = 'Setting up game…';
-  Promise.all([fetchTeamIdByName(homeName,hg), fetchTeamIdByName(awayName,ag)]).then(async ([hid,aid])=>{
-    if(hid) G_home_team_id=hid;
-    if(aid) G_away_team_id=aid;
-    if(hid && aid){
-      const gid = await createEmergencyGame({
-        home_team_id:hid, away_team_id:aid,
-        date:GAME.meta.date, venue:GAME.meta.venue, event:GAME.meta.event
+  (async () => {
+    let ownerGame=false;
+    if(!G_home_team_id){
+      const r=await MBR.resolveOrCreateTeamId(homeName, BASKETBALL_SPORT_ID, hg, rosterJSON('home'));
+      if(r.needsAuth){ promptSignIn(homeName); return; }
+      if(r.failed){ errEl.style.color='#c0392b'; errEl.textContent='Could not create “'+homeName+'” — try again.'; return; }
+      G_home_team_id=r.id; if(r.created) ownerGame=true;
+    }
+    if(!G_away_team_id){
+      const r=await MBR.resolveOrCreateTeamId(awayName, BASKETBALL_SPORT_ID, ag, rosterJSON('away'));
+      if(r.needsAuth){ promptSignIn(awayName); return; }
+      if(r.failed){ errEl.style.color='#c0392b'; errEl.textContent='Could not create “'+awayName+'” — try again.'; return; }
+      G_away_team_id=r.id; if(r.created) ownerGame=true;
+    }
+    if(MBR.isSignedIn()){
+      try{ await MBR.saveTeamRoster(G_home_team_id, rosterJSON('home')); }catch(e){}
+      try{ await MBR.saveTeamRoster(G_away_team_id, rosterJSON('away')); }catch(e){}
+      if(!ownerGame) ownerGame = MY_TEAMS.some(t=>t.id===G_home_team_id||t.id===G_away_team_id);
+    }
+    if(!G_game_id && G_home_team_id && G_away_team_id){
+      const me = ownerGame ? await MBR.currentUser() : null;
+      const gid = await MBR.createGame({
+        homeTeamId:G_home_team_id, awayTeamId:G_away_team_id,
+        date:GAME.meta.date, venue:GAME.meta.venue, event:GAME.meta.event,
+        sportId:BASKETBALL_SPORT_ID, ownerId: me?me.id:null
       });
       if(gid) G_game_id = gid;
     }
-    errEl.textContent = '';
+    errEl.textContent=''; errEl.style.color='';
     enterScorer();
-    if(G_game_id) startGameBackend(); else scheduleSave();   // no DB game → local, still crash-safe
-  }).catch(()=>{ errEl.textContent=''; enterScorer(); scheduleSave(); });
+    if(G_game_id) startGameBackend(); else scheduleSave();
+  })().catch(()=>{ errEl.textContent=''; errEl.style.color=''; enterScorer(); scheduleSave(); });
 }
 
 // ── Shared setup helpers ──
@@ -2753,6 +2801,123 @@ function suAcKey(e, side) {
 }
 
 
+// ══ TEAM-CREATION AUTH GATE + MY TEAMS ════════════
+// Scoring scheduled/known games stays login-free. Creating a team that isn't in
+// the database — a non-Maine opponent, a travel/JV/rec squad — requires Google
+// sign-in (the teams INSERT policy enforces it). Owned teams are private and
+// carry their roster from game to game.
+const AUTH_RESUME_KEY='mbr_bb_setup_resume';
+let MY_TEAMS=[];
+
+function renderAuthLine(){
+  const el=document.getElementById('su-auth'); if(!el) return;
+  if(!MBR.isSignedIn()){
+    el.innerHTML =
+      `<button onclick="signInFromSetup()" style="padding:5px 11px;border:1px solid #1d4ed8;border-radius:6px;`
+      +`background:#fff;color:#1d4ed8;font-weight:700;font-size:11px;cursor:pointer;`
+      +`font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">Sign in with Google</button>`
+      +` <span style="color:#888">to reuse your saved teams</span>`;
+    hideMyTeams();
+    return;
+  }
+  MBR.currentUser().then(u=>{
+    el.innerHTML = u
+      ? `<span style="color:#188038">✓ signed in as ${u.email}</span> · `
+        + `<a href="#" onclick="doSignOut();return false;" style="color:#888">sign out</a>`
+      : '';
+    loadMyTeams();
+  });
+}
+function signInFromSetup(){ startSignIn(); }
+function doSignOut(){ MBR.signOut(); MY_TEAMS=[]; hideMyTeams(); renderAuthLine(); }
+
+async function loadMyTeams(){
+  if(!MBR.isSignedIn()){ hideMyTeams(); return; }
+  try{ MY_TEAMS = await MBR.listMyTeams(BASKETBALL_SPORT_ID); }catch(e){ MY_TEAMS=[]; }
+  renderMyTeams();
+}
+function hideMyTeams(){ const c=document.getElementById('su-myteams'); if(c) c.style.display='none'; }
+function renderMyTeams(){
+  const card=document.getElementById('su-myteams'), list=document.getElementById('su-myteams-list');
+  if(!card||!list) return;
+  if(!MY_TEAMS.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  list.innerHTML = MY_TEAMS.map(t=>{
+    const n=(t.roster&&t.roster.length)||0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee">
+      <div style="flex:1;min-width:0"><b>${t.school_name}</b>
+        <span style="color:#888;font-size:12px">${/girl/i.test(t.gender||'')?'Girls':'Boys'}${n?` · ${n} players`:' · no roster yet'}</span></div>
+      <button class="su-add-btn" style="white-space:nowrap" onclick="pickMyTeam('home','${t.id}')">→ Home</button>
+      <button class="su-add-btn" style="white-space:nowrap" onclick="pickMyTeam('away','${t.id}')">→ Away</button>
+    </div>`;
+  }).join('');
+}
+function pickMyTeam(side, id){
+  const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;
+  suSetMode('new');
+  document.getElementById(`su-${side}-name`).value=t.school_name;
+  document.getElementById(`su-${side}-short`).value=shortFor(t.school_name);
+  const gsel=document.getElementById(`su-${side}-gender`);
+  if(gsel) gsel.value = /girl/i.test(t.gender||'') ? 'girls' : 'boys';
+  if(side==='home') G_home_team_id=t.id; else G_away_team_id=t.id;   // reuse, never recreate
+  loadOwnedRoster(side, t.roster||[]);
+  flash(`${t.school_name} loaded into ${side}`,'made');
+}
+function clearPicked(side){ if(side==='home') G_home_team_id=null; else G_away_team_id=null; }
+
+// Persist the half-built setup so the sign-in redirect doesn't lose the roster.
+function stashSetup(){
+  suSyncRoster('home'); suSyncRoster('away');
+  const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  const s={
+    home:{name:g('su-home-name'),short:g('su-home-short'),gender:g('su-home-gender')},
+    away:{name:g('su-away-name'),short:g('su-away-short'),gender:g('su-away-gender')},
+    event:g('su-event'), venue:g('su-venue'), date:g('su-date'),
+    rosters:{home:SU.home.players, away:SU.away.players},
+    hId:G_home_team_id, aId:G_away_team_id
+  };
+  try{ localStorage.setItem(AUTH_RESUME_KEY, JSON.stringify(s)); }catch(e){}
+}
+function checkAuthResume(){
+  let s; try{ s=JSON.parse(localStorage.getItem(AUTH_RESUME_KEY)||'null'); }catch(e){ s=null; }
+  if(!s) return;
+  localStorage.removeItem(AUTH_RESUME_KEY);
+  if(!MBR.isSignedIn()) return;
+  suSetMode('new');
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=v||'';};
+  set('su-home-name',s.home.name); set('su-home-short',s.home.short); set('su-home-gender',s.home.gender);
+  set('su-away-name',s.away.name); set('su-away-short',s.away.short); set('su-away-gender',s.away.gender);
+  set('su-event',s.event); set('su-venue',s.venue); set('su-date',s.date);
+  SU.home.players=(s.rosters&&s.rosters.home)||[];
+  SU.away.players=(s.rosters&&s.rosters.away)||[];
+  suRenderRoster('home'); suRenderRoster('away');
+  G_home_team_id=s.hId||null; G_away_team_id=s.aId||null;
+  renderAuthLine();
+  const err=document.getElementById('su-error');
+  if(err){ err.style.color='#188038'; err.textContent='Signed in — creating team and starting game…'; }
+  setTimeout(()=>{ try{ suTipOff(); }catch(e){ console.warn('resume tipoff failed',e); } }, 300);
+}
+function promptSignIn(teamName){
+  const err=document.getElementById('su-error'); if(!err) return;
+  err.style.color='';
+  err.innerHTML =
+    `<div style="background:#0b1f3a;border:1px solid #1d4ed8;border-radius:9px;padding:12px;margin-top:6px;color:#e5edff;text-align:left">
+       <div style="font-weight:800;margin-bottom:4px">“${teamName}” isn't in the schedule</div>
+       <div style="font-size:12px;line-height:1.5;color:#b9c8e8;margin-bottom:9px">
+         Maine and master-schedule teams score without signing in. To add a team that isn't in the
+         database — a non-Maine opponent, or a travel/JV/rec squad — sign in with Google so it's saved
+         under your account. It stays private to you and off the public rankings.</div>
+       <button onclick="startSignIn()" style="width:100%;padding:10px;border:none;border-radius:7px;
+         background:#fff;color:#1a1a1a;font-weight:800;font-size:14px;cursor:pointer;
+         font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">
+         Sign in with Google to add this team</button>
+       <button onclick="document.getElementById('su-error').textContent=''"
+         style="width:100%;margin-top:6px;padding:8px;border:none;border-radius:7px;background:transparent;
+         color:#8ea3c9;font-size:12px;cursor:pointer">Cancel — I'll fix the name</button>
+     </div>`;
+}
+function startSignIn(){ stashSetup(); MBR.signInWithGoogle(location.href.split('#')[0]); }
+
 // ══ INIT ══════════════════════════════════════
 function init(){
   document.getElementById('su-date').valueAsDate = new Date();
@@ -2769,6 +2934,8 @@ function init(){
   if(gid){ loadGameById(gid).catch(e=>console.warn(e)); }
   else { loadTodaysGames().catch(e=>console.warn(e)); }
   checkRestore();
+  renderAuthLine();
+  checkAuthResume();
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
 else init();

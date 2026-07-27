@@ -6,7 +6,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=6"></script>
+<script src="mbr-core.js?v=7"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -220,13 +220,18 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
     <button class="btn btn-s" style="width:100%;margin-top:6px;" onclick="suSetMode('new')">+ New / Emergency Game</button>
   </div>
 
+  <div class="su-card" id="su-myteams" style="display:none;">
+    <div class="su-h">My Teams <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--dim)">— your saved teams, roster included</span></div>
+    <div id="su-myteams-list"></div>
+  </div>
+
   <div class="su-card" id="su-new" style="display:none;">
     <div class="su-h">3 · Teams &amp; Rosters</div>
     <div class="su-row">
       <div>
         <div class="su-f su-ac">
           <label>Home School</label>
-          <input id="su-home-name" autocomplete="off" oninput="suAcShow('home');suAutoShort('home')" onkeydown="suAcKey(event,'home')" placeholder="Camden Hills">
+          <input id="su-home-name" autocomplete="off" oninput="clearPicked('home');suAcShow('home');suAutoShort('home')" onkeydown="suAcKey(event,'home')" placeholder="Camden Hills">
           <div class="ac-list" id="ac-home"></div>
         </div>
         <div class="su-row">
@@ -237,7 +242,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
       <div>
         <div class="su-f su-ac">
           <label>Away School</label>
-          <input id="su-away-name" autocomplete="off" oninput="suAcShow('away');suAutoShort('away')" onkeydown="suAcKey(event,'away')" placeholder="Cape Elizabeth">
+          <input id="su-away-name" autocomplete="off" oninput="clearPicked('away');suAcShow('away');suAutoShort('away')" onkeydown="suAcKey(event,'away')" placeholder="Cape Elizabeth">
           <div class="ac-list" id="ac-away"></div>
         </div>
         <div class="su-row">
@@ -591,7 +596,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-25b';
+const MBR_BUILD='fs-2026-07-25c';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -742,12 +747,34 @@ async function fetchRosterIntoForm(teamId,side){
   const v=++_rosterVersion[side];
   const roster=await loadTeamRoster(teamId);
   if(v!==_rosterVersion[side])return roster.length;
-  if(!roster.length)return 0;
+  if(roster.length){
+    SU[side].players=[];
+    const starters = SPORT_KEY==='soccer8'?8:11;
+    roster.forEach((p,i)=>suAddPlayer(side,p.num,p.name,i<starters,/^g/i.test(p.pos||'')));
+    suRenderRoster(side);
+    return roster.length;
+  }
+  // Owned team fallback: the lineup is saved as jsonb on the team row (with
+  // precise starter/GK flags) rather than as players rows.
+  try{
+    const rows=await sbFetch(`teams?id=eq.${teamId}&select=roster&limit=1`);
+    if(v!==_rosterVersion[side])return 0;
+    const jr = rows && rows[0] && rows[0].roster;
+    if(jr && jr.length){ loadOwnedRoster(side, jr); return jr.length; }
+  }catch(e){}
+  return 0;
+}
+// Load a saved owned-team lineup ({num,first,last,starter,gk}) into the setup
+// form, preserving the exact starter and keeper designations.
+function loadOwnedRoster(side, roster){
   SU[side].players=[];
-  const starters = SPORT_KEY==='soccer8'?8:11;
-  roster.forEach((p,i)=>suAddPlayer(side,p.num,p.name,i<starters,/^g/i.test(p.pos||'')));
+  (roster||[]).forEach(p=>{
+    SU[side].players.push({id:`su-p-${++suPidCount}`, num:p.num||'',
+      fi:(p.first?p.first[0]:''), first:p.first||'', last:p.last||'',
+      starter:!!p.starter, gk:!!p.gk});
+  });
+  if(!SU[side].players.length){ for(let i=0;i<3;i++) suAddPlayer(side); }
   suRenderRoster(side);
-  return roster.length;
 }
 
 // ══ SETUP UI ═════════════════════════════════════════════════
@@ -775,6 +802,7 @@ function setSport(k){
   document.getElementById('rules-note').innerHTML =
     `${SP.periods} × ${fmt(SP.periodSecs)} · ${otTxt}<br>${SP.mercy.txt||''}`;
   loadTodaysGames();
+  try{ loadMyTeams(); }catch(e){}
 }
 function suSetMode(mode){
   document.getElementById('su-new').style.display = mode==='new'?'block':'none';
@@ -1092,18 +1120,30 @@ async function suKickOff(){
     // A name that isn't in the schedule becomes a user-created team, which needs
     // Google sign-in. If either side triggers that and nobody is signed in, we
     // stash the setup, send them to Google, and resume on return.
+    const rosterJSON=side=>PL[side].map(p=>({num:p.num||'',first:p.first||'',last:p.last||'',starter:!!p.starter,gk:!!p.gk}));
     let ownerGame=false;
     if(!G_home_team_id){
-      const r=await MBR.resolveOrCreateTeamId(hName,SP.sport_id,document.getElementById('su-home-gender').value);
+      const r=await MBR.resolveOrCreateTeamId(hName,SP.sport_id,document.getElementById('su-home-gender').value,rosterJSON('home'));
       if(r.needsAuth){ promptSignIn(hName); return; }
       if(r.failed){ err.style.color='var(--al)'; err.textContent='Could not create “'+hName+'” — try again.'; return; }
       G_home_team_id=r.id; if(r.created) ownerGame=true;
     }
     if(!G_away_team_id){
-      const r=await MBR.resolveOrCreateTeamId(aName,SP.sport_id,document.getElementById('su-away-gender').value);
+      const r=await MBR.resolveOrCreateTeamId(aName,SP.sport_id,document.getElementById('su-away-gender').value,rosterJSON('away'));
       if(r.needsAuth){ promptSignIn(aName); return; }
       if(r.failed){ err.style.color='var(--al)'; err.textContent='Could not create “'+aName+'” — try again.'; return; }
       G_away_team_id=r.id; if(r.created) ownerGame=true;
+    }
+    // Keep each owned team's saved roster current with whatever was just entered.
+    // Canonical teams (owner_id NULL) match nothing and are left untouched.
+    if(MBR.isSignedIn()){
+      try{ await MBR.saveTeamRoster(G_home_team_id, rosterJSON('home')); }catch(e){}
+      try{ await MBR.saveTeamRoster(G_away_team_id, rosterJSON('away')); }catch(e){}
+    }
+    if(!ownerGame && (MBR.isSignedIn())){
+      // A picked "My Team" sets the id before kickoff, so ownerGame may be false
+      // even though a side is owned. Detect it so the game itself is owned/hidden.
+      ownerGame = MY_TEAMS.some(t=>t.id===G_home_team_id||t.id===G_away_team_id);
     }
     if(!G_game_id && G_home_team_id && G_away_team_id){
       const me = ownerGame ? await MBR.currentUser() : null;
@@ -2682,17 +2722,64 @@ function flash(msg,type){
 // keeps it graceful instead of a silent rejection.
 const AUTH_RESUME_KEY='mbr_field_setup_resume';
 
+let MY_TEAMS=[];
+
 function renderAuthLine(){
   const el=document.getElementById('su-auth'); if(!el) return;
-  if(!MBR.isSignedIn()){ el.innerHTML=''; return; }
+  if(!MBR.isSignedIn()){
+    el.innerHTML =
+      `<button onclick="signInFromSetup()" style="padding:5px 11px;border:1px solid #1d4ed8;border-radius:6px;`
+      +`background:#fff;color:#1d4ed8;font-weight:700;font-size:11px;cursor:pointer;`
+      +`font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">Sign in with Google</button>`
+      +` <span style="color:var(--dim)">to reuse your saved teams</span>`;
+    hideMyTeams();
+    return;
+  }
   MBR.currentUser().then(u=>{
     el.innerHTML = u
       ? `<span style="color:var(--green)">✓ signed in as ${u.email}</span> · `
         + `<a href="#" onclick="doSignOut();return false;" style="color:var(--dim)">sign out</a>`
       : '';
+    loadMyTeams();
   });
 }
-function doSignOut(){ MBR.signOut(); renderAuthLine(); }
+function signInFromSetup(){ startSignIn(); }   // stashes any typed setup, then redirects
+function doSignOut(){ MBR.signOut(); MY_TEAMS=[]; hideMyTeams(); renderAuthLine(); }
+
+// ── My Teams picker ──────────────────────────────────────────
+async function loadMyTeams(){
+  if(!MBR.isSignedIn() || !SP || !SP.sport_id){ hideMyTeams(); return; }
+  try{ MY_TEAMS = await MBR.listMyTeams(SP.sport_id); }catch(e){ MY_TEAMS=[]; }
+  renderMyTeams();
+}
+function hideMyTeams(){ const c=document.getElementById('su-myteams'); if(c) c.style.display='none'; }
+function renderMyTeams(){
+  const card=document.getElementById('su-myteams'), list=document.getElementById('su-myteams-list');
+  if(!card||!list) return;
+  if(!MY_TEAMS.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  list.innerHTML = MY_TEAMS.map(t=>{
+    const n=(t.roster&&t.roster.length)||0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee">
+      <div style="flex:1;min-width:0"><b>${t.school_name}</b>
+        <span style="color:var(--dim);font-size:12px">${t.gender||''}${n?` · ${n} players`:' · no roster yet'}</span></div>
+      <button class="btn btn-s" style="padding:6px 11px;font-size:12px;white-space:nowrap" onclick="pickMyTeam('home','${t.id}')">→ Home</button>
+      <button class="btn btn-s" style="padding:6px 11px;font-size:12px;white-space:nowrap" onclick="pickMyTeam('away','${t.id}')">→ Away</button>
+    </div>`;
+  }).join('');
+}
+function pickMyTeam(side, id){
+  const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;
+  suSetMode('new');
+  document.getElementById(`su-${side}-name`).value=t.school_name;
+  document.getElementById(`su-${side}-short`).value=shortFor(t.school_name);
+  const gsel=document.getElementById(`su-${side}-gender`);
+  if(gsel) gsel.value = /girl/i.test(t.gender||'') ? 'girls' : 'boys';
+  if(side==='home') G_home_team_id=t.id; else G_away_team_id=t.id;   // reuse, never recreate
+  loadOwnedRoster(side, t.roster||[]);
+  flash(`${t.school_name} loaded into ${side}`,'made');
+}
+function clearPicked(side){ if(side==='home') G_home_team_id=null; else G_away_team_id=null; }
 
 // Persist the half-built setup so the sign-in redirect doesn't lose the roster.
 function stashSetup(){

@@ -426,7 +426,7 @@
   //
   // (NH football teams that count against Maine records live in the master
   // schedule already, so they resolve as canonical and never reach here.)
-  async function createTeam(schoolName, sportId, gender) {
+  async function createTeam(schoolName, sportId, gender, roster) {
     const name = String(schoolName || '').trim();
     const sid  = sportIdNow(sportId);
     const g    = /girl|women|f$/i.test(String(gender || '')) ? 'Girls' : 'Boys';
@@ -434,13 +434,13 @@
     const me = await currentUser();
     if (!me) return null;                 // no session — caller should prompt sign-in
     try {
+      const row = { school_name: name, sport_id: sid, gender: g,
+                    owner_id: me.id, visibility: 'private' };
+      if (roster && roster.length) row.roster = roster;
       const res = await fetch(`${SB_URL}/rest/v1/teams`, {
         method : 'POST',
         headers: hdr({ Prefer: 'return=representation' }),
-        body   : JSON.stringify({
-          school_name: name, sport_id: sid, gender: g,
-          owner_id: me.id, visibility: 'private'
-        })
+        body   : JSON.stringify(row)
       });
       if (!res.ok) {
         console.warn('createTeam failed', res.status, await res.text().catch(() => ''));
@@ -459,13 +459,44 @@
   //   { id, created:true }         a new team owned by the signed-in user
   //   { id:null, needsAuth:true }  not in the DB and nobody is signed in — prompt
   //   { id:null, failed:true }     signed in, but the insert did not take
-  async function resolveOrCreateTeamId(schoolName, sportId, gender) {
+  async function resolveOrCreateTeamId(schoolName, sportId, gender, roster) {
     const existing = await resolveTeamId(schoolName, sportId, gender);
     if (existing) return { id: existing, created: false };
     if (!isSignedIn()) return { id: null, needsAuth: true, name: String(schoolName || '').trim() };
-    const id = await createTeam(schoolName, sportId, gender);
+    const id = await createTeam(schoolName, sportId, gender, roster);
     if (id) return { id, created: true };
     return { id: null, failed: true, needsAuth: !isSignedIn() };
+  }
+
+  // The signed-in user's own teams for a sport, roster included so a "My Teams"
+  // picker can fill the lineup too. RLS returns only the caller's own rows.
+  async function listMyTeams(sportId) {
+    const sid = sportIdNow(sportId);
+    const me = await currentUser();
+    if (!me || !sid) return [];
+    try {
+      const rows = await sbFetch(
+        `teams?owner_id=eq.${me.id}&sport_id=eq.${sid}` +
+        `&select=id,school_name,gender,roster&order=school_name.asc`);
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) { console.warn('listMyTeams failed', e); return []; }
+  }
+
+  // Persist a lineup onto an owned team so it carries to the next game. The
+  // owner_id filter + the "owner edits own" UPDATE policy mean a canonical team
+  // (owner_id NULL) matches nothing and is left untouched — safe to call for
+  // either side without checking ownership first.
+  async function saveTeamRoster(teamId, roster) {
+    if (!teamId) return false;
+    const me = await currentUser();
+    if (!me) return false;
+    try {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/teams?id=eq.${teamId}&owner_id=eq.${me.id}`,
+        { method: 'PATCH', headers: hdr({ Prefer: 'return=minimal' }),
+          body: JSON.stringify({ roster: roster || [] }) });
+      return r.ok;
+    } catch (e) { console.warn('saveTeamRoster failed', e); return false; }
   }
 
   // ── Live clock sync ──────────────────────────────────────────────────────
@@ -504,6 +535,7 @@
     startClockSync, stopClockSync,
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
     loadSchools, schoolIds, createGame, resolveTeamId, createTeam, resolveOrCreateTeamId,
+    listMyTeams, saveTeamRoster,
     signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
     clamp,

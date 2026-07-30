@@ -2751,6 +2751,7 @@ async function loadMyTeams(){
   if(!MBR.isSignedIn() || !SP || !SP.sport_id){ hideMyTeams(); return; }
   try{ MY_TEAMS = await MBR.listMyTeams(SP.sport_id); }catch(e){ MY_TEAMS=[]; }
   renderMyTeams();
+  applyTeamParam();
 }
 function hideMyTeams(){ const c=document.getElementById('su-myteams'); if(c) c.style.display='none'; }
 function renderMyTeams(){
@@ -2767,6 +2768,19 @@ function renderMyTeams(){
       <button class="btn btn-s" style="padding:6px 11px;font-size:12px;white-space:nowrap" onclick="pickMyTeam('away','${t.id}')">→ Away</button>
     </div>`;
   }).join('');
+}
+// ── Deep link from the Scorekeeper home screen ────────────────────────────
+// home.html sends ?team_id=UUID when you tap one of your saved teams. Drop it
+// into the home side using the same path the My Teams buttons use, so there's
+// only one roster-loading code path to maintain. Fires once per page load.
+let _teamParamDone = false;
+function applyTeamParam(){
+  if(_teamParamDone) return;
+  const id = new URLSearchParams(location.search).get('team_id');
+  if(!id) return;
+  if(!MY_TEAMS.some(t => t.id === id)) return;   // not ours / wrong sport — ignore
+  _teamParamDone = true;
+  pickMyTeam('home', id);
 }
 function pickMyTeam(side, id){
   const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;

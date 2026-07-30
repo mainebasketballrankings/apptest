@@ -913,6 +913,24 @@ body{
             <label>Date</label>
             <input id="su-date" type="date">
           </div>
+          <div class="su-field su-field-sm">
+            <label>Format</label>
+            <select id="su-format" onchange="onFmtChange()"></select>
+          </div>
+        </div>
+        <div class="su-row" id="su-fmt-custom" style="display:none">
+          <div class="su-field su-field-sm">
+            <label>Periods</label>
+            <input id="su-fmt-periods" type="number" min="1" max="8" value="4" onchange="onFmtChange()">
+          </div>
+          <div class="su-field su-field-sm">
+            <label>Minutes each</label>
+            <input id="su-fmt-mins" type="number" min="1" max="30" value="8" onchange="onFmtChange()">
+          </div>
+          <div class="su-field su-field-sm">
+            <label>OT minutes</label>
+            <input id="su-fmt-ot" type="number" min="1" max="15" value="4" onchange="onFmtChange()">
+          </div>
         </div>
       </div>
 
@@ -1015,7 +1033,7 @@ const GAME={
   home:{name:'Camden Boys',    short:'CHILLS',  score:0,fouls:0,tof:3,to3:2},
   away:{name:'Cape Elizabeth', short:'CAPE', score:0,fouls:0,tof:3,to3:2},
   period:1,clockSec:480,running:false,possession:'home',
-  qFouls:{home:[0,0,0,0,0,0], away:[0,0,0,0,0,0]}, // per-quarter fouls, index=period-1
+  qFouls:{home:[0,0,0,0,0,0,0,0,0,0], away:[0,0,0,0,0,0,0,0,0,0]}, // per-period fouls, index=period-1
   maxLead:{home:0,away:0}, leadChanges:0, lastLeadSide:null
 };
 
@@ -1221,7 +1239,7 @@ function sbPushEvent(e){
 // Free-text label the scoreboard (embed.html) prints beside the live dot.
 function gameClockLabel(){
   if(_gameFinalized) return 'Final';
-  if(GAME.clockSec===0 && GAME.period===2) return 'Halftime';
+  if(GAME.clockSec===0 && isHalftime(GAME.period)) return 'Halftime';
   if(GAME.clockSec===0) return 'End '+PERIOD_LBL(GAME.period);
   return PERIOD_LBL(GAME.period)+' | '+fmt(GAME.clockSec);
 }
@@ -1390,8 +1408,93 @@ function toggleTestMode(){
 // ══ CLOCK ═════════════════════════════════════
 const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 
-const PERIOD_LBL = p => p<=4 ? ['1ST','2ND','3RD','4TH'][p-1] : `OT${p-4>1?p-4:''}`;
-const PERIOD_SECS = p => p<=4 ? 480 : 240; // 8 min quarters, 4 min OT
+// ══ GAME FORMAT ═══════════════════════════════════════════════════════════
+// Maine varsity is 4 x 8 with 4-minute overtimes, and that stays the default.
+// But this scorer also runs youth, middle school, AAU, rec and tournament ball,
+// where quarters are 6-10 minutes or the game is played in halves. The format is
+// chosen on the setup screen and remembered per device, so a rec coach sets it
+// once. Everything downstream reads FMT rather than a literal.
+const FMT_KEY = 'mbr_bb_format';
+const FMT_PRESETS = [
+  {id:'4x8',  lbl:'4 x 8 min',  note:'Maine varsity',  periods:4, periodSecs:480,  otSecs:240},
+  {id:'4x6',  lbl:'4 x 6 min',  note:'Middle school',  periods:4, periodSecs:360,  otSecs:180},
+  {id:'4x7',  lbl:'4 x 7 min',  note:'',               periods:4, periodSecs:420,  otSecs:240},
+  {id:'4x9',  lbl:'4 x 9 min',  note:'',               periods:4, periodSecs:540,  otSecs:240},
+  {id:'4x10', lbl:'4 x 10 min', note:'NCAA W / FIBA',  periods:4, periodSecs:600,  otSecs:300},
+  {id:'2x16', lbl:'2 x 16 min', note:'Halves',         periods:2, periodSecs:960,  otSecs:300},
+  {id:'2x18', lbl:'2 x 18 min', note:'Halves',         periods:2, periodSecs:1080, otSecs:300},
+  {id:'2x20', lbl:'2 x 20 min', note:'NCAA M',         periods:2, periodSecs:1200, otSecs:300},
+];
+let FMT = {periods:4, periodSecs:480, otSecs:240};
+
+function loadFmt(){
+  try{
+    const s = JSON.parse(localStorage.getItem(FMT_KEY)||'null');
+    if(s && s.periods>0 && s.periodSecs>0)
+      FMT = {periods:+s.periods, periodSecs:+s.periodSecs, otSecs:+s.otSecs||240};
+  }catch(e){}
+}
+function saveFmt(){ try{ localStorage.setItem(FMT_KEY, JSON.stringify(FMT)); }catch(e){} }
+
+// Ordinals cover any regulation length we'd realistically see.
+const ORD = ['1ST','2ND','3RD','4TH','5TH','6TH','7TH','8TH'];
+const PERIOD_LBL  = p => p<=FMT.periods ? (ORD[p-1]||('P'+p)) : `OT${p-FMT.periods>1?p-FMT.periods:''}`;
+const PERIOD_SECS = p => p<=FMT.periods ? FMT.periodSecs : FMT.otSecs;
+// "Halftime" is the midpoint of regulation, which is period 2 of 4 but period 1 of 2.
+const isHalftime  = p => FMT.periods % 2 === 0 && p === FMT.periods/2;
+
+function initFmtUI(){
+  loadFmt();
+  const sel = document.getElementById('su-format');
+  if(!sel) return;
+  sel.innerHTML =
+    FMT_PRESETS.map(p=>`<option value="${p.id}">${p.lbl}${p.note?' \u2014 '+p.note:''}</option>`).join('')
+    + '<option value="custom">Custom\u2026</option>';
+  const hit = FMT_PRESETS.find(p=>p.periods===FMT.periods && p.periodSecs===FMT.periodSecs);
+  sel.value = hit ? hit.id : 'custom';
+  syncFmtInputs();
+  onFmtChange(true);
+}
+function syncFmtInputs(){
+  const g = id => document.getElementById(id);
+  if(g('su-fmt-periods')) g('su-fmt-periods').value = FMT.periods;
+  if(g('su-fmt-mins'))    g('su-fmt-mins').value    = Math.round(FMT.periodSecs/60);
+  if(g('su-fmt-ot'))      g('su-fmt-ot').value      = Math.round(FMT.otSecs/60);
+}
+function onFmtChange(quiet){
+  const sel = document.getElementById('su-format');
+  if(!sel) return;
+  const box = document.getElementById('su-fmt-custom');
+  if(sel.value === 'custom'){
+    if(box) box.style.display = '';
+    const n = (id,d) => {
+      const v = parseInt((document.getElementById(id)||{}).value, 10);
+      return isNaN(v) ? d : v;
+    };
+    FMT = {
+      periods   : Math.max(1, Math.min(8,  n('su-fmt-periods',4))),
+      periodSecs: Math.max(1, Math.min(30, n('su-fmt-mins',8)))  * 60,
+      otSecs    : Math.max(1, Math.min(15, n('su-fmt-ot',4)))    * 60,
+    };
+  } else {
+    if(box) box.style.display = 'none';
+    const p = FMT_PRESETS.find(x=>x.id===sel.value);
+    if(p) FMT = {periods:p.periods, periodSecs:p.periodSecs, otSecs:p.otSecs};
+    syncFmtInputs();
+  }
+  saveFmt();
+  // Pre-tip only: never rewrite a clock that's already been used.
+  if(typeof GAME!=='undefined' && GAME && GAME.period===1 && !GAME.running
+     && GAME.clockSec > 0 && !_gameStarted){
+    GAME.clockSec = PERIOD_SECS(1);
+    if(typeof updClk === 'function') updClk();
+  }
+  if(!quiet && typeof flash === 'function')
+    flash(`Format: ${FMT.periods} \u00d7 ${Math.round(FMT.periodSecs/60)} min`, 'made');
+}
+// Set before any game exists so the opening clock is right.
+let _gameStarted = false;
+document.addEventListener('DOMContentLoaded', initFmtUI);
 
 function toggleClock(){
   if(GAME.running){clearInterval(clkInt);GAME.running=false;}
@@ -2569,6 +2672,10 @@ function autoShort(name){
   return (w.length===1 ? w[0].slice(0,6) : w.map(x=>x[0]).join('').slice(0,6)).toUpperCase();
 }
 function enterScorer(){
+  // Lock the format in as we tip off. A restored game keeps whatever clock it
+  // was saved with; only a fresh 1st period gets the format's opening time.
+  _gameStarted = true;
+  if(GAME.period === 1 && !GAME.running && GAME.clockSec > 0) GAME.clockSec = PERIOD_SECS(1);
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('scorer-ui').style.display = 'flex';
   const gLabel = g => `${g.name} ${g.gender==='girls'?'Girls':'Boys'}`;
@@ -2835,6 +2942,7 @@ async function loadMyTeams(){
   if(!MBR.isSignedIn()){ hideMyTeams(); return; }
   try{ MY_TEAMS = await MBR.listMyTeams(BASKETBALL_SPORT_ID); }catch(e){ MY_TEAMS=[]; }
   renderMyTeams();
+  applyTeamParam();
 }
 function hideMyTeams(){ const c=document.getElementById('su-myteams'); if(c) c.style.display='none'; }
 function renderMyTeams(){
@@ -2851,6 +2959,19 @@ function renderMyTeams(){
       <button class="su-add-btn" style="white-space:nowrap" onclick="pickMyTeam('away','${t.id}')">→ Away</button>
     </div>`;
   }).join('');
+}
+// ── Deep link from the Scorekeeper home screen ────────────────────────────
+// home.html sends ?team_id=UUID when you tap one of your saved teams. Drop it
+// into the home side using the same path the My Teams buttons use, so there's
+// only one roster-loading code path to maintain. Fires once per page load.
+let _teamParamDone = false;
+function applyTeamParam(){
+  if(_teamParamDone) return;
+  const id = new URLSearchParams(location.search).get('team_id');
+  if(!id) return;
+  if(!MY_TEAMS.some(t => t.id === id)) return;   // not ours / wrong sport — ignore
+  _teamParamDone = true;
+  pickMyTeam('home', id);
 }
 function pickMyTeam(side, id){
   const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;
@@ -2998,7 +3119,7 @@ function boxStats(side){
   const sideEvts=evts.filter(e=>e.side===side);
   // Build all events in chronological order for +/- and minutes
   const allEvts=[...evts].reverse();
-  const QSECS=480;
+  const QSECS=FMT.periodSecs;
 
   return PL[side].map(p=>{
     const pe=sideEvts.filter(e=>e.pid===p.id);
@@ -3095,7 +3216,7 @@ function teamTotals(side){
 
 function qtrScores(){
   const qs={home:[0,0,0,0],away:[0,0,0,0]};
-  evts.filter(e=>e.pts>0&&e.period>=1&&e.period<=4).forEach(e=>{
+  evts.filter(e=>e.pts>0&&e.period>=1&&e.period<=FMT.periods).forEach(e=>{
     qs[e.side][e.period-1]+=e.pts;
   });
   return qs;
@@ -3118,8 +3239,12 @@ function quarterBreakdown(side){
   const sideEvts=evts.filter(e=>e.side===side);
   const maxP=Math.max(1, GAME.period, ...sideEvts.map(e=>e.period||1));
   const rows=[];
-  for(let q=1;q<=Math.min(maxP,6);q++){
-    rows.push(qStatLine(sideEvts.filter(e=>e.period===q), q>4?`OT${q-4}`:`Q${q}`));
+  // Label by format: halves get H1/H2, quarters get Q1-Q4, anything past
+  // regulation is an overtime.
+  const pfx = FMT.periods === 2 ? 'H' : 'Q';
+  for(let q=1;q<=Math.min(maxP, FMT.periods+4);q++){
+    const lbl = q>FMT.periods ? `OT${q-FMT.periods>1?q-FMT.periods:''}` : `${pfx}${q}`;
+    rows.push(qStatLine(sideEvts.filter(e=>e.period===q), lbl));
   }
   rows.push(qStatLine(sideEvts,'Game'));
   return rows;

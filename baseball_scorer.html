@@ -322,8 +322,12 @@ input,select,button{font-family:inherit;}
       <input type="text" class="sinput" id="gameLocInp" placeholder="Field / School"/></div>
     <div class="srow"><span class="slabel">Innings</span>
       <select class="sselect" id="inningSel">
-        <option value="7">7 (Standard)</option>
-        <option value="5">5 (DH / Short)</option>
+        <option value="9">9 (Legion / college)</option>
+        <option value="7" selected>7 (Standard)</option>
+        <option value="6">6 (Youth)</option>
+        <option value="5">5 (DH / short)</option>
+        <option value="4">4 (Short)</option>
+        <option value="3">3 (Scrimmage)</option>
       </select></div>
     <div class="srow"><span class="slabel">Mercy Rule</span>
       <button class="pill on" id="mercyPill" onclick="togglePill('mercyPill')">On</button>
@@ -1195,6 +1199,7 @@ async function loadMyTeams(){
   if(!MBR.isSignedIn()){ hideMyTeams(); return; }
   try{ MY_TEAMS = await MBR.listMyTeams(bbSportId()); }catch(e){ MY_TEAMS=[]; }
   renderMyTeams();
+  applyTeamParam();
 }
 function hideMyTeams(){ const c=document.getElementById('su-myteams'); if(c) c.style.display='none'; }
 function renderMyTeams(){
@@ -1211,6 +1216,19 @@ function renderMyTeams(){
       <button class="pill" style="width:auto;padding:5px 10px;font-size:12px;white-space:nowrap" onclick="pickMyTeam('away','${t.id}')">→ Away</button>
     </div>`;
   }).join('');
+}
+// ── Deep link from the Scorekeeper home screen ────────────────────────────
+// home.html sends ?team_id=UUID when you tap one of your saved teams. Drop it
+// into the home side using the same path the My Teams buttons use, so there's
+// only one roster-loading code path to maintain. Fires once per page load.
+let _teamParamDone = false;
+function applyTeamParam(){
+  if(_teamParamDone) return;
+  const id = new URLSearchParams(location.search).get('team_id');
+  if(!id) return;
+  if(!MY_TEAMS.some(t => t.id === id)) return;   // not ours / wrong sport — ignore
+  _teamParamDone = true;
+  pickMyTeam('home', id);
 }
 function pickMyTeam(side, id){
   const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;

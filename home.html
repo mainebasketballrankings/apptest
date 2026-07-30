@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Scorekeeper">
+<meta name="theme-color" content="#f0f2f8">
+<title>Scorekeeper — Maine Basketball Rankings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+
+<style>
+/* Tokens lifted straight from scorer.html / field_scorer.html so this screen
+   reads as the same app, not a different product bolted on the front. */
+:root{
+  --bg:#f0f2f8; --surface:#ffffff; --surface2:#e8eaf2; --border:#d0d3e8;
+  --hl:#2563eb; --al:#dc2626; --text:#0f1117; --dim:#6b7280; --ldim:#9ca3af;
+  --green:#16a34a; --gold:#d97706; --orange:#ee6730; --radius:10px;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px);
+  --safe-r:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{
+  background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
+  min-height:100dvh;user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;overscroll-behavior:none;touch-action:manipulation;
+  padding:calc(var(--safe-t) + 18px) calc(14px + var(--safe-r))
+          calc(var(--safe-b) + 40px) calc(14px + var(--safe-l));
+}
+.wrap{max-width:560px;margin:0 auto;}
+
+/* ══ Brand ══ */
+.brand{text-align:center;margin-bottom:18px;}
+.brand img{height:58px;width:auto;display:inline-block;}
+.brand .fallback{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;display:none;}
+.brand .sub{
+  font-family:'Barlow Condensed',sans-serif;letter-spacing:.16em;font-size:10px;
+  text-transform:uppercase;color:var(--dim);margin-top:6px;
+}
+
+/* ══ Card shell ══ */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
+.h{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;
+  display:flex;align-items:center;gap:8px;
+}
+.h .tag{margin-left:auto;letter-spacing:.1em;font-size:10px;color:var(--ldim);}
+
+/* ══ SIGNATURE: the resume board.
+   A faithful miniature of the scorer's own topbar — Playfair team names,
+   Barlow Condensed numerals in home-blue / away-red, the clock chip in the
+   middle. It's literally the scoreboard you walked away from. ══ */
+.board{cursor:pointer;transition:transform .12s ease;}
+.board:active{transform:scale(.985);}
+.board-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;}
+.tside{min-width:0;text-align:center;}
+.tname{
+  font-family:'Playfair Display',serif;font-weight:900;font-size:15px;line-height:1.15;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:44px;line-height:1;}
+.tside.home .snum{color:var(--hl);}
+.tside.away .snum{color:var(--al);}
+.clkcol{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 4px;}
+.clkchip{
+  background:var(--surface2);border:2px solid var(--border);border-radius:7px;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;
+  padding:2px 12px;min-width:84px;text-align:center;white-space:nowrap;
+}
+.clkchip.live{border-color:var(--green);color:var(--green);}
+.pdisp{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:.18em;color:var(--dim);}
+
+.livedot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;}
+.board-foot{
+  display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;
+  border-top:1px solid var(--border);
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+}
+.board-foot .go{margin-left:auto;color:var(--orange);}
+
+.empty{font-size:14px;line-height:1.5;color:var(--dim);}
+.empty b{color:var(--text);font-weight:600;}
+
+/* ══ Sport grid — same pattern as .sport-btn in field_scorer ══ */
+.sport-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;}
+.sport-btn{
+  background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:11px 6px;
+  cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;
+  letter-spacing:.06em;text-transform:uppercase;text-align:center;color:var(--text);
+  transition:border-color .12s ease,transform .12s ease;
+}
+.sport-btn:active{border-color:var(--orange);transform:scale(.97);}
+.sport-btn:focus-visible{outline:2px solid var(--orange);outline-offset:2px;}
+.sport-btn small{
+  display:block;font-family:'Barlow',sans-serif;font-weight:400;font-size:10px;
+  letter-spacing:0;text-transform:none;color:var(--dim);margin-top:2px;
+}
+
+/* ══ Team rows ══ */
+.trow{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;margin-bottom:6px;cursor:pointer;color:var(--text);
+  font-family:'Barlow',sans-serif;font-size:14px;font-weight:500;
+}
+.trow:active{border-color:var(--orange);}
+.trow .cnt{
+  margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+}
+.trow .chev{color:var(--ldim);}
+
+/* ══ Auth line ══ */
+.authline{
+  display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);
+  font-family:'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase;
+  font-weight:700;margin-top:2px;
+}
+.linkbtn{
+  background:none;border:none;color:var(--orange);cursor:pointer;padding:0;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;
+}
+.btn-g{
+  width:100%;padding:11px;border-radius:7px;background:var(--orange);color:#fff;border:none;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+}
+
+/* ══ Skeleton ══ */
+.skel{background:var(--surface2);border-radius:8px;height:74px;animation:br 1.5s ease-in-out infinite;}
+.skel.sm{height:40px;}
+@keyframes br{0%,100%{opacity:.5}50%{opacity:.85}}
+
+/* ══ Footer ══ */
+.foot{
+  display:flex;align-items:center;gap:8px;margin-top:16px;padding:0 4px;
+  font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ldim);
+}
+.foot .sp{flex:1;}
+.foot .ok{color:var(--green);}
+.foot .bad{color:var(--al);}
+
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + var(--safe-b));
+  background:var(--text);color:#fff;font-size:13px;font-weight:500;padding:10px 18px;
+  border-radius:999px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
+  max-width:88vw;text-align:center;
+}
+.toast.show{opacity:1;}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <img src="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png"
+         alt="Maine Basketball Rankings"
+         onerror="this.style.display='none';document.getElementById('bfall').style.display='block';">
+    <div class="fallback" id="bfall">Maine Basketball Rankings</div>
+    <div class="sub">Scorekeeper</div>
+  </div>
+
+  <div class="card">
+    <div class="h">In progress <span class="tag" id="ipTag"></span></div>
+    <div id="resumeSlot"><div class="skel"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="h">Start a game</div>
+    <div class="sport-grid" id="grid"></div>
+  </div>
+
+  <div class="card">
+    <div class="h">My teams</div>
+    <div id="teamsSlot"><div class="skel sm"></div></div>
+  </div>
+
+  <div class="foot">
+    <span id="buildLbl">—</span>
+    <span class="sp"></span>
+    <span id="netLbl"></span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="mbr-core.js?v=7" onerror="window.__coreMissing=true"></script>
+<script>
+const BUILD = 'home-2026-07-30b';
+
+/* Sport table — file + params verified against the uploaded scorers.
+   field_scorer accepts sport = soccer | field_hockey | lacrosse
+   baseball_scorer accepts sport = baseball | softball
+   all four read game_id */
+const SPORTS = [
+  {key:'basketball', label:'Basketball',   sub:'4 × 8 min',  file:'scorer.html',          params:{},                     sport_id:'b31ab283-b28e-4ba8-9684-b1cf30cea219'},
+  {key:'football',   label:'Football',     sub:'4 × 12 min', file:'football_scorer.html', params:{},                     sport_id:'fa905ca5-f416-409b-81ac-777179ee5576'},
+  {key:'soccer',     label:'Soccer',       sub:'2 × 40 min', file:'field_scorer.html',    params:{sport:'soccer'},       sport_id:'ff80a695-0e78-4432-98f2-141b2b571e0e'},
+  {key:'fh',         label:'Field Hockey', sub:'2 × 30 min', file:'field_scorer.html',    params:{sport:'field_hockey'}, sport_id:'1054869a-20d4-465f-8ca9-4bc4d2bafe1b'},
+  {key:'lacrosse',   label:'Lacrosse',     sub:'4 × 12 min', file:'field_scorer.html',    params:{sport:'lacrosse'},     sport_id:'9c34ec5c-81b4-4e2e-9f60-740bb30fee4d'},
+  {key:'baseball',   label:'Baseball',     sub:'7 innings',  file:'baseball_scorer.html', params:{sport:'baseball'},     sport_id:'c87a4d6c-a471-47e1-b6a0-d1643d942bf0'},
+  {key:'softball',   label:'Softball',     sub:'7 innings',  file:'baseball_scorer.html', params:{sport:'softball'},     sport_id:'095c9841-7261-4cb1-824e-6304792b53d0'},
+];
+
+const RESUME_KEY = 'mbr_home_resume';
+const RESUME_TTL = 18 * 3600 * 1000;   // a game you left this morning is still today's game
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const bySportId = id => SPORTS.find(s => s.sport_id === id);
+
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
+
+const hasCore = () => !window.__coreMissing && typeof window.MBR !== 'undefined';
+const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+/* mbr-core wants an init config. The home screen never scores anything, so
+   everything game-shaped is a no-op — we only want the transport + auth. */
+function initCore(){
+  if(!hasCore()) return;
+  try{
+    MBR.init({
+      queueKey    : 'mbr_home_push_queue',
+      isTestMode  : () => false,
+      gameId      : () => null,
+      isFinalized : () => true,
+      makePDF     : () => null,
+      sportId     : () => null,
+    });
+  }catch(e){ /* core may not require init to expose auth — keep going */ }
+}
+
+function scorerURL(sp, extra){
+  const p = new URLSearchParams({...sp.params, ...(extra||{})});
+  const q = p.toString();
+  return sp.file + (q ? '?' + q : '');
+}
+
+function go(url, meta){
+  try{
+    localStorage.setItem(RESUME_KEY, JSON.stringify({url, at:Date.now(), ...(meta||{})}));
+  }catch(e){}
+  window.location.href = url;
+}
+
+/* ══ Sport grid ══ */
+function renderGrid(){
+  $('#grid').innerHTML = SPORTS.map(sp =>
+    `<button class="sport-btn" data-k="${sp.key}">${esc(sp.label)}<small>${esc(sp.sub)}</small></button>`
+  ).join('');
+  $('#grid').addEventListener('click', e => {
+    const b = e.target.closest('.sport-btn'); if(!b) return;
+    const sp = SPORTS.find(s => s.key === b.dataset.k); if(!sp) return;
+    go(scorerURL(sp), {sport:sp.key});
+  });
+}
+
+/* ══ In-progress game ══
+   The device breadcrumb is the primary signal — it knows what THIS phone was
+   scoring, which covers official games (owner_id null) and personal games alike.
+   We then enrich it with live score from the DB. If there's no breadcrumb we
+   fall back to any active game this account owns. */
+async function findActive(){
+  let crumb = null;
+  try{
+    const raw = localStorage.getItem(RESUME_KEY);
+    if(raw){
+      const j = JSON.parse(raw);
+      if(Date.now() - j.at < RESUME_TTL) crumb = j;
+    }
+  }catch(e){}
+
+  const sel = 'id,sport_id,status,game_clock,home_score_live,away_score_live,' +
+              'home_team:home_team_id(school_name),away_team:away_team_id(school_name)';
+
+  // Enrich the breadcrumb if it carries a game_id.
+  if(crumb && crumb.game_id && hasCore()){
+    try{
+      const rows = await sbFetch(`games?id=eq.${crumb.game_id}&select=${sel}&limit=1`);
+      if(rows && rows.length && rows[0].status === 'active') return {g:rows[0], crumb};
+    }catch(e){}
+  }
+  if(crumb) return {crumb};
+
+  // No breadcrumb — is there an active game on this account?
+  if(hasCore() && MBR.isSignedIn()){
+    try{
+      const u = await MBR.currentUser();
+      if(u && u.id){
+        const rows = await sbFetch(
+          `games?status=eq.active&owner_id=eq.${u.id}&select=${sel}&order=updated_at.desc&limit=1`);
+        if(rows && rows.length) return {g:rows[0]};
+      }
+    }catch(e){}
+  }
+  return null;
+}
+
+async function renderResume(){
+  const slot = $('#resumeSlot'), tag = $('#ipTag');
+  const found = await findActive();
+
+  if(!found){
+    tag.textContent = '';
+    slot.innerHTML = `<div class="empty">Nothing running. Pick a sport below — you can score a
+      scheduled Maine game, or set up <b>your own team</b> for youth, AAU or rec.</div>`;
+    return;
+  }
+
+  // Breadcrumb only: no live row to show, but we can still get them back in.
+  if(!found.g){
+    const sp = SPORTS.find(s => s.key === found.crumb.sport);
+    tag.textContent = sp ? sp.label : '';
+    slot.innerHTML = `
+      <div class="board" id="resumeBtn">
+        <div class="empty">You left a game open earlier. Pick up where you stopped.</div>
+        <div class="board-foot"><span>Last session</span><span class="go">Resume →</span></div>
+      </div>`;
+    $('#resumeBtn').onclick = () => go(found.crumb.url, found.crumb);
+    return;
+  }
+
+  const g  = found.g;
+  const sp = bySportId(g.sport_id);
+  const hs = g.home_score_live ?? 0, as = g.away_score_live ?? 0;
+  const clk = (g.game_clock || '').trim();
+  tag.textContent = sp ? sp.label : '';
+
+  slot.innerHTML = `
+    <div class="board" id="resumeBtn">
+      <div class="board-row">
+        <div class="tside home">
+          <div class="tname">${esc(g.home_team?.school_name || 'Home')}</div>
+          <div class="snum">${hs}</div>
+        </div>
+        <div class="clkcol">
+          <div class="clkchip live">${esc(clk || '—')}</div>
+          <div class="pdisp">Live</div>
+        </div>
+        <div class="tside away">
+          <div class="tname">${esc(g.away_team?.school_name || 'Away')}</div>
+          <div class="snum">${as}</div>
+        </div>
+      </div>
+      <div class="board-foot">
+        <span class="livedot"></span><span>Scoring now</span>
+        <span class="go">Resume →</span>
+      </div>
+    </div>`;
+
+  const url = sp ? scorerURL(sp, {game_id:g.id}) : null;
+  $('#resumeBtn').onclick = () =>
+    url ? go(url, {game_id:g.id, sport:sp.key}) : toast('No scorer for that sport');
+}
+
+/* ══ My teams — listMyTeams is per-sport, so fan out and merge ══ */
+async function renderTeams(){
+  const slot = $('#teamsSlot');
+
+  if(!hasCore()){
+    slot.innerHTML = `<div class="empty">Core module didn't load, so saved teams are unavailable.</div>`;
+    return;
+  }
+  if(!MBR.isSignedIn()){
+    slot.innerHTML = `
+      <div class="empty" style="margin-bottom:10px">Sign in to save your own teams and rosters,
+        so you don't retype a lineup every game.</div>
+      <button class="btn-g" id="siBtn">Sign in with Google</button>`;
+    $('#siBtn').onclick = doSignIn;
+    return;
+  }
+
+  try{
+    const sets = await Promise.all(SPORTS.map(sp =>
+      MBR.listMyTeams(sp.sport_id).then(r => (r||[]).map(t => ({...t, _sp:sp}))).catch(()=>[])
+    ));
+    const teams = [].concat(...sets);
+    // Same team can come back under one sport only, but de-dupe on id to be safe.
+    const seen = new Set(), uniq = teams.filter(t => !seen.has(t.id) && seen.add(t.id));
+
+    if(!uniq.length){
+      slot.innerHTML = `<div class="empty">No saved teams yet. Set up your own team in any scorer
+        and it'll show up here.</div>` + authLine();
+      wireAuth();
+      return;
+    }
+
+    slot.innerHTML = uniq.map(t => {
+      const n = Array.isArray(t.roster) ? t.roster.length : 0;
+      return `<button class="trow" data-id="${esc(t.id)}" data-k="${esc(t._sp.key)}">
+        <span>${esc(t.school_name || 'Team')}</span>
+        <span class="cnt">${t._sp.label}${n ? ' · ' + n : ''}</span>
+        <span class="chev">›</span></button>`;
+    }).join('') + authLine();
+
+    slot.querySelectorAll('.trow').forEach(b => b.onclick = () => {
+      const sp = SPORTS.find(s => s.key === b.dataset.k);
+      if(!sp){ toast('No scorer for that sport'); return; }
+      go(scorerURL(sp, {team_id:b.dataset.id}), {sport:sp.key});
+    });
+    wireAuth();
+  }catch(e){
+    slot.innerHTML = `<div class="empty">Couldn't load saved teams.</div>` + authLine();
+    wireAuth();
+  }
+}
+
+function authLine(){
+  return `<div class="authline" id="authLine">
+    <span id="whoLbl">Signed in</span>
+    <span style="flex:1"></span>
+    <button class="linkbtn" id="soBtn">Sign out</button></div>`;
+}
+function wireAuth(){
+  const so = $('#soBtn'); if(so) so.onclick = doSignOut;
+  if(hasCore() && MBR.isSignedIn()){
+    MBR.currentUser().then(u => {
+      const el = $('#whoLbl');
+      if(el && u && u.email) el.textContent = u.email;
+    }).catch(()=>{});
+  }
+}
+
+function doSignIn(){
+  if(!hasCore()){ toast('Core module not loaded'); return; }
+  // NATIVE HOOK: under Capacitor this has to run through @capacitor/browser →
+  // ASWebAuthenticationSession. Google rejects OAuth inside a plain webview.
+  MBR.signInWithGoogle(location.href.split('#')[0]);
+}
+function doSignOut(){
+  if(!hasCore()) return;
+  MBR.signOut();
+  setTimeout(() => { renderTeams(); renderResume(); }, 150);
+}
+
+/* ══ Footer ══ */
+function paintFoot(){
+  const ok = hasCore();
+  $('#buildLbl').innerHTML = `${BUILD} · <span class="${ok?'ok':'bad'}">core ${ok?'ok':'missing'}</span>`;
+  $('#netLbl').innerHTML = navigator.onLine
+    ? `<span class="ok">online</span>` : `<span class="bad">offline</span>`;
+}
+
+/* ══ Boot ══ */
+(async function init(){
+  initCore();
+  renderGrid();
+  paintFoot();
+  window.addEventListener('online', paintFoot);
+  window.addEventListener('offline', paintFoot);
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) renderResume(); });
+  await renderResume();
+  await renderTeams();
+  // Live score on the resume board goes stale fast; refresh while the app sits open.
+  setInterval(() => { if(!document.hidden) renderResume(); }, 30000);
+})();
+</script>
+</body>
+</html>

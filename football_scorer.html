@@ -202,6 +202,12 @@ input,select,button{font-family:inherit;}
 
 <!-- ══ SETUP ══ -->
 <div id="setupScreen">
+  <div style="text-align:left;margin-bottom:6px">
+    <a href="home.html" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);
+       border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow Condensed',sans-serif;
+       font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;
+       text-decoration:none">&lsaquo;&nbsp; All Sports</a>
+  </div>
   <div class="setup-logo">Maine Basketball Rankings</div>
   <div class="setup-title">Football Scorer <span id="buildBadge" style="font-size:12px;font-weight:400;color:var(--dim);font-family:'Barlow Condensed',sans-serif">v0.1</span></div>
   <div id="su-auth" style="text-align:center;font-size:11px;margin:2px 0 8px;font-family:'Barlow Condensed',sans-serif"></div>
@@ -234,10 +240,13 @@ input,select,button{font-family:inherit;}
     <div class="srow"><span class="slabel">Location</span>
       <input type="text" class="sinput" id="gameLocInp" placeholder="Field / School"/></div>
     <div class="srow"><span class="slabel">Qtr Length</span>
-      <select class="sselect" id="qlenSel">
-        <option value="12">12 min (Maine HS)</option>
+      <select class="sselect" id="qlenSel" onchange="saveFbFmt()">
+        <option value="15">15 min (Pro / NFL)</option>
+        <option value="12" selected>12 min (High school)</option>
         <option value="10">10 min</option>
-        <option value="8">8 min</option>
+        <option value="9">9 min</option>
+        <option value="8">8 min (Youth)</option>
+        <option value="6">6 min (Youth)</option>
       </select></div>
     <div class="srow"><span class="slabel">Recv 1st Half</span>
       <select class="sselect" id="openKickSel">
@@ -699,9 +708,28 @@ function ddLabel(){
   if(firstDownTarget()>=100) return ord+' & Goal';
   return ord+' & '+G.distance;
 }
+// Regulation length lives on G.maxQ so overtime numbering and the "end of
+// regulation" checks stay correct if a league plays something other than four.
+const FB_ORD = ['1ST','2ND','3RD','4TH','5TH','6TH'];
+// Quarter length is remembered per device, so a youth or 8-man coach sets it once.
+const FB_FMT_KEY = 'mbr_fb_format';
+function saveFbFmt(){
+  const s = document.getElementById('qlenSel');
+  if(!s) return;
+  try{ localStorage.setItem(FB_FMT_KEY, JSON.stringify({qLen:parseInt(s.value,10)||12})); }catch(e){}
+}
+function loadFbFmt(){
+  try{
+    const j = JSON.parse(localStorage.getItem(FB_FMT_KEY)||'null');
+    const s = document.getElementById('qlenSel');
+    if(j && j.qLen && s) s.value = String(j.qLen);
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', loadFbFmt);
 function qtrLabel(){
-  if(G.quarter<=4) return ({1:'1ST',2:'2ND',3:'3RD',4:'4TH'}[G.quarter])+' QTR';
-  return 'OT'+(G.quarter-4);
+  if(G.quarter<=G.maxQ) return (FB_ORD[G.quarter-1]||('P'+G.quarter))+' QTR';
+  const n = G.quarter - G.maxQ;
+  return 'OT' + (n>1 ? n : '');
 }
 function fmtClock(s){ const m=Math.floor(s/60), ss=s%60; return m+':'+String(ss).padStart(2,'0'); }
 // ═══════════════════════════════════════════════
@@ -917,7 +945,7 @@ async function createUnscheduledGame(){
 // own timer or the truck's clock sits frozen between plays.
 function gameClockLabel(){
   if(G.kickoffPending && G.clock===G.qLen*60) return qtrLabel()+' | '+fmtClock(G.clock);
-  if(G.clock===0 && G.quarter===2) return 'Halftime';
+  if(G.clock===0 && G.maxQ%2===0 && G.quarter===G.maxQ/2) return 'Halftime';
   if(G.clock===0) return 'End '+qtrLabel();
   return qtrLabel()+' | '+fmtClock(G.clock);
 }
@@ -1151,7 +1179,7 @@ function commitPlay(newBallOn){
 function changePoss(newPoss, newBallOn, reason){
   endDrive(reason||'change');
   flushDriveSummary();   // emit this drive's summary now — right after its terminating line
-  if(G.quarter>4){ otAfterPossession(reason); return; }   // OT: no kickoffs; hand off per Kansas plan
+  if(G.quarter>G.maxQ){ otAfterPossession(reason); return; }   // OT: no kickoffs; hand off per Kansas plan
   G.poss = newPoss;
   G.ballOn = clamp(newBallOn, 1, 99);
   G.down = 1;
@@ -1260,7 +1288,7 @@ function tickClock(){
 // Basketball-style end-of-quarter cue: clock turns orange, End Qtr button pulses.
 function showQuarterOver(){
   const c=document.getElementById('sbClock'); if(c){ c.style.color='var(--orange,#ee6730)'; c.style.fontWeight='800'; }
-  const b=document.getElementById('endQtrBtn'); if(b){ b.classList.add('qtr-over'); b.textContent = (G.quarter>=4?'End Reg':'End Qtr')+' ▸'; }
+  const b=document.getElementById('endQtrBtn'); if(b){ b.classList.add('qtr-over'); b.textContent = (G.quarter>=G.maxQ?'End Reg':'End Qtr')+' ▸'; }
   const q=document.getElementById('sbQtr'); if(q){ q.textContent = qtrLabel()+' — OVER'; }
 }
 function clearQuarterOver(){
@@ -1283,7 +1311,7 @@ function resolveConversion(good, player, desc){
   }
   G.pendingPAT=false;
   changePoss(other(scorer), 25, 'kickoff-pending');
-  if(G.quarter<=4) G.kickoffPending=true;   // OT hands off via changePoss (no kickoff)
+  if(G.quarter<=G.maxQ) G.kickoffPending=true;   // OT hands off via changePoss (no kickoff)
   stopClock();
 }
 
@@ -2329,7 +2357,7 @@ function confirmKick(){
       addPBP(`<strong>FIELD GOAL</strong> ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — good`);
       pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,points:3,side:recvSide,detail:{good:true, dist:fgDist}});
       scoreFG(recvSide);
-      if(G.quarter<=4) G.kickoffPending=true;   // OT hands off via changePoss (no kickoff)
+      if(G.quarter<=G.maxQ) G.kickoffPending=true;   // OT hands off via changePoss (no kickoff)
     } else {
       addPBP(`Field goal ${abbr(recvSide)} — ${p.fgKicker?p.fgKicker.name+' ':''}${fgDist} yd — <strong>missed</strong>`);
       pushEvt('field_goal',{player:p.fgKicker?.name,num:p.fgKicker?.number,side:recvSide,detail:{good:false, dist:fgDist}});
@@ -2348,7 +2376,7 @@ function confirmKick(){
     G.pendingPAT=false;
     // scoring team kicks off to the other team (regulation only; OT hands off at the 10)
     changePoss(other(recvSide), 25, 'kickoff-pending');
-    if(G.quarter<=4) G.kickoffPending=true;
+    if(G.quarter<=G.maxQ) G.kickoffPending=true;
   }
   // A completed kickoff clears any accumulated out-of-bounds penalty on the
   // free-kick spot; only a re-kick keeps the walked-back spot.
@@ -2762,13 +2790,13 @@ function advanceQuarter(){
   stopClock();
   clearQuarterOver();
   flushDriveSummary();   // a score right before the buzzer keeps its summary in-block
-  if(G.quarter>4){
+  if(G.quarter>G.maxQ){
     // Overtime is automated (possessions hand off on score/turnover). The End Qtr
     // button does nothing here.
     msg('Overtime in progress','OT possessions switch automatically after a score or turnover — no need to end the period manually.');
     return;
   }
-  if(G.quarter<4){
+  if(G.quarter<G.maxQ){
     const endingQ=G.quarter;
     G.quarter++;
     G.clock=G.qLen*60;
@@ -2810,7 +2838,7 @@ function advanceQuarter(){
 function otCoinToss(period){
   saveSnapshot();
   stopClock(); clearQuarterOver(); flushDriveSummary();
-  G.quarter = 4 + period;          // 5 = OT1, 6 = OT2 …
+  G.quarter = G.maxQ + period;     // maxQ+1 = OT1, maxQ+2 = OT2 …
   G.clock = 0; G.otPossCount = 0; G.otFirst = null;
   G.timeouts = {away:1, home:1};    // NFHS: one timeout per team per overtime period
   G.kickoffPending=false; G.pendingPAT=false;
@@ -2826,7 +2854,7 @@ function otCoinToss(period){
 function otPickFirst(team){
   closeOv('ovOT');
   G.otFirst = team; G.otPossCount = 0;
-  addPBP(`<strong>OT${G.quarter-4} — ${abbr(team)} wins the toss, ball first.</strong>`, true);
+  addPBP(`<strong>OT${G.quarter-G.maxQ} — ${abbr(team)} wins the toss, ball first.</strong>`, true);
   otStartPossession(team);
 }
 function otStartPossession(team){
@@ -2846,7 +2874,7 @@ function otAfterPossession(reason){
   } else if(G.score.away !== G.score.home){
     otEndGame();                              // a winner after both possessions
   } else {
-    otCoinToss((G.quarter-4) + 1);            // still tied — next OT period
+    otCoinToss((G.quarter-G.maxQ) + 1);       // still tied — next OT period
   }
 }
 function otEndGame(){
@@ -2984,7 +3012,8 @@ function checkRestore(){
   let data; try{ data=JSON.parse(localStorage.getItem('mbr_fb_game')||'null'); }catch(e){ data=null; }
   if(!data||!data.G||!data.G.teams) return;
   const a=data.G.teams.away?.abbr||'AWY', hh=data.G.teams.home?.abbr||'HOM';
-  const q=data.G.quarter? (data.G.quarter<=4?('Q'+data.G.quarter):('OT'+(data.G.quarter-4))):'';
+  const mq=(data.G.maxQ||4);
+  const q=data.G.quarter? (data.G.quarter<=mq?('Q'+data.G.quarter):('OT'+(data.G.quarter-mq))):'';
   const banner=document.createElement('div');
   banner.id='restoreBanner';
   banner.style.cssText='background:var(--green-bg);border:1px solid var(--green-border);border-radius:10px;padding:12px;margin:0 0 14px;font-size:14px;color:var(--text);width:100%;max-width:540px';

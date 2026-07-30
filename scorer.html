@@ -405,6 +405,14 @@ body{
   color:#1a1a2e;letter-spacing:.02em;
 }
 .su-wordmark span{color:#c4b090;}
+.su-home-btn{
+  align-self:flex-start;background:#f4f5f9;border:1.5px solid #e4e4ec;border-radius:8px;
+  color:#1a1a2e;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:7px 13px;cursor:pointer;text-decoration:none;display:inline-flex;
+  align-items:center;gap:6px;transition:border-color .15s;
+}
+.su-home-btn:hover{border-color:#1a1a2e;}
+.su-fmt-note{font-family:'DM Sans',sans-serif;font-size:12px;color:#888;line-height:1.5;}
 .su-tagline{
   font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.14em;
   text-transform:uppercase;color:#888;margin-top:2px;
@@ -863,6 +871,8 @@ body{
 <div id="setup-screen">
   <div id="setup-box">
 
+    <a class="su-home-btn" href="home.html">&lsaquo;&nbsp; All Sports</a>
+
     <div class="su-header">
       <div class="su-wordmark">Maine Basketball Rankings<br><span style="font-size:0.5em;letter-spacing:.15em;font-weight:500">LIVE SCORING</span></div>
       <div class="su-tagline">Game Setup</div>
@@ -913,25 +923,38 @@ body{
             <label>Date</label>
             <input id="su-date" type="date">
           </div>
+        </div>
+      </div>
+
+      <!-- Game format: periods, length, and the bonus threshold. Defaults are
+           MPA high school; the picker covers youth through pro. Remembered. -->
+      <div class="su-card">
+        <div class="su-card-title">Game Format</div>
+        <div class="su-row">
+          <div class="su-field su-field-grow">
+            <label>Period Length</label>
+            <select class="su-select" id="su-format" onchange="onFmtChange()"></select>
+          </div>
           <div class="su-field su-field-sm">
-            <label>Format</label>
-            <select id="su-format" onchange="onFmtChange()"></select>
+            <label>Bonus At</label>
+            <select class="su-select" id="su-bonus" onchange="onFmtChange()"></select>
           </div>
         </div>
         <div class="su-row" id="su-fmt-custom" style="display:none">
-          <div class="su-field su-field-sm">
+          <div class="su-field su-field-xs">
             <label>Periods</label>
             <input id="su-fmt-periods" type="number" min="1" max="8" value="4" onchange="onFmtChange()">
           </div>
-          <div class="su-field su-field-sm">
-            <label>Minutes each</label>
+          <div class="su-field su-field-xs">
+            <label>Minutes Each</label>
             <input id="su-fmt-mins" type="number" min="1" max="30" value="8" onchange="onFmtChange()">
           </div>
-          <div class="su-field su-field-sm">
-            <label>OT minutes</label>
+          <div class="su-field su-field-xs">
+            <label>OT Minutes</label>
             <input id="su-fmt-ot" type="number" min="1" max="15" value="4" onchange="onFmtChange()">
           </div>
         </div>
+        <div class="su-fmt-note" id="su-fmt-note"></div>
       </div>
 
       <!-- Teams -->
@@ -1416,22 +1439,27 @@ const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 // once. Everything downstream reads FMT rather than a literal.
 const FMT_KEY = 'mbr_bb_format';
 const FMT_PRESETS = [
-  {id:'4x8',  lbl:'4 x 8 min',  note:'Maine varsity',  periods:4, periodSecs:480,  otSecs:240},
+  {id:'4x8',  lbl:'4 x 8 min',  note:'High school',    periods:4, periodSecs:480,  otSecs:240},
   {id:'4x6',  lbl:'4 x 6 min',  note:'Middle school',  periods:4, periodSecs:360,  otSecs:180},
   {id:'4x7',  lbl:'4 x 7 min',  note:'',               periods:4, periodSecs:420,  otSecs:240},
   {id:'4x9',  lbl:'4 x 9 min',  note:'',               periods:4, periodSecs:540,  otSecs:240},
   {id:'4x10', lbl:'4 x 10 min', note:'NCAA W / FIBA',  periods:4, periodSecs:600,  otSecs:300},
+  {id:'4x12', lbl:'4 x 12 min', note:'NBA / WNBA',     periods:4, periodSecs:720,  otSecs:300},
   {id:'2x16', lbl:'2 x 16 min', note:'Halves',         periods:2, periodSecs:960,  otSecs:300},
   {id:'2x18', lbl:'2 x 18 min', note:'Halves',         periods:2, periodSecs:1080, otSecs:300},
   {id:'2x20', lbl:'2 x 20 min', note:'NCAA M',         periods:2, periodSecs:1200, otSecs:300},
 ];
-let FMT = {periods:4, periodSecs:480, otSecs:240};
+// Team fouls before the opponent shoots bonus free throws. MPA is the 5th team
+// foul each period with no 1-and-1; NCAA and NBA differ, and rec leagues vary.
+const BONUS_OPTS = [4,5,6,7,8,10,0];
+let FMT = {periods:4, periodSecs:480, otSecs:240, bonus:5};
 
 function loadFmt(){
   try{
     const s = JSON.parse(localStorage.getItem(FMT_KEY)||'null');
     if(s && s.periods>0 && s.periodSecs>0)
-      FMT = {periods:+s.periods, periodSecs:+s.periodSecs, otSecs:+s.otSecs||240};
+      FMT = {periods:+s.periods, periodSecs:+s.periodSecs, otSecs:+s.otSecs||240,
+             bonus: (s.bonus===0 ? 0 : (+s.bonus || 5))};
   }catch(e){}
 }
 function saveFmt(){ try{ localStorage.setItem(FMT_KEY, JSON.stringify(FMT)); }catch(e){} }
@@ -1446,6 +1474,12 @@ const isHalftime  = p => FMT.periods % 2 === 0 && p === FMT.periods/2;
 function initFmtUI(){
   loadFmt();
   const sel = document.getElementById('su-format');
+  const bsel = document.getElementById('su-bonus');
+  if(bsel){
+    bsel.innerHTML = BONUS_OPTS.map(n =>
+      `<option value="${n}">${n===0 ? 'No bonus' : n+' team fouls'}</option>`).join('');
+    bsel.value = String(FMT.bonus);
+  }
   if(!sel) return;
   sel.innerHTML =
     FMT_PRESETS.map(p=>`<option value="${p.id}">${p.lbl}${p.note?' \u2014 '+p.note:''}</option>`).join('')
@@ -1461,28 +1495,39 @@ function syncFmtInputs(){
   if(g('su-fmt-mins'))    g('su-fmt-mins').value    = Math.round(FMT.periodSecs/60);
   if(g('su-fmt-ot'))      g('su-fmt-ot').value      = Math.round(FMT.otSecs/60);
 }
+function fmtNote(){
+  const mins = Math.round(FMT.periodSecs/60), ot = Math.round(FMT.otSecs/60);
+  const word = FMT.periods === 2 ? 'halves' : (FMT.periods === 4 ? 'quarters' : 'periods');
+  const b = FMT.bonus === 0
+    ? 'no bonus free throws'
+    : `bonus on the ${FMT.bonus}${({1:'st',2:'nd',3:'rd'})[FMT.bonus%10]||'th'} team foul each period`;
+  return `${FMT.periods} ${word} of ${mins} min \u00b7 ${ot} min overtimes \u00b7 ${b}.`;
+}
 function onFmtChange(quiet){
   const sel = document.getElementById('su-format');
-  if(!sel) return;
-  const box = document.getElementById('su-fmt-custom');
-  if(sel.value === 'custom'){
-    if(box) box.style.display = '';
-    const n = (id,d) => {
-      const v = parseInt((document.getElementById(id)||{}).value, 10);
-      return isNaN(v) ? d : v;
-    };
-    FMT = {
-      periods   : Math.max(1, Math.min(8,  n('su-fmt-periods',4))),
-      periodSecs: Math.max(1, Math.min(30, n('su-fmt-mins',8)))  * 60,
-      otSecs    : Math.max(1, Math.min(15, n('su-fmt-ot',4)))    * 60,
-    };
-  } else {
-    if(box) box.style.display = 'none';
-    const p = FMT_PRESETS.find(x=>x.id===sel.value);
-    if(p) FMT = {periods:p.periods, periodSecs:p.periodSecs, otSecs:p.otSecs};
-    syncFmtInputs();
+  const bsel = document.getElementById('su-bonus');
+  if(bsel) FMT.bonus = parseInt(bsel.value, 10) || 0;
+  if(sel){
+    const box = document.getElementById('su-fmt-custom');
+    if(sel.value === 'custom'){
+      if(box) box.style.display = '';
+      const n = (id,d) => {
+        const v = parseInt((document.getElementById(id)||{}).value, 10);
+        return isNaN(v) ? d : v;
+      };
+      FMT.periods    = Math.max(1, Math.min(8,  n('su-fmt-periods',4)));
+      FMT.periodSecs = Math.max(1, Math.min(30, n('su-fmt-mins',8)))  * 60;
+      FMT.otSecs     = Math.max(1, Math.min(15, n('su-fmt-ot',4)))    * 60;
+    } else {
+      if(box) box.style.display = 'none';
+      const p = FMT_PRESETS.find(x=>x.id===sel.value);
+      if(p){ FMT.periods=p.periods; FMT.periodSecs=p.periodSecs; FMT.otSecs=p.otSecs; }
+      syncFmtInputs();
+    }
   }
   saveFmt();
+  const note = document.getElementById('su-fmt-note');
+  if(note) note.textContent = fmtNote();
   // Pre-tip only: never rewrite a clock that's already been used.
   if(typeof GAME!=='undefined' && GAME && GAME.period===1 && !GAME.running
      && GAME.clockSec > 0 && !_gameStarted){
@@ -1492,7 +1537,6 @@ function onFmtChange(quiet){
   if(!quiet && typeof flash === 'function')
     flash(`Format: ${FMT.periods} \u00d7 ${Math.round(FMT.periodSecs/60)} min`, 'made');
 }
-// Set before any game exists so the opening clock is right.
 let _gameStarted = false;
 document.addEventListener('DOMContentLoaded', initFmtUI);
 
@@ -1565,11 +1609,12 @@ function updFoulsDisplay(side){
   const qf=GAME.qFouls[side][qi];
   const el=document.getElementById(`${side}-fouls`);
   el.textContent=qf;
-  // bonus = opponent has 5+ quarter fouls
+  // Bonus threshold comes from the chosen format (MPA default: 5th team foul,
+  // no 1-and-1). FMT.bonus of 0 means the league doesn't shoot bonus at all.
   const opp=side==='home'?'away':'home';
   const oppQf=GAME.qFouls[opp][qi];
   const bonusEl=document.getElementById(`${opp}-bonus`);
-  if(bonusEl) bonusEl.style.display=oppQf>=5?'inline':'none';
+  if(bonusEl) bonusEl.style.display=(FMT.bonus>0 && oppQf>=FMT.bonus)?'inline':'none';
 }
 
 function applyPeriodChange(d){

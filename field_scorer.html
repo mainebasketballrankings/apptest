@@ -200,6 +200,12 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
   <div class="su-brand">Maine Basketball Rankings</div>
   <div id="buildBadge" style="text-align:center;font-size:11px;color:var(--dim);margin-bottom:6px;font-family:'Barlow Condensed',sans-serif"></div>
   <div class="su-sub">Field Scoring · Soccer · Field Hockey · Lacrosse</div>
+  <div style="text-align:left;margin-bottom:8px">
+    <a href="home.html" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);
+       border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow Condensed',sans-serif;
+       font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;
+       text-decoration:none">&lsaquo;&nbsp; All Sports</a>
+  </div>
   <div id="su-auth" style="text-align:center;font-size:11px;margin-bottom:6px;font-family:'Barlow Condensed',sans-serif"></div>
 
   <div class="su-card">
@@ -210,6 +216,23 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
         <input type="checkbox" id="su-8p" onchange="setSport(SPORT_KEY)" style="width:17px;height:17px;">
         8-player soccer <span style="color:var(--dim);font-size:11px;">(30-min halves, mercy after 45:00)</span>
       </label>
+    </div>
+    <div class="su-f" style="margin-top:10px">
+      <label>Period Length</label>
+      <select class="sselect" id="su-fmt" onchange="onFieldFmtChange()"
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);
+                     border-radius:6px;padding:8px;font-family:'Barlow',sans-serif;font-size:14px;
+                     color:var(--text);"></select>
+    </div>
+    <div id="su-fmt-custom" style="display:none;gap:10px;margin-top:8px;">
+      <div class="su-f" style="flex:1">
+        <label>Periods</label>
+        <input id="su-fmt-periods" type="number" min="1" max="4" value="2" onchange="onFieldFmtChange()">
+      </div>
+      <div class="su-f" style="flex:1">
+        <label>Minutes Each</label>
+        <input id="su-fmt-mins" type="number" min="1" max="60" value="40" onchange="onFieldFmtChange()">
+      </div>
     </div>
     <div id="rules-note" style="margin-top:9px;font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;"></div>
   </div>
@@ -793,16 +816,81 @@ function setSport(k){
   SP=SPORTS[SPORT_KEY];
   document.getElementById('soccer8-wrap').style.display = base==='soccer'?'block':'none';
   renderSportGrid();
+  initFieldFmt();
+  refreshRulesNote();
+  loadTodaysGames();
+  try{ loadMyTeams(); }catch(e){}
+}
+function refreshRulesNote(){
+  const el=document.getElementById('rules-note');
+  if(!el || !SP) return;
   const ot=otRules();
   const otTxt = SPORT_KEY==='lacrosse'
     ? `OT boys ${fmt(SP.ot.secs)} · girls ${fmt(SP.otGirls.secs)} sudden victory, repeats · no ties`
       + (SP.otSub?`\nSub-varsity: one period only, may end level`:'')
     : `OT ${ot.max} × ${fmt(ot.secs)} sudden victory${ot.note?' ('+ot.note+')':''} · ties allowed`
       + (SP.otPlayoff ? `\nPlayoff: ${SP.otPlayoff.max} × ${fmt(SP.otPlayoff.secs)} sudden victory, then penalty kicks` : '');
-  document.getElementById('rules-note').innerHTML =
-    `${SP.periods} × ${fmt(SP.periodSecs)} · ${otTxt}<br>${SP.mercy.txt||''}`;
-  loadTodaysGames();
-  try{ loadMyTeams(); }catch(e){}
+  el.innerHTML = `${SP.periods} × ${fmt(SP.periodSecs)} · ${otTxt}<br>${SP.mercy.txt||''}`;
+}
+
+// ══ PERIOD FORMAT OVERRIDES ═══════════════════════════════════════════════
+// SPORTS holds the MPA/NFHS defaults. Every clock, overtime and mercy check
+// downstream already reads SP.periods / SP.periodSecs, so an override only has
+// to change those two fields. Base values are captured once at load so
+// switching sports never inherits the previous sport's override, and the choice
+// is stored per sport — a club that plays 4 x 20 soccer keeps it.
+const FIELD_FMT_KEY = 'mbr_field_format';
+const FIELD_BASE = {};
+['soccer','soccer8','field_hockey','lacrosse'].forEach(k=>{
+  if(SPORTS[k]) FIELD_BASE[k]={periods:SPORTS[k].periods, periodSecs:SPORTS[k].periodSecs};
+});
+const FIELD_PRESETS = {
+  soccer:      [[2,45,'Pro / college'],[2,40,'High school'],[2,35,''],[2,30,'Youth'],[4,20,'Youth quarters'],[4,15,'Youth quarters']],
+  soccer8:     [[2,30,'8-player'],[2,25,''],[2,20,'Youth']],
+  field_hockey:[[4,15,'NCAA / FIH'],[2,30,'High school'],[2,25,''],[2,20,'Youth']],
+  lacrosse:    [[4,15,'NCAA / pro'],[4,12,'High school'],[4,10,''],[4,8,'Youth'],[4,6,'Youth']],
+};
+function loadFieldFmt(){ try{ return JSON.parse(localStorage.getItem(FIELD_FMT_KEY)||'{}'); }catch(e){ return {}; } }
+function saveFieldFmt(o){ try{ localStorage.setItem(FIELD_FMT_KEY, JSON.stringify(o)); }catch(e){} }
+
+function initFieldFmt(){
+  const sel=document.getElementById('su-fmt');
+  if(!sel || !SP) return;
+  const base = FIELD_BASE[SPORT_KEY] || {periods:SP.periods, periodSecs:SP.periodSecs};
+  const cur  = loadFieldFmt()[SPORT_KEY] || base;
+  SP.periods = cur.periods; SP.periodSecs = cur.periodSecs;
+  const list = FIELD_PRESETS[SPORT_KEY] || [];
+  sel.innerHTML = list.map(([p,m,note])=>{
+    const isBase = (p===base.periods && m*60===base.periodSecs);
+    return `<option value="${p}x${m}">${p} × ${m} min${note?' — '+note:''}${isBase?' (default)':''}</option>`;
+  }).join('') + '<option value="custom">Custom…</option>';
+  const key = `${cur.periods}x${Math.round(cur.periodSecs/60)}`;
+  sel.value = list.some(([p,m])=>`${p}x${m}`===key) ? key : 'custom';
+  const pin=document.getElementById('su-fmt-periods'), min=document.getElementById('su-fmt-mins');
+  if(pin) pin.value = cur.periods;
+  if(min) min.value = Math.round(cur.periodSecs/60);
+  const box=document.getElementById('su-fmt-custom');
+  if(box) box.style.display = sel.value==='custom' ? 'flex' : 'none';
+}
+function onFieldFmtChange(){
+  const sel=document.getElementById('su-fmt');
+  if(!sel || !SP) return;
+  const box=document.getElementById('su-fmt-custom');
+  let periods, secs;
+  if(sel.value==='custom'){
+    if(box) box.style.display='flex';
+    const n=(id,d)=>{ const v=parseInt((document.getElementById(id)||{}).value,10); return isNaN(v)?d:v; };
+    periods = Math.max(1, Math.min(4,  n('su-fmt-periods',2)));
+    secs    = Math.max(1, Math.min(60, n('su-fmt-mins',40))) * 60;
+  } else {
+    if(box) box.style.display='none';
+    const [p,m] = sel.value.split('x').map(Number);
+    periods=p; secs=m*60;
+  }
+  SP.periods=periods; SP.periodSecs=secs;
+  const all=loadFieldFmt(); all[SPORT_KEY]={periods, periodSecs:secs}; saveFieldFmt(all);
+  if(typeof GAME!=='undefined' && GAME && GAME.period===1 && !GAME.running) GAME.clockSec=secs;
+  refreshRulesNote();
 }
 function suSetMode(mode){
   document.getElementById('su-new').style.display = mode==='new'?'block':'none';

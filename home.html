@@ -36,7 +36,10 @@ body{
 
 /* ══ Brand ══ */
 .brand{text-align:center;margin-bottom:20px;}
-.brand img{height:118px;width:auto;display:inline-block;}
+.brand a{display:inline-block;text-decoration:none;color:inherit;cursor:pointer;
+  -webkit-touch-callout:none;transition:opacity .12s ease;}
+.brand a:active{opacity:.6;}
+.brand img{height:118px;width:auto;display:inline-block;pointer-events:none;}
 @media(max-width:400px){ .brand img{height:98px;} }
 .brand .fallback{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;display:none;}
 .brand .sub{
@@ -164,10 +167,12 @@ body{
 <div class="wrap">
 
   <div class="brand">
-    <img src="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png"
-         alt="Maine Basketball Rankings"
-         onerror="this.style.display='none';document.getElementById('bfall').style.display='block';">
-    <div class="fallback" id="bfall">Maine Basketball Rankings</div>
+    <a href="https://mainebasketballrankings.com" id="siteLink" onclick="return openSite(event)">
+      <img src="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png"
+           alt="Maine Basketball Rankings"
+           onerror="this.style.display='none';document.getElementById('bfall').style.display='block';">
+      <div class="fallback" id="bfall">Maine Basketball Rankings</div>
+    </a>
     <div class="sub">Scorekeeper</div>
   </div>
 
@@ -197,7 +202,7 @@ body{
 
 <script src="mbr-core.js?v=7" onerror="window.__coreMissing=true"></script>
 <script>
-const BUILD = 'home-2026-07-30b';
+const BUILD = 'home-2026-07-31a';
 
 /* Sport table — file + params verified against the uploaded scorers.
    field_scorer accepts sport = soccer | field_hockey | lacrosse
@@ -212,6 +217,19 @@ const SPORTS = [
   {key:'baseball',   label:'Baseball',     sub:'7 innings',  file:'baseball_scorer.html', params:{sport:'baseball'},     sport_id:'c87a4d6c-a471-47e1-b6a0-d1643d942bf0'},
   {key:'softball',   label:'Softball',     sub:'7 innings',  file:'baseball_scorer.html', params:{sport:'softball'},     sport_id:'095c9841-7261-4cb1-824e-6304792b53d0'},
 ];
+
+// Tapping the logo sends people to the site. Under Capacitor a plain <a> would
+// navigate the app's own webview to Ghost and strand them there, so hand it to
+// the system browser instead. That's also better for us: Safari already holds
+// their Ghost session, so a member lands logged in.
+const SITE_URL = 'https://mainebasketballrankings.com';
+function openSite(e){
+  if(e) e.preventDefault();
+  const B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+  if(B) B.open({url:SITE_URL});
+  else window.open(SITE_URL, '_blank', 'noopener');
+  return false;
+}
 
 const RESUME_KEY = 'mbr_home_resume';
 const RESUME_TTL = 18 * 3600 * 1000;   // a game you left this morning is still today's game

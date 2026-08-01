@@ -3641,7 +3641,7 @@ async function generatePDF({ returnBlob = false } = {}){
   if(returnBlob){
     return doc.output('blob');
   }
-  doc.save(d+'_'+away+'_vs_'+home+'.pdf');
+  saveFile(d+'_'+away+'_vs_'+home+'.pdf', doc.output('blob'));
 }
 
 

@@ -251,6 +251,7 @@ function initCore(){
   try{
     MBR.init({
       queueKey    : 'mbr_home_push_queue',
+      keepAwake   : false,   // launcher shouldn't hold the screen on
       isTestMode  : () => false,
       gameId      : () => null,
       isFinalized : () => true,

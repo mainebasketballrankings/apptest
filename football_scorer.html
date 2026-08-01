@@ -3335,7 +3335,7 @@ async function generatePDF(opts={}){
     doc.text(`${pi} / ${_pages}`, ML+CW, PH-24, {align:'right'});
   }
   if(opts.returnBlob) return doc.output('blob');
-  doc.save(`MBR_Football_${abbr('away')}_at_${abbr('home')}_${(G.date||'').replace(/-/g,'')}.pdf`);
+  saveFile(`MBR_Football_${abbr('away')}_at_${abbr('home')}_${(G.date||'').replace(/-/g,'')}.pdf`, doc.output('blob'));
 }
 
 // Ask the backend to email this game's report to matching subscribers (deduped

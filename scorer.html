@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
 
 <!-- Google Analytics -->
@@ -3359,10 +3359,8 @@ function generateCSV(){
 
   const csv=rows.map(r=>r.map(c=>typeof c==='string'&&c.includes(',')?`"${c}"`:c).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
   const fn=`${GAME.home.name}_vs_${GAME.away.name}_stats.csv`.replace(/\s+/g,'_');
-  a.download=fn;a.click();
+  saveFile(fn, blob);   // share sheet on device, plain download in a browser
 }
 
 // ── PDF ───────────────────────────────────────────────────────
@@ -3960,7 +3958,7 @@ async function generatePDF(opts={}){
   // Save (or hand back a blob for auto-upload)
   if(opts.returnBlob) return doc.output('blob');
   const fn=`${GAME.home.name}_vs_${GAME.away.name}_${opts.coach?'coach_report':'report'}.pdf`.replace(/\s+/g,'_');
-  doc.save(fn);
+  saveFile(fn, doc.output('blob'));
 }
 
 // Upload the finalized report to Supabase storage and link it on the games row.

@@ -132,6 +132,7 @@
     // is the only sport that crosses New Year's, so it overrides this.
     seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear(),
     trackingLevel: 'full_stats',           // NB: constraint rejects 'full'
+    keepAwake : true,                      // scorers want it; the home screen sets false
   };
 
   // sportId may be supplied as a plain value OR a function. A function is safer:
@@ -753,6 +754,57 @@
   }
   function stopClockSync() { if (_clkTimer) { clearInterval(_clkTimer); _clkTimer = null; } }
 
+  // ── Keep the screen on ───────────────────────────────────────────────────
+  // A phone that sleeps in the third quarter is useless at the scorer's table.
+  // iOS Safari's Wake Lock support is patchy, so prefer the native plugin and
+  // fall back to Wake Lock in the browser. iOS also drops a wake lock whenever
+  // the app is backgrounded, so it gets re-taken when we come back.
+  let _wakeLock = null;
+  async function keepAwake(on) {
+    const K = capPlugin('KeepAwake');
+    if (K) { try { on ? await K.keepAwake() : await K.allowSleep(); } catch (e) {} return; }
+    try {
+      if (on && navigator.wakeLock && !_wakeLock) {
+        _wakeLock = await navigator.wakeLock.request('screen');
+        _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+      } else if (!on && _wakeLock) { await _wakeLock.release(); _wakeLock = null; }
+    } catch (e) {}
+  }
+
+  // ── File export ──────────────────────────────────────────────────────────
+  // A blob URL with a download attribute does nothing inside a webview — the
+  // tap just silently fails. On native the file is written to the app's cache
+  // and handed to the iOS share sheet, so it can go to Files, Mail, AirDrop or
+  // anywhere else. Callers use the same one line either way.
+  function blobToBase64(blob) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onloadend = () => res(String(r.result).split(',')[1] || '');
+      r.onerror   = rej;
+      r.readAsDataURL(blob);
+    });
+  }
+  async function saveFile(filename, blob) {
+    const FS = capPlugin('Filesystem'), SH = capPlugin('Share');
+    if (FS && SH) {
+      try {
+        const data = await blobToBase64(blob);
+        const w = await FS.writeFile({ path: filename, data, directory: 'CACHE' });
+        await SH.share({ title: filename, url: w.uri });
+        return true;
+      } catch (e) { console.warn('native save failed, falling back to download', e); }
+    }
+    try {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) {} }, 1000);
+      return true;
+    } catch (e) { console.warn('saveFile failed', e); return false; }
+  }
+
   // ── Small shared utility ─────────────────────────────────────────────────
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -763,6 +815,12 @@
     // rather than at load. It's async; the in-memory mirror covers the gap.
     hydrateQueue();
     hydrateSession();
+    if (cfg.keepAwake) {
+      keepAwake(true);
+      if (global.document) document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) keepAwake(true);       // iOS drops the lock on background
+      });
+    }
     try { setQueueStatus(); } catch (e) {}
     return MBR;
   }
@@ -778,7 +836,7 @@
     listMyTeams, saveTeamRoster, myTeamsAll, myGames, deleteGame, deleteTeam,
     signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
-    clamp,
+    clamp, keepAwake, saveFile,
     get droppedRows() { return _droppedRows; },
   };
 
@@ -787,7 +845,7 @@
   global.MBR = MBR;
   ['sbFetch','sbInsert','evtStamp','queueLoad','queueSave','flushQueue','setQueueStatus',
    'isPermanentReject','loadSchools','autoUploadGameReport','emailGameReport','clamp',
-   'createGame','resolveTeamId','sbPatch','startClockSync','stopClockSync']
+   'createGame','resolveTeamId','sbPatch','startClockSync','stopClockSync','saveFile']
     .forEach(n => { global[n] = MBR[n]; });
   global.SB_URL = SB_URL;
   global.SB_KEY = SB_KEY;

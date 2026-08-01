@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
@@ -2387,10 +2387,8 @@ function generateCSV(){
     e.pname||'', e.pnum||'', e.assistName||'', e.pt?Math.round(e.pt.x):'', e.pt?Math.round(e.pt.y):''
   ]));
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download=`${GAME.away.short}-${GAME.home.short}-${SPORT_KEY}.csv`;
-  a.click();
+  saveFile(`${GAME.away.short}-${GAME.home.short}-${SPORT_KEY}.csv`,
+           new Blob([csv],{type:'text/csv'}));
 }
 
 // ══ PDF GAME REPORT ══════════════════════════════════════════
@@ -2702,7 +2700,7 @@ async function generatePDF(opts={}){
 
   drawFooter();
   if(opts.returnBlob) return doc.output('blob');
-  doc.save(`${GAME.away.short}-${GAME.home.short}-report.pdf`);
+  saveFile(`${GAME.away.short}-${GAME.home.short}-report.pdf`, doc.output('blob'));
 }
 function drawMiniField(doc,x,y,w,ds){
   const vb=SP.field==='fh'?{w:440,h:380}:{w:440,h:410};

@@ -29,13 +29,97 @@
    deliberate: it keeps this first step a pure move, not a rewrite.
 
    CACHE NOTE: bump the ?v= query string when this file changes, or the service
-   worker may serve a stale copy.
+   worker may serve a stale copy. This revision is v=8.
+
+   NATIVE (Capacitor): sign-in opens in the system browser and returns through
+   the custom scheme in NATIVE_REDIRECT, and the push queue and auth session are
+   written through to native storage rather than trusting localStorage. Both
+   paths degrade to the plain web behaviour when Capacitor isn't present, so the
+   same file serves the website and the app.
    ═══════════════════════════════════════════════════════════════════════════ */
 (function (global) {
   'use strict';
 
   const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
   const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+
+  // ══ DURABLE STORAGE ══════════════════════════════════════════════════════
+  // localStorage is the wrong home for anything we cannot afford to lose. A
+  // WKWebView evicts it under storage pressure and Safari's ITP can clear it
+  // after a week of no visits — either one silently destroys a queue of unsent
+  // scoring events, which is the single worst failure this app has.
+  //
+  // So: an in-memory mirror is the synchronous source of truth, which means
+  // every existing call site stays synchronous and untouched, while writes also
+  // go to the most durable backend available:
+  //
+  //   1. Capacitor Preferences  — native UserDefaults, survives everything
+  //   2. IndexedDB              — not evicted on the same terms as localStorage
+  //   3. localStorage           — last resort, and a mirror for older builds
+  const NATIVE = !!(global.Capacitor && global.Capacitor.isNativePlatform
+                    && global.Capacitor.isNativePlatform());
+  const capPlugin = (n) => (global.Capacitor && global.Capacitor.Plugins && global.Capacitor.Plugins[n]) || null;
+
+  let _idbP = null;
+  function idb() {
+    if (_idbP) return _idbP;
+    _idbP = new Promise((res) => {
+      try {
+        const rq = indexedDB.open('mbr-core', 1);
+        rq.onupgradeneeded = () => { try { rq.result.createObjectStore('kv'); } catch (e) {} };
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror   = () => res(null);
+      } catch (e) { res(null); }
+    });
+    return _idbP;
+  }
+  async function idbGet(k) {
+    const db = await idb(); if (!db) return null;
+    return new Promise((res) => {
+      try {
+        const rq = db.transaction('kv', 'readonly').objectStore('kv').get(k);
+        rq.onsuccess = () => res(rq.result == null ? null : rq.result);
+        rq.onerror   = () => res(null);
+      } catch (e) { res(null); }
+    });
+  }
+  async function idbSet(k, v) {
+    const db = await idb(); if (!db) return false;
+    return new Promise((res) => {
+      try {
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(v, k);
+        tx.oncomplete = () => res(true);
+        tx.onerror    = () => res(false);
+      } catch (e) { res(false); }
+    });
+  }
+
+  async function durableGet(key) {
+    const P = capPlugin('Preferences');
+    if (P) { try { const r = await P.get({ key }); if (r && r.value != null) return r.value; } catch (e) {} }
+    const v = await idbGet(key);
+    if (v != null) return v;
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  async function durableSet(key, value) {
+    const P = capPlugin('Preferences');
+    if (P) { try { await P.set({ key, value }); } catch (e) {} }
+    await idbSet(key, value);
+    try { localStorage.setItem(key, value); } catch (e) {}
+  }
+  async function durableDel(key) {
+    const P = capPlugin('Preferences');
+    if (P) { try { await P.remove({ key }); } catch (e) {} }
+    await idbSet(key, null);
+    try { localStorage.removeItem(key); } catch (e) {}
+  }
+
+  // Ask the browser not to evict us. Cheap, and it measurably improves the odds
+  // of keeping a queue on a phone that is low on space.
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  } catch (e) {}
 
   const cfg = {
     queueKey  : 'mbr_push_queue',
@@ -79,17 +163,34 @@
   // key, which is how Postgres knows who auth.uid() is.
   const AUTH_KEY = 'mbr_auth';
 
+  // Mirrored in memory so hdr() stays synchronous on every request, and written
+  // through to durable storage so a signed-in coach isn't silently signed out
+  // when the OS reclaims webview storage.
+  let _sess;                                   // undefined = not yet read
   function sessionLoad() {
+    if (_sess !== undefined) return _sess;
     try {
       const s = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
-      if (!s || !s.access_token) return null;
-      // treat as expired a minute early, so a request never dies mid-flight
-      if (s.expires_at && (s.expires_at * 1000) < Date.now() + 60000) return s;  // stale: refresh below
-      return s;
-    } catch (e) { return null; }
+      _sess = (s && s.access_token) ? s : null; // stale tokens still return; refresh handles them
+    } catch (e) { _sess = null; }
+    return _sess;
   }
   function sessionSave(s) {
+    _sess = s || null;
     try { s ? localStorage.setItem(AUTH_KEY, JSON.stringify(s)) : localStorage.removeItem(AUTH_KEY); } catch (e) {}
+    if (s) durableSet(AUTH_KEY, JSON.stringify(s)); else durableDel(AUTH_KEY);
+  }
+  async function hydrateSession() {
+    try {
+      if (sessionLoad()) return;               // localStorage still had it
+      const raw = await durableGet(AUTH_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s && s.access_token) {
+        _sess = s;
+        try { localStorage.setItem(AUTH_KEY, raw); } catch (e) {}
+      }
+    } catch (e) {}
   }
   function isExpired(s) { return !!(s && s.expires_at && (s.expires_at * 1000) < Date.now() + 60000); }
 
@@ -97,14 +198,7 @@
   // back, then scrub it from the address bar so it is not left lying around.
   function captureRedirect() {
     if (!global.location || !location.hash || location.hash.indexOf('access_token=') === -1) return false;
-    const p = new URLSearchParams(location.hash.slice(1));
-    const s = {
-      access_token : p.get('access_token'),
-      refresh_token: p.get('refresh_token'),
-      expires_at   : parseInt(p.get('expires_at') || '0', 10) || (Math.floor(Date.now()/1000) + 3600),
-    };
-    if (!s.access_token) return false;
-    sessionSave(s);
+    if (!captureFromUrl(location.href)) return false;
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
     return true;
   }
@@ -139,7 +233,43 @@
     const back = returnTo || (global.location ? location.href.split('#')[0] : '');
     return `${SB_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(back)}`;
   }
-  function signInWithGoogle(returnTo) { location.href = authUrl(returnTo); }
+  // ── Native sign-in ───────────────────────────────────────────────────────
+  // Google refuses OAuth inside an embedded webview and fails with
+  // disallowed_useragent, so under Capacitor the authorize URL has to open in
+  // the system browser (ASWebAuthenticationSession). It returns via a custom URL
+  // scheme, which arrives as an appUrlOpen event rather than a page load — so
+  // the token has to be readable out of an arbitrary URL string, not just
+  // location.hash.
+  //
+  // This scheme must be registered in Info.plist (CFBundleURLSchemes) AND added
+  // to the Supabase redirect allowlist, same as the app.mainebasketballrankings
+  // wildcard was.
+  const NATIVE_REDIRECT = 'com.mainebasketballrankings.scorer://auth';
+
+  function captureFromUrl(url) {
+    if (!url) return false;
+    const i = url.indexOf('#');
+    if (i === -1) return false;
+    const p = new URLSearchParams(url.slice(i + 1));
+    if (!p.get('access_token')) return false;
+    sessionSave({
+      access_token : p.get('access_token'),
+      refresh_token: p.get('refresh_token'),
+      expires_at   : parseInt(p.get('expires_at') || '0', 10) || (Math.floor(Date.now()/1000) + 3600),
+    });
+    return true;
+  }
+
+  function signInWithGoogle(returnTo) {
+    if (NATIVE) {
+      const url = authUrl(NATIVE_REDIRECT);
+      const B = capPlugin('Browser');
+      if (B) { B.open({ url, presentationStyle: 'popover' }); return; }
+      try { global.open(url, '_system'); } catch (e) { location.href = url; }
+      return;
+    }
+    location.href = authUrl(returnTo);
+  }
   function signOut() { sessionSave(null); }
   function isSignedIn() { return !!sessionLoad(); }
 
@@ -198,11 +328,56 @@
   let _flushing = false;
   let _droppedRows = 0;
 
+  // The queue is the one thing losing which actually costs a customer a game, so
+  // it lives in memory (synchronous, unchanged for every caller) and is written
+  // through to durable storage on every mutation.
+  let _queue = null;
+  let _hydrated = false;
+
   function queueLoad() {
-    try { return JSON.parse(localStorage.getItem(cfg.queueKey) || '[]'); } catch (e) { return []; }
+    if (_queue) return _queue;
+    try { _queue = JSON.parse(localStorage.getItem(cfg.queueKey) || '[]'); }
+    catch (e) { _queue = []; }
+    return _queue;
   }
+  // Draining a long queue calls this once per event, so the durable write is
+  // coalesced onto a short timer. localStorage still takes every write
+  // synchronously, and pagehide forces a final flush, so a kill between the two
+  // costs nothing.
+  let _durT = null;
   function queueSave(q) {
-    try { localStorage.setItem(cfg.queueKey, JSON.stringify(q)); } catch (e) {}
+    _queue = Array.isArray(q) ? q : [];
+    const json = JSON.stringify(_queue);
+    try { localStorage.setItem(cfg.queueKey, json); } catch (e) {}
+    if (_durT) clearTimeout(_durT);
+    _durT = setTimeout(() => { _durT = null; durableSet(cfg.queueKey, JSON.stringify(_queue)); }, 250);
+  }
+
+  // Pull the real queue out of durable storage once at startup and reconcile it
+  // with whatever localStorage still holds. If the two disagree we keep the
+  // LONGER one: a duplicate insert comes back 409, which flushQueue already
+  // treats as success, whereas a dropped row is gone for good.
+  async function hydrateQueue() {
+    if (_hydrated) return;
+    _hydrated = true;
+    try {
+      // Re-read from localStorage under the sport's REAL queueKey. The mirror
+      // may already hold rows read under the default key, because setQueueStatus
+      // and an early sbInsert can both run before init() supplies the real one.
+      let local = [];
+      try { local = JSON.parse(localStorage.getItem(cfg.queueKey) || '[]'); } catch (e) { local = []; }
+      if (!Array.isArray(local)) local = [];
+      const raw     = await durableGet(cfg.queueKey);
+      let durable   = [];
+      try { durable = raw ? JSON.parse(raw) : []; } catch (e) { durable = []; }
+      if (!Array.isArray(durable)) durable = [];
+      _queue = (durable.length > local.length) ? durable : local;
+      const json = JSON.stringify(_queue);
+      try { localStorage.setItem(cfg.queueKey, json); } catch (e) {}
+      await durableSet(cfg.queueKey, json);
+      setQueueStatus();
+      if (_queue.length && navigator.onLine) flushQueue();
+    } catch (e) {}
   }
   function setQueueStatus() {
     const q = queueLoad();
@@ -584,6 +759,10 @@
   // ── Wire up + publish ────────────────────────────────────────────────────
   function init(options) {
     Object.assign(cfg, options || {});
+    // queueKey isn't known until now, so the durable read has to happen here
+    // rather than at load. It's async; the in-memory mirror covers the gap.
+    hydrateQueue();
+    hydrateSession();
     try { setQueueStatus(); } catch (e) {}
     return MBR;
   }
@@ -593,6 +772,8 @@
     sbFetch, sbInsert, sbPatch, evtStamp,
     startClockSync, stopClockSync,
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
+    durableGet, durableSet, durableDel, hydrateQueue, hydrateSession,
+    NATIVE, NATIVE_REDIRECT, captureFromUrl,
     loadSchools, schoolIds, createGame, resolveTeamId, createTeam, resolveOrCreateTeamId,
     listMyTeams, saveTeamRoster, myTeamsAll, myGames, deleteGame, deleteTeam,
     signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
@@ -613,8 +794,32 @@
   global._schools = null;
   global._schoolIds = {};
 
+  // ── Native URL callback ──────────────────────────────────────────────────
+  // The web flow returns through a page load, so the scorer re-renders for free.
+  // Native has no reload — the token arrives as an event — so nudge the UI the
+  // same way the reload would have, and fire mbr:signedin for anything else
+  // that wants to know.
+  if (NATIVE) {
+    const A = capPlugin('App');
+    if (A && A.addListener) {
+      A.addListener('appUrlOpen', (data) => {
+        if (!data || !data.url) return;
+        if (!captureFromUrl(data.url)) return;
+        _me = null;
+        try { const B = capPlugin('Browser'); if (B) B.close(); } catch (e) {}
+        try { if (typeof global.renderAuthLine === 'function') global.renderAuthLine(); } catch (e) {}
+        try { if (typeof global.loadMyTeams   === 'function') global.loadMyTeams();   } catch (e) {}
+        try { global.dispatchEvent(new CustomEvent('mbr:signedin')); } catch (e) {}
+      });
+    }
+  }
+
   // Drain triggers — safe to attach before the sport file configures us.
   global.addEventListener('online', () => flushQueue());
+  // Last chance to get the queue onto durable storage before iOS suspends us.
+  global.addEventListener('pagehide', () => {
+    try { durableSet(cfg.queueKey, JSON.stringify(queueLoad())); } catch (e) {}
+  });
   if (global.document) {
     document.addEventListener('visibilitychange', () => { if (!document.hidden && navigator.onLine) flushQueue(); });
   }

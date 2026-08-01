@@ -200,7 +200,7 @@ body{
 
 <div class="toast" id="toast"></div>
 
-<script src="mbr-core.js?v=7" onerror="window.__coreMissing=true"></script>
+<script src="mbr-core.js?v=8" onerror="window.__coreMissing=true"></script>
 <script>
 const BUILD = 'home-2026-07-31a';
 
@@ -478,6 +478,9 @@ function paintFoot(){
   paintFoot();
   window.addEventListener('online', paintFoot);
   window.addEventListener('offline', paintFoot);
+  // Native sign-in returns through a URL callback rather than a page load, so
+  // mbr-core fires this instead of the reload the web flow gets for free.
+  window.addEventListener('mbr:signedin', () => { renderTeams(); renderResume(); });
   document.addEventListener('visibilitychange', () => { if(!document.hidden) renderResume(); });
   await renderResume();
   await renderTeams();

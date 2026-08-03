@@ -1258,6 +1258,71 @@
       }
     }
 
+
+    // ── FIELD SPORTS (soccer / field hockey / lacrosse) ──────────────────────
+    // These used to fall through to the baseball path, which just prettified the
+    // event key — so a shot off target read "shot off", a save didn't say who
+    // took the shot, and a corner didn't say whose it was.
+    if (sport === 'soccer' || sport === 'field_hockey' || sport === 'field-hockey' || sport === 'lacrosse') {
+      let n = null;
+      try { n = e.notes ? (typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes) : null; } catch (_) {}
+      n = n || {};
+      const nm   = e.player_name || '';
+      const B    = x => `<strong>${x}</strong>`;
+      // Whose action it was — a corner or a timeout means nothing without a team.
+      const team = game ? (n.side === 'home' ? (game.home_team || 'Home') : (game.away_team || 'Away')) : '';
+      const T    = team ? `${team} ` : '';
+
+      switch (e.event_type) {
+        case 'goal':
+        case 'penalty_kick':
+        case 'penalty_stroke':
+        case 'free_position': {
+          const a = n.assist ? ` (${n.assist} assist)` : ' (unassisted)';
+          const how = e.event_type === 'goal' ? '' : ` — ${n.label || 'set piece'}`;
+          return `<span style="color:var(--green);font-weight:700">GOAL</span> — ${B(nm)}${a}${how}`;
+        }
+        case 'save': {
+          // Shooter first, then the keeper, with the running total in parentheses
+          // the way strikeouts are counted.
+          const sh = n.shooter ? `${n.shooter} shot — ` : '';
+          const ct = n.saves ? ` (${n.saves})` : '';
+          return `${sh}${B(nm)} save${ct}`;
+        }
+        case 'shot_on':      return `${B(nm)} shot on goal`;
+        case 'shot_off':     return `${B(nm)} shot off target`;
+        case 'shot_post':    return `${B(nm)} off the post`;
+        case 'shot_blocked': return `${B(nm)} shot blocked`;
+        case 'substitution': {
+          const inN = n.in_name || nm, outN = n.out_name || '';
+          if (inN && outN) return `Substitution: ${B(inN)} in for ${outN}`;
+          return `Substitution: ${B(inN || '')}`;
+        }
+        case 'goalie_change': {
+          const inN = n.in_name || nm, outN = n.out_name || '';
+          return outN ? `${B(inN)} in goal for ${outN}` : `${B(inN)} in goal`;
+        }
+        case 'corner':         return `${T}corner`;
+        case 'penalty_corner': return `${T}penalty corner`;
+        case 'long_corner':    return `${T}long corner`;
+        case 'goal_kick':      return `${T}goal kick`;
+        case 'offside':        return nm ? `${B(nm)} offside` : `${T}offside`;
+        case 'foul':           return nm ? `${B(nm)} foul` : `${T}foul`;
+        case 'turnover':       return nm ? `${B(nm)} turnover` : `${T}turnover`;
+        case 'possession_flip':return `${T}possession`;
+        case 'card_yellow':    return `<span style="color:var(--gold,#d97706);font-weight:700">Yellow</span> — ${B(nm)}`;
+        case 'card_red':       return `<span style="color:var(--red);font-weight:700">Red</span> — ${B(nm)}${n.second_yellow ? ' (2nd yellow)' : ''}`;
+        case 'card_green':     return `<span style="color:var(--green);font-weight:700">Green</span> — ${B(nm)}`;
+        case 'timeout':        return `${T}timeout`;
+        case 'game_over':      return 'Final';
+        default:
+          // notes.label is the scorer's own wording — better than a de-underscored key.
+          if (n.label) return nm ? `${B(nm)} — ${n.label}` : n.label;
+          return nm ? `${B(nm)} — ${String(e.event_type).replace(/_/g,' ')}`
+                    : String(e.event_type).replace(/_/g,' ');
+      }
+    }
+
     if (sport === 'basketball') {
       const lbl  = BBALL_LABEL[e.event_type] || (e.event_type||'').replace(/_/g,' ');
       const name = e.player_name || '';

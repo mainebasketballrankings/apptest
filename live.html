@@ -2814,9 +2814,15 @@ function fdXfm(pt, side){
   const g=fdGeo();
   const d=(pt.y-20)/FDS.halfDepth;      // 0 = goal line, 1 = midfield
   const l=(pt.x-20)/400;                // 0..1 across
+  // Cross-field orientation: the scorer draws the attacking half with the goal
+  // at the TOP, so l=0 is the shooter's left as they face that goal. Facing
+  // east (home, attacking right) the shooter's left is north — the TOP of this
+  // field. Facing west (away) their left is south — the BOTTOM. These two were
+  // the wrong way round, which mirrored every shot across the long axis: a goal
+  // in the left corner showed up in the right one, on both ends.
   return side==='home'
-    ? { x: g.x1 - d*490, y: g.y0 + (1-l)*g.fieldH }
-    : { x: g.x0 + d*490, y: g.y0 +    l *g.fieldH };
+    ? { x: g.x1 - d*490, y: g.y0 +    l *g.fieldH }
+    : { x: g.x0 + d*490, y: g.y0 + (1-l)*g.fieldH };
 }
 
 function fdBuildField(){
@@ -2939,7 +2945,7 @@ function fdP(side,name,num){
   const key=String(name).trim();
   if(!FD.players[side][key]){
     FD.players[side][key]={name:key,num:num||'',g:0,a:0,sh:0,sog:0,sv:0,gb:0,ct:0,
-      to:0,fl:0,yc:0,rc:0,gc:0,ga:0,gk:false,on:true};
+      to:0,fl:0,yc:0,rc:0,gc:0,ga:0,gk:false,wasGK:false,on:true};
   }
   const p=FD.players[side][key];
   if(num && !p.num) p.num=num;
@@ -3007,7 +3013,7 @@ function fdOnEvent(e){
     let arr=[]; try{ arr=Array.isArray(n)?n:(typeof e.notes==='string'?JSON.parse(e.notes):[]); }catch(x){ arr=[]; }
     if(Array.isArray(arr)) arr.forEach(r=>{
       const p=fdP(e.side, r.name, r.num);
-      if(p){ p.on=!!r.starter; p.gk=!!r.gk; if(r.gk) FD.keeper[e.side]=p.name; }
+      if(p){ p.on=!!r.starter; p.gk=!!r.gk; if(r.gk){ p.wasGK=true; FD.keeper[e.side]=p.name; } }
     });
     return;
   }
@@ -3078,7 +3084,7 @@ function fdOnEvent(e){
       break;
     case 'penalty_kick_miss': case 'penalty_stroke_miss':
       S.shots++; if(p)p.sh++; break;
-    case 'save':            S.saves++; if(p){p.sv++;p.gk=true; FD.keeper[e.side]=p.name;} break;
+    case 'save':            S.saves++; if(p){p.sv++;p.gk=true;p.wasGK=true; FD.keeper[e.side]=p.name;} break;
     case 'defensive_save':  if(p)p.sv++; break;
     case 'assist':          if(p)p.a++;  break;
     case 'corner':          S.corners++; break;
@@ -3093,8 +3099,25 @@ function fdOnEvent(e){
     case 'card_red':        S.rc++; if(p){p.rc++;p.on=false;} break;
     case 'penalty_30': case 'penalty_60': case 'penalty_120': case 'penalty_180': break;
     case 'goalie_change':
-      if(p){ Object.values(FD.players[e.side]).forEach(x=>x.gk=false); p.gk=true; p.on=true; FD.keeper[e.side]=p.name; }
+      // wasGK is sticky: a keeper who is subbed off still played in goal, so the
+      // panel can list everyone who kept rather than only whoever is in now.
+      if(p){ Object.values(FD.players[e.side]).forEach(x=>x.gk=false);
+             p.gk=true; p.wasGK=true; p.on=true; FD.keeper[e.side]=p.name; }
       break;
+    // One substitution event carrying both names (the scorer used to emit a
+    // separate sub_out and sub_in, which the feed rendered as two rows).
+    case 'substitution': {
+      const m=e.notes||{};
+      const pin = m.in_name  ? fdPlayer(e.side, m.in_name,  m.in_num)  : p;
+      const pout= m.out_name ? fdPlayer(e.side, m.out_name, m.out_num) : null;
+      if(pin)  pin.on=true;
+      if(pout) pout.on=false;
+      if(m.keeper && pin){
+        Object.values(FD.players[e.side]).forEach(x=>x.gk=false);
+        pin.gk=true; pin.wasGK=true; FD.keeper[e.side]=pin.name;
+      }
+      break;
+    }
     case 'sub_in':  if(p)p.on=true;  break;
     case 'sub_out': if(p)p.on=false; break;
   }
@@ -3194,7 +3217,9 @@ const FD_KLBL={
   draw_won:'Draw control', caused_turnover:'Caused turnover', clear:'Clear',
   card_green:'Green card', card_yellow:'Yellow card', card_red:'Red card',
   penalty_kick_miss:'Penalty kick missed', penalty_stroke_miss:'Penalty stroke missed',
-  goalie_change:'Keeper change', sub_in:'Sub in', sub_out:'Sub out',
+  shot_post:'Off the post',
+  goalie_change:'Keeper change', substitution:'Substitution',
+  sub_in:'Sub in', sub_out:'Sub out',
   possession_flip:'Possession', timeout_full:'Timeout',
   penalty_30:'Penalty :30', penalty_60:'Penalty 1:00',
   penalty_120:'Penalty 2:00', penalty_180:'Penalty 3:00'
@@ -3202,6 +3227,23 @@ const FD_KLBL={
 function fdFeedDesc(e){
   const n=e.notes||{};
   const who=e.pname?`<b>${e.pnum?'#'+e.pnum+' ':''}${e.pname}</b>`:'';
+  // Shooter first, then the keeper and their running total.
+  if(e.key==='save'){
+    const sh=n.shooter?`${n.shooter} shot — `:'';
+    const ct=n.saves?` (${n.saves})`:'';
+    return `${sh}${who} save${ct}`;
+  }
+  if(e.key==='substitution'){
+    const i=n.in_name||e.pname||'', o=n.out_name||'';
+    return o ? `Substitution: <b>${i}</b> in for ${o}` : `Substitution: <b>${i}</b>`;
+  }
+  if(e.key==='goalie_change'){
+    const i=n.in_name||e.pname||'', o=n.out_name||'';
+    return o ? `<b>${i}</b> in goal for ${o}` : `<b>${i}</b> in goal`;
+  }
+  // Team actions are meaningless without a team.
+  if(!e.pname && ['corner','penalty_corner','long_corner','goal_kick','possession_flip','timeout_full'].includes(e.key))
+    return `${fdAbbr(e.side)} ${(FD_KLBL[e.key]||e.key.replace(/_/g,' ')).toLowerCase()}`;
   const isGoal=!!n.goal||e.key==='goal';
   // A red that came from a second caution should say so — it reads very differently.
   if(e.key==='card_red' && /2nd yellow/i.test(n.label||''))
@@ -3266,10 +3308,31 @@ function fdUpdPanels(){
     if(FDS.label==='Lacrosse')
       h+=grp('Ground balls', p=>(p.gb>0||p.ct>0),
         p=>`${p.gb?p.gb+' GB':''}${p.gb&&p.ct?', ':''}${p.ct?p.ct+' CT':''}`, 'gb');
-    h+=grp('Keeper', p=>p.gk,
-      p=>`${p.sv} SV · ${p.ga} GA`, 'sv');
+    // Every keeper who appeared, not just whoever is in goal right now — a
+    // second-half keeper change used to erase the first keeper from the panel.
+    h+=grp('Keeper', p=>(p.gk||p.wasGK),
+      p=>`${p.sv} SV · ${p.ga} GA${p.gk?'':' (out)'}`, 'sv');
     h+=grp('Discipline', p=>(p.yc>0||p.rc>0||p.gc>0),
       p=>`${p.gc?'🟩'.repeat(p.gc):''}${p.yc?'🟨'.repeat(p.yc):''}${p.rc?'🟥'.repeat(p.rc):''}`, 'rc');
+
+    // Everyone else who is in the game. The panel previously listed only players
+    // with a stat line, so most of the eleven on the field were invisible —
+    // you couldn't tell who was playing. Shown last so the stat groups still
+    // lead, and split on/bench so a sub is visible at a glance.
+    const shown = new Set();
+    players.forEach(p=>{
+      if(p.g>0||p.a>0||p.sh>0||p.gk||p.wasGK||p.yc>0||p.rc>0||p.gc>0) shown.add(p.name);
+      if(FDS.label==='Lacrosse' && (p.gb>0||p.ct>0)) shown.add(p.name);
+    });
+    const byNum = (a,b)=>(parseInt(a.num,10)||999)-(parseInt(b.num,10)||999);
+    const rest  = players.filter(p=>!shown.has(p.name));
+    const rows  = (title, arr) => arr.length
+      ? `<div class="fd-pl-grp">${title}</div>` + arr.sort(byNum).map(p=>
+          `<div class="fd-pl-row"><div class="fd-pl-nm">${p.num?'#'+p.num+' ':''}${p.name}</div><div class="fd-pl-ln" style="color:var(--ink3)">—</div></div>`).join('')
+      : '';
+    h += rows('On field',  rest.filter(p=>p.on));
+    h += rows('Bench',     rest.filter(p=>!p.on));
+
     box.innerHTML = h || `<div class="fd-pl-row"><div class="fd-pl-nm" style="color:var(--ink3)">No stats yet</div></div>`;
   });
 }

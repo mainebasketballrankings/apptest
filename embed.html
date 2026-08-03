@@ -1272,7 +1272,10 @@
       const nm = e.player_name || '';
       const B  = x => `<strong>${x}</strong>`;
       // Whose action it was — a corner or a timeout means nothing without a team.
-      const team = game ? (n.side === 'home' ? (game.home_team || 'Home') : (game.away_team || 'Away')) : '';
+      // home_team/away_team are JOINED ROWS, not strings: using them directly
+      // rendered "[object Object] possession".
+      const tRow = game ? (n.side === 'home' ? game.home_team : game.away_team) : null;
+      const team = (tRow && (tRow.school_name || tRow.name)) || '';
       const T    = team ? `${team} ` : '';
       const GOAL = '<span style="color:var(--green);font-weight:700">GOAL</span>';
 
@@ -1298,7 +1301,7 @@
         case 'shot_off':        return `${B(nm)} shot off target`;
         case 'shot_post':       return `${B(nm)} off the post`;
         case 'shot_blocked':    return `${B(nm)} shot blocked`;
-        case 'assist':          return `${B(nm)} assist`;
+        case 'assist':          return '';   // already named on the goal line
 
         case 'substitution': {
           const inN = n.in_name || nm, outN = n.out_name || '';
@@ -1326,13 +1329,22 @@
         // ── Team restarts ──
         case 'corner':          return `${T}${sport === 'field_hockey' || sport === 'field-hockey' ? 'long corner' : 'corner'}`;
         case 'goal_kick':       return `${T}goal kick`;
-        case 'possession_flip': return `${T}possession`;
+        // The scorer emits this automatically after a turnover; the turnover line
+        // already says who got the ball, so don't print it twice.
+        case 'possession_flip': return n.from_turnover ? '' : `${T}possession`;
         case 'timeout_full':    return `${T}timeout`;
 
         // ── Everything else ──
         case 'offside':  return nm ? `${B(nm)} offside`  : `${T}offside`;
         case 'foul':     return nm ? `${B(nm)} foul`     : `${T}foul`;
-        case 'turnover': return nm ? `${B(nm)} turnover` : `${T}turnover`;
+        case 'turnover': {
+          // A turnover always hands the ball over, so say so on one line rather
+          // than emitting a separate "possession" row right behind it.
+          const toRow = game ? (n.side === 'home' ? game.away_team : game.home_team) : null;
+          const toTm  = (toRow && (toRow.school_name || toRow.name)) || '';
+          const arrow = toTm ? ` \u2192 ${toTm} possession` : '';
+          return (nm ? `${B(nm)} turnover` : `${T}turnover`) + arrow;
+        }
         case 'injury':   return nm ? `${B(nm)} injured`  : `${T}injury stoppage`;
         case 'card_green':  return `<span style="color:var(--green);font-weight:700">Green</span> — ${B(nm)}`;
         case 'card_yellow': return `<span style="color:#d97706;font-weight:700">Yellow</span> — ${B(nm)}`;
@@ -1480,8 +1492,12 @@
       const isUninformativeRA = e.event_type === 'runner_advance'
         && !(typeof e.notes === 'object' ? e.notes?.sb : notesStr.includes('"sb":true'))
         && !e.runs;
+      // Events that deliberately render to nothing (a standalone assist, the
+      // possession flip that trails a turnover) must not become "the last play".
+      const isSilent = e.event_type === 'assist'
+        || (e.event_type === 'possession_flip' && notesStr.includes('"from_turnover":true'));
       if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up'
-          && !notesStr.includes('out (DP)') && !isUninformativeRA) {
+          && !notesStr.includes('out (DP)') && !isUninformativeRA && !isSilent) {
         lastEvt[e.game_id] = e;
       }
     });

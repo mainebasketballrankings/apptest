@@ -3246,6 +3246,10 @@ function fdFeedDesc(e){
     const i=n.in_name||e.pname||'', o=n.out_name||'';
     return o ? `<b>${i}</b> in goal for ${o}` : `<b>${i}</b> in goal`;
   }
+  if(e.key==='turnover'){
+    const to=fdAbbr(e.side==='home'?'away':'home');
+    return `${who?who+' ':fdAbbr(e.side)+' '}turnover \u2192 ${to} possession`;
+  }
   // Team actions are meaningless without a team.
   if(!e.pname && ['corner','penalty_corner','long_corner','goal_kick','possession_flip','timeout_full'].includes(e.key))
     return `${fdAbbr(e.side)} ${(FD_KLBL[e.key]||e.key.replace(/_/g,' ')).toLowerCase()}`;
@@ -3268,6 +3272,10 @@ function fdUpdFeed(){
   fdEvts.slice(0,60).forEach((e,i)=>{
     if(e.key==='roster_set'||e.key==='player_final_stats') return;
     const n=e.notes||{};
+    // The goal line already names the assister, and a turnover already says who
+    // got the ball — printing these again is just a duplicate row.
+    if(e.key==='assist') return;
+    if(e.key==='possession_flip' && n.from_turnover) return;
     const row=document.createElement('div'); row.className='fr'+(i===0?' new':'');
     const dot=document.createElement('div'); dot.className='fr-dot';
     dot.style.background = e.side==='home'?'var(--home)':'var(--away)';

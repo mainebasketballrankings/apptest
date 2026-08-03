@@ -29,7 +29,7 @@
    deliberate: it keeps this first step a pure move, not a rewrite.
 
    CACHE NOTE: bump the ?v= query string when this file changes, or the service
-   worker may serve a stale copy. This revision is v=8.
+   worker may serve a stale copy. This revision is v=11.
 
    NATIVE (Capacitor): sign-in opens in the system browser and returns through
    the custom scheme in NATIVE_REDIRECT, and the push queue and auth session are
@@ -121,6 +121,16 @@
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   } catch (e) {}
 
+  // Exposed so scorers and the home screen can agree on the season without
+  // each keeping their own copy of the rule.
+  function seasonYearForDate(iso) {
+    const d = new Date((iso || new Date().toLocaleDateString('en-CA')) + 'T12:00:00');
+    const y = d.getFullYear();
+    // Month is 0-based: 7 = August. Aug 15 or later belongs to the next school year.
+    const rolled = (d.getMonth() > 7) || (d.getMonth() === 7 && d.getDate() >= 15);
+    return rolled ? y + 1 : y;
+  }
+
   const cfg = {
     queueKey  : 'mbr_push_queue',
     isTestMode: () => false,
@@ -128,9 +138,20 @@
     isFinalized: () => false,
     makePDF   : null,
     sportId   : null,                      // this scorer's sport uuid
-    // season_year rule. Default: the calendar year of the game date. Basketball
-    // is the only sport that crosses New Year's, so it overrides this.
-    seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear(),
+    // season_year rule — one rule for every sport.
+    //
+    // season_year is the calendar year the SCHOOL YEAR ends, so 25-26 is 2026.
+    // A season runs mid-August to mid-August, which means a single cutoff covers
+    // all of them: Aug 15 2026 onward is the 26-27 season, i.e. 2027.
+    //
+    //   Sep 2026 soccer      -> 2027     Nov 2026 basketball -> 2027
+    //   Feb 2027 basketball  -> 2027     May 2027 lacrosse   -> 2027
+    //   Jun 2026 lacrosse    -> 2026     Aug 3 2026          -> 2026
+    //
+    // This replaces the old per-sport rules (calendar year for fall/spring,
+    // October rollover for basketball), which filed a Sept 2026 soccer game as
+    // 2026 — a season behind.
+    seasonYearFor: (iso) => MBR.seasonYearFor(iso),
     trackingLevel: 'full_stats',           // NB: constraint rejects 'full'
     keepAwake : true,                      // scorers want it; the home screen sets false
   };
@@ -754,6 +775,27 @@
   }
   function stopClockSync() { if (_clkTimer) { clearInterval(_clkTimer); _clkTimer = null; } }
 
+  // ── Status bar ───────────────────────────────────────────────────────────
+  // By default the webview runs full-screen underneath the iOS status bar, so
+  // the clock, wifi and battery land on top of the top bar. CSS
+  // env(safe-area-inset-top) is the usual answer, but it reports 0 under this
+  // Capacitor config, so do it natively instead: tell iOS to reserve the status
+  // bar area and inset the webview below it. That fixes every page at once and
+  // doesn't depend on each file remembering to pad itself.
+  function initStatusBar() {
+    const SB = capPlugin('StatusBar');
+    if (!SB) return;
+    try { SB.setOverlaysWebView({ overlay: false }); } catch (e) {}
+    // Dark text — the whole app is on a light background.
+    try { SB.setStyle({ style: 'LIGHT' }); } catch (e) {}
+    try { SB.setBackgroundColor({ color: '#ffffff' }); } catch (e) {}
+  }
+  if (NATIVE) {
+    if (global.document && document.readyState === 'loading')
+      document.addEventListener('DOMContentLoaded', initStatusBar);
+    else initStatusBar();
+  }
+
   // ── Keep the screen on ───────────────────────────────────────────────────
   // A phone that sleeps in the third quarter is useless at the scorer's table.
   // iOS Safari's Wake Lock support is patchy, so prefer the native plugin and
@@ -784,15 +826,32 @@
       r.readAsDataURL(blob);
     });
   }
+  // iOS will only present one share sheet at a time. End-of-game fires a CSV and
+  // a PDF back to back, and the second was being silently dropped while the
+  // first was still on screen — the CSV appeared, the PDF never did. So shares
+  // are queued: each waits for the previous sheet to be dismissed.
+  let _shareChain = Promise.resolve();
+  function queueShare(fn) {
+    const next = _shareChain.then(fn, fn);
+    _shareChain = next.catch(() => {});
+    return next;
+  }
+
   async function saveFile(filename, blob) {
     const FS = capPlugin('Filesystem'), SH = capPlugin('Share');
     if (FS && SH) {
       try {
         const data = await blobToBase64(blob);
         const w = await FS.writeFile({ path: filename, data, directory: 'CACHE' });
-        await SH.share({ title: filename, url: w.uri });
+        await queueShare(() => SH.share({ title: filename, url: w.uri }));
         return true;
-      } catch (e) { console.warn('native save failed, falling back to download', e); }
+      } catch (e) {
+        // A user cancelling the sheet also lands here; that isn't a failure, and
+        // re-triggering a browser download on top of it would be wrong.
+        const msg = String((e && (e.message || e)) || '');
+        if (/cancel/i.test(msg)) return false;
+        console.warn('native save failed, falling back to download', e);
+      }
     }
     try {
       const a = document.createElement('a');
@@ -836,7 +895,8 @@
     listMyTeams, saveTeamRoster, myTeamsAll, myGames, deleteGame, deleteTeam,
     signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
-    clamp, keepAwake, saveFile,
+    clamp, keepAwake, saveFile, initStatusBar, queueShare,
+    seasonYearFor: seasonYearForDate,
     get droppedRows() { return _droppedRows; },
   };
 

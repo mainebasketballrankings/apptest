@@ -10,7 +10,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Baseball Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
-<script src="mbr-core.js?v=8"></script>
+<script src="mbr-core.js?v=11"></script>
+<script>
+// Current season under the shared Aug-15 rule. Rosters are stored per season, so
+// player lookups try the current season first and then fall back to unfiltered —
+// otherwise the first game after Aug 15 would show empty rosters until the new
+// season's players are loaded.
+function curSeason(){ return MBR.seasonYearFor(new Date().toLocaleDateString('en-CA')); }
+</script>
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
@@ -36,7 +43,8 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
 input,select,button{font-family:inherit;}
 
 /* ══ SETUP ══ */
-#setupScreen{display:flex;flex-direction:column;align-items:center;padding:20px 16px 48px;}
+#setupScreen{display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 48px);}
 .setup-logo{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
 .setup-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:var(--text);margin-bottom:20px;}
 
@@ -70,7 +78,7 @@ input,select,button{font-family:inherit;}
 .start-btn{width:100%;max-width:560px;padding:14px;background:var(--green);border:none;border-radius:10px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:8px;}
 
 /* ══ GAME ══ */
-#gameScreen{display:none;flex-direction:column;min-height:100vh;}
+#gameScreen{padding-top:env(safe-area-inset-top,0px);display:none;flex-direction:column;min-height:100vh;}
 
 /* Top bar — scoreboard */
 .sb{background:var(--surface);border-bottom:1px solid var(--border);padding:0;}
@@ -539,7 +547,8 @@ input,select,button{font-family:inherit;}
     <button class="abtn danger" onclick="doSkipBatter()">Skip Batter</button>
     <button class="abtn" style="grid-column:span 2" onclick="openBoxScore()">Box Score</button>
     <button class="abtn" style="grid-column:span 2;background:#1a7a4a;color:#fff;border-color:#1a7a4a" onclick="generatePDF().catch(e=>alert('PDF error: '+e.message))">Game Report</button>
-    <button class="abtn danger" style="grid-column:span 4" onclick="openEndGame()">End Game</button>
+    <button class="abtn" style="grid-column:span 2" onclick="leaveToHome()" title="Leave without ending the game">&lsaquo; All Sports</button>
+    <button class="abtn danger" style="grid-column:span 2" onclick="openEndGame()">End Game</button>
 
   </div>
 
@@ -832,7 +841,7 @@ MBR.init({
   makePDF    : () => generatePDF({ returnBlob:true }),
   sportId    : () => (typeof G !== 'undefined' && G && G.sport === 'softball') ? SOFTBALL_SPORT_ID : BASEBALL_SPORT_ID,
   // Spring sports: the season year is simply the calendar year of the game.
-  seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear()
+  // Season year comes from the core's shared Aug-15 rule.
 });
 
 // The core owns the school list now. Populate the existing ALL_SCHOOLS array
@@ -987,7 +996,7 @@ async function loadTodaysGames(){
   let games;
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026` +
+      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.${curSeason()}` +
       `&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
       `&order=game_date.asc`,
       { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' },
@@ -1048,7 +1057,7 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
   const fetchRoster = async (teamId, side) => {
     try {
       const players = await sbFetch(
-        `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=30&select=name,number,position`
+        `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.${curSeason()}&order=number.asc&limit=30&select=name,number,position`
       );
       if(myRosterVersion !== _rosterVersion) return; // superseded by a newer selectGame click
       if(!Array.isArray(players) || !players.length) return;
@@ -1900,6 +1909,27 @@ function checkGameEnd(){
 
 // ═══════════════════════════════════════════════
 
+
+// ── Leave without ending ─────────────────────────────────────────────────
+// State is already persisted, so this is just a safe way out of a live game:
+// check another field, or back out of the wrong game, without force-quitting.
+// The home screen's resume card reads the breadcrumb and offers it straight back.
+function curSport(){
+  const el = document.getElementById('sportSel');
+  return (el && el.value === 'softball') ? 'softball' : 'baseball';
+}
+function leaveToHome(){
+  try{ saveState(); }catch(e){}
+  try{
+    localStorage.setItem('mbr_home_resume', JSON.stringify({
+      url: 'baseball_scorer.html?sport=' + curSport() + ((typeof G_game_id!=='undefined' && G_game_id) ? '&game_id='+G_game_id : ''),
+      at: Date.now(), sport: curSport(),
+      game_id: (typeof G_game_id!=='undefined' && G_game_id) ? G_game_id : null,
+    }));
+  }catch(e){}
+  location.href = 'home.html';
+}
+
 function openEndGame(){
   // Build pitcher lists from G.pitStats keyed as side_Name
   function getPitchersForSide(side){
@@ -1934,7 +1964,7 @@ async function pushPlayerStats(){
   // Helper: fetch existing player row
   async function fetchExisting(teamId, name){
     const res = await fetch(
-      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&name=eq.${encodeURIComponent(name)}&season_year=eq.2026&limit=1`,
+      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&name=eq.${encodeURIComponent(name)}&season_year=eq.${curSeason()}&limit=1`,
       { headers }
     );
     const rows = await res.json();
@@ -2006,7 +2036,7 @@ async function pushPlayerStats(){
       name:       player.name,
       number:     player.number||null,
       sport_id:   sportId,
-      season_year: 2026,
+      season_year: curSeason(),
       games:      newGames,
       ab:         newAb,
       hits:       newHits,
@@ -2050,7 +2080,7 @@ async function pushPlayerStats(){
       name:        ps.name,
       number:      ps.num||null,
       sport_id:    sportId,
-      season_year: 2026,
+      season_year: curSeason(),
       ip_outs:     newIpOuts,
       p_h:         newPh,
       p_bb:        newPbb,
@@ -3962,7 +3992,7 @@ async function pickSchool(name, side){
     else G_away_team_id = teamId;
     // Fetch roster
     const rRes = await fetch(
-      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&select=name,number,position&order=number.asc`,
+      `${SB_URL}/rest/v1/players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.${curSeason()}&select=name,number,position&order=number.asc`,
       {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}}
     );
     const players = await rRes.json();

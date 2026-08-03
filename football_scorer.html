@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
-<script src="mbr-core.js?v=8"></script>
+<script src="mbr-core.js?v=11"></script>
+<script>
+// Current season under the shared Aug-15 rule. Rosters are stored per season, so
+// player lookups try the current season first and then fall back to unfiltered —
+// otherwise the first game after Aug 15 would show empty rosters until the new
+// season's players are loaded.
+function curSeason(){ return MBR.seasonYearFor(new Date().toLocaleDateString('en-CA')); }
+</script>
 <link rel="apple-touch-icon" href="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/Maine%20Basketball%20Rankings%20football%20scorer%20logo.png"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -39,7 +46,8 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
 input,select,button{font-family:inherit;}
 
 /* ══ SETUP ══ */
-#setupScreen{display:flex;flex-direction:column;align-items:center;padding:20px 16px 48px;}
+#setupScreen{display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 48px);}
 .setup-logo{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
 .setup-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:var(--text);margin-bottom:20px;}
 .setup-card{width:100%;max-width:560px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
@@ -72,7 +80,7 @@ input,select,button{font-family:inherit;}
 #gameScreen{display:none;flex-direction:column;min-height:100vh;}
 
 /* Scoreboard */
-.sb{background:var(--surface);border-bottom:1px solid var(--border);}
+.sb{padding-top:env(safe-area-inset-top,0px);background:var(--surface);border-bottom:1px solid var(--border);}
 .sb-top{display:grid;grid-template-columns:1fr 132px 1fr;align-items:center;padding:8px 12px;padding-right:max(12px,env(safe-area-inset-right));padding-left:max(12px,env(safe-area-inset-left));}
 .sb-team{display:flex;align-items:center;gap:9px;}
 .sb-team.home{flex-direction:row-reverse;}
@@ -170,7 +178,12 @@ input,select,button{font-family:inherit;}
 /* Result chips */
 .res-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 4px;}
 .gain-row{flex-wrap:wrap;gap:5px;margin:4px 0 8px}
-.gain-chip{min-width:44px;text-align:center;padding:9px 6px;font-size:15px;font-weight:700}
+.gain-chip{min-width:46px;text-align:center;padding:9px 6px;font-size:15px;font-weight:700}
+/* The half-of-field arrow is a hint, not a digit — keep it quiet so the yard
+   number stays the thing you read. */
+.ychev{font-style:normal;font-size:11px;opacity:.5;vertical-align:1px;}
+.gain-chip.endzone{background:#fef3c7;border-color:#fcd34d;color:#b45309;}
+.gain-chip.endzone.active{background:#fde68a;}
 .reschip{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;}
 .reschip.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 .reschip.td.active{background:#fef3c7;border-color:#fcd34d;color:#b45309;}
@@ -348,7 +361,8 @@ input,select,button{font-family:inherit;}
     <button class="abtn"        onclick="openBoxScore()">Box Score</button>
     <button class="abtn danger" onclick="doUndo()">Undo</button>
     <button class="abtn" style="background:#1a7a4a;color:#fff;border-color:#1a7a4a" onclick="generatePDF().catch(e=>alert('PDF error: '+e.message))">Report</button>
-    <button class="abtn danger" style="grid-column:span 4" onclick="openEndGame()">End Game</button>
+    <button class="abtn" style="grid-column:span 2" onclick="leaveToHome()" title="Leave without ending the game">&lsaquo; All Sports</button>
+    <button class="abtn danger" style="grid-column:span 2" onclick="openEndGame()">End Game</button>
   </div>
 
   <!-- PBP log -->
@@ -577,8 +591,7 @@ if (typeof MBR === 'undefined') {
 MBR.init({
   queueKey  : 'mbr_fb_push_queue',
   sportId   : 'fa905ca5-f416-409b-81ac-777179ee5576',
-  // Fall 2026 football is season_year 2026 — football never rolls the year.
-  seasonYearFor: (iso) => new Date(iso + 'T12:00:00').getFullYear(),
+  // Season year comes from the core's shared Aug-15 rule.
   isTestMode: () => G_test_mode,
   gameId    : () => G_game_id,
   isFinalized: () => _gameFinalized,
@@ -819,7 +832,7 @@ async function loadTodaysGames(){
   let games;
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.2026` +
+      `${SB_URL}/rest/v1/games?game_date=eq.${today}&sport_id=eq.${sportId}&season_year=eq.${curSeason()}` +
       `&select=id,home_team_id,away_team_id,location,status,home_team:home_team_id(school_name),away_team:away_team_id(school_name)&order=game_date.asc`,
       { headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }, signal:_gameListAbort.signal });
     games = await r.json();
@@ -884,8 +897,8 @@ function selectGame(id, homeId, awayId, homeName, awayName, loc){
     try {
       const sportId = await resolveFootballSport();
       const q = sportId
-        ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`
-        : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`;
+        ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.${curSeason()}&order=number.asc&limit=80&select=name,number,position`
+        : `players?team_id=eq.${teamId}&season_year=eq.${curSeason()}&order=number.asc&limit=80&select=name,number,position`;
       const players = await sbFetch(q);
       if(myV !== _rosterVersion) return;
       if(!Array.isArray(players) || !players.length) return;
@@ -1446,12 +1459,35 @@ function pselRow(lbl, player, onclick){
 // conversion + the whole spot-picker round trip on routine plays. The spot row
 // below still handles anything unusual.
 const GAIN_CHIPS = [-5,-3,-1,0,1,2,3,4,5,7,10,15,20];
+
+// Chips are labelled with the yard line the ball ENDS ON, not the yards gained.
+// You watch the runner get tackled at the 27, you tap 27. Labelling them +2 made
+// the scorer do arithmetic on every play — read the spot, recall the old spot,
+// subtract — which is small but happens 60+ times a game with eyes on the field.
+//
+// Arrow shows whose half: ‹27 is our side, 27› is theirs, midfield is plain 50.
+// Spots that leave the field are named for what they are rather than a number,
+// since "TD" is what the scorer is actually thinking.
+function chipYardLabel(spot){
+  const y = Math.round(spot);
+  if(y >= 100) return 'TD';
+  if(y <= 0)   return 'SAF';
+  if(y === 50) return '50';
+  return y < 50
+    ? `<i class="ychev">\u2039</i>${y}`
+    : `${100-y}<i class="ychev">\u203a</i>`;
+}
+
 function gainRow(toSpot, base, setter){
   const cur = Math.round(toSpot - base);
   const chips = GAIN_CHIPS.map(g=>{
     const spot = clamp(base+g, 0, 100);
     const active = (cur===g) ? ' active' : '';
-    return `<span class="reschip gain-chip${active}" onclick="${setter}(${spot})">${g>0?'+':''}${g}</span>`;
+    const isEnd  = (spot>=100 || spot<=0) ? ' endzone' : '';
+    // Yards gained still rides along as the title, and the "Ball ends at" row
+    // underneath keeps showing (+2) so the gain is never actually hidden.
+    return `<span class="reschip gain-chip${active}${isEnd}" title="${g>0?'+':''}${g} yd" `
+         + `onclick="${setter}(${spot})">${chipYardLabel(spot)}</span>`;
   }).join('');
   return `<div class="res-row gain-row">${chips}</div>`;
 }
@@ -3056,8 +3092,8 @@ async function loadRosterByName(name, side){
     // try each candidate id until one has football players
     for(const teamId of ids){
       const q = sportId
-        ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`
-        : `players?team_id=eq.${teamId}&season_year=eq.2026&order=number.asc&limit=80&select=name,number,position`;
+        ? `players?team_id=eq.${teamId}&sport_id=eq.${sportId}&season_year=eq.${curSeason()}&order=number.asc&limit=80&select=name,number,position`
+        : `players?team_id=eq.${teamId}&season_year=eq.${curSeason()}&order=number.asc&limit=80&select=name,number,position`;
       const players=await sbFetch(q);
       if(myV!==_rosterVersion) return;
       if(Array.isArray(players)&&players.length){
@@ -3345,6 +3381,23 @@ async function generatePDF(opts={}){
 // ═══════════════════════════════════════════════
 // END GAME
 // ═══════════════════════════════════════════════
+
+// ── Leave without ending ─────────────────────────────────────────────────
+// State is already persisted, so this is just a safe way out of a live game:
+// check another field, or back out of the wrong game, without force-quitting.
+// The home screen's resume card reads the breadcrumb and offers it straight back.
+function leaveToHome(){
+  try{ saveState(); }catch(e){}
+  try{
+    localStorage.setItem('mbr_home_resume', JSON.stringify({
+      url: 'football_scorer.html' + ((typeof G_game_id!=='undefined' && G_game_id) ? '?game_id='+G_game_id : ''),
+      at: Date.now(), sport: 'football',
+      game_id: (typeof G_game_id!=='undefined' && G_game_id) ? G_game_id : null,
+    }));
+  }catch(e){}
+  location.href = 'home.html';
+}
+
 function openEndGame(){
   const w = G.score.away===G.score.home ? 'Tied' :
     (G.score.away>G.score.home ? `${G.teams.away.name} win` : `${G.teams.home.name} win`);

@@ -6,7 +6,14 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=8"></script>
+<script src="mbr-core.js?v=11"></script>
+<script>
+// Current season under the shared Aug-15 rule. Rosters are stored per season, so
+// player lookups try the current season first and then fall back to unfiltered —
+// otherwise the first game after Aug 15 would show empty rosters until the new
+// season's players are loaded.
+function curSeason(){ return MBR.seasonYearFor(new Date().toLocaleDateString('en-CA')); }
+</script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -72,7 +79,9 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 
 /* ══ TOP BAR ══ */
 #topbar{display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:stretch;
-  background:var(--surface);border-bottom:2px solid var(--border);padding:0 8px;flex-shrink:0;}
+  background:var(--surface);border-bottom:2px solid var(--border);flex-shrink:0;
+  /* iOS status bar draws over the webview; pad by the notch inset. */
+  padding:env(safe-area-inset-top,0px) 8px 0;}
 .side-block{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:4px 9px;min-width:74px;}
 .side-lbl{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
 .side-val{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;}
@@ -329,7 +338,8 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
     </div>
     <div id="clk-col">
       <div id="clock-btn" onclick="toggleClock()" ondblclick="openClkEdit(event)">40:00</div>
-      <div id="pdisplay" onclick="chgPeriod(1)" oncontextmenu="chgPeriod(-1);return false;">1ST</div>
+      <!-- long-press wired in JS: double-tap is unreliable under WKWebView -->
+      <div id="pdisplay" onclick="openPeriodPicker()">1ST</div>
       <div id="elapsed">0:00</div>
       <div id="playoff-chip" style="display:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;
            font-size:10px;letter-spacing:.1em;color:#1d4ed8;">PLAYOFF</div>
@@ -370,6 +380,7 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
           <div class="sbtn t-tm" onclick="openMore()">More ⋯</div>
           <div class="sbtn" onclick="openBoxScore()">Box</div>
           <div class="sbtn" onclick="toggleLog()">Log</div>
+          <div class="sbtn" onclick="leaveToHome()" title="Leave without ending the game">&lsaquo; All Sports</div>
           <div class="sbtn t-neg" onclick="openEndModal()">End Game</div>
         </div>
       </div>
@@ -406,6 +417,15 @@ table.bs tr.tot td{font-weight:700;border-top:2px solid var(--border);background
 <div class="modal" id="so-modal"><div class="mbox" style="max-width:460px;"><div class="mh" id="so-title">Penalty Kicks</div>
   <div id="so-body"></div>
   <button class="btn btn-s" style="width:100%;margin-top:10px;" onclick="closeModal('so-modal')">Close</button></div></div>
+<div class="modal" id="per-edit"><div class="mbox" style="max-width:320px;"><div class="mh">Period</div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:10px 0;">
+    <button class="btn btn-s" style="min-width:64px;font-size:20px;" onclick="perStep(-1)">&#9664;</button>
+    <div id="pe-lbl" style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:34px;min-width:80px;text-align:center;">1ST</div>
+    <button class="btn btn-s" style="min-width:64px;font-size:20px;" onclick="perStep(1)">&#9654;</button>
+  </div>
+  <div id="pe-note" style="font-size:12px;color:var(--dim);text-align:center;margin-bottom:8px;"></div>
+  <button class="btn btn-p" style="width:100%;" onclick="closeModal('per-edit')">Done</button></div></div>
+
 <div class="modal" id="clk-edit"><div class="mbox" style="max-width:300px;"><div class="mh">Set Clock</div>
   <div class="su-row"><div class="su-f"><label>Min</label><input id="ce-m" type="number" min="0" max="99"></div>
   <div class="su-f"><label>Sec</label><input id="ce-s" type="number" min="0" max="59"></div></div>
@@ -610,7 +630,7 @@ MBR.init({
   // sport_id and the season-year rule change with the selected sport, so these
   // are read live rather than captured once.
   sportId    : () => (typeof SP !== 'undefined' && SP) ? SP.sport_id : null,
-  seasonYearFor: (iso) => seasonYearFor(iso)
+  // Season year comes from the core's shared Aug-15 rule.
 });
 
 // Thin shims so existing call sites keep their original names/signatures.
@@ -619,7 +639,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-07-25d';
+const MBR_BUILD='fs-2026-08-03b';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -655,16 +675,10 @@ function evtTime(e){
   return `${periodLbl(e.period)} ${fmt(e.clk)}`;
 }
 function findP(pid,side){return PL[side]?.find(p=>p.id===pid);}
-// season_year = the calendar year the SEASON ENDS.
-// Basketball is the only sport that crosses New Year's (Dec–Mar), so it rolls
-// forward. Soccer and field hockey end in November; lacrosse ends in June —
-// none of them cross Jan 1, so for the field sports it is simply the game's year.
-// Rolling July forward would write 2027 for a Sept 2026 game, and the scorer's
-// own game picker (and embed.html) query 2026 — the game would vanish.
-function seasonYearFor(iso){
-  const d=new Date((iso||new Date().toLocaleDateString('en-CA'))+'T12:00:00');
-  return d.getFullYear();
-}
+// One rule for every sport, defined in mbr-core: a season runs mid-August to
+// mid-August, so Aug 15 onward belongs to the next school year. Kept as a local
+// name because call sites throughout this file already use it.
+function seasonYearFor(iso){ return MBR.seasonYearFor(iso); }
 function opp(s){return s==='home'?'away':'home';}
 
 
@@ -748,7 +762,7 @@ function patchLiveScore(){
 async function loadTeamRoster(teamId){
   if(!teamId||!SP.sport_id)return [];
   const base=`players?team_id=eq.${teamId}&sport_id=eq.${SP.sport_id}&order=number.asc&limit=140&select=*`;
-  for(const q of [`${base}&season_year=eq.2026`, base]){
+  for(const q of [`${base}&season_year=eq.${curSeason()}`, base]){
     try{
       const rows=await sbFetch(q);
       if(Array.isArray(rows)&&rows.length){
@@ -1360,15 +1374,31 @@ function resolveShot(kind){
   const {pt,side,p}=pendingShot;
   if(kind==='goal'){ openAssistPicker(pt,side,p); return; }
   const onTarget = (kind==='save');
-  const key = kind==='save'?'shot_on':(kind==='blocked'?'shot_blocked':'shot_off');
-  const lbl = {save:'Shot on goal (saved)',miss:'Shot wide',blocked:'Shot blocked',post:'Shot off the post'}[kind];
-  pushEvt({side,p,key,label:lbl,pt,shot:true,onTarget});
+  // 'miss' and 'post' were both stored as shot_off, so nothing downstream could
+  // tell a shot off the woodwork from one sailing wide — the ticker said "shot
+  // off" for both. Post gets its own key now, and every shot carries an explicit
+  // meta.result so consumers never have to infer the outcome from the label.
+  const key = kind==='save'    ? 'shot_on'
+            : kind==='blocked' ? 'shot_blocked'
+            : kind==='post'    ? 'shot_post'
+            :                    'shot_off';
+  const lbl = {save:'Shot on goal (saved)',miss:'Shot off target',
+               blocked:'Shot blocked',post:'Shot off the post'}[kind];
+  pushEvt({side,p,key,label:lbl,pt,shot:true,onTarget,
+           meta:{result:kind, on_target:onTarget}});
   GAME[side].shots++; if(onTarget)GAME[side].sog++;
   const se=evts[0];
   if(kind==='save'){
     // credit the save to the opposing keeper, linked so one Undo removes both
     const gkSide=opp(side), gk=findP(GAME[gkSide].gk,gkSide);
-    if(gk){ const sv=pushEvt({side:gkSide,p:gk,key:'save',label:'Save',pt}); GAME[gkSide].saves++; link(se,sv); }
+    if(gk){
+      // Carry the shooter and the keeper's running total so the ticker can read
+      // "Nadeau shot — Fortin save (3)" instead of a bare "save" with no context.
+      GAME[gkSide].saves++;
+      const sv=pushEvt({side:gkSide,p:gk,key:'save',label:'Save',pt,
+        meta:{shooter:pName(p), shooter_num:p.num, saves:GAME[gkSide].saves}});
+      link(se,sv);
+    }
   }
   addDot(pt,kind,side);
   closeShotOverlay(); updAll(); scheduleSave();
@@ -1538,11 +1568,12 @@ function doStat(i){
     return;
   }
   if(b.key==='goalie_change'){
-    if(!selP){flash('Select the new keeper','bad');return;}
-    PL[selSide].forEach(p=>p.gk=false);
-    selP.gk=true; selP.wasGK=true; selP.on=true; GAME[selSide].gk=selP.id;
-    pushEvt({side:selSide,p:selP,key:'goalie_change',label:'Keeper change'});
-    renderPl(selSide); updAll(); scheduleSave(); flash(pName(selP)+' in goal',''); return;
+    // Was: silently promote whoever happened to be highlighted. That handles one
+    // of the three real cases and does the wrong thing for the other two —
+    // a field player going in goal has to be named explicitly, and a keeper
+    // coming off for a bench keeper is a substitution as well as a GK change.
+    openGKBox(selSide || (selP ? selP._side : null));
+    return;
   }
   if(!b.team && !selP){flash('Pick a player first','bad');return;}
   const side = b.team ? (selSide||GAME.possession) : selSide;
@@ -1591,7 +1622,17 @@ function doStat(i){
   if(b.pen){ addPenalty(side,p,fmt(b.pen),b.pen); meta={penalty_secs:b.pen}; }
 
   const e=pushEvt({side,p,key:b.key,label:b.lbl,meta});
-  if(b.key==='turnover') GAME[side].to++;
+  if(b.key==='turnover'){
+    GAME[side].to++;
+    // A turnover IS a change of possession — making the scorer tap Poss
+    // separately was double work and left possession time wrong whenever it
+    // got missed. Only move it if it isn't already the other way.
+    if(GAME.possession === side){
+      GAME.possession = opp(side);
+      pushEvt({side:opp(side), p:null, key:'possession_flip',
+               label:GAME[opp(side)].short+' possession', meta:{from_turnover:true}});
+    }
+  }
   if(b.key==='save'){ GAME[side].saves++; }
   // A team-only action (corner, goal kick, injury…) is finished the moment it is
   // logged, so drop the highlight. Leaving it lit made the next tap look armed
@@ -1628,6 +1669,7 @@ function updPens(){
 
 // ══ CLOCK ════════════════════════════════════════════════════
 function toggleClock(){
+  if(_clkHeld){ _clkHeld=false; return; }   // the press opened the editor
   if(GAME.ended)return;
   GAME.running=!GAME.running;
   clearInterval(clkInt);
@@ -1655,8 +1697,31 @@ function updClk(){
   document.getElementById('elapsed').textContent=fmt(elapsedSecs())+' elapsed';
   checkMercy();
 }
+// Long-press the clock to edit it. Double-tap fires inconsistently in a
+// webview (the browser is busy deciding whether it's a zoom gesture), which
+// left no way to correct the clock on the iPad at all.
+(function wireClockHold(){
+  const bind=()=>{
+    const el=document.getElementById('clock-btn'); if(!el) return;
+    let t=null, moved=false;
+    const start=()=>{ moved=false; clearTimeout(t);
+      t=setTimeout(()=>{ if(!moved){ _clkHeld=true; openClkEdit(); } }, 550); };
+    const cancel=()=>{ clearTimeout(t); };
+    el.addEventListener('touchstart', start, {passive:true});
+    el.addEventListener('touchmove', ()=>{ moved=true; cancel(); }, {passive:true});
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('touchcancel', cancel);
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', cancel);
+    el.addEventListener('mouseleave', cancel);
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind);
+  else bind();
+})();
+let _clkHeld=false;
+
 function openClkEdit(e){
-  e.preventDefault();
+  if(e && e.preventDefault) e.preventDefault();
   document.getElementById('ce-m').value=Math.floor(GAME.clockSec/60);
   document.getElementById('ce-s').value=GAME.clockSec%60;
   document.getElementById('clk-edit').classList.add('show');
@@ -1696,6 +1761,23 @@ function setPlayoff(on){
     : (SP.ties?`Regular season: ${SP.ot.max} × ${fmt(SP.ot.secs)} sudden victory, ties allowed`:'Regular season'),'');
   try{ updAll(); }catch(e){} scheduleSave();
 }
+// The period used to advance on a single tap of the display, with the only way
+// back bound to oncontextmenu — a right-click, which does not exist on a
+// tablet. So a mis-tap moved the game to the second half permanently. Now the
+// tap opens a picker that steps both ways.
+function openPeriodPicker(){
+  perPaint();
+  document.getElementById('per-edit').classList.add('show');
+}
+function perPaint(){
+  const el=document.getElementById('pe-lbl'); if(el) el.textContent=periodLbl(GAME.period);
+  const n=document.getElementById('pe-note');
+  if(n) n.textContent = GAME.period>SP.periods
+    ? 'Overtime — clock resets on change'
+    : `Period ${GAME.period} of ${SP.periods} · clock resets on change`;
+}
+function perStep(d){ chgPeriod(d); perPaint(); }
+
 function chgPeriod(d){
   const o=otRules();
   const max=SP.periods + (o.max===99?9:o.max);
@@ -1774,6 +1856,64 @@ function openSubBox(){
     </div></div>`;
   document.getElementById('sub-modal').classList.add('show');
 }
+// ══ KEEPER CHANGE ════════════════════════════════════════════
+// Three cases the scorer actually faces:
+//   1. a player already on the field takes over in goal (keeper stays on as a
+//      field player — common when the keeper is hurt or gets sent off)
+//   2. someone off the bench comes on IN GOAL and the keeper leaves the field
+//      (that's a substitution too, so it's logged as one)
+//   3. the keeper swaps out to a field position and someone else takes over
+// Live gets a goalie_change event either way, so it can list every keeper who
+// appeared rather than only the starter.
+function openGKBox(side){
+  if(!side){flash('Pick a side first','bad');return;}
+  _gkSide = side;
+  const cur = findP(GAME[side].gk, side);
+  const onF = PL[side].filter(p=>p.on && !p.gk), off = PL[side].filter(p=>!p.on);
+  const body=document.getElementById('sub-body');
+  body.innerHTML =
+    `<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">
+       ${GAME[side].short} — in goal now: <b>${cur?pName(cur):'nobody'}</b>
+     </div>
+     <div class="su-row"><div>
+       <div class="su-h">From the field</div>
+       <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Keeper stays on as a field player</div>
+       ${onF.map(p=>`<div class="ast-item" onclick="gkPick('${side}','${p.id}',false)"><b>${p.num||'\u2013'}</b><span>${pName(p)}</span></div>`).join('') || '<div style="font-size:12px;color:var(--dim)">Nobody else on the field</div>'}
+     </div><div>
+       <div class="su-h">From the bench</div>
+       <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Keeper comes off \u2014 logged as a sub</div>
+       ${off.map(p=>`<div class="ast-item" onclick="gkPick('${side}','${p.id}',true)"><b>${p.num||'\u2013'}</b><span>${pName(p)}${p.wasGK?' \u00b7 GK':''}</span></div>`).join('') || '<div style="font-size:12px;color:var(--dim)">Bench is empty</div>'}
+     </div></div>`;
+  document.getElementById('sub-modal').classList.add('show');
+}
+let _gkSide=null;
+function gkPick(side, pid, fromBench){
+  const p = findP(pid, side);
+  if(!p) return;
+  const outgoing = findP(GAME[side].gk, side);
+  PL[side].forEach(x=>x.gk=false);
+  p.gk=true; p.wasGK=true; p.on=true;
+  GAME[side].gk=p.id;
+
+  if(fromBench && outgoing){
+    // The old keeper leaves the field, so this is a substitution as well.
+    outgoing.on=false;
+    pushEvt({side, p, key:'substitution',
+      label:`${pName(p)} in for ${pName(outgoing)}`,
+      meta:{in_id:p.id,in_num:p.num,in_name:pName(p),
+            out_id:outgoing.id,out_num:outgoing.num,out_name:pName(outgoing),
+            keeper:true}});
+  }
+  pushEvt({side, p, key:'goalie_change',
+    label: outgoing ? `${pName(p)} in goal for ${pName(outgoing)}` : `${pName(p)} in goal`,
+    meta:{ in_id:p.id, in_name:pName(p), in_num:p.num,
+           out_id:outgoing?outgoing.id:null, out_name:outgoing?pName(outgoing):null,
+           from_bench:!!fromBench }});
+
+  closeModal('sub-modal'); renderPl(side); updAll(); scheduleSave();
+  flash(pName(p)+' in goal','');
+}
+
 function subPick(side,pid,dir){
   const p=findP(pid,side);
   // Re-open the sheet so the chosen player stays visibly lit while you pick the
@@ -1782,8 +1922,18 @@ function subPick(side,pid,dir){
   if(!_subOut){ flash('Pick who comes OUT first','bad'); return; }
   _subOut.on=false; p.on=true;
   if(_subOut.gk){ _subOut.gk=false; p.gk=true; p.wasGK=true; GAME[side].gk=p.id; }
-  pushEvt({side,p:_subOut,key:'sub_out',label:'Sub OUT'});
-  pushEvt({side,p,key:'sub_in',label:'Sub IN'});
+  // One event, not two. Two rows made the feed read "Sub OUT / Sub IN" as
+  // separate things and forced live.html to pair them up by guessing at
+  // adjacency. The single event carries both names, so the ticker can say
+  // "Substitution: Fortin in for Michaud".
+  const wasGK = !!p.gk;
+  pushEvt({side, p, key:'substitution',
+    label:`${pName(p)} in for ${pName(_subOut)}`,
+    meta:{
+      in_id:p.id,       in_num:p.num,       in_name:pName(p),
+      out_id:_subOut.id, out_num:_subOut.num, out_name:pName(_subOut),
+      keeper: wasGK,
+    }});
   _subOut=null;
   closeModal('sub-modal'); renderPl(side); scheduleSave();
 }
@@ -2153,7 +2303,18 @@ function delEvt(id,_skipLink){
   if(e.shot){ GAME[e.side].shots=Math.max(0,GAME[e.side].shots-1);
     if(e.onTarget)GAME[e.side].sog=Math.max(0,GAME[e.side].sog-1); }
   if(e.key==='save') GAME[e.side].saves=Math.max(0,GAME[e.side].saves-1);
-  if(e.key==='turnover') GAME[e.side].to=Math.max(0,GAME[e.side].to-1);
+  if(e.key==='turnover'){
+    GAME[e.side].to=Math.max(0,GAME[e.side].to-1);
+    GAME.possession = e.side;      // undo the auto-flip above
+  }
+  if(e.key==='substitution'){
+    const m=e.meta||{};
+    const pin=findP(m.in_id,e.side), pout=findP(m.out_id,e.side);
+    if(pin) pin.on=false;
+    if(pout) pout.on=true;
+    if(m.keeper && pin && pout){ pin.gk=false; pout.gk=true; GAME[e.side].gk=pout.id; }
+  }
+  // Legacy split events, still present in games scored before this change.
   if(e.key==='sub_in'){ const p=findP(e.pid,e.side); if(p)p.on=false; }
   if(e.key==='sub_out'){ const p=findP(e.pid,e.side); if(p)p.on=true; }
   if(e.key==='card_red'){ const p=findP(e.pid,e.side); if(p)p.on=true; }
@@ -2287,6 +2448,23 @@ function openBoxScore(){
   });
   document.getElementById('bs-body').innerHTML=html;
   document.getElementById('bs-modal').classList.add('show');
+}
+
+
+// ── Leave without ending ─────────────────────────────────────────────────
+// State is already persisted, so this is just a safe way out of a live game:
+// check another field, or back out of the wrong game, without force-quitting.
+// The home screen's resume card reads the breadcrumb and offers it straight back.
+function leaveToHome(){
+  try{ saveState(); }catch(e){}
+  try{
+    localStorage.setItem('mbr_home_resume', JSON.stringify({
+      url: 'field_scorer.html?sport=' + SPORT_KEY + ((typeof G_game_id!=='undefined' && G_game_id) ? '&game_id='+G_game_id : ''),
+      at: Date.now(), sport: SPORT_KEY,
+      game_id: (typeof G_game_id!=='undefined' && G_game_id) ? G_game_id : null,
+    }));
+  }catch(e){}
+  location.href = 'home.html';
 }
 
 // ══ END GAME ═════════════════════════════════════════════════

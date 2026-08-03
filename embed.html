@@ -1262,26 +1262,30 @@
     // ── FIELD SPORTS (soccer / field hockey / lacrosse) ──────────────────────
     // These used to fall through to the baseball path, which just prettified the
     // event key — so a shot off target read "shot off", a save didn't say who
-    // took the shot, and a corner didn't say whose it was.
+    // took the shot, and a corner didn't say whose it was. Every key the field
+    // scorer can emit is handled here; the three sports share one event stream,
+    // so the differences are only in which keys actually appear.
     if (sport === 'soccer' || sport === 'field_hockey' || sport === 'field-hockey' || sport === 'lacrosse') {
       let n = null;
       try { n = e.notes ? (typeof e.notes === 'string' ? JSON.parse(e.notes) : e.notes) : null; } catch (_) {}
       n = n || {};
-      const nm   = e.player_name || '';
-      const B    = x => `<strong>${x}</strong>`;
+      const nm = e.player_name || '';
+      const B  = x => `<strong>${x}</strong>`;
       // Whose action it was — a corner or a timeout means nothing without a team.
       const team = game ? (n.side === 'home' ? (game.home_team || 'Home') : (game.away_team || 'Away')) : '';
       const T    = team ? `${team} ` : '';
+      const GOAL = '<span style="color:var(--green);font-weight:700">GOAL</span>';
 
       switch (e.event_type) {
-        case 'goal':
-        case 'penalty_kick':
-        case 'penalty_stroke':
-        case 'free_position': {
+        case 'goal': {
           const a = n.assist ? ` (${n.assist} assist)` : ' (unassisted)';
-          const how = e.event_type === 'goal' ? '' : ` — ${n.label || 'set piece'}`;
-          return `<span style="color:var(--green);font-weight:700">GOAL</span> — ${B(nm)}${a}${how}`;
+          return `${GOAL} — ${B(nm)}${a}`;
         }
+        case 'penalty_kick_made':    return `${GOAL} — ${B(nm)} (penalty kick)`;
+        case 'penalty_stroke_made':  return `${GOAL} — ${B(nm)} (penalty stroke)`;
+        case 'penalty_kick_miss':    return `${B(nm)} penalty kick missed`;
+        case 'penalty_stroke_miss':  return `${B(nm)} penalty stroke missed`;
+
         case 'save': {
           // Shooter first, then the keeper, with the running total in parentheses
           // the way strikeouts are counted.
@@ -1289,32 +1293,52 @@
           const ct = n.saves ? ` (${n.saves})` : '';
           return `${sh}${B(nm)} save${ct}`;
         }
-        case 'shot_on':      return `${B(nm)} shot on goal`;
-        case 'shot_off':     return `${B(nm)} shot off target`;
-        case 'shot_post':    return `${B(nm)} off the post`;
-        case 'shot_blocked': return `${B(nm)} shot blocked`;
+        case 'defensive_save':  return `${B(nm)} defensive save`;
+        case 'shot_on':         return `${B(nm)} shot on goal`;
+        case 'shot_off':        return `${B(nm)} shot off target`;
+        case 'shot_post':       return `${B(nm)} off the post`;
+        case 'shot_blocked':    return `${B(nm)} shot blocked`;
+        case 'assist':          return `${B(nm)} assist`;
+
         case 'substitution': {
           const inN = n.in_name || nm, outN = n.out_name || '';
-          if (inN && outN) return `Substitution: ${B(inN)} in for ${outN}`;
-          return `Substitution: ${B(inN || '')}`;
+          return outN ? `Substitution: ${B(inN)} in for ${outN}` : `Substitution: ${B(inN || '')}`;
         }
         case 'goalie_change': {
           const inN = n.in_name || nm, outN = n.out_name || '';
           return outN ? `${B(inN)} in goal for ${outN}` : `${B(inN)} in goal`;
         }
-        case 'corner':         return `${T}corner`;
-        case 'penalty_corner': return `${T}penalty corner`;
-        case 'long_corner':    return `${T}long corner`;
-        case 'goal_kick':      return `${T}goal kick`;
-        case 'offside':        return nm ? `${B(nm)} offside` : `${T}offside`;
-        case 'foul':           return nm ? `${B(nm)} foul` : `${T}foul`;
-        case 'turnover':       return nm ? `${B(nm)} turnover` : `${T}turnover`;
-        case 'possession_flip':return `${T}possession`;
-        case 'card_yellow':    return `<span style="color:var(--gold,#d97706);font-weight:700">Yellow</span> — ${B(nm)}`;
-        case 'card_red':       return `<span style="color:var(--red);font-weight:700">Red</span> — ${B(nm)}${n.second_yellow ? ' (2nd yellow)' : ''}`;
-        case 'card_green':     return `<span style="color:var(--green);font-weight:700">Green</span> — ${B(nm)}`;
-        case 'timeout':        return `${T}timeout`;
-        case 'game_over':      return 'Final';
+
+        // ── Lacrosse ──
+        case 'ground_ball':     return `${B(nm)} ground ball`;
+        case 'caused_turnover': return `${B(nm)} caused turnover`;
+        case 'faceoff_won':     return nm ? `${B(nm)} wins the faceoff` : `${T}wins the faceoff`;
+        case 'draw_won':        return nm ? `${B(nm)} draw control` : `${T}draw control`;
+        case 'clear':           return nm ? `${B(nm)} clear` : `${T}clear`;
+        case 'penalty_30':      return `${B(nm)} — :30 penalty`;
+        case 'penalty_60':      return `${B(nm)} — 1:00 penalty`;
+        case 'penalty_120':     return `${B(nm)} — 2:00 penalty`;
+        case 'penalty_180':     return `${B(nm)} — 3:00 penalty`;
+
+        // ── Field hockey ──
+        case 'penalty_corner':  return `${T}penalty corner`;
+
+        // ── Team restarts ──
+        case 'corner':          return `${T}${sport === 'field_hockey' || sport === 'field-hockey' ? 'long corner' : 'corner'}`;
+        case 'goal_kick':       return `${T}goal kick`;
+        case 'possession_flip': return `${T}possession`;
+        case 'timeout_full':    return `${T}timeout`;
+
+        // ── Everything else ──
+        case 'offside':  return nm ? `${B(nm)} offside`  : `${T}offside`;
+        case 'foul':     return nm ? `${B(nm)} foul`     : `${T}foul`;
+        case 'turnover': return nm ? `${B(nm)} turnover` : `${T}turnover`;
+        case 'injury':   return nm ? `${B(nm)} injured`  : `${T}injury stoppage`;
+        case 'card_green':  return `<span style="color:var(--green);font-weight:700">Green</span> — ${B(nm)}`;
+        case 'card_yellow': return `<span style="color:#d97706;font-weight:700">Yellow</span> — ${B(nm)}`;
+        case 'card_red':    return `<span style="color:var(--red);font-weight:700">Red</span> — ${B(nm)}${n.second_yellow ? ' (2nd yellow)' : ''}`;
+        case 'game_over':   return 'Final';
+        case 'roster_set': case 'player_final_stats': return '';
         default:
           // notes.label is the scorer's own wording — better than a de-underscored key.
           if (n.label) return nm ? `${B(nm)} — ${n.label}` : n.label;

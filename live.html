@@ -3071,9 +3071,14 @@ function fdOnEvent(e){
       fdDots.push({pt:e.pt,kind:'on',side:e.side});
       if(!FD._replaying && e.pt) fdDrawDot(e.pt,'on',e.side);
       break;
+    // shot_post is a separate key now. Older games only had shot_off with the
+    // word "post" in the label, so keep reading that too — and prefer the
+    // explicit meta.result the scorer writes when it's there.
     case 'shot_off':
+    case 'shot_post':
       S.shots++; if(p)p.sh++;
-      { const kind = /post/i.test(n.label||'') ? 'post' : 'off';
+      { const kind = (n.result === 'post' || e.key === 'shot_post' || /post/i.test(n.label||''))
+                     ? 'post' : 'off';
         fdDots.push({pt:e.pt,kind,side:e.side});
         if(!FD._replaying && e.pt) fdDrawDot(e.pt,kind,e.side); }
       break;
@@ -3217,7 +3222,7 @@ const FD_KLBL={
   draw_won:'Draw control', caused_turnover:'Caused turnover', clear:'Clear',
   card_green:'Green card', card_yellow:'Yellow card', card_red:'Red card',
   penalty_kick_miss:'Penalty kick missed', penalty_stroke_miss:'Penalty stroke missed',
-  shot_post:'Off the post',
+  shot_post:'Off the post', injury:'Injury stoppage',
   goalie_change:'Keeper change', substitution:'Substitution',
   sub_in:'Sub in', sub_out:'Sub out',
   possession_flip:'Possession', timeout_full:'Timeout',

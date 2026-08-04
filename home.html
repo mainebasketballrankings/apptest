@@ -172,6 +172,47 @@ body{
 .foot .ok{color:var(--green);}
 .foot .bad{color:var(--al);}
 
+.intro{
+  position:fixed;inset:0;z-index:80;display:none;
+  background:var(--bg);
+  padding:calc(var(--safe-t) + 20px) 18px calc(var(--safe-b) + 20px);
+  overflow-y:auto;
+}
+.intro.show{display:flex;align-items:center;justify-content:center;}
+.intro-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:22px 20px 16px;max-width:440px;width:100%;
+}
+.intro-logo{height:96px;width:auto;display:block;margin:0 auto 14px;}
+.istep h2{
+  font-family:'Playfair Display',serif;font-weight:900;font-size:22px;
+  margin-bottom:10px;text-align:center;
+}
+.istep p{font-size:14px;line-height:1.55;margin-bottom:10px;}
+.istep p.dim{color:var(--dim);font-size:13px;}
+.ipick{
+  display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;
+  background:var(--surface2);border:2px solid var(--border);border-radius:10px;
+  padding:13px;margin-top:9px;cursor:pointer;color:var(--text);
+  font-family:'Barlow',sans-serif;
+}
+.ipick:active{border-color:var(--orange);}
+.ipick-t{font-weight:600;font-size:15px;}
+.ipick-s{font-size:12.5px;color:var(--dim);line-height:1.45;}
+.intro-dots{display:flex;gap:6px;justify-content:center;margin-bottom:16px;}
+.intro-dots i{width:6px;height:6px;border-radius:50%;background:var(--border);display:block;}
+.intro-dots i.on{background:var(--orange);}
+.intro-nav{display:flex;align-items:center;gap:10px;margin-top:18px;}
+.ibtn{
+  background:var(--orange);color:#fff;border:none;border-radius:8px;
+  padding:11px 22px;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:15px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+}
+.ilink{
+  background:none;border:none;color:var(--dim);cursor:pointer;padding:6px 0;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;
+  letter-spacing:.08em;text-transform:uppercase;
+}
 .toast{
   position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + var(--safe-b));
   background:var(--text);color:#fff;font-size:13px;font-weight:500;padding:10px 18px;
@@ -224,7 +265,58 @@ body{
   <div class="foot">
     <span id="buildLbl">—</span>
     <span class="sp"></span>
+    <a href="#" id="introAgain" style="color:var(--dim);text-decoration:none">How this works</a>
+    <span style="color:var(--border)">·</span>
     <span id="netLbl"></span>
+  </div>
+</div>
+
+<!-- ══ FIRST RUN ══════════════════════════════════════════════════════════
+     Three steps, shown once. Step 2 is the one that matters: it sets the
+     Maine-schedule preference, which nobody would otherwise find. Re-openable
+     from the footer so it isn't a one-shot. -->
+<div class="intro" id="intro">
+  <div class="intro-box">
+    <div class="intro-dots" id="introDots"></div>
+
+    <section class="istep" data-step="0">
+      <img class="intro-logo"
+           src="https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20basketball%20rankings%20logo%20large%20white%20border.png"
+           alt="" onerror="this.style.display='none'">
+      <h2>Scorekeeper</h2>
+      <p>Score a full game from your phone or tablet — basketball, football,
+         soccer, field hockey, lacrosse, baseball and softball.</p>
+      <p class="dim">Everything works without a signal. Anything you score while
+         you're offline uploads by itself once you're back.</p>
+    </section>
+
+    <section class="istep" data-step="1" hidden>
+      <h2>What are you scoring?</h2>
+      <p class="dim">This just decides whether we show you Maine's schedule. You
+         can change it any time.</p>
+      <button class="ipick" data-local="0">
+        <span class="ipick-t">Maine school sports</span>
+        <span class="ipick-s">Pick tonight's game from the MPA schedule and it goes live on the site.</span>
+      </button>
+      <button class="ipick" data-local="1">
+        <span class="ipick-t">My own team</span>
+        <span class="ipick-s">AAU, travel, rec, youth, or anywhere outside Maine. Skips the schedule and goes straight to a new game.</span>
+      </button>
+    </section>
+
+    <section class="istep" data-step="2" hidden>
+      <h2>Save your teams</h2>
+      <p>Sign in and your rosters are remembered, so you're not retyping a
+         lineup before every game. Your stats follow the team all season.</p>
+      <p class="dim">Optional — you can score without an account.</p>
+      <button class="btn-g" id="introSignIn">Sign in with Google</button>
+    </section>
+
+    <div class="intro-nav">
+      <button class="ilink" id="introSkip">Skip</button>
+      <span style="flex:1"></span>
+      <button class="ibtn" id="introNext">Next</button>
+    </div>
   </div>
 </div>
 
@@ -526,11 +618,77 @@ function wireLocal(){
   window.addEventListener('mbr:localmode', paintLocal);
 }
 
+// ══ First run ════════════════════════════════════════════════════════════
+// Shown once. Kept deliberately short — three steps, one of which is a real
+// choice — because nobody reads onboarding, and the only thing they genuinely
+// need to set is whether the Maine schedule is any use to them.
+const INTRO_KEY = 'mbr_intro_seen';
+let _iStep = 0;
+
+function introSeen(){
+  try{ return localStorage.getItem(INTRO_KEY) === '1'; }catch(e){ return true; }
+}
+function markIntroSeen(){
+  try{ localStorage.setItem(INTRO_KEY,'1'); }catch(e){}
+  if(hasCore() && MBR.durableSet) MBR.durableSet(INTRO_KEY,'1');   // survives a reinstall-ish
+}
+function openIntro(step){
+  _iStep = step || 0;
+  document.getElementById('intro').classList.add('show');
+  paintIntro();
+}
+function closeIntro(){
+  document.getElementById('intro').classList.remove('show');
+  markIntroSeen();
+  paintLocal();
+}
+function paintIntro(){
+  const steps=[...document.querySelectorAll('.istep')];
+  steps.forEach(el=>{ el.hidden = (+el.dataset.step !== _iStep); });
+  document.getElementById('introDots').innerHTML =
+    steps.map((_,i)=>`<i class="${i===_iStep?'on':''}"></i>`).join('');
+  const next=document.getElementById('introNext');
+  // Step 1 advances by choosing, not by a Next button.
+  next.style.display = (_iStep===1) ? 'none' : '';
+  next.textContent   = (_iStep===steps.length-1) ? 'Start scoring' : 'Next';
+  document.getElementById('introSkip').textContent = (_iStep===0) ? 'Skip' : 'Skip';
+}
+function wireIntro(){
+  document.getElementById('introNext').onclick = () => {
+    const n=document.querySelectorAll('.istep').length;
+    if(_iStep >= n-1){ closeIntro(); return; }
+    _iStep++; paintIntro();
+  };
+  document.getElementById('introSkip').onclick = closeIntro;
+
+  document.querySelectorAll('.ipick').forEach(b=>{
+    b.onclick = () => {
+      const local = b.dataset.local === '1';
+      if(hasCore()) MBR.setLocalMode(local);
+      toast(local ? 'Schedule hidden — straight to New Game'
+                  : "Maine schedule on");
+      _iStep = 2; paintIntro();
+    };
+  });
+
+  document.getElementById('introSignIn').onclick = () => {
+    markIntroSeen();       // don't show it again if sign-in navigates away
+    doSignIn();
+  };
+
+  // Re-openable, since the schedule toggle is easy to forget about.
+  const again=document.getElementById('introAgain');
+  if(again) again.onclick = (e) => { e.preventDefault(); openIntro(0); };
+
+  if(!introSeen()) openIntro(0);
+}
+
 /* ══ Boot ══ */
 (async function init(){
   initCore();
   renderGrid();
   wireLocal();
+  wireIntro();
   paintFoot();
   window.addEventListener('online', paintFoot);
   window.addEventListener('offline', paintFoot);

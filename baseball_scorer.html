@@ -951,6 +951,25 @@ async function pushEvt(key, extras={}){
     notes:        extras.notes || null,
   };
   await sbInsert('game_events', row);
+
+  // The live score is PATCHed straight to the games row rather than queued, so
+  // a patch attempted offline just fails and nothing retries — the play-by-play
+  // catches up on reconnect but the score sits stale until the next run scores.
+  // Re-send whenever the network comes back or the tab is refocused.
+  if(!window.__bbResyncWired){
+    window.__bbResyncWired = true;
+    const resync = () => {
+      if(!G_game_id || G_test_mode || !G.runs) return;
+      fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+        method:'PATCH',
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+        body: JSON.stringify({ home_score_live: G.runs.home, away_score_live: G.runs.away, game_clock: gameClockLabel() })
+      }).catch(()=>{});
+    };
+    try{ window.addEventListener('online', resync); }catch(e){}
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) resync(); });
+  }
+
   // Update live score on game record
   if(G.runs){
     fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {

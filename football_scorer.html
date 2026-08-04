@@ -1087,6 +1087,11 @@ async function pushEvt(key, extras={}){
       down:G.down, distance:G.distance, ballOn:Math.round(G.ballOn), poss:G.poss,
       spot:spotLabel(), dd:ddLabel(), clock:fmtClock(clk), qtr:qtrLabel(),
       score:{away:G.score.away, home:G.score.home},
+      // Short names for the scoreboard ticker, and raw clock state so live and
+      // the scoreboard can run the clock themselves rather than freezing
+      // between plays. Ported from the field scorer.
+      shorts:{home:abbr('home'), away:abbr('away')},
+      clk_secs: G.clock, clk_run: !!G.clockRunning, clk_up: false,
       pre                             // where the play started — for the PBP/report
     }, detail))
   };
@@ -1109,7 +1114,7 @@ function startDrive(){
 // terminating event (TD+PAT / FG / punt / turnover), so endDrive() only STASHES
 // it and the caller flushes at the right moment (changePoss does this for every
 // change of possession; the deferred-TD path relies on the ensuing kickoff's
-// changePoss). This was the fb-2026-07-17a ordering bug: the summary printed
+// changePoss). This was the fb-2026-08-04a ordering bug: the summary printed
 // before the TOUCHDOWN + Extra Point lines instead of after them.
 function flushDriveSummary(){
   if(G._pendingDriveSummary){ addPBP(G._pendingDriveSummary, true); G._pendingDriveSummary=null; }
@@ -1281,8 +1286,43 @@ function scoreSafety(side){
 }
 
 // ── running game clock ──
-function stopClock(){ G.clockRunning=false; updateClockUI(); }
-function toggleClock(){ if(G.clock<=0) return; G.clockRunning=!G.clockRunning; updateClockUI(); }
+function stopClock(){ G.clockRunning=false; updateClockUI(); pushClockState(); }
+function toggleClock(){
+  if(G.clock<=0) return;
+  G.clockRunning=!G.clockRunning; updateClockUI();
+  pushClockState();                  // a stoppage isn't a play; tell viewers
+}
+
+// Viewers extrapolate the clock between plays, so a start/stop has to be
+// broadcast or their clock runs on past the whistle.
+let _lastClkState=null;
+function pushClockState(){
+  if(!G_game_id || G_test_mode) return;
+  const st=`${G.clockRunning?1:0}|${Math.round(G.clock)}|${G.quarter}`;
+  if(st===_lastClkState) return;
+  _lastClkState=st;
+  fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+    method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`,
+      'Content-Type':'application/json', Prefer:'return=minimal' },
+    body: JSON.stringify({ game_clock: `${qtrLabel()} ${fmtClock(G.clock)}` })
+  }).catch(()=>{});
+  try{ pushEvt('clock', {label: G.clockRunning?'Clock started':'Clock stopped'}); }catch(e){}
+}
+
+// The live score is PATCHed straight to the games row rather than queued, so a
+// patch attempted offline just fails and nothing retries. Re-send on reconnect.
+(function wireScoreResync(){
+  const resync=()=>{
+    if(!G_game_id || G_test_mode) return;
+    fetch(`${SB_URL}/rest/v1/games?id=eq.${G_game_id}`, {
+      method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`,
+        'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ home_score_live:G.score.home, away_score_live:G.score.away })
+    }).catch(()=>{});
+  };
+  try{ window.addEventListener('online', resync); }catch(e){}
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) resync(); });
+})();
 function updateClockUI(){
   const btn=document.getElementById('clockRunBtn'); if(!btn) return;
   btn.textContent = G.clockRunning ? '⏸ Running' : '▶ Start';
@@ -1342,7 +1382,7 @@ function buildFieldSVG(frame, ballOn, target, opts={}){
   // (advanceQuarter), so the SAME logical spot renders on the opposite physical
   // side, and the spot picker (which converts clicks back via absYd() in
   // FIELD_FRAME space) stays in perfect lockstep with the display. Re-mirroring
-  // here would desync the two — that was the fb-2026-07-17a regression.
+  // here would desync the two — that was the fb-2026-08-04a regression.
   frame = FIELD_LABEL_FRAME;                // used ONLY for the end-zone labels below
   const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900 (8 units/yd)
   const H = opts.h||430, midY = H/2;        // ~53yd tall vs 100yd field — proportional

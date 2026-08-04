@@ -1145,7 +1145,7 @@ const SWPX=28;
 let BASKETBALL_SPORT_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const BASKETBALL_PREFIX = 'b31ab283';
 
-const MBR_BUILD='bb-2026-08-03a';
+const MBR_BUILD='bb-2026-08-04a';
 
 // ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
 // Supabase transport, offline queue, school lookup, team resolution, unscheduled
@@ -1263,6 +1263,11 @@ function sbPushEvent(e){
       label:getLabel(e.key,e.side), three:!!e.three, side:e.side,
       clock:fmt(e.clk), period:PERIOD_LBL(e.period),
       score:{home:GAME.home.score, away:GAME.away.score},
+      // Short names for the scoreboard ticker, and raw clock state so live and
+      // the scoreboard can run the clock themselves instead of freezing between
+      // events. Ported from the field scorer.
+      shorts:{home:GAME.home.short||'', away:GAME.away.short||''},
+      clk_secs: GAME.clockSec, clk_run: !!GAME.running, clk_up: false,
       ln: playerLine(e.pid),   // player's running pts/reb/ast/stl/blk/fouls
       ...(e.key && e.key.indexOf('timeout_')===0
           ? { tol:{ full:GAME[e.side].tof, half:GAME[e.side].to3 } } : {})  // timeouts remaining
@@ -1278,6 +1283,29 @@ function gameClockLabel(){
   if(GAME.clockSec===0) return 'End '+PERIOD_LBL(GAME.period);
   return PERIOD_LBL(GAME.period)+' | '+fmt(GAME.clockSec);
 }
+// Viewers extrapolate the clock between events, so a start/stop has to be
+// broadcast or their clock keeps running after the whistle.
+let _lastClkState=null;
+function pushClockState(){
+  if(!G_game_id || G_test_mode || _gameFinalized) return;
+  const st=`${GAME.running?1:0}|${Math.round(GAME.clockSec)}|${GAME.period}`;
+  if(st===_lastClkState) return;
+  _lastClkState=st;
+  sbPatch('games','id=eq.'+G_game_id,{ game_clock: gameClockLabel() }).catch(()=>{});
+  pushEvt({side:GAME.possession||'home', pid:null, key:'clock',
+           period:GAME.period, clk:GAME.clockSec,
+           label:GAME.running?'Clock started':'Clock stopped'});
+}
+
+// The score is PATCHed straight to the games row rather than queued, so a patch
+// attempted offline just fails and nothing retries — the play-by-play catches
+// up on reconnect but the score sits stale. Re-send when the network returns.
+(function wireScoreResync(){
+  const resync=()=>{ try{ patchLiveScore(); }catch(e){} };
+  try{ window.addEventListener('online', resync); }catch(e){}
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) resync(); });
+})();
+
 function patchLiveScore(){
   if(!G_game_id || G_test_mode) return;
   sbPatch('games','id=eq.'+G_game_id,{ home_score_live:GAME.home.score, away_score_live:GAME.away.score,
@@ -1553,6 +1581,7 @@ let _gameStarted = false;
 document.addEventListener('DOMContentLoaded', initFmtUI);
 
 function toggleClock(){
+  setTimeout(pushClockState, 0);   // a stoppage isn't an event; tell viewers
   if(GAME.running){clearInterval(clkInt);GAME.running=false;}
   else{
     // If clock is at 0, don't restart — force period advance instead
@@ -1630,6 +1659,7 @@ function updFoulsDisplay(side){
 }
 
 function applyPeriodChange(d){
+  setTimeout(pushClockState, 0);   // viewers can't see a quarter turn over otherwise
   GAME.period = Math.max(1, GAME.period+d);
   GAME.clockSec = PERIOD_SECS(GAME.period);
   GAME.running=false;clearInterval(clkInt);
@@ -1853,6 +1883,10 @@ function doStat(def){
     updFoulsDisplay(side);
     const opp=side==='home'?'away':'home';
     updFoulsDisplay(opp);
+    if(!isTeam && p && p.fouls===FOUL_LIMIT){
+      flash(`#${p.num} ${pName(p)} FOULED OUT`,'bad');
+      if(p.on) setTimeout(()=>{ try{ openSub(p, side); }catch(e){} }, 500);
+    }
   }
   if(def.key==='timeout_full'&&GAME[side].tof>0){GAME[side].tof--;document.getElementById(`${side}-tof`).textContent=GAME[side].tof;}
   if(def.key==='timeout_30sec'&&GAME[side].to3>0){GAME[side].to3--;document.getElementById(`${side}-to3`).textContent=GAME[side].to3;}
@@ -2328,9 +2362,17 @@ function openBoxScore(){
 function closeBoxScore(){document.getElementById('bs-modal').classList.remove('show');}
 
 // ══ SUB ═══════════════════════════════════════
+const FOUL_LIMIT = 5;                      // NFHS: 5 personal fouls and you're out
+function isFouledOut(p){ return !!p && (p.fouls||0) >= FOUL_LIMIT; }
+
 function openSub(p,side){
-  const bench=PL[side].filter(x=>!x.on).slice().sort((a,b)=>(parseInt(a.num)||0)-(parseInt(b.num)||0));
-  if(!bench.length){flash('No bench players');return;}
+  const all=PL[side].filter(x=>!x.on).slice().sort((a,b)=>(parseInt(a.num)||0)-(parseInt(b.num)||0));
+  const bench=all.filter(x=>!isFouledOut(x));
+  const out=all.filter(isFouledOut);
+  if(!bench.length){
+    flash(out.length ? 'Everyone on the bench has fouled out' : 'No bench players','bad');
+    return;
+  }
   subTgt={p,side};
   document.getElementById('sub-title').textContent=`Sub out #${p.num} ${pName(p)}`;
   const list=document.getElementById('sub-list');list.innerHTML='';
@@ -2341,10 +2383,20 @@ function openSub(p,side){
     row.addEventListener('click',()=>doSub(bp));
     list.appendChild(row);
   });
+  out.forEach(bp=>{
+    const row=document.createElement('div');
+    row.className='sub-row';
+    row.style.opacity='.45'; row.style.cursor='not-allowed';
+    row.innerHTML=`<div class="sub-num" style="color:var(--dim)">${bp.num}</div>`
+      + `<div><div class="sub-name">${pName(bp)}</div>`
+      + `<div class="sub-sm" style="color:var(--al)">FOULED OUT · ${bp.fouls} fls</div></div>`;
+    list.appendChild(row);
+  });
   document.getElementById('sub-modal').classList.add('show');
 }
 function doSub(inc){
   if(!subTgt)return;
+  if(isFouledOut(inc)){ flash(pName(inc)+' has fouled out','bad'); return; }
   const{p:out,side}=subTgt;
   out.on=false;inc.on=true;
   pushEvt(out,side,'sub_out',null,null);
@@ -3171,8 +3223,12 @@ async function endGame(){
   qendClose();
   GAME.running=false;clearInterval(clkInt);
   // Always give the scorer the local downloads.
-  generateCSV();
-  setTimeout(()=>{generatePDF().catch(e=>console.warn("pdf",e));},400);
+  // Report first: the PDF takes a moment to build and iOS shows one share sheet
+  // at a time, so leading with the CSV left a silent gap that looked broken.
+  flash('Building report\u2026','made');
+  generatePDF()
+    .catch(e=>console.warn("pdf",e))
+    .finally(()=>{ try{ generateCSV(); }catch(e){ console.warn('csv',e); } });
   scheduleSave();
 
   if(G_game_id && !G_test_mode && !_gameFinalized){

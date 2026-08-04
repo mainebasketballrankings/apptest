@@ -1506,8 +1506,20 @@
       topLeftEl.innerHTML = `<span style="font-weight:700">${per}</span>`
         + (clk ? `<span class="bug-clk">${clk}</span>` : '');
       // Stash the raw clock state so the interval below can keep it moving.
-      topLeftEl._mbrClk = (sn && typeof sn.clk_secs === 'number')
-        ? { secs: sn.clk_secs, run: !!sn.clk_run, at: Date.now() } : null;
+      //
+      // Only RESET it when the source event actually changes. The board re-runs
+      // this on every poll with the same last event, so unconditionally
+      // reseeding meant the clock counted down, then snapped back to whatever
+      // it read when that event happened, then counted down again.
+      if (sn && typeof sn.clk_secs === 'number') {
+        const key = se.id || se.created_at || '';
+        const cur = topLeftEl._mbrClk;
+        if (!cur || cur.key !== key) {
+          topLeftEl._mbrClk = { key, secs: sn.clk_secs, run: !!sn.clk_run, at: Date.now() };
+        }
+      } else {
+        topLeftEl._mbrClk = null;
+      }
       if (topLeftEl._mbrClk) tickCardClock(topLeftEl);
       return;
     }

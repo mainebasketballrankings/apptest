@@ -3030,6 +3030,15 @@ function fdOnEvent(e){
   // …and the live penalty box, with its real countdown. We have no clock here,
   // so we render its snapshot rather than simulating one.
   if(n.pens){ FD.home.pens=n.pens.home||[]; FD.away.pens=n.pens.away||[]; }
+  // Live has no clock of its own, so an expired penalty used to sit on screen
+  // until the next play. Take the box with its remaining seconds and run it
+  // down here, resyncing on every event.
+  if(n.pens_live){
+    FD.penClk = { at: Date.now(), run: !!n.clk_run,
+      home:(n.pens_live.home||[]).map(p=>({num:p.n,lbl:p.l,secs:p.s,perm:!!p.perm})),
+      away:(n.pens_live.away||[]).map(p=>({num:p.n,lbl:p.l,secs:p.s,perm:!!p.perm})) };
+    FD.home.pens = FD.penClk.home; FD.away.pens = FD.penClk.away;
+  }
   // Possession time is banked by the scorer's clock; we can only mirror it.
   if(n.top){ FD.home.top=n.top.home||0; FD.away.top=n.top.away||0; }
   // Clock state, so we can run it locally instead of freezing between events.
@@ -3198,20 +3207,23 @@ function fdUpdScoreboard(){
       mel.textContent = FDS.label==='Soccer' ? '⚑ MERCY RULE IN RANGE' : '⚑ RUNNING CLOCK';
     } else mel.textContent='';
   }
-  // penalty pills
-  // Only players actually OFF the field appear here — a soccer yellow is a
-  // substitution, not a suspension, so it never lands in the penalty box.
+  fdUpdPens();
+}
+
+// Pulled out of the panel render so the per-second penalty countdown can call
+// it directly. Only players actually OFF the field appear here — a soccer
+// yellow is a substitution, not a suspension, so it never lands in the box.
+function fdUpdPens(){
   const pel=document.getElementById('fd-pens');
-  if(pel){
-    const pills=[];
-    ['away','home'].forEach(s=>(FD[s].pens||[]).forEach(pn=>{
-      const L=String(pn.lbl||'');
-      const cls = /GREEN/i.test(L)?'g' : /YELLOW/i.test(L)?'y' : '';
-      const time = pn.perm ? 'OUT' : fmt(pn.secs||0);
-      pills.push(`<span class="fd-pen ${cls}">${fdAbbr(s)} #${pn.num||'–'} ${time}</span>`);
-    }));
-    pel.innerHTML=pills.join('');
-  }
+  if(!pel) return;
+  const pills=[];
+  ['away','home'].forEach(s=>(FD[s].pens||[]).forEach(pn=>{
+    const L=String(pn.lbl||'');
+    const cls = /GREEN/i.test(L)?'g' : /YELLOW/i.test(L)?'y' : '';
+    const time = pn.perm ? 'OUT' : fmt(Math.ceil(pn.secs||0));
+    pills.push(`<span class="fd-pen ${cls}">${fdAbbr(s)} #${pn.num||'–'} ${time}</span>`);
+  }));
+  pel.innerHTML=pills.join('');
 }
 function fdUpdLinescore(){
   if(FD._replaying) return;
@@ -3221,7 +3233,13 @@ function fdUpdLinescore(){
   const lbl=q=> q<=FDS.periods ? FDS.plbl[q-1] : 'OT'+(q-FDS.periods>1?q-FDS.periods:'');
   hdr.innerHTML='<th class="ls-tn"></th>'+cols.map(q=>`<th${q===FD.period?' class="ls-cur"':''}>${lbl(q)}</th>`).join('')+'<th class="ls-sep ls-tot">T</th>';
   const row=side=>`<td class="ls-tn">${fdAbbr(side)}</td>`+
-    cols.map((q,i)=>`<td${q===FD.period?' class="ls-cur"':''}>${FD.line[side][i]!=null?FD.line[side][i]:'·'}</td>`).join('')+
+    // A period already played with no goals scored is a 0. The dot is only for
+    // periods that haven't happened yet.
+    cols.map((q,i)=>{
+      const v=FD.line[side][i];
+      const played = (q < FD.period) || (v!=null);
+      return `<td${q===FD.period?' class="ls-cur"':''}>${v!=null?v:(played?0:'·')}</td>`;
+    }).join('')+
     `<td class="ls-sep ls-tot">${FD[side].score}</td>`;
   document.getElementById('fd-ls-away').innerHTML=row('away');
   document.getElementById('fd-ls-home').innerHTML=row('home');
@@ -3319,7 +3337,24 @@ function fdFeedDesc(e){
 // now extrapolate from the last known state and resync every time an event
 // lands, which means the worst case is a second or two of drift rather than
 // a clock stuck at 37:39 for a minute.
+// Penalties run off the game clock, so they only tick while it's running.
+function fdTickPens(){
+  const pc=FD.penClk; if(!pc) return;
+  const gone = pc.run ? (Date.now()-pc.at)/1000 : 0;
+  let live=false;
+  ['home','away'].forEach(sd=>{
+    FD[sd].pens = (pc[sd]||[]).map(p=>{
+      if(p.perm) { live=true; return p; }
+      const left = Math.max(0, (p.secs||0) - gone);
+      if(left>0) live=true;
+      return {...p, secs:left};
+    }).filter(p=>p.perm || p.secs>0);
+  });
+  fdUpdPens();
+}
+
 function fdTickClock(){
+  fdTickPens();
   const c=FD.clk;
   if(!c) return;
   const el=document.getElementById('fd-clock'); if(!el) return;

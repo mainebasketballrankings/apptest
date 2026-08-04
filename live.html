@@ -2999,9 +2999,11 @@ function renderShootout(){
   });
   html+='</table>';
   document.getElementById('so-grid').innerHTML=html;
+  // Field hockey uses penalty corners; the scorer tells us which.
+  const soTitle = so.title || 'Penalty Kicks';
   document.getElementById('so-hdr').textContent = so.winner
-    ? `Penalty Kicks — ${(FD[so.winner]&&FD[so.winner].short)||so.winner.toUpperCase()} wins ${so[so.winner]}–${so[so.winner==='home'?'away':'home']}`
-    : 'Penalty Kicks';
+    ? `${soTitle} — ${(FD[so.winner]&&FD[so.winner].short)||so.winner.toUpperCase()} wins ${so[so.winner]}–${so[so.winner==='home'?'away':'home']}`
+    : soTitle;
 }
 function fdOnEvent(e){
   const opp = e.side==='home'?'away':'home';
@@ -3045,6 +3047,7 @@ function fdOnEvent(e){
   // goal to the winner at the end, and that arrives as its own `goal` event.
   if(n.shootout){
     FD.so = FD.so || {kicks:[], winner:null, home:0, away:0};
+    if(n.so && n.so.title){ FD.so.title=n.so.title; FD.so.abbr=n.so.abbr; FD.so.mode=n.so.mode; }
     FD.so.kicks.push({side:e.side, name:e.pname||'', num:e.pnum||'',
                       made:e.key==='penalty_kick_made', round:n.round||1, order:n.order||FD.so.kicks.length+1});
     if(e.key==='penalty_kick_made') FD.so[e.side]++;

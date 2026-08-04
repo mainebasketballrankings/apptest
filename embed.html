@@ -1459,7 +1459,8 @@
     const tally = sd => `<span style="font-weight:${win===sd?800:600};${win===sd?'color:var(--green);':''}">${so[sd]}</span>`;
     topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
     topLeftEl.innerHTML =
-      '<span style="font-weight:700">PK</span>'
+      // Field hockey settles on penalty CORNERS, so don't label it PK.
+      `<span style="font-weight:700">${so.abbr || 'PK'}</span>`
       + `<span style="display:flex;flex-direction:column;gap:2px">${rowFor('away')}${rowFor('home')}</span>`
       + `<span style="display:flex;flex-direction:column;gap:0;font-size:10px;line-height:1.15">${tally('away')}${tally('home')}</span>`;
     return true;

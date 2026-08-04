@@ -1450,9 +1450,16 @@
   }
 
   function renderScoreBug(topLeftEl, se, sport) {
-    if (window.MBRScoreboard && MBRScoreboard.scoreBug(topLeftEl, se, sport, { fmtClock, periodLabel })) return;
     let sn = null;
     try { sn = se.notes ? (typeof se.notes === 'string' ? JSON.parse(se.notes) : se.notes) : null; } catch (_) {}
+
+    // A shootout has to be checked BEFORE handing off to mbr-scoreboard.js.
+    // That module doesn't know about shootouts, but it does claim the score bug
+    // for these sports and returns true — which silently swallowed everything
+    // below it, so the grid never drew no matter where it sat in this function.
+    if (renderShootoutBug(topLeftEl, sn)) return;
+
+    if (window.MBRScoreboard && MBRScoreboard.scoreBug(topLeftEl, se, sport, { fmtClock, periodLabel })) return;
 
     // Football: clock + down & distance. Never bases and outs.
     if (sport === 'football') {

@@ -2794,7 +2794,7 @@ function fdReset(){
   ['home','away'].forEach(s=>{
     Object.assign(FD[s],{score:0,shots:0,sog:0,saves:0,corners:0,fouls:0,offside:0,
       to:0,gb:0,ct:0,yc:0,rc:0,gc:0,pc:0,pens:[]});
-    FD.players[s]={}; FD.keeper[s]=null; FD.line[s]=[];
+    FD.players[s]={}; FD.keeper[s]=null; FD.line[s]=[]; FD[s].top=0;
   });
   fdEvts=[]; fdDots=[];
 }
@@ -3028,6 +3028,8 @@ function fdOnEvent(e){
   // …and the live penalty box, with its real countdown. We have no clock here,
   // so we render its snapshot rather than simulating one.
   if(n.pens){ FD.home.pens=n.pens.home||[]; FD.away.pens=n.pens.away||[]; }
+  // Possession time is banked by the scorer's clock; we can only mirror it.
+  if(n.top){ FD.home.top=n.top.home||0; FD.away.top=n.top.away||0; }
 
   const p = fdP(e.side, e.pname, e.pnum);
 
@@ -3074,6 +3076,12 @@ function fdOnEvent(e){
     // shot_post is a separate key now. Older games only had shot_off with the
     // word "post" in the label, so keep reading that too — and prefer the
     // explicit meta.result the scorer writes when it's there.
+    // The event sits on the defending player's side so the name attaches to the
+    // right roster; the goal belongs to the opponent. No shot for anyone.
+    case 'own_goal':
+      FD[opp].score++;
+      if(p) p.og=(p.og||0)+1;
+      break;
     case 'shot_off':
     case 'shot_post':
       S.shots++; if(p)p.sh++;
@@ -3113,8 +3121,8 @@ function fdOnEvent(e){
     // separate sub_out and sub_in, which the feed rendered as two rows).
     case 'substitution': {
       const m=e.notes||{};
-      const pin = m.in_name  ? fdPlayer(e.side, m.in_name,  m.in_num)  : p;
-      const pout= m.out_name ? fdPlayer(e.side, m.out_name, m.out_num) : null;
+      const pin = m.in_name  ? fdP(e.side, m.in_name,  m.in_num)  : p;
+      const pout= m.out_name ? fdP(e.side, m.out_name, m.out_num) : null;
       if(pin)  pin.on=true;
       if(pout) pout.on=false;
       if(m.keeper && pin){
@@ -3211,6 +3219,13 @@ function fdUpdStats(){
     rows.push(['Ground balls',A.gb,H.gb],['Caused turnovers',A.ct,H.ct],
       ['Turnovers',A.to,H.to],['Penalties',A.yc+A.rc,H.yc+H.rc]);
   }
+  // Possession only means anything as a share of the time actually played.
+  const ta=A.top||0, th=H.top||0, tt=ta+th;
+  if(tt>0){
+    const mmss=v=>`${Math.floor(v/60)}:${String(Math.round(v%60)).padStart(2,'0')}`;
+    const share=v=>Math.round(v*100/tt)+'%';
+    rows.push(['Possession',`${mmss(ta)} (${share(ta)})`,`${mmss(th)} (${share(th)})`]);
+  }
   tb.innerHTML=`<tr><th style="text-align:left">&nbsp;</th><th>${fdAbbr('away')}</th><th>${fdAbbr('home')}</th></tr>`+
     rows.map(r=>`<tr><td class="lbl">${r[0]}</td><td class="av">${r[1]}</td><td class="hv">${r[2]}</td></tr>`).join('');
 }
@@ -3222,7 +3237,7 @@ const FD_KLBL={
   draw_won:'Draw control', caused_turnover:'Caused turnover', clear:'Clear',
   card_green:'Green card', card_yellow:'Yellow card', card_red:'Red card',
   penalty_kick_miss:'Penalty kick missed', penalty_stroke_miss:'Penalty stroke missed',
-  shot_post:'Off the post', injury:'Injury stoppage',
+  shot_post:'Off the post', injury:'Injury stoppage', own_goal:'Own goal',
   goalie_change:'Keeper change', substitution:'Substitution',
   sub_in:'Sub in', sub_out:'Sub out',
   possession_flip:'Possession', timeout_full:'Timeout',
@@ -3245,6 +3260,10 @@ function fdFeedDesc(e){
   if(e.key==='goalie_change'){
     const i=n.in_name||e.pname||'', o=n.out_name||'';
     return o ? `<b>${i}</b> in goal for ${o}` : `<b>${i}</b> in goal`;
+  }
+  if(e.key==='own_goal'){
+    const to=fdAbbr(e.side==='home'?'away':'home');
+    return `Own goal \u2014 ${who || fdAbbr(e.side)} (${to} lead)`;
   }
   if(e.key==='turnover'){
     const to=fdAbbr(e.side==='home'?'away':'home');

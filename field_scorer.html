@@ -707,7 +707,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-08-03g';
+const MBR_BUILD='fs-2026-08-04b';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -801,6 +801,16 @@ function sbPushEvent(e){
       // Possession is banked a second at a time while the clock runs. The live
       // page has no clock of its own, so it can only show this if we send it.
       top:{home:GAME.home.topSec||0, away:GAME.away.topSec||0},
+      // Short names, so a scoreboard card can say "ZTS GOAL" without carrying
+      // the full school name across a narrow row.
+      shorts:{home:GAME.home.short||'', away:GAME.away.short||''},
+      // Enough for a viewer to run the clock locally between events: the raw
+      // seconds, whether it's counting, and which way. Without this the
+      // displayed clock freezes until the next event lands.
+      clk_secs: GAME.clockSec,
+      clk_run : !!GAME.running,
+      clk_up  : !!SPORT_KEY.startsWith('soccer'),   // soccer displays elapsed
+      elapsed_secs: (typeof elapsedSecs==='function') ? elapsedSecs() : null,
       // Full shootout snapshot. The scoreboard only fetches a handful of recent
       // events per game, so it can't rebuild a 10-kick grid from the kicks
       // themselves — riding the whole thing along means any single event carries
@@ -808,6 +818,10 @@ function sbPushEvent(e){
       so: (GAME.so && GAME.so.kicks && GAME.so.kicks.length) ? {
         home: soMade('home'), away: soMade('away'),
         winner: GAME.so.winner || null,
+        // Field hockey settles playoff ties with penalty CORNERS, not kicks.
+        // The scorer already knows which; send it so the grids don't all say
+        // "Penalty Kicks" over a hockey corners shootout.
+        mode: soMode(), title: soCfg().title, abbr: (soMode()==='corners' ? 'PC' : 'PK'),
         kicks: GAME.so.kicks.map((k,i)=>({s:k.side, m:!!k.made, r:k.round||1,
                                           n:k.pname||'', num:k.pnum||'', o:i+1})),
       } : undefined,
@@ -840,6 +854,22 @@ function gameClockLabel(){
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) resync(); });
 })();
 function global_addEventListener(t,f){ try{ window.addEventListener(t,f); }catch(e){} }
+
+// Viewers run the clock themselves between events, so a stoppage has to be
+// broadcast or their clock keeps running after the whistle. This rides on the
+// games row (not the event queue) because it's state, not history — and a
+// missed one self-corrects on the next push.
+let _lastClkState=null;
+function pushClockState(){
+  if(!G_game_id || G_test_mode || _gameFinalized) return;
+  const st = `${GAME.running?1:0}|${Math.round(GAME.clockSec)}|${GAME.period}`;
+  if(st===_lastClkState) return;
+  _lastClkState=st;
+  sbPatch('games','id=eq.'+G_game_id,{ game_clock: gameClockLabel() }).catch(()=>{});
+  pushEvt({side:GAME.possession||'home', p:null, key:'clock',
+           label: GAME.running?'Clock started':'Clock stopped',
+           meta:{clock_only:true}});
+}
 
 function patchLiveScore(){
   if(!G_game_id||G_test_mode)return;
@@ -1856,6 +1886,7 @@ function updPens(){
 // ══ CLOCK ════════════════════════════════════════════════════
 function toggleClock(){
   if(_clkHeld){ _clkHeld=false; return; }   // the press opened the editor
+  setTimeout(pushClockState, 0);            // tell viewers it started/stopped
   if(GAME.ended)return;
   GAME.running=!GAME.running;
   clearInterval(clkInt);
@@ -1986,7 +2017,18 @@ function checkMercy(){
   const diff=Math.abs(GAME.home.score-GAME.away.score);
   const el=document.getElementById('mercy-flag');
   let on=false;
-  if(m.end && diff>=m.diff && elapsedSecs()>=m.afterElapsed) on=true;
+  // afterElapsed is written for the sport's standard game (soccer: 60:00 of an
+  // 80-minute match). With the period length configurable, a 2 x 30 youth game
+  // would otherwise only hit mercy in its dying minutes — so scale the
+  // threshold by how long regulation actually is.
+  if(m.end && diff>=m.diff){
+    const base=(FIELD_BASE[SPORT_KEY]||{}).periods
+      ? FIELD_BASE[SPORT_KEY].periods*FIELD_BASE[SPORT_KEY].periodSecs
+      : SP.periods*SP.periodSecs;
+    const now =SP.periods*SP.periodSecs;
+    const thresh = base>0 ? m.afterElapsed*(now/base) : m.afterElapsed;
+    if(elapsedSecs()>=thresh) on=true;
+  }
   if(!m.end && diff>=m.diff && GAME.period>Math.ceil(SP.periods/2)) on=true;
   GAME.mercyRunning = (!m.end && on);
   el.textContent = on ? (m.end?'⚑ MERCY — END GAME':'⚑ RUNNING CLOCK') : '';
@@ -2994,9 +3036,10 @@ async function generatePDF(opts={}){
     const cols=Math.max(nAway,nHome,1);
     const CELL=6, GAP=1.2, LBL=22;
     check(12+CELL*2+8);
+    const soTitle = soCfg().title;    // "Penalty Kicks" or "Penalty Corners"
     sectionHead(winner
-      ? `Penalty Kicks \u2014 ${GAME[winner].short} wins ${soMade(winner)}\u2013${soMade(opp(winner))}`
-      : 'Penalty Kicks');
+      ? `${soTitle} \u2014 ${GAME[winner].short} wins ${soMade(winner)}\u2013${soMade(opp(winner))}`
+      : soTitle);
 
     // round markers above the grid
     doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(...DIM);

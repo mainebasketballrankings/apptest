@@ -1437,13 +1437,18 @@
     span.textContent = `${Math.floor(secs/60)}:${String(Math.floor(secs%60)).padStart(2,'0')}`;
     span.style.opacity = c.run ? '1' : '.6';   // a stopped clock should look stopped
   }
+  // The score bug lives in .card-top, not .card-meta — querying the wrong
+  // element meant the stashed clock state was never found and nothing ticked.
   setInterval(() => {
-    document.querySelectorAll('.card-meta').forEach(el => { if (el._mbrClk) tickCardClock(el); });
+    document.querySelectorAll('.card-top > span:first-child')
+      .forEach(el => { if (el._mbrClk) tickCardClock(el); });
   }, 1000);
 
   function renderShootoutBug(topLeftEl, sn) {
     const so = (sn && sn.so) || null;
     if (!so || !so.kicks || !so.kicks.length) return false;
+    // An undecided shootout is the one state worth polling hard for.
+    if (!so.winner) window.__mbrShootoutLive = true;
     const pip = (k) => {
       if (!k) return '<span style="width:7px;height:7px;border-radius:1px;border:1.5px solid rgba(34,168,99,.35);flex-shrink:0"></span>';
       return k.m
@@ -1558,6 +1563,9 @@
       }
     });
 
+    // Recomputed each pass by renderShootoutBug; without clearing it here the
+    // board would stay in fast-poll mode for the rest of the night.
+    window.__mbrShootoutLive = false;
     activeGames.forEach(g => {
       const e  = lastEvt[g.id];
       const se = stateEvt[g.id] || e;
@@ -2281,7 +2289,20 @@
   }
   // ── END LIVE PATCH ────────────────────────────────────────────────────────
 
-  setInterval(patchLiveGames, 30000);
+  // 30s is fine for a game in flow — goals are minutes apart. A shootout isn't:
+  // corners or kicks land every few seconds and the grid looks stuck. Poll fast
+  // while one is live, and drop back as soon as it's over so a night of ordinary
+  // games doesn't cost extra reads.
+  let _pollMs = 30000, _pollTimer = setInterval(patchLiveGames, _pollMs);
+  window.__mbrShootoutLive = false;
+  function retunePoll(){
+    const want = window.__mbrShootoutLive ? 6000 : 30000;
+    if (want === _pollMs) return;
+    _pollMs = want;
+    clearInterval(_pollTimer);
+    _pollTimer = setInterval(patchLiveGames, _pollMs);
+  }
+  setInterval(retunePoll, 5000);
 
   // ── PPD ─────────────────────────────────────────────────────────────────
   document.getElementById('gamesContainer').addEventListener('click', e => {

@@ -707,7 +707,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-08-04c';
+const MBR_BUILD='fs-2026-08-04d';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -2028,9 +2028,66 @@ function chgPeriod(d){
   GAME.period=np;
   GAME.clockSec=periodSecs(np);
   GAME.running=false; clearInterval(clkInt);
-  // FH & soccer: teams start OT at full strength (timed cards carry, but re-check)
-  if(np>SP.periods) flash(`${periodLbl(np)} — ${otRules().note||'sudden victory'}`,'');
+  // A period change isn't an event, so viewers had no way to know the quarter
+  // had turned over until the next shot or foul arrived. Broadcast it.
+  pushClockState();
+  if(np>SP.periods){
+    flash(`${periodLbl(np)} — ${otRules().note||'sudden victory'}`,'');
+    // NFHS field hockey overtime is played 7v7 (six field players plus the
+    // keeper), so a side has to come off. Nothing prompted for it, which meant
+    // the roster panel and the report both still showed eleven a side.
+    const o=otRules();
+    if(o && o.note && /7v7/i.test(o.note)) setTimeout(()=>offerOTReduce(), 400);
+  }
   updAll(); scheduleSave();
+}
+
+// ── Overtime side reduction (field hockey 7v7) ───────────────────────────
+// Offered once, per side, at the start of the first overtime. Purely a roster
+// change — nobody is "substituted", they just stand down — so it logs as a
+// single event rather than a string of substitutions.
+let _otReduced=false;
+function offerOTReduce(){
+  if(_otReduced) return;
+  const o=otRules(); const target=(o && o.otPlayers) || 7;   // incl. keeper
+  const over=['home','away'].filter(sd=>PL[sd].filter(p=>p.on).length>target);
+  if(!over.length){ _otReduced=true; return; }
+  _otReduced=true;
+  _otSide=over[0]; _otQueue=over.slice(1); _otTarget=target;
+  renderOTReduce();
+}
+let _otSide=null,_otQueue=[],_otTarget=7;
+function renderOTReduce(){
+  const side=_otSide, target=_otTarget;
+  const on=PL[side].filter(p=>p.on);
+  const need=on.length-target;
+  const body=document.getElementById('sub-body');
+  body.innerHTML=
+    `<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">
+       Overtime is <b>${target} a side</b> (keeper included). ${GAME[side].short} has
+       <b>${on.length}</b> on the field — take off <b>${need}</b>.
+     </div>
+     ${on.map(p=>`<div class="ast-item" onclick="otTakeOff('${p.id}')"><b>${p.num||'\u2013'}</b><span>${pName(p)}${p.gk?' \u00b7 GK':''}</span></div>`).join('')}
+     <div class="ov-grid" style="margin-top:8px;">
+       <div class="ov-btn cancel" onclick="otSkip()">Skip \u2014 sort it out later</div>
+     </div>`;
+  document.getElementById('sub-modal').classList.add('show');
+}
+function otTakeOff(pid){
+  const side=_otSide, p=findP(pid,side);
+  if(!p) return;
+  if(p.gk && PL[side].filter(x=>x.on).length<=_otTarget){ flash('Keeper has to stay on','bad'); return; }
+  p.on=false;
+  pushEvt({side, p, key:'substitution', label:`${pName(p)} off for overtime`,
+           meta:{out_id:p.id, out_num:p.num, out_name:pName(p), ot_reduce:true}});
+  renderPl(side);
+  if(PL[side].filter(x=>x.on).length>_otTarget){ renderOTReduce(); return; }
+  otNextSide();
+}
+function otSkip(){ otNextSide(); }
+function otNextSide(){
+  if(_otQueue.length){ _otSide=_otQueue.shift(); renderOTReduce(); return; }
+  closeModal('sub-modal'); _otSide=null; updAll(); scheduleSave();
 }
 function checkMercy(){
   const m=SP.mercy; if(!m) return;

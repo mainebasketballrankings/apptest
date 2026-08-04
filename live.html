@@ -3045,9 +3045,24 @@ function fdOnEvent(e){
   // Shootout kicks are NOT goals. They decide the match but never touch the
   // score, the line score, or anybody's shot totals — the scorer adds a single
   // goal to the winner at the end, and that arrives as its own `goal` event.
-  if(n.shootout){
+  // The scorer sends the WHOLE shootout in n.so on every event. Prefer it over
+  // accumulating locally: appending each kick meant an undo never came off the
+  // grid (live only ever sees inserts) and the tally drifted. Rebuilding from
+  // the snapshot makes undo and re-order correct for free.
+  if(n.so && Array.isArray(n.so.kicks)){
+    FD.so = {
+      kicks: n.so.kicks.map(k=>({side:k.s, name:k.n||'', num:k.num||'',
+                                 made:!!k.m, round:k.r||1, order:k.o||0})),
+      home: n.so.home||0, away: n.so.away||0, winner: n.so.winner||null,
+      title: n.so.title||null, abbr: n.so.abbr||null, mode: n.so.mode||null,
+    };
+    renderShootout();
+    // A shootout kick is not an in-game shot; stop here so it isn't counted
+    // twice. The winner event still falls through — that goal is real.
+    if(n.shootout) return;
+  }
+  else if(n.shootout){
     FD.so = FD.so || {kicks:[], winner:null, home:0, away:0};
-    if(n.so && n.so.title){ FD.so.title=n.so.title; FD.so.abbr=n.so.abbr; FD.so.mode=n.so.mode; }
     FD.so.kicks.push({side:e.side, name:e.pname||'', num:e.pnum||'',
                       made:e.key==='penalty_kick_made', round:n.round||1, order:n.order||FD.so.kicks.length+1});
     if(e.key==='penalty_kick_made') FD.so[e.side]++;

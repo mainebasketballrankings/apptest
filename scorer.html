@@ -7,7 +7,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=11"></script>
+<script src="mbr-core.js?v=12"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -897,7 +897,7 @@ body{
     </div>
 
     <!-- Mode toggle: pick scheduled game OR create new -->
-    <div class="su-mode-toggle">
+    <div class="su-mode-toggle" id="mbr-sched-block">
       <button class="su-mode-btn active" id="su-mode-pick" onclick="suSetMode('pick')">Pick Scheduled Game</button>
       <button class="su-mode-btn" id="su-mode-new" onclick="suSetMode('new')">New Game</button>
     </div>
@@ -4014,6 +4014,20 @@ async function generatePDF(opts={}){
 // server-side). No-op for test/manual games with no game_id.
 
 
+
+// ── Local mode ───────────────────────────────────────────────────────────
+// Hides the Maine scheduled-games picker for anyone who'll never appear in it
+// (out-of-state, AAU, rec). Set from the home screen; the preference is stored
+// by mbr-core so it survives a restart, and flipping it back restores this.
+function applyLocalModeHere(){
+  if(typeof MBR==='undefined' || !MBR.applyLocalMode) return;
+  MBR.applyLocalMode({
+    hide: ["mbr-sched-block", "su-games"],
+    onNewGame: function(){ if(typeof suSetMode==='function') suSetMode('new'); }
+  });
+}
+document.addEventListener('DOMContentLoaded', applyLocalModeHere);
+window.addEventListener('mbr:localmode', applyLocalModeHere);
 </script>
 </body>
 </html>

@@ -6,7 +6,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=11"></script>
+<script src="mbr-core.js?v=12"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -311,7 +311,7 @@ table.bs.gk th:nth-child(n+3), table.bs.gk td:nth-child(n+3){width:76px;}
     <div id="rules-note" style="margin-top:9px;font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;"></div>
   </div>
 
-  <div class="su-card">
+  <div class="su-card" id="mbr-sched-block">
     <div class="su-h">2 · Today's Games</div>
     <div id="su-games-list"><div style="color:var(--dim);font-size:13px;padding:8px 0">Pick a sport above.</div></div>
     <button class="btn btn-s" style="width:100%;margin-top:6px;" onclick="suSetMode('new')">+ New / Emergency Game</button>
@@ -3616,6 +3616,20 @@ function init(){
   });
 }
 init();
+
+// ── Local mode ───────────────────────────────────────────────────────────
+// Hides the Maine scheduled-games picker for anyone who'll never appear in it
+// (out-of-state, AAU, rec). Set from the home screen; the preference is stored
+// by mbr-core so it survives a restart, and flipping it back restores this.
+function applyLocalModeHere(){
+  if(typeof MBR==='undefined' || !MBR.applyLocalMode) return;
+  MBR.applyLocalMode({
+    hide: ["mbr-sched-block"],
+    onNewGame: function(){ if(typeof suSetMode==='function') suSetMode('new'); }
+  });
+}
+document.addEventListener('DOMContentLoaded', applyLocalModeHere);
+window.addEventListener('mbr:localmode', applyLocalModeHere);
 </script>
 </body>
 </html>

@@ -139,6 +139,25 @@ body{
 }
 
 /* ══ Skeleton ══ */
+.opt{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:12px;cursor:pointer;color:var(--text);font-family:'Barlow',sans-serif;
+}
+.opt:active{border-color:var(--orange);}
+.opt-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;}
+.opt-t{font-size:14px;font-weight:600;}
+.opt-s{font-size:12px;color:var(--dim);line-height:1.35;}
+.sw{
+  flex:none;width:44px;height:26px;border-radius:999px;background:var(--border);
+  position:relative;transition:background .15s;
+}
+.sw .knob{
+  position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s;
+}
+.sw.on{background:var(--green);}
+.sw.on .knob{transform:translateX(18px);}
 .skel{background:var(--surface2);border-radius:8px;height:74px;animation:br 1.5s ease-in-out infinite;}
 .skel.sm{height:40px;}
 @keyframes br{0%,100%{opacity:.5}50%{opacity:.85}}
@@ -191,6 +210,17 @@ body{
     <div id="teamsSlot"><div class="skel sm"></div></div>
   </div>
 
+  <div class="card">
+    <div class="h">Scoring setup</div>
+    <button class="opt" id="localToggle">
+      <span class="opt-txt">
+        <span class="opt-t">Maine schedule</span>
+        <span class="opt-s" id="localSub">Show today's scheduled games in every scorer</span>
+      </span>
+      <span class="sw" id="localSw"><span class="knob"></span></span>
+    </button>
+  </div>
+
   <div class="foot">
     <span id="buildLbl">—</span>
     <span class="sp"></span>
@@ -200,7 +230,7 @@ body{
 
 <div class="toast" id="toast"></div>
 
-<script src="mbr-core.js?v=10" onerror="window.__coreMissing=true"></script>
+<script src="mbr-core.js?v=12" onerror="window.__coreMissing=true"></script>
 <script>
 const BUILD = 'home-2026-07-31a';
 
@@ -472,10 +502,35 @@ function paintFoot(){
     ? `<span class="ok">online</span>` : `<span class="bad">offline</span>`;
 }
 
+// ══ Local mode ═══════════════════════════════════════════════════════════
+// ON  = show the Maine schedule (the default, for Maine scorers)
+// OFF = skip straight to New Game, for AAU/rec/out-of-state
+function paintLocal(){
+  if(!hasCore()) return;
+  const off = MBR.localMode();
+  document.getElementById('localSw').classList.toggle('on', !off);
+  document.getElementById('localSub').textContent = off
+    ? "Hidden — scorers start on New Game"
+    : "Show today's scheduled games in every scorer";
+}
+function wireLocal(){
+  const b=document.getElementById('localToggle');
+  if(!b) return;
+  b.onclick = () => {
+    if(!hasCore()){ toast('Core module not loaded'); return; }
+    const nowOff = MBR.setLocalMode(!MBR.localMode());
+    paintLocal();
+    toast(nowOff ? 'Maine schedule hidden' : 'Maine schedule shown');
+  };
+  paintLocal();
+  window.addEventListener('mbr:localmode', paintLocal);
+}
+
 /* ══ Boot ══ */
 (async function init(){
   initCore();
   renderGrid();
+  wireLocal();
   paintFoot();
   window.addEventListener('online', paintFoot);
   window.addEventListener('offline', paintFoot);

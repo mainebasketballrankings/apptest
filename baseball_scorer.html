@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Baseball Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
-<script src="mbr-core.js?v=11"></script>
+<script src="mbr-core.js?v=12"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -314,8 +314,10 @@ input,select,button{font-family:inherit;}
         <option value="softball">Softball</option>
       </select>
     </div>
-    <div id="gamePickerList" style="margin-top:8px"><div style="font-size:13px;color:var(--dim)">Select sport above to load today's games.</div></div>
-    <div id="gamePickerStatus" style="font-size:12px;margin-top:6px"></div>
+    <div id="mbr-sched-block">
+      <div id="gamePickerList" style="margin-top:8px"><div style="font-size:13px;color:var(--dim)">Select sport above to load today's games.</div></div>
+      <div id="gamePickerStatus" style="font-size:12px;margin-top:6px"></div>
+    </div>
   </div>
 
   <div class="setup-card">
@@ -4183,6 +4185,17 @@ function luTouchEnd(e) {
   _luTouchIdx = null; _luTouchSide = null;
 }
 
+
+// ── Local mode ───────────────────────────────────────────────────────────
+// Hides the Maine scheduled-games list for anyone who'll never appear in it
+// (out-of-state, AAU, rec). The sport selector above it stays, since baseball
+// and softball still have to be chosen. Set from the home screen.
+function applyLocalModeHere(){
+  if(typeof MBR==='undefined' || !MBR.applyLocalMode) return;
+  MBR.applyLocalMode({ hide: ["mbr-sched-block"] });
+}
+document.addEventListener('DOMContentLoaded', applyLocalModeHere);
+window.addEventListener('mbr:localmode', applyLocalModeHere);
 </script>
 </body>
 </html>

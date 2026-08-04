@@ -29,7 +29,7 @@
    deliberate: it keeps this first step a pure move, not a rewrite.
 
    CACHE NOTE: bump the ?v= query string when this file changes, or the service
-   worker may serve a stale copy. This revision is v=11.
+   worker may serve a stale copy. This revision is v=12.
 
    NATIVE (Capacitor): sign-in opens in the system browser and returns through
    the custom scheme in NATIVE_REDIRECT, and the push queue and auth session are
@@ -796,6 +796,57 @@
     else initStatusBar();
   }
 
+  // ── Local mode ───────────────────────────────────────────────────────────
+  // Not everyone scoring a game cares about the Maine schedule. A coach in
+  // Pittsburgh will never see a game in that list, and a Portland AAU coach
+  // won't either — for both of them the scheduled-games picker is dead weight
+  // between them and the New Game button.
+  //
+  // Local mode hides it and starts every scorer on New Game. It's a preference,
+  // not a lockout: the toggle stays visible and flipping it back restores the
+  // schedule immediately. Stored durably so it survives an app restart.
+  const LOCAL_MODE_KEY = 'mbr_local_mode';
+  let _localMode = null;                 // null = not yet read
+
+  function localMode() {
+    if (_localMode !== null) return _localMode;
+    try { _localMode = localStorage.getItem(LOCAL_MODE_KEY) === '1'; }
+    catch (e) { _localMode = false; }
+    return _localMode;
+  }
+  function setLocalMode(on) {
+    _localMode = !!on;
+    try { localStorage.setItem(LOCAL_MODE_KEY, _localMode ? '1' : '0'); } catch (e) {}
+    durableSet(LOCAL_MODE_KEY, _localMode ? '1' : '0');
+    try { global.dispatchEvent(new CustomEvent('mbr:localmode', { detail: _localMode })); } catch (e) {}
+    return _localMode;
+  }
+  async function hydrateLocalMode() {
+    try {
+      const raw = await durableGet(LOCAL_MODE_KEY);
+      if (raw == null) return;
+      const v = raw === '1';
+      if (v !== localMode()) {
+        _localMode = v;
+        try { localStorage.setItem(LOCAL_MODE_KEY, raw); } catch (e) {}
+        try { global.dispatchEvent(new CustomEvent('mbr:localmode', { detail: v })); } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  // Hide a scheduled-games block and flip the scorer to its "new game" mode.
+  // Each scorer passes its own element ids, because their setup screens differ.
+  function applyLocalMode(opts) {
+    const o = opts || {};
+    const on = localMode();
+    (o.hide || []).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = on ? 'none' : '';
+    });
+    if (on && typeof o.onNewGame === 'function') { try { o.onNewGame(); } catch (e) {} }
+    return on;
+  }
+
   // ── Keep the screen on ───────────────────────────────────────────────────
   // A phone that sleeps in the third quarter is useless at the scorer's table.
   // iOS Safari's Wake Lock support is patchy, so prefer the native plugin and
@@ -874,6 +925,7 @@
     // rather than at load. It's async; the in-memory mirror covers the gap.
     hydrateQueue();
     hydrateSession();
+    hydrateLocalMode();
     if (cfg.keepAwake) {
       keepAwake(true);
       if (global.document) document.addEventListener('visibilitychange', () => {
@@ -896,6 +948,7 @@
     signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
     clamp, keepAwake, saveFile, initStatusBar, queueShare,
+    localMode, setLocalMode, applyLocalMode,
     seasonYearFor: seasonYearForDate,
     get droppedRows() { return _droppedRows; },
   };

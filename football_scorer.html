@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
-<script src="mbr-core.js?v=11"></script>
+<script src="mbr-core.js?v=12"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -230,7 +230,7 @@ input,select,button{font-family:inherit;}
     <div id="su-myteams-list"></div>
   </div>
 
-  <div class="setup-card">
+  <div class="setup-card" id="mbr-sched-block">
     <div class="setup-card-title">Load from Schedule <span style="font-weight:400;color:var(--ldim);font-size:9px">— optional</span></div>
     <div id="gamePickerList"><div style="font-size:13px;color:var(--dim)">Loading today's football games…</div></div>
     <div id="gamePickerStatus" style="font-size:12px;margin-top:6px"></div>
@@ -3607,6 +3607,20 @@ function init(){
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+
+// ── Local mode ───────────────────────────────────────────────────────────
+// Hides the Maine scheduled-games picker for anyone who'll never appear in it
+// (out-of-state, AAU, rec). Set from the home screen; the preference is stored
+// by mbr-core so it survives a restart, and flipping it back restores this.
+function applyLocalModeHere(){
+  if(typeof MBR==='undefined' || !MBR.applyLocalMode) return;
+  MBR.applyLocalMode({
+    hide: ["mbr-sched-block"],
+    onNewGame: function(){ /* no mode switch in this scorer */ }
+  });
+}
+document.addEventListener('DOMContentLoaded', applyLocalModeHere);
+window.addEventListener('mbr:localmode', applyLocalModeHere);
 </script>
 </body>
 </html>

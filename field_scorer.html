@@ -53,6 +53,15 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .su-f label{display:block;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:3px;}
 .su-f input,.su-f select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;
   padding:8px;font-family:'Barlow',sans-serif;font-size:14px;color:var(--text);}
+/* Safari gives date inputs their own intrinsic height and centres the text, so
+   the Date box ends up taller than the Venue box beside it. Force it to match. */
+.su-f input[type=date]{
+  -webkit-appearance:none; appearance:none;
+  text-align:left; line-height:1.2; height:auto; min-height:0;
+  padding:8px; display:block;
+}
+.su-f input[type=date]::-webkit-date-and-time-value{ text-align:left; margin:0; }
+.su-f input[type=date]::-webkit-calendar-picker-indicator{ margin-left:auto; }
 .su-ac{position:relative;}
 .ac-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-top:none;
   border-radius:0 0 6px 6px;max-height:180px;overflow-y:auto;z-index:20;display:none;}
@@ -698,7 +707,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-08-03f';
+const MBR_BUILD='fs-2026-08-03g';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -2077,6 +2086,14 @@ function gkPick(side, pid, fromBench){
   const p = findP(pid, side);
   if(!p) return;
   const outgoing = findP(GAME[side].gk, side);
+  // Keeper sent off: the goal is already empty, so a bench keeper does NOT
+  // replace anyone by default — someone on the field has to come off or the
+  // team plays a man up.
+  if(fromBench && !outgoing){
+    _gkPending={side, pid};
+    openGKFieldOutPicker(side, p);
+    return;
+  }
   PL[side].forEach(x=>x.gk=false);
   p.gk=true; p.wasGK=true; p.on=true;
   GAME[side].gk=p.id;
@@ -2105,6 +2122,44 @@ function isSentOff(p){
   const l=playerLine(p.id);
   return !!(l && l.rc>0);
 }
+let _gkPending=null;
+function openGKFieldOutPicker(side, incoming){
+  const onF = PL[side].filter(x=>x.on && !isSentOff(x));
+  const body=document.getElementById('sub-body');
+  body.innerHTML =
+    `<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">
+       ${pName(incoming)} comes on in goal. The keeper was sent off, so
+       <b>${GAME[side].short} must also take a player off</b> \u2014 who leaves the field?
+     </div>
+     ${onF.map(x=>`<div class="ast-item" onclick="gkFieldOut('${x.id}')"><b>${x.num||'\u2013'}</b><span>${pName(x)}</span></div>`).join('')
+       || '<div style="font-size:12px;color:var(--dim)">Nobody left on the field</div>'}
+     <div class="ov-grid" style="margin-top:8px;">
+       <div class="ov-btn cancel" onclick="closeModal('sub-modal');_gkPending=null;">Cancel</div>
+     </div>`;
+  document.getElementById('sub-modal').classList.add('show');
+}
+function gkFieldOut(outId){
+  if(!_gkPending) return;
+  const {side,pid}=_gkPending; _gkPending=null;
+  const incoming=findP(pid,side), leaving=findP(outId,side);
+  if(!incoming||!leaving) return;
+  PL[side].forEach(x=>x.gk=false);
+  incoming.gk=true; incoming.wasGK=true; incoming.on=true;
+  GAME[side].gk=incoming.id;
+  leaving.on=false;
+  pushEvt({side, p:incoming, key:'substitution',
+    label:`${pName(incoming)} in for ${pName(leaving)}`,
+    meta:{in_id:incoming.id,in_num:incoming.num,in_name:pName(incoming),
+          out_id:leaving.id,out_num:leaving.num,out_name:pName(leaving),
+          keeper:true, after_send_off:true}});
+  pushEvt({side, p:incoming, key:'goalie_change',
+    label:`${pName(incoming)} in goal`,
+    meta:{in_id:incoming.id, in_name:pName(incoming), in_num:incoming.num,
+          out_id:null, out_name:null, from_bench:true, after_send_off:true}});
+  closeModal('sub-modal'); renderPl(side); updAll(); scheduleSave();
+  flash(pName(incoming)+' in goal \u00b7 '+pName(leaving)+' off','');
+}
+
 function subPick(side,pid,dir){
   const p=findP(pid,side);
   if(dir!=='out' && isSentOff(p)){
@@ -2369,7 +2424,7 @@ function renderSO(){
   const mustDiffer = (r%2===0);
   // "If no kickers are eligible in a given round (a team has fewer than 6 total
   // kickers), all players become eligible." Below that threshold, stop excluding.
-  const pool = PL[side].filter(p=>!p.dq);
+  const pool = PL[side].filter(p=>!p.dq && !isSentOff(p));
   const allEligible = pool.length < 6;
   const C=soCfg();
   const list = pool.map(p=>{
@@ -2419,7 +2474,7 @@ function soPick(pid){
   [...document.querySelectorAll('#so-pick .ast-item')].forEach(el=>el.classList.remove('sel'));
   const els=[...document.querySelectorAll('#so-pick .ast-item')];
   const side=soTurn();
-  const idx=PL[side].filter(p=>!p.dq).findIndex(p=>p.id===pid);
+  const idx=PL[side].filter(p=>!p.dq && !isSentOff(p)).findIndex(p=>p.id===pid);
   if(els[idx]) els[idx].classList.add('sel');
   document.getElementById('so-made').disabled=false;
   document.getElementById('so-miss').disabled=false;
@@ -2705,8 +2760,15 @@ async function endGame(){
     GAME.endReason='shootout';
     GAME.soResult={winner:GAME.so.winner, home:soMade('home'), away:soMade('away')};
   }
-  generateCSV();
-  setTimeout(()=>{generatePDF().catch(e=>console.warn('pdf',e));},400);
+  // Report first, CSV second. The PDF takes a second or two to build (logos,
+  // the shot chart, the play-by-play), and iOS only shows one share sheet at a
+  // time — so firing the CSV first meant staring at a CSV sheet wondering
+  // whether the report had failed. The PDF is what people actually want, so it
+  // goes first and the CSV queues behind it.
+  flash('Building report\u2026','');
+  generatePDF()
+    .catch(e=>console.warn('pdf',e))
+    .finally(()=>{ try{ generateCSV(); }catch(e){ console.warn('csv',e); } });
   scheduleSave();
 
   if(G_game_id && !G_test_mode && !_gameFinalized){

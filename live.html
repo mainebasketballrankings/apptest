@@ -3073,15 +3073,20 @@ function fdOnEvent(e){
       fdDots.push({pt:e.pt,kind:'on',side:e.side});
       if(!FD._replaying && e.pt) fdDrawDot(e.pt,'on',e.side);
       break;
+    // The event sits on the defending player's side so the name attaches to the
+    // right roster; the goal belongs to the opponent. No shot for anyone.
+    //
+    // Do NOT increment the score here. The scorer serialises the post-event
+    // score in n.score and that is applied above — adding to it double-counted
+    // every own goal, then appeared to "fix itself" when the next event's
+    // snapshot overwrote the inflated value.
+    case 'own_goal':
+      if(!(n.score && typeof n.score.home==='number')) FD[opp].score++;  // pre-snapshot fallback
+      if(p) p.og=(p.og||0)+1;
+      break;
     // shot_post is a separate key now. Older games only had shot_off with the
     // word "post" in the label, so keep reading that too — and prefer the
     // explicit meta.result the scorer writes when it's there.
-    // The event sits on the defending player's side so the name attaches to the
-    // right roster; the goal belongs to the opponent. No shot for anyone.
-    case 'own_goal':
-      FD[opp].score++;
-      if(p) p.og=(p.og||0)+1;
-      break;
     case 'shot_off':
     case 'shot_post':
       S.shots++; if(p)p.sh++;

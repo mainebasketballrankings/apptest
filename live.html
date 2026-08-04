@@ -3030,6 +3030,12 @@ function fdOnEvent(e){
   if(n.pens){ FD.home.pens=n.pens.home||[]; FD.away.pens=n.pens.away||[]; }
   // Possession time is banked by the scorer's clock; we can only mirror it.
   if(n.top){ FD.home.top=n.top.home||0; FD.away.top=n.top.away||0; }
+  // Clock state, so we can run it locally instead of freezing between events.
+  if(typeof n.clk_secs==='number'){
+    FD.clk = {secs:n.clk_secs, run:!!n.clk_run, up:!!n.clk_up,
+              elapsed:(typeof n.elapsed_secs==='number'?n.elapsed_secs:null),
+              at:Date.now()};
+  }
 
   const p = fdP(e.side, e.pname, e.pnum);
 
@@ -3289,6 +3295,30 @@ function fdFeedDesc(e){
   }
   return `${who?who+' — ':''}${FD_KLBL[e.key]||n.label||e.key}`;
 }
+// ── Local clock ───────────────────────────────────────────────────────────
+// The scorer only pushes a clock label when it changes by a labelled tick, and
+// viewers had no clock of their own — so between events the display froze. We
+// now extrapolate from the last known state and resync every time an event
+// lands, which means the worst case is a second or two of drift rather than
+// a clock stuck at 37:39 for a minute.
+function fdTickClock(){
+  const c=FD.clk;
+  if(!c) return;
+  const el=document.getElementById('fd-clock'); if(!el) return;
+  let secs=c.secs, elapsed=c.elapsed;
+  if(c.run){
+    const gone=(Date.now()-c.at)/1000;
+    secs=Math.max(0, c.secs-gone);
+    if(elapsed!=null) elapsed=c.elapsed+gone;
+  }
+  const mm=v=>`${Math.floor(v/60)}:${String(Math.floor(v%60)).padStart(2,'0')}`;
+  el.textContent=mm(secs);
+  el.style.opacity = c.run ? '1' : '.62';   // a stopped clock should look stopped
+  const eel=document.getElementById('fd-elapsed');
+  if(eel && elapsed!=null) eel.textContent=`${mm(elapsed)} elapsed`;
+}
+setInterval(fdTickClock, 1000);
+
 function fdUpdFeed(){
   if(FD._replaying) return;
   const list=document.getElementById('fd-feed-list'); if(!list) return;
@@ -3299,6 +3329,7 @@ function fdUpdFeed(){
     // The goal line already names the assister, and a turnover already says who
     // got the ball — printing these again is just a duplicate row.
     if(e.key==='assist') return;
+    if(e.key==='clock') return;             // state, not a play
     if(e.key==='possession_flip' && n.from_turnover) return;
     const row=document.createElement('div'); row.className='fr'+(i===0?' new':'');
     const dot=document.createElement('div'); dot.className='fr-dot';

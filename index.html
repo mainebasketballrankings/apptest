@@ -1239,23 +1239,27 @@
       // home_team/away_team are JOINED ROWS, not strings: using them directly
       // rendered "[object Object] possession".
       const tRow = game ? (n.side === 'home' ? game.home_team : game.away_team) : null;
-      const team = (tRow && (tRow.school_name || tRow.name)) || '';
+      // Prefer the scorer's short name — a card row is too narrow for
+      // "ZZ Test South GOAL — …". Falls back to the school name.
+      const team = (n.shorts && n.shorts[n.side]) || (tRow && (tRow.school_name || tRow.name)) || '';
       const T    = team ? `${team} ` : '';
       const GOAL = '<span style="color:var(--green);font-weight:700">GOAL</span>';
 
       switch (e.event_type) {
         case 'goal': {
           const a = n.assist ? ` (${n.assist} assist)` : ' (unassisted)';
-          return `${GOAL} — ${B(nm)}${a}`;
+          // Two teams on one card, so a bare "GOAL" doesn't say whose.
+          return `${T}${GOAL} — ${B(nm)}${a}`;
         }
         // Logged on the defending player's side; the goal goes to the opponent.
         case 'own_goal': {
+          const oSide = n.side === 'home' ? 'away' : 'home';
           const oRow = game ? (n.side === 'home' ? game.away_team : game.home_team) : null;
-          const oTm  = (oRow && (oRow.school_name || oRow.name)) || '';
+          const oTm  = (n.shorts && n.shorts[oSide]) || (oRow && (oRow.school_name || oRow.name)) || '';
           return `${GOAL} — own goal by ${B(nm)}${oTm ? ` (${oTm})` : ''}`;
         }
-        case 'penalty_kick_made':    return `${GOAL} — ${B(nm)} (penalty kick)`;
-        case 'penalty_stroke_made':  return `${GOAL} — ${B(nm)} (penalty stroke)`;
+        case 'penalty_kick_made':    return `${T}${GOAL} — ${B(nm)} (penalty kick)`;
+        case 'penalty_stroke_made':  return `${T}${GOAL} — ${B(nm)} (penalty stroke)`;
         case 'penalty_kick_miss':    return `${B(nm)} penalty kick missed`;
         case 'penalty_stroke_miss':  return `${B(nm)} penalty stroke missed`;
 
@@ -1310,8 +1314,9 @@
         case 'turnover': {
           // A turnover always hands the ball over, so say so on one line rather
           // than emitting a separate "possession" row right behind it.
+          const oppSide = n.side === 'home' ? 'away' : 'home';
           const toRow = game ? (n.side === 'home' ? game.away_team : game.home_team) : null;
-          const toTm  = (toRow && (toRow.school_name || toRow.name)) || '';
+          const toTm  = (n.shorts && n.shorts[oppSide]) || (toRow && (toRow.school_name || toRow.name)) || '';
           const arrow = toTm ? ` \u2192 ${toTm} possession` : '';
           return (nm ? `${B(nm)} turnover` : `${T}turnover`) + arrow;
         }
@@ -1320,6 +1325,7 @@
         case 'card_yellow': return `<span style="color:#d97706;font-weight:700">Yellow</span> — ${B(nm)}`;
         case 'card_red':    return `<span style="color:var(--red);font-weight:700">Red</span> — ${B(nm)}${n.second_yellow ? ' (2nd yellow)' : ''}`;
         case 'game_over':   return 'Final';
+        case 'clock': return '';   // clock start/stop is state, not a play
         case 'roster_set': case 'player_final_stats': return '';
         default:
           // notes.label is the scorer's own wording — better than a de-underscored key.
@@ -1416,6 +1422,33 @@
     return `<strong>${name}</strong> ${evtLabel}${fieldingNote}${scored}${rbi}${outNum}${kDesc}`;
   }
 
+  // ── Penalty shootout bug ──────────────────────────────────────────────────
+  // Takes the slot baseball uses for bases and outs: two rows of pips, away over
+  // home, plus the running tally. The scorer rides a full shootout snapshot in
+  // every event's notes, because the card only fetches a handful of events per
+  // game and could never rebuild a ten-kick grid from the kicks themselves.
+  function renderShootoutBug(topLeftEl, sn) {
+    const so = (sn && sn.so) || null;
+    if (!so || !so.kicks || !so.kicks.length) return false;
+    const pip = (k) => {
+      if (!k) return '<span style="width:7px;height:7px;border-radius:1px;border:1.5px solid rgba(34,168,99,.35);flex-shrink:0"></span>';
+      return k.m
+        ? '<span style="width:7px;height:7px;border-radius:1px;background:var(--green);border:1.5px solid var(--green);flex-shrink:0"></span>'
+        : '<span style="width:7px;height:7px;border-radius:1px;border:1.5px solid #c0392b;flex-shrink:0"></span>';
+    };
+    const MAXK = 5;   // a card can't hold twenty pips; live keeps the full grid
+    const forSide = sd => so.kicks.filter(k => k.s === sd).sort((a,b)=>a.o-b.o).slice(-MAXK);
+    const rowFor  = sd => `<span style="display:flex;gap:2px;align-items:center">${forSide(sd).map(pip).join('')}</span>`;
+    const win = so.winner;
+    const tally = sd => `<span style="font-weight:${win===sd?800:600};${win===sd?'color:var(--green);':''}">${so[sd]}</span>`;
+    topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
+    topLeftEl.innerHTML =
+      '<span style="font-weight:700">PK</span>'
+      + `<span style="display:flex;flex-direction:column;gap:2px">${rowFor('away')}${rowFor('home')}</span>`
+      + `<span style="display:flex;flex-direction:column;gap:0;font-size:10px;line-height:1.15">${tally('away')}${tally('home')}</span>`;
+    return true;
+  }
+
   function renderScoreBug(topLeftEl, se, sport) {
     if (window.MBRScoreboard && MBRScoreboard.scoreBug(topLeftEl, se, sport, { fmtClock, periodLabel })) return;
     let sn = null;
@@ -1435,39 +1468,17 @@
       return;
     }
     // Soccer / field hockey / lacrosse: clock + period.
-    if (sport === 'soccer' || sport === 'field_hockey' || sport === 'lacrosse') {
+    if (sport === 'soccer' || sport === 'field_hockey' || sport === 'field-hockey' || sport === 'lacrosse') {
+      // A shootout replaces the clock here — by then the clock is stopped at
+      // 0:00 and the grid is the only thing anyone is watching. This must run
+      // BEFORE the clock branch returns, which is why the grid never appeared.
+      if (renderShootoutBug(topLeftEl, sn)) return;
       const clk = (sn && sn.clock) || fmtClock(se.clock_seconds) || '';
       const per = (sn && sn.period) || periodLabel(se.period);
       topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
       topLeftEl.innerHTML = `<span style="font-weight:700">${per}</span>${clk?`<span>${clk}</span>`:''}`;
       return;
     }
-    // ── Penalty shootout ────────────────────────────────────────────────────
-    // Takes the slot baseball uses for bases and outs. Two rows of pips, away
-    // over home, with the running tally — the same shape as the full grid on
-    // the live page, shrunk to fit a card.
-    const soSnap = (sn && sn.so) || null;
-    if (soSnap && soSnap.kicks && soSnap.kicks.length) {
-      const pip = (k) => {
-        if (!k) return '<span style="width:7px;height:7px;border-radius:1px;border:1.5px solid rgba(34,168,99,.35);flex-shrink:0"></span>';
-        return k.m
-          ? '<span style="width:7px;height:7px;border-radius:1px;background:var(--green);border:1.5px solid var(--green);flex-shrink:0"></span>'
-          : '<span style="width:7px;height:7px;border-radius:1px;border:1.5px solid #c0392b;flex-shrink:0"></span>';
-      };
-      // Only the most recent kicks fit on a card, so show the tail.
-      const MAXK = 5;
-      const forSide = sd => soSnap.kicks.filter(k => k.s === sd).sort((a,b)=>a.o-b.o).slice(-MAXK);
-      const rowFor  = sd => `<span style="display:flex;gap:2px;align-items:center">${forSide(sd).map(pip).join('')}</span>`;
-      const win = soSnap.winner;
-      const tally = sd => `<span style="font-weight:${win===sd?800:600};${win===sd?'color:var(--green);':''}">${soSnap[sd]}</span>`;
-      topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
-      topLeftEl.innerHTML =
-        `<span style="font-weight:700">PK</span>`
-        + `<span style="display:flex;flex-direction:column;gap:2px">${rowFor('away')}${rowFor('home')}</span>`
-        + `<span style="display:flex;flex-direction:column;gap:0;font-size:10px;line-height:1.15">${tally('away')}${tally('home')}</span>`;
-      return;
-    }
-
     if (sport === 'basketball') {
       const clk = fmtClock(se.clock_seconds);
       topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
@@ -1512,6 +1523,7 @@
       // possession flip that trails a turnover) must not become "the last play"
       // or the card silently keeps whatever was there before.
       const isSilent = e.event_type === 'assist'
+        || e.event_type === 'clock'
         || (e.event_type === 'possession_flip' && notesStr.includes('"from_turnover":true'));
       if (!lastEvt[e.game_id] && e.event_type !== 'inning_end' && e.event_type !== 'batter_up'
           && !notesStr.includes('out (DP)') && !isUninformativeRA && !isSilent) {

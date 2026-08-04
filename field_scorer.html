@@ -707,7 +707,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-08-04b';
+const MBR_BUILD='fs-2026-08-04c';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1944,10 +1944,30 @@ let _clkHeld=false;
 
 function openClkEdit(e){
   if(e && e.preventDefault) e.preventDefault();
-  document.getElementById('ce-m').value=Math.floor(GAME.clockSec/60);
-  document.getElementById('ce-s').value=GAME.clockSec%60;
+  const mEl=document.getElementById('ce-m'), sEl=document.getElementById('ce-s');
+  mEl.value=Math.floor(GAME.clockSec/60);
+  sEl.value=GAME.clockSec%60;
   document.getElementById('clk-edit').classList.add('show');
+  // Focus the minutes box with the value SELECTED. iOS otherwise drops the
+  // caret at position 0, so you'd type in front of the existing number or have
+  // to tap past it before you can backspace. Selecting means typing replaces.
+  setTimeout(()=>{
+    try{
+      mEl.focus({preventScroll:true});
+      if(mEl.setSelectionRange){ mEl.setSelectionRange(0, String(mEl.value).length); }
+      else mEl.select();
+    }catch(_){}
+  }, 60);
 }
+// Tapping either box selects what's there, for the same reason.
+['ce-m','ce-s'].forEach(id=>{
+  document.addEventListener('focusin', ev=>{
+    if(ev.target && ev.target.id===id && ev.target.setSelectionRange){
+      try{ ev.target.setSelectionRange(0, String(ev.target.value).length); }catch(_){}
+    }
+  });
+});
+
 function applyClkEdit(){
   const m=parseInt(document.getElementById('ce-m').value)||0;
   const s=parseInt(document.getElementById('ce-s').value)||0;
@@ -2595,6 +2615,28 @@ function delEvt(id,_skipLink){
   if(e.shot){ GAME[e.side].shots=Math.max(0,GAME[e.side].shots-1);
     if(e.onTarget)GAME[e.side].sog=Math.max(0,GAME[e.side].sog-1); }
   if(e.key==='save') GAME[e.side].saves=Math.max(0,GAME[e.side].saves-1);
+  // ── Shootout kicks live in GAME.so.kicks as well as in the event log ──────
+  // Deleting the event alone left the kick on the grid and, if that kick had
+  // decided it, left the game awarded to a team that no longer had the lead.
+  if(e.meta && e.meta.shootout && GAME.so && GAME.so.kicks){
+    const idx = (typeof e.meta.order === 'number') ? e.meta.order - 1 : GAME.so.kicks.length - 1;
+    if(idx >= 0 && idx < GAME.so.kicks.length){
+      GAME.so.kicks.splice(idx, 1);           // undo runs newest-first, so this is the tail
+      // Recompute the round sizes the sudden-death logic depends on.
+      if(GAME.so.sizes) delete GAME.so.sizes[e.meta.round];
+    }
+    if(GAME.so.done){
+      // The result is no longer decided: take back the awarded goal and the
+      // event that recorded it.
+      const w = GAME.so.winner;
+      if(w) GAME[w].score = Math.max(0, GAME[w].score - 1);
+      GAME.so.done = false; GAME.so.winner = null;
+      GAME.ended = false;
+      const aw = evts.find(x => x.meta && x.meta.shootout_winner);
+      if(aw) delEvt(aw.id, true);
+    }
+    setTimeout(()=>{ try{ renderSO(); }catch(_){ } }, 0);
+  }
   if(e.key==='own_goal'){
     const sSide=(e.meta&&e.meta.credited_to)||opp(e.side);
     GAME[sSide].score=Math.max(0,GAME[sSide].score-1);

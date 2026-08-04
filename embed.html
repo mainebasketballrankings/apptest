@@ -1443,6 +1443,20 @@
   // home, plus the running tally. The scorer rides a full shootout snapshot in
   // every event's notes, because the card only fetches a handful of events per
   // game and could never rebuild a ten-kick grid from the kicks themselves.
+  // Cards only re-render when an event arrives, so between events the clock sat
+  // frozen — and a stoppage isn't visible at all. Extrapolate from the last
+  // known state each second; every incoming event resyncs it.
+  function tickCardClock(el){
+    const c = el && el._mbrClk; if (!c) return;
+    const span = el.querySelector('.bug-clk'); if (!span) return;
+    const secs = c.run ? Math.max(0, c.secs - (Date.now()-c.at)/1000) : c.secs;
+    span.textContent = `${Math.floor(secs/60)}:${String(Math.floor(secs%60)).padStart(2,'0')}`;
+    span.style.opacity = c.run ? '1' : '.6';   // a stopped clock should look stopped
+  }
+  setInterval(() => {
+    document.querySelectorAll('.card-meta').forEach(el => { if (el._mbrClk) tickCardClock(el); });
+  }, 1000);
+
   function renderShootoutBug(topLeftEl, sn) {
     const so = (sn && sn.so) || null;
     if (!so || !so.kicks || !so.kicks.length) return false;
@@ -1500,7 +1514,12 @@
       const clk = (sn && sn.clock) || fmtClock(se.clock_seconds) || '';
       const per = (sn && sn.period) || periodLabel(se.period);
       topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
-      topLeftEl.innerHTML = `<span style="font-weight:700">${per}</span>${clk?`<span>${clk}</span>`:''}`;
+      topLeftEl.innerHTML = `<span style="font-weight:700">${per}</span>`
+        + (clk ? `<span class="bug-clk">${clk}</span>` : '');
+      // Stash the raw clock state so the interval below can keep it moving.
+      topLeftEl._mbrClk = (sn && typeof sn.clk_secs === 'number')
+        ? { secs: sn.clk_secs, run: !!sn.clk_run, at: Date.now() } : null;
+      if (topLeftEl._mbrClk) tickCardClock(topLeftEl);
       return;
     }
     if (sport === 'basketball') {
@@ -1567,7 +1586,7 @@
             let prefix;
             if (sport === 'basketball') prefix = periodLabel(e.period);
             // Football / field sports: the period is already in the score bug above.
-            else if (sport === 'football' || ['soccer','field_hockey','lacrosse'].includes(sport)) prefix = '';
+            else if (sport === 'football' || ['soccer','field_hockey','field-hockey','lacrosse'].includes(sport)) prefix = '';
             else prefix = `${e.half === 'top' ? '▲' : '▼'}${e.inning||''}`;
             cardMetaEl.innerHTML = `<span style="color:var(--green);font-weight:600">${prefix}</span> ${desc}`;
           }

@@ -1138,6 +1138,8 @@ function onEvent(e){
   }
   // Final per-player snapshot at game end — running totals already reflect it.
   if(e.key==='player_final_stats') return;
+  // Clock start/stop drives the local clock; it isn't a play.
+  if(e.key==='clock'){ BBclockFromEvent(e); return; }
 
   // Scorer sends no player id, so match on jersey number.
   const p = e.pid ? findP(e.pid,s) : PL[s].find(x=>String(x.num)===String(e.pnum));
@@ -2514,6 +2516,7 @@ function fbAccumulate(e){
 function fbOnEvent(e){
   const n=e.notes||{};
   if(e.key==='roster_set' || e.key==='player_final_stats') return;
+  if(e.key==='clock'){ FBclockFromEvent(e); return; }   // state, not a play
   if(n.poss) FB.poss=n.poss;
   if(n.down!=null) FB.down=n.down;
   if(n.distance!=null) FB.distance=n.distance;
@@ -3352,6 +3355,26 @@ function fdTickPens(){
   });
   fdUpdPens();
 }
+
+// Basketball and football send raw clock state in every event's notes now, so
+// their views can run the clock between plays instead of freezing.
+let BBclk=null, FBclk=null;
+function BBclockFromEvent(e){
+  const n=e.notes||{};
+  if(typeof n.clk_secs==='number') BBclk={secs:n.clk_secs, run:!!n.clk_run, at:Date.now()};
+}
+function FBclockFromEvent(e){
+  const n=e.notes||{};
+  if(typeof n.clk_secs==='number') FBclk={secs:n.clk_secs, run:!!n.clk_run, at:Date.now()};
+}
+function tickOne(state, elId){
+  if(!state) return;
+  const el=document.getElementById(elId); if(!el) return;
+  const secs = state.run ? Math.max(0, state.secs-(Date.now()-state.at)/1000) : state.secs;
+  el.textContent = `${Math.floor(secs/60)}:${String(Math.floor(secs%60)).padStart(2,'0')}`;
+  el.style.opacity = state.run ? '1' : '.62';
+}
+setInterval(()=>{ tickOne(BBclk,'fan-clock'); tickOne(FBclk,'fb-clock'); }, 1000);
 
 function fdTickClock(){
   fdTickPens();

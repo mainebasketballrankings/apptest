@@ -1468,7 +1468,37 @@
     } else {
       el._mbrClk = null;
     }
-    if (el._mbrClk) tickCardClock(el);
+    if (el._mbrClk) { ensureClockSpan(el); tickCardClock(el); }
+  }
+
+  // The shared module writes its own markup, so there's no .bug-clk to update.
+  // Find whatever child reads like a clock and tag it once.
+  function ensureClockSpan(el){
+    if (el.querySelector('.bug-clk')) return true;
+    const kids = el.querySelectorAll('span');
+    for (const k of kids) {
+      if (/^\s*\d{1,2}:\d{2}\s*$/.test(k.textContent || '')) { k.classList.add('bug-clk'); return true; }
+    }
+    return false;
+  }
+
+  // Football scoreboards always show who has the ball; the card had no way to
+  // tell. Appended rather than baked into the markup so it works whether we
+  // rendered the bug or the shared module did.
+  function addPossChip(el, sport, sn){
+    if (sport !== 'football') return;
+    const poss = sn && sn.poss;
+    if (!poss) return;
+    const abbr = (sn.shorts && sn.shorts[poss]) || (poss === 'home' ? 'HOME' : 'AWAY');
+    // Clear every existing chip, not just the first — innerHTML normally wipes
+    // them anyway, but if a render path ever appends without rewriting, a stale
+    // chip would sit in front of the live one and show the wrong team.
+    el.querySelectorAll('.bug-poss').forEach(c => c.remove());
+    const chip = document.createElement('span');
+    chip.className = 'bug-poss';
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:3px;font-weight:700';
+    chip.innerHTML = `<span style="font-size:11px">\u{1F3C8}</span>${abbr}`;
+    el.appendChild(chip);
   }
 
   function tickCardClock(el){
@@ -1520,7 +1550,11 @@
     // below it, so the grid never drew no matter where it sat in this function.
     if (renderShootoutBug(topLeftEl, sn)) return;
 
-    if (window.MBRScoreboard && MBRScoreboard.scoreBug(topLeftEl, se, sport, { fmtClock, periodLabel })) return;
+    if (window.MBRScoreboard && MBRScoreboard.scoreBug(topLeftEl, se, sport, { fmtClock, periodLabel })) {
+      seedCardClock(topLeftEl, se, sn);          // still run the clock locally
+      addPossChip(topLeftEl, sport, sn);         // …and show who has the ball
+      return;
+    }
 
     // Football: clock + down & distance. Never bases and outs.
     if (sport === 'football') {
@@ -1534,6 +1568,7 @@
         (dd ? `<span style="opacity:.75">${dd}</span>` : '') +
         (spot ? `<span style="opacity:.55">${spot}</span>` : '');
       seedCardClock(topLeftEl, se, sn);
+      addPossChip(topLeftEl, sport, sn);
       return;
     }
     // Soccer / field hockey / lacrosse: clock + period.

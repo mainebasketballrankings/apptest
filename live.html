@@ -3361,12 +3361,22 @@ function fdTickPens(){
 // Basketball and football send raw clock state in every event's notes now, so
 // their views can run the clock between plays instead of freezing.
 let BBclk=null, FBclk=null;
+// notes arrives PARSED in some handlers and as a raw JSON string in others
+// (basketball's onEvent does its own JSON.parse), so normalise before reading —
+// reading .clk_secs off a string silently yields undefined and the clock stays
+// dead with no error to show for it.
+function clkNotes(e){
+  const n=e && e.notes;
+  if(!n) return {};
+  if(typeof n === 'string'){ try{ return JSON.parse(n); }catch(_){ return {}; } }
+  return n;
+}
 function BBclockFromEvent(e){
-  const n=e.notes||{};
+  const n=clkNotes(e);
   if(typeof n.clk_secs==='number') BBclk={secs:n.clk_secs, run:!!n.clk_run, at:Date.now()};
 }
 function FBclockFromEvent(e){
-  const n=e.notes||{};
+  const n=clkNotes(e);
   if(typeof n.clk_secs==='number') FBclk={secs:n.clk_secs, run:!!n.clk_run, at:Date.now()};
 }
 function tickOne(state, elId){

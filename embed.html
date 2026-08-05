@@ -1446,6 +1446,22 @@
   // Cards only re-render when an event arrives, so between events the clock sat
   // frozen — and a stoppage isn't visible at all. Extrapolate from the last
   // known state each second; every incoming event resyncs it.
+  // Stash the raw clock state so the interval can keep it moving. Only RESET on
+  // a genuinely new event: the board re-runs this every poll with the same last
+  // event, so reseeding unconditionally made the clock count down and then snap
+  // back to where that event left it, over and over.
+  function seedCardClock(el, se, sn){
+    if (sn && typeof sn.clk_secs === 'number') {
+      const key = se.id || se.created_at || '';
+      if (!el._mbrClk || el._mbrClk.key !== key) {
+        el._mbrClk = { key, secs: sn.clk_secs, run: !!sn.clk_run, at: Date.now() };
+      }
+    } else {
+      el._mbrClk = null;
+    }
+    if (el._mbrClk) tickCardClock(el);
+  }
+
   function tickCardClock(el){
     const c = el && el._mbrClk; if (!c) return;
     const span = el.querySelector('.bug-clk'); if (!span) return;
@@ -1505,9 +1521,10 @@
       const spot= sn && sn.spot ? sn.spot : '';
       topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap';
       topLeftEl.innerHTML =
-        `<span style="font-weight:700">${qtr}</span>${clk?`<span>${clk}</span>`:''}` +
+        `<span style="font-weight:700">${qtr}</span>${clk?`<span class="bug-clk">${clk}</span>`:''}` +
         (dd ? `<span style="opacity:.75">${dd}</span>` : '') +
         (spot ? `<span style="opacity:.55">${spot}</span>` : '');
+      seedCardClock(topLeftEl, se, sn);
       return;
     }
     // Soccer / field hockey / lacrosse: clock + period.
@@ -1521,28 +1538,15 @@
       topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
       topLeftEl.innerHTML = `<span style="font-weight:700">${per}</span>`
         + (clk ? `<span class="bug-clk">${clk}</span>` : '');
-      // Stash the raw clock state so the interval below can keep it moving.
-      //
-      // Only RESET it when the source event actually changes. The board re-runs
-      // this on every poll with the same last event, so unconditionally
-      // reseeding meant the clock counted down, then snapped back to whatever
-      // it read when that event happened, then counted down again.
-      if (sn && typeof sn.clk_secs === 'number') {
-        const key = se.id || se.created_at || '';
-        const cur = topLeftEl._mbrClk;
-        if (!cur || cur.key !== key) {
-          topLeftEl._mbrClk = { key, secs: sn.clk_secs, run: !!sn.clk_run, at: Date.now() };
-        }
-      } else {
-        topLeftEl._mbrClk = null;
-      }
-      if (topLeftEl._mbrClk) tickCardClock(topLeftEl);
+      seedCardClock(topLeftEl, se, sn);
       return;
     }
     if (sport === 'basketball') {
       const clk = fmtClock(se.clock_seconds);
       topLeftEl.style.cssText = 'display:flex;align-items:center;gap:6px';
-      topLeftEl.innerHTML = `<span style="font-weight:700">${periodLabel(se.period)}</span>${clk?`<span>${clk}</span>`:''}`;
+      topLeftEl.innerHTML = `<span style="font-weight:700">${periodLabel(se.period)}</span>`
+        + (clk ? `<span class="bug-clk">${clk}</span>` : '');
+      seedCardClock(topLeftEl, se, sn);   // only the field branch had this
       return;
     }
     let { half: dispHalf, inning: dispInn = 1, outs: dispOuts = 0 } = se;

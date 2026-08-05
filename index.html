@@ -1438,7 +1438,16 @@
     if (sn && typeof sn.clk_secs === 'number') {
       const key = se.id || se.created_at || '';
       if (!el._mbrClk || el._mbrClk.key !== key) {
-        el._mbrClk = { key, secs: sn.clk_secs, run: !!sn.clk_run, at: Date.now() };
+        // The board polls every 30s, so by the time we see an event it can
+        // already be half a minute old. Seeding straight from clk_secs made the
+        // card run that far behind the gym clock — age the reading by how long
+        // ago the event was actually recorded.
+        let secs = sn.clk_secs;
+        if (sn.clk_run && se.created_at) {
+          const age = (Date.now() - new Date(se.created_at).getTime()) / 1000;
+          if (age > 0 && age < 600) secs = Math.max(0, secs - age);   // ignore nonsense clock skew
+        }
+        el._mbrClk = { key, secs, run: !!sn.clk_run, at: Date.now() };
       }
     } else {
       el._mbrClk = null;

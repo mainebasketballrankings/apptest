@@ -1138,8 +1138,9 @@ function onEvent(e){
   }
   // Final per-player snapshot at game end — running totals already reflect it.
   if(e.key==='player_final_stats') return;
+  BBclockFromEvent(e);                      // every event carries clock state
   // Clock start/stop drives the local clock; it isn't a play.
-  if(e.key==='clock'){ BBclockFromEvent(e); return; }
+  if(e.key==='clock') return;
 
   // Scorer sends no player id, so match on jersey number.
   const p = e.pid ? findP(e.pid,s) : PL[s].find(x=>String(x.num)===String(e.pnum));
@@ -2516,7 +2517,8 @@ function fbAccumulate(e){
 function fbOnEvent(e){
   const n=e.notes||{};
   if(e.key==='roster_set' || e.key==='player_final_stats') return;
-  if(e.key==='clock'){ FBclockFromEvent(e); return; }   // state, not a play
+  FBclockFromEvent(e);                                   // every event carries it
+  if(e.key==='clock') return;                            // state, not a play
   if(n.poss) FB.poss=n.poss;
   if(n.down!=null) FB.down=n.down;
   if(n.distance!=null) FB.distance=n.distance;

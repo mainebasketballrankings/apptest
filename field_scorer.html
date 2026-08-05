@@ -707,7 +707,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-08-04e';
+const MBR_BUILD='fs-2026-08-04f';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -1982,18 +1982,25 @@ function applyClkEdit(){
   // Timed penalties run off the game clock. Winding the clock back 30 seconds
   // means those 30 seconds haven't been served, so give them back — and taking
   // time off the clock takes it off the penalty too.
-  const delta = was - GAME.clockSec;          // >0 = clock wound BACK
-  if(delta !== 0) shiftPenalties(delta);
+  // The clock counts DOWN, so (was - now) is the time that just ELAPSED.
+  //   11:00 -> 9:00  : was 660, now 540, elapsed +120  (game moved forward)
+  //   10:30 -> 11:00 : was 630, now 660, elapsed -30   (clock wound back)
+  const elapsed = was - GAME.clockSec;
+  if(elapsed !== 0) shiftPenalties(elapsed);
   closeModal('clk-edit'); updClk(); pushClockState(); scheduleSave();
 }
 
-// delta > 0: the clock was wound back, so penalties gain that time back.
-// delta < 0: the clock was advanced, so penalties are served down.
-function shiftPenalties(delta){
+// Penalties are SERVED by elapsed time, so they count down by however much the
+// clock moved forward — and get time back if it was wound backwards.
+//   elapsed > 0 : game moved forward, penalty serves down
+//   elapsed < 0 : clock wound back, penalty gets time back
+// (I had this inverted first time out: taking 2:00 off the clock turned a
+// 1:00 penalty into a 3:00 one instead of expiring it.)
+function shiftPenalties(elapsed){
   ['home','away'].forEach(side=>{
     GAME[side].pens.forEach(pn=>{
       if(pn.perm) return;
-      pn.secs = Math.max(0, pn.secs + delta);
+      pn.secs = Math.max(0, pn.secs - elapsed);
     });
     GAME[side].pens = GAME[side].pens.filter(pn=>pn.perm || pn.secs>0);
   });

@@ -665,6 +665,14 @@ body{
 
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* A long press on a player card opens the sub sheet, but iOS also fires its
+   text-selection callout ("Copy / Look Up / Translate") on top of it. */
+.pcard, .pcard *, .sub-row, .sub-row *, #sub-modal, #sub-modal *,
+.mh, .modal .mh, #clock-btn, #pdisplay{
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+}
+.modal input, .modal select{ -webkit-user-select:text; user-select:text; }
 </style>
 </head>
 <body>
@@ -835,6 +843,7 @@ body{
       <button class="cbtn" onclick="genCoachPDF()">📋 COACH PDF</button>
       <button class="cbtn" onclick="toggleLog()">LOG ▾</button>
       <button class="cbtn" onclick="openBoxScore()">BOX ▾</button>
+      <button class="cbtn" onclick="leaveToHome()" title="Leave without ending the game">&lsaquo; ALL SPORTS</button>
     </div>
     <button id="chart-side-toggle" onclick="toggleChartSide()">🔄 <span id="chart-side-lbl">HOME shots</span></button>
 
@@ -1145,7 +1154,7 @@ const SWPX=28;
 let BASKETBALL_SPORT_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const BASKETBALL_PREFIX = 'b31ab283';
 
-const MBR_BUILD='bb-2026-08-04a';
+const MBR_BUILD='bb-2026-08-04d';
 
 // ── Shared plumbing (mbr-core.js) ───────────────────────────────────────────
 // Supabase transport, offline queue, school lookup, team resolution, unscheduled
@@ -1292,9 +1301,20 @@ function pushClockState(){
   if(st===_lastClkState) return;
   _lastClkState=st;
   sbPatch('games','id=eq.'+G_game_id,{ game_clock: gameClockLabel() }).catch(()=>{});
-  pushEvt({side:GAME.possession||'home', pid:null, key:'clock',
-           period:GAME.period, clk:GAME.clockSec,
-           label:GAME.running?'Clock started':'Clock stopped'});
+  // NB: this scorer's pushEvt takes POSITIONAL args (p, side, key, pt, three).
+  // Passing an object put undefined in event_type, which the enum rejected —
+  // that was the "5 rejected" and the blank rows in the event log.
+  //
+  // We also don't want a clock tick in the local event log or the undo stack:
+  // it's state, not a play. So build the row and hand it straight to the
+  // pusher, bypassing evts entirely.
+  sbPushEvent({
+    id:'clk_'+Date.now(),
+    side:GAME.possession||'home',
+    key:'clock', period:GAME.period, clk:GAME.clockSec,
+    pts:0, three:false, pt:null,
+    hScore:GAME.home.score, aScore:GAME.away.score,
+  });
 }
 
 // The score is PATCHed straight to the games row rather than queued, so a patch
@@ -1789,7 +1809,13 @@ function mkCard(p,side){
     if(holdTmr){clearTimeout(holdTmr);holdTmr=null;selPlayer(p,side);}
   });
   div.addEventListener('pointerdown',()=>{
-    holdTmr=setTimeout(()=>{holdTmr=null;openSub(p,side);},600);
+    holdTmr=setTimeout(()=>{
+      holdTmr=null;
+      // iOS starts a text selection during the hold; clear it before the sheet
+      // opens or the callout bar lands on top of the modal.
+      try{ const sel=window.getSelection&&window.getSelection(); if(sel&&sel.removeAllRanges) sel.removeAllRanges(); }catch(_){}
+      openSub(p,side);
+    },600);
   });
   ['pointerleave','pointercancel'].forEach(ev=>
     div.addEventListener(ev,()=>{if(holdTmr){clearTimeout(holdTmr);holdTmr=null;}})
@@ -1883,10 +1909,6 @@ function doStat(def){
     updFoulsDisplay(side);
     const opp=side==='home'?'away':'home';
     updFoulsDisplay(opp);
-    if(!isTeam && p && p.fouls===FOUL_LIMIT){
-      flash(`#${p.num} ${pName(p)} FOULED OUT`,'bad');
-      if(p.on) setTimeout(()=>{ try{ openSub(p, side); }catch(e){} }, 500);
-    }
   }
   if(def.key==='timeout_full'&&GAME[side].tof>0){GAME[side].tof--;document.getElementById(`${side}-tof`).textContent=GAME[side].tof;}
   if(def.key==='timeout_30sec'&&GAME[side].to3>0){GAME[side].to3--;document.getElementById(`${side}-to3`).textContent=GAME[side].to3;}
@@ -1895,6 +1917,20 @@ function doStat(def){
     if(GAME.running){clearInterval(clkInt);GAME.running=false;updClk();}
   }
   pushEvt(p,side,def.key,null,null);
+  // Disqualification check runs AFTER the event is recorded, because techCount()
+  // reads the event stack — checking first meant the deciding foul wasn't there
+  // yet and a second technical never triggered anything.
+  if(def.key.startsWith('foul_') && !isTeam && p){
+    const tech = techCount(p);
+    const justDQ = (p.fouls===FOUL_LIMIT) || (tech===TECH_LIMIT);
+    if(justDQ){
+      const why = tech>=TECH_LIMIT
+        ? `EJECTED \u2014 ${tech} ${tech===1?'technical':'technicals/flagrants'}`
+        : 'FOULED OUT';
+      flash(`#${p.num} ${pName(p)} ${why}`,'bad');
+      if(p.on) setTimeout(()=>{ try{ openSub(p, side); }catch(e){} }, 500);
+    }
+  }
   // Offensive foul automatically generates a turnover on the same player
   if(def.key==='foul_offensive'&&p){
     pushEvt(p,side,'turnover',null,null);
@@ -2363,7 +2399,22 @@ function closeBoxScore(){document.getElementById('bs-modal').classList.remove('s
 
 // ══ SUB ═══════════════════════════════════════
 const FOUL_LIMIT = 5;                      // NFHS: 5 personal fouls and you're out
-function isFouledOut(p){ return !!p && (p.fouls||0) >= FOUL_LIMIT; }
+const TECH_LIMIT = 2;                      // …and 2 technicals is an ejection
+// Technicals are counted separately: they also count toward the 5, but two of
+// them alone disqualifies a player who has only those two fouls.
+function techCount(p){
+  if(!p) return 0;
+  return evts.filter(e=>e.pid===p.id && (e.key==='foul_technical'||e.key==='foul_flagrant')).length;
+}
+function isFouledOut(p){
+  if(!p) return false;
+  return (p.fouls||0) >= FOUL_LIMIT || techCount(p) >= TECH_LIMIT;
+}
+function dqReason(p){
+  if(!p) return '';
+  if(techCount(p) >= TECH_LIMIT) return 'EJECTED';
+  return 'FOULED OUT';
+}
 
 function openSub(p,side){
   const all=PL[side].filter(x=>!x.on).slice().sort((a,b)=>(parseInt(a.num)||0)-(parseInt(b.num)||0));
@@ -2389,14 +2440,14 @@ function openSub(p,side){
     row.style.opacity='.45'; row.style.cursor='not-allowed';
     row.innerHTML=`<div class="sub-num" style="color:var(--dim)">${bp.num}</div>`
       + `<div><div class="sub-name">${pName(bp)}</div>`
-      + `<div class="sub-sm" style="color:var(--al)">FOULED OUT · ${bp.fouls} fls</div></div>`;
+      + `<div class="sub-sm" style="color:var(--al)">${dqReason(bp)} · ${bp.fouls} fls</div></div>`;
     list.appendChild(row);
   });
   document.getElementById('sub-modal').classList.add('show');
 }
 function doSub(inc){
   if(!subTgt)return;
-  if(isFouledOut(inc)){ flash(pName(inc)+' has fouled out','bad'); return; }
+  if(isFouledOut(inc)){ flash(`${pName(inc)} — ${dqReason(inc).toLowerCase()}`,'bad'); return; }
   const{p:out,side}=subTgt;
   out.on=false;inc.on=true;
   pushEvt(out,side,'sub_out',null,null);

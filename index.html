@@ -265,6 +265,16 @@
       text-align: center;
       padding: 0 6px;
     }
+    /* Runs a size down for every sport so the label can't wrap to a second line
+       and crowd the score bug. Football additionally drops the gender. */
+    .card-top-center.is-compact {
+      font-size: 9px;
+      letter-spacing: .6px;
+      opacity: .8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .card-top > :last-child {
       display: flex;
       justify-content: flex-end;
@@ -1514,15 +1524,30 @@
     const poss = sn.poss;
     const pAb  = poss ? ((sn.shorts && sn.shorts[poss]) || (poss === 'home' ? 'HOME' : 'AWAY')) : '';
 
-    const line2 = [dd, spot ? `at ${spot}` : ''].filter(Boolean).join(' ');
-    el.style.cssText = 'display:flex;flex-direction:column;gap:1px;line-height:1.25';
+    // The card-top sets 10px + 1.2px letter-spacing + uppercase, which is why
+    // this wrapped on a narrow card: the second line inherited all of that, and
+    // an 11px override actually made it LARGER than the line above. Drop it to
+    // 9px, kill the tracking and the uppercasing, and never let either line
+    // wrap — a wrapped score bug is worse than a truncated one.
+    // Order matters: whatever overflows gets ellipsised off the END, so put the
+    // items in descending importance. Possession first (a clipped "ZT" tells you
+    // nothing), then down & distance, then field position — which is the piece
+    // you can most afford to lose at a glance.
+    const line2 = [pAb ? `\u{1F3C8}\u2009${pAb}` : '', dd, spot].filter(Boolean).join(' \u00b7 ');
+    // min-width:0 + overflow:hidden so a long abbreviation clips instead of
+    // shoving into the CLASS label beside it on a narrow card.
+    el.style.cssText = 'display:flex;flex-direction:column;gap:0;line-height:1.3;'
+                     + 'min-width:0;overflow:hidden';
     el.innerHTML =
-      `<span style="display:flex;align-items:center;gap:5px">`
+      `<span style="display:flex;align-items:center;gap:4px;white-space:nowrap;`
+      + `min-width:0;overflow:hidden;text-overflow:ellipsis">`
       +   `<span style="font-weight:700">${qtr}</span>`
       +   (clk ? `<span class="bug-clk">${clk}</span>` : '')
-      +   (pAb ? `<span style="opacity:.85">\u{1F3C8}\u2009${pAb}</span>` : '')
       + `</span>`
-      + (line2 ? `<span style="opacity:.6;font-size:11px">${line2}</span>` : '');
+      + (line2
+          ? `<span style="opacity:.62;font-size:9px;letter-spacing:.3px;text-transform:none;`
+            + `white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${line2}</span>`
+          : '');
     seedCardClock(el, se, sn);
     return true;
   }
@@ -1978,7 +2003,13 @@
     const awayCls = getAwayClass(g);
     const crossCls = homeCls !== awayCls;
     const clsLabel = crossCls ? 'Cross-class' : `Class ${homeCls}`;
-    const topLabel = g.event || `${clsLabel} · ${home.gender}`;
+    // Football is boys-only, so "· Boys" tells you nothing — drop it there. Every
+    // other sport keeps the gender, since it's the only thing separating the
+    // boys' and girls' games between the same two schools. The label runs a size
+    // down for all of them either way: at full size it wraps to a second line on
+    // a narrow card and steals room from the score bug.
+    const _fb = ((g._sport || sport) === 'football');   // card() gets sport explicitly too
+    const topLabel = g.event || (_fb ? clsLabel : `${clsLabel} · ${home.gender}`);
     const isFinal = g.status === 'final';
     const isLive  = g.status === 'active';
     const isPPD   = g.status === 'postponed';
@@ -2016,12 +2047,12 @@
       ? `<button class="submit-btn-inline" data-id="${g.id}">${isFinal ? 'Edit' : isLive ? 'Update' : 'Submit'}</button>`
       : `<span></span>`;
     const topBar = isFinal
-      ? `<div class="card-top"><span>Final</span><span class="card-top-center">${topLabel}</span>${submitBtnTop}</div>`
+      ? `<div class="card-top"><span>Final</span><span class="card-top-center is-compact">${topLabel}</span>${submitBtnTop}</div>`
       : isLive
-        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock ? g.game_clock : 'Live'}</span><span class="card-top-center">${topLabel}</span>${submitBtnTop}</div>`
+        ? `<div class="card-top" style="color:#22a863"><span><span class="live-dot"></span>${g.game_clock ? g.game_clock : 'Live'}</span><span class="card-top-center is-compact">${topLabel}</span>${submitBtnTop}</div>`
         : isPPD
           ? `<div class="card-top" style="color:#c0392b"><span>Postponed</span><span class="card-top-center" style="display:flex;align-items:center;gap:6px">${topLabel} <span class="ppd-badge">${ppdLabel}</span></span><span></span></div>`
-          : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center">${topLabel}</span>${submitBtnTop}</div>`;
+          : `<div class="card-top"><span>${g.game_time ? fmtTime(g.game_time) : 'Scheduled'}</span><span class="card-top-center is-compact">${topLabel}</span>${submitBtnTop}</div>`;
 
     // Score cells
     const gamePageUrl = `game.html?game_id=${g.id}`;

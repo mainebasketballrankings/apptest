@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- This page exists to be iframed into Ghost. It should never rank on its
+     own — the Ghost post is the real destination — so keep it out of the
+     index entirely rather than letting it duplicate that post. -->
+<meta name="robots" content="noindex,follow" />
 <!-- Open Graph -->
 <meta property="og:site_name" content="Maine Basketball Rankings" />
 <meta property="og:title" content="Scoreboard — Maine Basketball Rankings" />

@@ -4,6 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+<!-- ── Canonical ──────────────────────────────────────────────────────────
+     This page IS its parameter — one team_id per document — so the canonical
+     carries it. Everything else (Ghost's ?ref=, stray fragments) is dropped,
+     which is what collapses the duplicate reports.
+
+     Googlebot also speculatively crawls URL-shaped strings it finds in
+     JavaScript, which is where the malformed ids came from
+     (…c4ca66c4cac9:1004:1:392:27, and one literal team_id=${away.id}). Those
+     render empty and get logged as soft 404s. When the parameter doesn't match
+     the expected shape we mark the page noindex, so the crawler stops returning
+     to a URL that was never real. -->
+<link rel="canonical" href="https://app.mainebasketballrankings.com/team.html" id="mbr-canonical" />
+<script>
+(function(){
+  var v = new URLSearchParams(location.search).get('team_id');
+  var link = document.getElementById('mbr-canonical');
+  if (v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) {
+    link.href = 'https://app.mainebasketballrankings.com/team.html?team_id=' + encodeURIComponent(v);
+  } else if (v) {
+    var m = document.createElement('meta');
+    m.name = 'robots'; m.content = 'noindex,follow';
+    document.head.appendChild(m);
+  }
+})();
+</script>
+
+
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
 <script>

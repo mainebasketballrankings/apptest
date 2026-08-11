@@ -29,7 +29,7 @@
    deliberate: it keeps this first step a pure move, not a rewrite.
 
    CACHE NOTE: bump the ?v= query string when this file changes, or the service
-   worker may serve a stale copy. This revision is v=12.
+   worker may serve a stale copy. This revision is v=13.
 
    NATIVE (Capacitor): sign-in opens in the system browser and returns through
    the custom scheme in NATIVE_REDIRECT, and the push queue and auth session are
@@ -251,9 +251,11 @@
 
   // Split out so it can be tested, and so a caller can render it as a link
   // rather than a redirect if that suits the UI better.
-  function authUrl(returnTo) {
+  function authUrl(returnTo, provider) {
     const back = returnTo || (global.location ? location.href.split('#')[0] : '');
-    return `${SB_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(back)}`;
+    const p = provider || 'google';
+    return `${SB_URL}/auth/v1/authorize?provider=${encodeURIComponent(p)}`
+         + `&redirect_to=${encodeURIComponent(back)}`;
   }
   // ── Native sign-in ───────────────────────────────────────────────────────
   // Google refuses OAuth inside an embedded webview and fails with
@@ -282,16 +284,100 @@
     return true;
   }
 
-  function signInWithGoogle(returnTo) {
+  // Apple require an equivalent privacy-preserving login wherever a third-party
+  // one is offered (guideline 4.8), so Google alone isn't shippable. Both go
+  // through the same path — only the provider string differs.
+  function signIn(provider, returnTo) {
     if (NATIVE) {
-      const url = authUrl(NATIVE_REDIRECT);
+      const url = authUrl(NATIVE_REDIRECT, provider);
       const B = capPlugin('Browser');
       if (B) { B.open({ url, presentationStyle: 'popover' }); return; }
       try { global.open(url, '_system'); } catch (e) { location.href = url; }
       return;
     }
-    location.href = authUrl(returnTo);
+    location.href = authUrl(returnTo, provider);
   }
+  function signInWithGoogle(returnTo) { signIn('google', returnTo); }
+  function signInWithApple(returnTo)  { signIn('apple',  returnTo); }
+
+  // ── Sign-in sheet ────────────────────────────────────────────────────────
+  // One place for the provider buttons, because Apple has rules about how their
+  // button may look and how prominent it has to be, and duplicating that across
+  // five files is how it drifts out of compliance.
+  //
+  // Apple 4.8: where a third-party login is offered, an equivalent
+  // privacy-preserving option must be offered too — and their button must be
+  // no less prominent. So Apple sits first, same width, same weight.
+  const APPLE_LOGO =
+    '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" style="margin-top:-2px">'
+    + '<path fill="currentColor" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35'
+    + 'C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8'
+    + '-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25'
+    + '.29 2.58-2.34 4.5-3.74 4.25z"/></svg>';
+  const GOOGLE_LOGO =
+    '<svg viewBox="0 0 48 48" width="17" height="17" aria-hidden="true">'
+    + '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>'
+    + '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>'
+    + '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>'
+    + '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+
+  function closeSignInSheet(){
+    const el = document.getElementById('mbr-signin-sheet');
+    if (el) el.remove();
+  }
+
+  // opts: { returnTo, before, title, note }
+  //   before — run just before we navigate away (e.g. stash unsaved setup)
+  function signInSheet(opts) {
+    const o = opts || {};
+    closeSignInSheet();
+    const back = o.returnTo || (global.location ? location.href.split('#')[0] : '');
+
+    const wrap = document.createElement('div');
+    wrap.id = 'mbr-signin-sheet';
+    wrap.style.cssText =
+      'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;'
+      + 'background:rgba(15,17,23,.62);padding:18px;'
+      + '-webkit-user-select:none;user-select:none;';
+    wrap.innerHTML =
+      `<div style="background:#fff;border-radius:14px;padding:20px 18px 14px;max-width:340px;width:100%;
+                   font-family:'Barlow',system-ui,sans-serif;color:#0f1117;
+                   box-shadow:0 10px 40px rgba(0,0,0,.3)">
+         <div style="font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:19px;
+                     text-align:center;margin-bottom:6px">${o.title || 'Sign in'}</div>
+         <div style="font-size:13px;line-height:1.5;color:#6b7280;text-align:center;margin-bottom:16px">
+           ${o.note || 'Save your teams and rosters so you\u2019re not retyping a lineup before every game.'}
+         </div>
+
+         <button id="mbr-si-apple" style="width:100%;height:46px;border:none;border-radius:9px;
+           background:#000;color:#fff;font-size:16px;font-weight:600;cursor:pointer;
+           display:flex;align-items:center;justify-content:center;gap:7px;
+           font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+           ${APPLE_LOGO}<span>Sign in with Apple</span></button>
+
+         <button id="mbr-si-google" style="width:100%;height:46px;margin-top:10px;border:1px solid #dadce0;
+           border-radius:9px;background:#fff;color:#3c4043;font-size:16px;font-weight:600;cursor:pointer;
+           display:flex;align-items:center;justify-content:center;gap:9px;
+           font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+           ${GOOGLE_LOGO}<span>Sign in with Google</span></button>
+
+         <button id="mbr-si-cancel" style="width:100%;margin-top:12px;padding:8px;border:none;
+           background:transparent;color:#6b7280;font-size:13px;cursor:pointer;
+           font-family:'Barlow',sans-serif">Not now</button>
+       </div>`;
+    document.body.appendChild(wrap);
+
+    const go = (provider) => {
+      try { if (typeof o.before === 'function') o.before(); } catch (e) {}
+      closeSignInSheet();
+      signIn(provider, back);
+    };
+    document.getElementById('mbr-si-apple').onclick  = () => go('apple');
+    document.getElementById('mbr-si-google').onclick = () => go('google');
+    document.getElementById('mbr-si-cancel').onclick = closeSignInSheet;
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) closeSignInSheet(); });
+  }
+  function signInWithApple(returnTo)  { signIn('apple',  returnTo); }
   function signOut() { sessionSave(null); }
   function isSignedIn() { return !!sessionLoad(); }
 
@@ -307,8 +393,20 @@
       });
       if (!r.ok) { if (r.status === 401) sessionSave(null); return null; }
       const u = await r.json();
+      const meta = u.user_metadata || {};
+      // Which provider they used. Supabase reports it on the identity; fall back
+      // to app_metadata for older sessions.
+      const prov = (Array.isArray(u.identities) && u.identities.length
+                     ? u.identities[u.identities.length - 1].provider
+                     : (u.app_metadata && u.app_metadata.provider)) || null;
+      // Apple's "Hide My Email" hands back a privaterelay.appleid.com address.
+      // It's a real, stable, deliverable address — but it is NOT the person's
+      // actual email, so it will never match their Google identity. Anything
+      // that reconciles accounts by email has to know the difference.
+      const relay = !!(u.email && /@privaterelay\.appleid\.com$/i.test(u.email));
       _me = { id: u.id, email: u.email,
-              name: (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email };
+              name: meta.full_name || meta.name || (relay ? 'Apple user' : u.email),
+              provider: prov, privateRelay: relay };
       return _me;
     } catch (e) { return null; }
   }
@@ -945,7 +1043,7 @@
     NATIVE, NATIVE_REDIRECT, captureFromUrl,
     loadSchools, schoolIds, createGame, resolveTeamId, createTeam, resolveOrCreateTeamId,
     listMyTeams, saveTeamRoster, myTeamsAll, myGames, deleteGame, deleteTeam,
-    signInWithGoogle, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
+    signInWithGoogle, signInWithApple, signIn, signInSheet, closeSignInSheet, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
     clamp, keepAwake, saveFile, initStatusBar, queueShare,
     localMode, setLocalMode, applyLocalMode,

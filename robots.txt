@@ -1,0 +1,41 @@
+# app.mainebasketballrankings.com
+#
+# The problem this solves: Googlebot extracts URL-shaped strings out of
+# JavaScript and crawls them speculatively. It found things like
+#   team_embed.html?team_id=${away.id}
+#   team.html?team_id=<uuid>:1004:1:392:27:324:48
+# in the page source and fetched them. They render empty, get logged as soft
+# 404s, and — the part that actually matters — burn crawl budget on a subdomain
+# that has very little to spare. That budget is why 1,000 real ranking pages sat
+# at "Discovered – currently not indexed".
+
+User-agent: *
+
+# Embed pages exist to be iframed into Ghost. The Ghost post is the real
+# destination; these should never compete with it in search.
+Disallow: /embed.html
+Disallow: /team_embed.html
+Disallow: /heals_embed.html
+Disallow: /spreads_embed.html
+Disallow: /matchup_embed.html
+Disallow: /game_embed.html
+Disallow: /tourney_embed.html
+Disallow: /summer_embed.html
+Disallow: /roster-submit_embed.html
+
+# Tools, not content.
+Disallow: /scorer.html
+Disallow: /field_scorer.html
+Disallow: /football_scorer.html
+Disallow: /baseball_scorer.html
+Disallow: /home.html
+Disallow: /admin.html
+Disallow: /my_games.html
+Disallow: /boxscore-import.html
+
+# Ghost's outbound link tracking. Canonicals already collapse these, but there's
+# no reason to spend a fetch discovering that.
+Disallow: /*?ref=
+Disallow: /*&ref=
+
+Sitemap: https://app.mainebasketballrankings.com/sitemap.xml

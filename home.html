@@ -309,7 +309,7 @@ body{
       <p>Sign in and your rosters are remembered, so you're not retyping a
          lineup before every game. Your stats follow the team all season.</p>
       <p class="dim">Optional — you can score without an account.</p>
-      <button class="btn-g" id="introSignIn">Sign in with Google</button>
+      <button class="btn-g" id="introSignIn">Sign in</button>
     </section>
 
     <div class="intro-nav">
@@ -322,7 +322,7 @@ body{
 
 <div class="toast" id="toast"></div>
 
-<script src="mbr-core.js?v=12" onerror="window.__coreMissing=true"></script>
+<script src="mbr-core.js?v=13" onerror="window.__coreMissing=true"></script>
 <script>
 const BUILD = 'home-2026-07-31a';
 
@@ -518,7 +518,7 @@ async function renderTeams(){
     slot.innerHTML = `
       <div class="empty" style="margin-bottom:10px">Sign in to save your own teams and rosters,
         so you don't retype a lineup every game.</div>
-      <button class="btn-g" id="siBtn">Sign in with Google</button>`;
+      <button class="btn-g" id="siBtn">Sign in</button>`;
     $('#siBtn').onclick = doSignIn;
     return;
   }
@@ -576,9 +576,14 @@ function wireAuth(){
 
 function doSignIn(){
   if(!hasCore()){ toast('Core module not loaded'); return; }
-  // NATIVE HOOK: under Capacitor this has to run through @capacitor/browser →
-  // ASWebAuthenticationSession. Google rejects OAuth inside a plain webview.
-  MBR.signInWithGoogle(location.href.split('#')[0]);
+  // Apple and Google both, via the shared sheet in mbr-core. Under Capacitor
+  // each opens in the system browser — Google rejects OAuth inside a plain
+  // webview, and Apple's flow expects the same.
+  MBR.signInSheet({
+    returnTo: location.href.split('#')[0],
+    title: 'Save your teams',
+    note : 'Your rosters and season stats follow your account \u2014 on this device and any other.'
+  });
 }
 function doSignOut(){
   if(!hasCore()) return;

@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- ── Canonical ──────────────────────────────────────────────────────────
+     Ghost appends ?ref=mainebasketballrankings.com to outbound links and the
+     filters here are client-side, so all those URLs are one document. Without
+     this Google treated them as duplicates and indexed none of them. -->
+<link rel="canonical" href="https://app.mainebasketballrankings.com/index.html" />
+
 <!-- Open Graph -->
 <meta property="og:site_name" content="Maine Basketball Rankings" />
 <meta property="og:title" content="Scoreboard — Maine Basketball Rankings" />

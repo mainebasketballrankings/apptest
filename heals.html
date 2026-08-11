@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- ── Canonical ──────────────────────────────────────────────────────────
+     Ghost appends ?ref=mainebasketballrankings.com to outbound links, and the
+     filters on this page are all client-side — so every one of those URLs is
+     the same document. Without this, Google saw them as duplicates and
+     indexed none of them confidently. -->
+<link rel="canonical" href="https://app.mainebasketballrankings.com/heals.html" />
+
 <!-- Open Graph -->
 <meta property="og:site_name" content="Maine Basketball Rankings" />
 <meta property="og:title" content="Heal Points — Maine Basketball Rankings" />

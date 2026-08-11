@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
-<script src="mbr-core.js?v=12"></script>
+<script src="mbr-core.js?v=13"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -3497,7 +3497,7 @@ function renderAuthLine(){
     el.innerHTML =
       `<button onclick="signInFromSetup()" style="padding:5px 11px;border:1px solid #1d4ed8;border-radius:6px;`
       +`background:#fff;color:#1d4ed8;font-weight:700;font-size:11px;cursor:pointer;`
-      +`font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">Sign in with Google</button>`
+      +`font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">Sign in</button>`
       +` <span style="color:var(--dim)">to reuse your saved teams</span>`;
     hideMyTeams();
     return;
@@ -3610,18 +3610,27 @@ function promptSignIn(teamName){
        <div style="font-weight:800;margin-bottom:4px">“${teamName}” isn't in the schedule</div>
        <div style="font-size:12px;line-height:1.5;color:#b9c8e8;margin-bottom:9px">
          Maine and master-schedule teams (including NH opponents) score without signing in. To add a team
-         that isn't in the database, sign in with Google so it's saved under your account. It stays private
+         that isn't in the database, sign in so it's saved under your account. It stays private
          to you and off the public rankings.</div>
        <button onclick="startSignIn()" style="width:100%;padding:10px;border:none;border-radius:7px;
          background:#fff;color:#1a1a1a;font-weight:800;font-size:14px;cursor:pointer;
          font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em">
-         Sign in with Google to add this team</button>
+         Sign in to add this team</button>
        <button onclick="document.getElementById('adhocStatus').textContent=''"
          style="width:100%;margin-top:6px;padding:8px;border:none;border-radius:7px;background:transparent;
          color:#8ea3c9;font-size:12px;cursor:pointer">Cancel — I'll fix the name</button>
      </div>`;
 }
-function startSignIn(){ stashSetup(); MBR.signInWithGoogle(location.href.split('#')[0]); }
+function startSignIn(){
+  // Both providers, in one sheet. Apple 4.8 requires the Apple option wherever
+  // Google is offered, and stashSetup() has to run before we navigate away
+  // either way — so it's passed in rather than called up front.
+  MBR.signInSheet({
+    returnTo: location.href.split('#')[0],
+    before  : stashSetup,
+    note    : 'Save your teams and rosters so you\u2019re not retyping a lineup before every game.'
+  });
+}
 
 function init(){
   // default date = today

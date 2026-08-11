@@ -4,6 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- ── Canonical ──────────────────────────────────────────────────────────
+     One game per document, so the canonical carries the id; anything else is
+     dropped. A malformed id means Googlebot scraped a URL-shaped string out of
+     our JavaScript rather than following a real link — mark those noindex so it
+     stops returning to a page that was never there. -->
+<link rel="canonical" href="https://app.mainebasketballrankings.com/live.html" id="mbr-canonical" />
+<script>
+(function(){
+  var v = new URLSearchParams(location.search).get('game_id');
+  var link = document.getElementById('mbr-canonical');
+  if (v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) link.href = 'https://app.mainebasketballrankings.com/live.html?game_id=' + encodeURIComponent(v);
+  else if (v) {
+    var m = document.createElement('meta');
+    m.name='robots'; m.content='noindex,follow';
+    document.head.appendChild(m);
+  }
+})();
+</script>
+
+
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
 <script>

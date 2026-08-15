@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="mbr-core.js?v=14"></script>
 <style>
 :root{
   --green:#1a7a4a; --green2:#22a863; --gold:#c8921a; --red:#c0392b;
@@ -55,8 +55,7 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--black);
 .row-name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:7px;}
 .row-meta{font-size:12px;color:var(--lgray);margin-top:2px;}
 
-.pin{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--gold);
-     border:1px solid var(--gold);border-radius:4px;padding:1px 4px;}
+.pin{color:var(--gold);font-size:15px;line-height:1;flex:0 0 auto;}
 
 /* The level control is the whole point: visible on the row, one tap to change.
    Buried in a settings screen it may as well not exist. */
@@ -109,6 +108,7 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--black);
 .sheet h3{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;}
 .sheet .sub{font-size:12px;color:var(--lgray);margin-bottom:16px;}
 .opt-group{margin-bottom:16px;}
+.opt-hint{font-size:12px;color:var(--lgray);margin-top:7px;}
 .opt-lbl{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;
          letter-spacing:.09em;text-transform:uppercase;color:var(--gray);margin-bottom:6px;}
 .opts{display:flex;gap:6px;flex-wrap:wrap;}
@@ -148,24 +148,24 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--black);
 
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
-const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
-const SB_KEY = window.MBR_ANON_KEY || '';   // injected by the app shell
-const sb = window.supabase && SB_KEY
-  ? supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'mbr-notify' } })
-  : null;
+// Transport comes from mbr-core: it already carries SB_URL/SB_KEY, refreshes the
+// session, and queues writes when offline. Creating a second Supabase client
+// here is what caused the GoTrueClient deadlock — two clients sharing one
+// storage key — so this page deliberately has none.
+const HAS_CORE = typeof MBR !== 'undefined' && typeof MBR.sbFetch === 'function';
 
-// The device id comes from registration (see device_tokens). Until the app
-// shell exists this page runs against sample data so the layout can be worked on.
-const DEVICE_ID = window.MBR_DEVICE_ID || null;
+// Set at registration (see device_tokens). Until the app shell exists, the page
+// falls back to sample data so the layout can be worked on in a browser.
+let DEVICE_ID = null;
 
 // short = the compact control on the row; label = the sheet, where there's room
 // to say what you actually get. "Live" meant nothing to anyone until it was
 // spelled out — it is NOT every basket, which would be ~120 pushes a game.
 const LEVELS = [
   { key:'off',         short:'OFF',   label:'Nothing — muted' },
-  { key:'final',       short:'FINAL', label:'Final score only' },
-  { key:'final_start', short:'START', label:'When the game starts, and the final' },
-  { key:'live',        short:'LIVE',  label:'Start, each quarter or half, and the final' },
+  { key:'final',       short:'FINAL', label:'Finals only' },
+  { key:'final_start', short:'START', label:'Starts + finals' },
+  { key:'live',        short:'LIVE',  label:'Starts, quarters + finals' },
 ];
 
 const EXPIRY_PRESETS = [
@@ -179,7 +179,8 @@ const EXPIRY_PRESETS = [
 let SUBS = [];
 // Sample until the nightly seed table exists; the real set comes from the
 // class+region cohort, recomputed after each final.
-let SEEDING = { on: true, teams: ['Erskine', 'Belfast', 'Oceanside', 'Medomak Valley'] };
+let SEEDING = { on: true,
+  teams: ['Brunswick', 'Edward Little', 'Mount Blue', 'Hampden'] };
 let editing = null;
 
 // ── Sample data, used only when there's no device yet ─────────────────────────
@@ -190,10 +191,10 @@ function sampleSubs() {
       sport:'Basketball', gender:'Boys', level:'live',  delivery:'instant', expires_at:null },
     { id:'s2', scope_type:'school', scope_value:'Camden Hills', is_primary:false,
       sport:null, gender:null, level:'off', delivery:'instant', expires_at:null },
-    { id:'s3', scope_type:'region', scope_value:'B South', is_primary:false,
-      sport:'Basketball', gender:'Boys', level:'final', delivery:'digest', expires_at:d(46) },
-    { id:'s4', scope_type:'team',   scope_value:'Belfast', is_primary:false,
-      sport:'Basketball', gender:'Boys', level:'final', delivery:'instant', expires_at:d(5) },
+    { id:'s3', scope_type:'region', scope_value:'A North', is_primary:false,
+      sport:'Basketball', gender:'Boys', level:'final', delivery:'digest', expires_at:d(46), expiry_preset:'season' },
+    { id:'s4', scope_type:'team',   scope_value:'Brunswick', is_primary:false,
+      sport:'Basketball', gender:'Boys', level:'final', delivery:'instant', expires_at:d(5), expiry_preset:'2weeks' },
     { id:'s5', scope_type:'venue',  scope_value:'Augusta Civic Center', is_primary:false,
       sport:null, gender:null, level:'final', delivery:'instant', expires_at:d(-1) },
   ];
@@ -223,6 +224,19 @@ const LEVEL_LINE = {
   live:        'Starts, each quarter or half, and finals',
 };
 
+// Which levels a scope can even offer. A region is a dozen teams — live scoring
+// for all of them is noise nobody wants, and START would fire twelve times at
+// 6:30. A digest collapses the question entirely: one summary at night can't
+// tell you a game is starting.
+function levelsFor(s) {
+  if (s.delivery === 'digest')  return ['off','final'];
+  switch (s.scope_type) {
+    case 'team':   return ['off','final','final_start','live'];
+    case 'school': return ['off','final','final_start'];   // a few teams a night
+    default:       return ['off','final'];                 // region, venue
+  }
+}
+
 // The meta line explains breadth, not identity — identity is in the title now.
 function scopeLine(s) {
   const bits = [];
@@ -251,7 +265,8 @@ function render() {
   const rest    = live.filter(s => !s.is_primary);
 
   document.getElementById('sub').textContent =
-    live.length ? `${live.length} active` : 'Nothing followed yet';
+    (SEEDING.sample ? 'Sample data · ' : '') +
+    (live.length ? `${live.length} active` : 'Nothing followed yet');
 
   // Lapsed subscriptions surface as a prompt rather than vanishing. This is the
   // moment someone either renews or doesn't — better here than a silent drop.
@@ -293,9 +308,8 @@ function render() {
       </div>
     </div>
     ${on ? `<p class="note">This list re-checks itself after every game, so it
-      narrows on its own as the season goes. It won't tell you a team can't
-      catch you — that depends on schedules and postponements, and a wrong
-      claim is worse than no claim.</p>` : ''}`;
+      narrows on its own as the season goes. It's not a perfect list — think of
+      it as a best guess.</p>` : ''}`;
   }
 
   if (rest.length) {
@@ -321,15 +335,16 @@ function rowHtml(s) {
   return `
   <div class="row${s.level === 'off' ? ' muted' : ''}" data-open="${s.id}">
     <div class="row-main">
-      <div class="row-name">${scopeTitle(s)}
-        ${s.is_primary ? '<span class="pin">MY TEAM</span>' : ''}</div>
+      <div class="row-name">${s.is_primary
+        ? '<span class="pin" title="My team">\u2605</span>' : ''}${scopeTitle(s)}</div>
       <div class="row-meta lvl">${LEVEL_LINE[s.level]}</div>
       <div class="row-meta">${[scopeLine(s), ex.text].filter(Boolean)
         .map((t,i) => i === 1 ? `<span class="expiry ${ex.cls}">${t}</span>` : t)
         .join(' · ')}</div>
     </div>
     <div class="level" data-level-for="${s.id}">
-      ${LEVELS.map(l => `<button data-set-level="${l.key}" data-sub="${s.id}"
+      ${LEVELS.filter(l => levelsFor(s).includes(l.key)).map(l =>
+        `<button data-set-level="${l.key}" data-sub="${s.id}"
          aria-pressed="${s.level === l.key}">${l.short}</button>`).join('')}
     </div>
   </div>`;
@@ -345,8 +360,9 @@ function openSheet(id) {
 
     <div class="opt-group">
       <div class="opt-lbl">Tell me about</div>
-      <div class="opts">${LEVELS.map(l => `<button class="opt" data-sheet-level="${l.key}"
-        aria-pressed="${s.level === l.key}">${l.label}</button>`).join('')}</div>
+      <div class="opts">${LEVELS.filter(l => l.key !== 'off' && levelsFor(s).includes(l.key)).map(l =>
+        `<button class="opt" data-sheet-level="${l.key}"
+         aria-pressed="${s.level === l.key}">${l.label}</button>`).join('')}</div>
     </div>
 
     <div class="opt-group">
@@ -363,7 +379,9 @@ function openSheet(id) {
       <div class="opt-lbl">For how long</div>
       <div class="opts">${EXPIRY_PRESETS.map(p => `<button class="opt"
         data-sheet-expiry="${p.key}"
-        aria-pressed="${(p.key === 'always') === (!s.expires_at)}">${p.label}</button>`).join('')}</div>
+        aria-pressed="${(s.expiry_preset || (s.expires_at ? '' : 'always')) === p.key}">${p.label}</button>`).join('')}</div>
+      ${s.expires_at ? `<div class="opt-hint">Ends ${new Date(s.expires_at)
+        .toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>` : ''}
     </div>
 
     <div class="sheet-actions">
@@ -391,21 +409,33 @@ function expiryFor(preset) {
   }
 }
 
+// Optimistic: repaint first, write after. A dropped write is recoverable — the
+// next load reads the truth — and a control that lags behind the tap feels broken.
 async function patch(id, fields) {
   const s = SUBS.find(x => x.id === id); if (!s) return;
   Object.assign(s, fields);
   render();
-  if (!sb || !DEVICE_ID) return;                 // sample mode
-  const { error } = await sb.from('notification_subs')
-    .update(fields).eq('id', id).eq('device_id', DEVICE_ID);
-  if (error) console.error('patch failed', error);
+  if (!HAS_CORE || !DEVICE_ID) return;           // sample mode
+  try {
+    // device_id in the filter as well as id: the row is only ours to change if
+    // it belongs to this device.
+    const r = await MBR.sbPatch('notification_subs',
+      `id=eq.${id}&device_id=eq.${DEVICE_ID}`, fields);
+    if (!r.ok) console.error('patch failed', r.status);
+  } catch (e) { console.error('patch failed', e); }
 }
 
 async function drop(id) {
   SUBS = SUBS.filter(x => x.id !== id);
   render();
-  if (!sb || !DEVICE_ID) return;
-  await sb.from('notification_subs').delete().eq('id', id).eq('device_id', DEVICE_ID);
+  if (!HAS_CORE || !DEVICE_ID) return;
+  try {
+    await fetch(`${MBR.SB_URL}/rest/v1/notification_subs` +
+                `?id=eq.${id}&device_id=eq.${DEVICE_ID}`,
+      { method: 'DELETE',
+        headers: { apikey: MBR.SB_KEY, Authorization: `Bearer ${MBR.SB_KEY}`,
+                   'Content-Type': 'application/json' } });
+  } catch (e) { console.error('delete failed', e); }
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────
@@ -432,12 +462,25 @@ document.addEventListener('click', (e) => {
   }
   if (t.hasAttribute('data-seeding')) return;
   if (t.dataset.open)  return openSheet(t.dataset.open);
-  if (t.dataset.renew) return patch(t.dataset.renew, { expires_at: expiryFor(t.dataset.preset) });
+  if (t.dataset.renew) return patch(t.dataset.renew,
+    { expires_at: expiryFor(t.dataset.preset), expiry_preset: t.dataset.preset });
   if (t.dataset.drop)  return drop(t.dataset.drop);
 
   if (t.dataset.sheetLevel)    { patch(editing, { level: t.dataset.sheetLevel });       return openSheet(editing); }
-  if (t.dataset.sheetDelivery) { patch(editing, { delivery: t.dataset.sheetDelivery }); return openSheet(editing); }
-  if (t.dataset.sheetExpiry)   { patch(editing, { expires_at: expiryFor(t.dataset.sheetExpiry) }); return openSheet(editing); }
+  if (t.dataset.sheetDelivery) {
+    const sub = SUBS.find(x => x.id === editing);
+    const next = { delivery: t.dataset.sheetDelivery };
+    // Digest can't carry starts or live updates; drop back to finals rather than
+    // leaving a level set that the sheet no longer shows.
+    if (!levelsFor({ ...sub, ...next }).includes(sub.level)) next.level = 'final';
+    patch(editing, next);
+    return openSheet(editing);
+  }
+  if (t.dataset.sheetExpiry)   {
+    patch(editing, { expires_at: expiryFor(t.dataset.sheetExpiry),
+                     expiry_preset: t.dataset.sheetExpiry });
+    return openSheet(editing);
+  }
   if (t.hasAttribute('data-sheet-close'))  return closeSheet();
   if (t.hasAttribute('data-sheet-delete')) { const id = editing; closeSheet(); return drop(id); }
 });
@@ -458,16 +501,24 @@ document.getElementById('master').addEventListener('click', function () {
 
 // ── Load ─────────────────────────────────────────────────────────────────────
 (async function load() {
-  if (sb && DEVICE_ID) {
-    const { data, error } = await sb
-      .from('notification_subs')
-      .select('id, scope_type, scope_value, level, delivery, expires_at, is_primary, gender, sport:sport_id(name)')
-      .eq('device_id', DEVICE_ID);
-    if (error) { console.error(error); SUBS = []; }
-    else SUBS = (data || []).map(r => ({ ...r, sport: r.sport?.name || null }));
+  if (HAS_CORE) {
+    await MBR.init({ isScoring: false });
+    // Registration stores this; durableGet survives an OTA bundle swap where
+    // localStorage alone might not.
+    DEVICE_ID = await MBR.durableGet('mbr_device_id');
+  }
+
+  if (HAS_CORE && DEVICE_ID) {
+    try {
+      const rows = await MBR.sbFetch(
+        'notification_subs?select=id,scope_type,scope_value,level,delivery,' +
+        'expires_at,expiry_preset,is_primary,gender,sports(name)' +
+        `&device_id=eq.${DEVICE_ID}&limit=200`);
+      SUBS = (rows || []).map(r => ({ ...r, sport: r.sports?.name || null }));
+    } catch (e) { console.error(e); SUBS = []; }
   } else {
     SUBS = sampleSubs();
-    document.getElementById('sub').textContent = 'Sample data — no device registered yet';
+    SEEDING.sample = true;
   }
   render();
 })();

@@ -6,7 +6,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=13"></script>
+<script src="mbr-core.js?v=14"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -127,15 +127,37 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .pnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;line-height:1;text-align:center;color:var(--text);}
 .pnm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pst{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--dim);}
+/* The name has to give way to the GK badge, not the other way round —
+   overflow:hidden on the row clipped the badge instead of ellipsing the text.
+   Flex with a shrinkable name and a fixed badge does it at every width. */
+/* A grid track defaults to min-width:auto, so without this the card refuses to
+   shrink and the badge spills past its own border. */
+.pinfo{min-width:0;overflow:hidden;}
+.pnm{display:flex;align-items:center;gap:5px;min-width:0;}
+.pnm-full,.pnm-short{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gk-badge{flex:none;display:inline-block;background:var(--green);color:#fff;font-size:12px;font-weight:800;
+  letter-spacing:.07em;padding:2px 7px;border-radius:5px;
+  font-family:'Barlow Condensed',sans-serif;}
+.pnm-short{display:none;}
 .pcd{font-size:13px;}
 #center{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--bg);}
 #field-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px;position:relative;}
 #field{width:100%;height:100%;max-height:100%;touch-action:none;}
 #chart-tab{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:var(--surface);border:1.5px solid var(--border);
   border-radius:20px;padding:4px 14px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:.06em;cursor:pointer;z-index:5;}
-#shot-ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,17,23,.55);z-index:20;}
+/* The shot sheet was absolute inside #field-wrap. On a desktop that's fine —
+   the pitch fills a column taller than the sheet. On a phone the pitch is
+   ~44vw and #middle is the scroll container, so the sheet was taller than its
+   own backdrop and got CLIPPED by #middle's overflow: the "#10 Jalbert · ZTS"
+   header and the top of GOAL were cut off, and the dim only covered the pitch.
+   Fixed to the viewport like every other modal here (.modal is z-400), so the
+   height of the pitch stops being able to break it. */
+#shot-ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(15,17,23,.55);z-index:420;padding:14px;}
 #shot-ov.show{display:flex;}
-.ov-box{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:14px;width:min(320px,90%);}
+.ov-box{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:14px;
+  width:min(320px,100%);max-height:calc(100vh - 28px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
+@supports(height:100dvh){ .ov-box{max-height:calc(100dvh - 28px);} }
 .ov-h{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:center;margin-bottom:9px;}
 .ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
 .ov-btn{border:2px solid var(--border);background:var(--surface);border-radius:8px;padding:15px 6px;cursor:pointer;
@@ -253,6 +275,187 @@ table.bs.gk th:nth-child(n+3), table.bs.gk td:nth-child(n+3){width:76px;}
   .side-block{min-width:56px;padding:3px 5px;}
   .pnum{font-size:24px;} .pnm{font-size:14px;}
   .pcard{grid-template-columns:32px 1fr auto;}
+  /* 160px columns can hold "Pelletier" but not "Parker Pelletier" — so below
+     900px the roster goes to last names, same as the phone. Full names come
+     back on a wide tablet or desktop where the 198px column fits them. */
+  .pnm-full{display:none;} .pnm-short{display:inline;}
+  .gk-badge{font-size:11px;padding:2px 6px;}
+}
+
+/* ── PHONE ────────────────────────────────────────────────────────────────
+   Three columns side by side stops working around 600px: two 160px rosters
+   leave the centre ~70px, which squeezed the pitch to a postage stamp and ran
+   the action buttons off the right edge.
+
+   So on a phone the layout STACKS instead of shrinking. Centre first — the
+   pitch and the action buttons are what you touch every play — then the two
+   rosters below it, side by side so you can still reach either team without
+   scrolling past one to get to the other. */
+@media(max-width:600px){
+  #middle{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:auto auto;
+    grid-template-areas:
+      "center center"
+      "away   home";
+    overflow-y:auto;              /* the whole thing scrolls, not each column */
+    -webkit-overflow-scrolling:touch;
+  }
+  #center      { grid-area:center; }
+  #pl-away     { grid-area:away;  border-right:1px solid var(--border); }
+  #pl-home     { grid-area:home;  border-left:none; }
+
+  /* The action buttons are the most-tapped thing in the app, and stacking
+     pushed them below two full rosters — off-screen. Pin them to the bottom of
+     the viewport instead, so they're reachable no matter how far you've
+     scrolled the rosters. */
+  #center{ display:contents; }          /* let its children take grid areas directly */
+  #field-wrap{ grid-area:center; }
+  #bgrid, #toolbar{
+    position:fixed; left:0; right:0; z-index:40;
+    background:var(--surface); padding:5px 6px;
+    border-top:1px solid var(--border);
+  }
+  /* Both bars in one pinned stack rather than two separately-positioned ones —
+     guessing an offset for the upper bar meant it sat underneath the lower one
+     whenever the row count changed. */
+  #bgrid, #toolbar{ position:static; }
+  #action-dock{
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:5px 6px calc(5px + env(safe-area-inset-bottom,0px));
+    display:flex; flex-direction:column; gap:4px;
+  }
+
+  /* Rosters clear the dock. Measured at runtime, since the dock's height
+     depends on how many action buttons the sport has. */
+  #middle{ padding-bottom:var(--dock-h,160px); }
+
+  /* The pitch needs a real height once it isn't filling a column. Roughly
+     square keeps the attacking-half proportions honest without eating the
+     whole screen. */
+  #field-wrap{ height:44vw; min-height:190px; max-height:280px; flex:none; }
+
+  /* Panels scroll with the page rather than each holding their own scrollbar —
+     nested scroll areas on a phone are miserable to hit. */
+  .panel{ overflow-y:visible; max-height:none; }
+
+  /* Roster cards: number + last name on one line, stat beside it. The full
+     name and the tablet padding meant ~110px per card — five players visible
+     out of eighteen. This gets it to roughly a third of that while keeping a
+     44px tap target, which is the real floor. */
+  .pcard{
+    grid-template-columns:26px 1fr auto;
+    gap:6px; padding:0 6px; margin-bottom:3px;
+    min-height:44px; align-items:center;
+  }
+  .pnum{ font-size:17px; line-height:1; }
+  .pinfo{ display:flex; align-items:baseline; gap:6px; min-width:0; }
+  .pnm{ font-size:14px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pnm-full{ display:none; }          /* last name only on a phone */
+  .pnm-short{ display:inline; }
+  .pst{ font-size:11px; margin-left:auto; white-space:nowrap; }   /* stat sits inline, not on its own line */
+  .gk-badge{ font-size:10px; padding:1px 5px; }
+  .pcds{ display:flex; gap:2px; }
+
+  /* Action buttons: 3 across instead of 4, so nothing clips mid-word. */
+  #bgrid{ grid-template-columns:repeat(3,1fr); gap:4px; }
+  .sbtn{ font-size:13px; padding:9px 2px; }      /* taller = easier to hit */
+  #toolbar{ flex-wrap:wrap; }
+  #toolbar .sbtn{ flex:1 1 30%; font-size:12px; }
+
+  /* Scoreboard has to give up some height to make room for all of it. */
+  .snum{ font-size:32px; } .tname{ font-size:12px; }
+  .side-block{ min-width:46px; padding:2px 4px; }
+  .side-lbl{ font-size:8px; } .side-val{ font-size:15px; }
+  #clock-btn{ font-size:26px; }
+
+  /* Shot sheet comes up from the bottom rather than floating in the middle.
+     It lands where the thumb already is — the action dock is right there — and
+     anchoring to one edge means it can't be half-off either end when the
+     button count changes. z-420 covers the dock (z-40). */
+  #shot-ov{ align-items:flex-end; padding:0; }
+  .ov-box{
+    width:100%; border-width:2px 0 0; border-radius:14px 14px 0 0;
+    padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));
+    max-height:82vh;
+  }
+  .ov-h{ font-size:14px; margin-bottom:10px; }
+  .ov-btn{ padding:14px 6px; font-size:17px; }
+  .ov-btn.goal{ font-size:20px; padding:16px 6px; }
+  .ov-btn.cancel{ font-size:13px; padding:11px; }
+  .ast-list{ max-height:42vh; }
+}
+
+/* ── PHONE, LANDSCAPE ─────────────────────────────────────────────────────
+   Rotating an iPhone gives ~844x390: wide enough to miss the 600px rule, but
+   only ~300px of height once the scoreboard is drawn. The three-column layout
+   then squeezed the pitch to a postage stamp — the same failure as portrait,
+   from the opposite direction.
+
+   Three columns are actually right at this width; what's wrong is the vertical
+   budget. So: compress the scoreboard, dock the buttons to the bottom, and let
+   the pitch have whatever's left. */
+@media (max-height:520px) and (orientation:landscape){
+  #topbar{ padding-top:env(safe-area-inset-top,0px); }
+  .snum{ font-size:26px; }
+  .tname{ font-size:12px; }
+
+  /* The header was eating ~95px of a 393px viewport. Almost none of it was the
+     clock: #clk-col stacks clock → period → elapsed → build → mercy, and two of
+     those five reserve height while showing nothing (#mercy-flag has a
+     min-height, #buildChip is a debug string). Lay the column out as a row and
+     let the empty ones collapse — same information, roughly 40px. */
+  #clk-col{ flex-direction:row; flex-wrap:wrap; align-items:baseline;
+            justify-content:center; gap:0 8px; padding:2px 0; }
+  #clock-btn{ font-size:20px; padding:0 10px; min-width:86px; border-width:2px; }
+  #pdisplay{ font-size:10px; padding:0 3px; letter-spacing:.1em; }
+  #elapsed{ font-size:10px; }
+  #buildChip{ display:none; }                  /* diagnostic, not worth a line here */
+  #mercy-flag{ min-height:0; font-size:8px; }  /* only takes height when it says something */
+  #playoff-chip, #sub-chip{ font-size:9px; }
+  /* clk-col is a row now, so the banner would sit inline and stretch the
+     column to its own text width — force it onto its own line. */
+  #test-banner{ font-size:10px; padding:2px 6px; flex:1 0 100%; }
+  /* Stats stack three deep per side; side by side is the only way to afford it. */
+  .side-block{ flex-direction:row; flex-wrap:wrap; gap:0 8px; align-items:baseline;
+               min-width:0; padding:2px 6px; }
+  .side-lbl{ font-size:7px; } .side-val{ font-size:13px; }
+
+  /* 130px truncated the longer names once the stat sits inline (Ouellette +
+     2SH doesn't fit). The centre can spare it — there's 540px there. */
+  #middle{ grid-template-columns:152px 1fr 152px; }
+  .pcard{ grid-template-columns:24px 1fr auto; padding:0 5px; min-height:38px; margin-bottom:2px; }
+  .pnum{ font-size:15px; } .pnm{ font-size:12px; }
+  .pnm-full{ display:none; } .pnm-short{ display:inline; }
+  .pinfo{ display:flex; align-items:baseline; gap:5px; min-width:0; }
+  .pst{ font-size:10px; margin-left:auto; }
+  .gk-badge{ font-size:9px; padding:1px 4px; }
+
+  /* One row of six, pinned, so the pitch keeps the height it needs. */
+  #action-dock{
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:3px 5px calc(3px + env(safe-area-inset-bottom,0px));
+    display:flex; flex-direction:column; gap:3px;
+  }
+  #bgrid{ grid-template-columns:repeat(6,1fr); gap:3px; }
+  #toolbar{ gap:3px; }
+  #bgrid .sbtn, #toolbar .sbtn{ font-size:11px; padding:6px 1px; }
+  #middle{ padding-bottom:var(--dock-h,86px); }
+
+  /* ~390px of height total, and the sheet has six rows in it. Stays centred
+     here — a bottom sheet in landscape would be a wide, short strip — but
+     everything gets tighter so Cancel stays on screen. */
+  #shot-ov{ padding:8px; }
+  .ov-box{ width:min(420px,100%); padding:10px; max-height:calc(100vh - 16px); }
+  .ov-h{ font-size:12px; margin-bottom:6px; }
+  .ov-grid{ gap:6px; }
+  .ov-btn{ padding:9px 4px; font-size:15px; }
+  .ov-btn.goal{ font-size:17px; padding:9px 4px; }
+  .ov-btn.cancel{ font-size:11px; padding:6px; }
+  .ast-list{ max-height:38vh; }
 }
 
 /* iOS fires its text-selection callout on a long press. The clock editor is
@@ -695,6 +898,8 @@ MBR.init({
   isTestMode : () => G_test_mode,
   gameId     : () => G_game_id,
   isFinalized: () => _gameFinalized,
+  // Hold OTA updates while a game is live — a bundle swap reloads the webview.
+  isScoring  : () => !!G_game_id && !_gameFinalized,
   // sport_id and the season-year rule change with the selected sport, so these
   // are read live rather than captured once.
   sportId    : () => (typeof SP !== 'undefined' && SP) ? SP.sport_id : null,
@@ -707,7 +912,7 @@ const createEmergencyGame = ({home_team_id, away_team_id, date, venue}) =>
   MBR.createGame({ homeTeamId:home_team_id, awayTeamId:away_team_id, date, venue,
                    sportId: SP && SP.sport_id, seasonYear: seasonYearFor(date || new Date().toLocaleDateString('en-CA')) });
 const startClockSync = () => MBR.startClockSync(gameClockLabel, 20000);
-const MBR_BUILD='fs-2026-08-04f';
+const MBR_BUILD='fs-2026-08-14c';
 let _gameFinalized=false, _saveTimer=null, _rosterVersion={home:0,away:0};
 let SCHED_GAMES=[], suSelectedGameId=null, suPidCount=0;
 const SU={home:{players:[]},away:{players:[]}};
@@ -2171,11 +2376,15 @@ function renderPl(side){
     return (l.yc?'<span class="pcd">🟨</span>':'')+(l.rc?'<span class="pcd">🟥</span>':'');
   };
   const onF=PL[side].filter(p=>p.on), off=PL[side].filter(p=>!p.on);
+  // Two names per card: the full one for tablet, last-name-only for phones,
+  // where eighteen full-width cards meant five players visible out of eighteen.
+  // CSS picks which to show, so there's one render path rather than two.
   const card=p=>`<div class="pcard${p.on?'':' off'}${selP&&selP.id===p.id?' sel':''}${p.gk?' gk':''}" onclick="selPlayer('${p.id}','${side}')">
       <div class="pnum">${p.num||'–'}</div>
-      <div><div class="pnm">${pName(p)}${p.gk?' <span style="display:inline-block;background:var(--green);color:#fff;font-size:14px;font-weight:800;letter-spacing:.07em;padding:3px 10px;border-radius:5px;vertical-align:middle;font-family:\'Barlow Condensed\',sans-serif">GK</span>':''}</div>
-      <div class="pst">${stat(p)}</div></div>
-      <div>${cards(p)}</div></div>`;
+      <div class="pinfo">
+        <div class="pnm"><span class="pnm-full">${pName(p)}</span><span class="pnm-short">${p.last||pName(p)}</span>${p.gk?' <span class="gk-badge">GK</span>':''}</div>
+        <div class="pst">${stat(p)}</div></div>
+      <div class="pcds">${cards(p)}</div></div>`;
   c.innerHTML = onF.map(card).join('')
     + (off.length?'<div class="su-h" style="margin:6px 0 3px;font-size:9px;">Bench</div>':'')
     + off.map(card).join('');
@@ -3669,6 +3878,51 @@ function init(){
   });
 }
 init();
+
+// ── Phone action dock ────────────────────────────────────────────────────
+// On a phone the layout stacks, which pushes the action buttons below two full
+// rosters and off-screen. They get pinned to the bottom instead — but the dock's
+// height varies by sport (lacrosse has more buttons than soccer), so measure it
+// and reserve exactly that much space rather than guessing a constant.
+(function phoneDock(){
+  // Narrow portrait OR short landscape — both need the buttons pinned, for
+  // opposite reasons: no width in one case, no height in the other.
+  const PHONE = () =>
+    window.matchMedia('(max-width:600px)').matches ||
+    window.matchMedia('(max-height:520px) and (orientation:landscape)').matches;
+  function build(){
+    const grid = document.getElementById('bgrid');
+    const tools= document.getElementById('toolbar');
+    if(!grid || !tools) return;
+    let dock = document.getElementById('action-dock');
+    if(PHONE()){
+      if(!dock){
+        dock = document.createElement('div');
+        dock.id = 'action-dock';
+        grid.parentNode.insertBefore(dock, grid);
+        dock.appendChild(grid);
+        dock.appendChild(tools);
+      }
+      // Reserve the dock's real height so the last roster card isn't hidden.
+      const h = dock.offsetHeight;
+      if(h) document.documentElement.style.setProperty('--dock-h', (h + 8) + 'px');
+    } else if(dock){
+      // Back to tablet/desktop: put them back where they belong.
+      const center = document.getElementById('center');
+      if(center){ center.appendChild(grid); center.appendChild(tools); }
+      dock.remove();
+      document.documentElement.style.removeProperty('--dock-h');
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', build);
+  else build();
+  window.addEventListener('resize', build);
+  window.addEventListener('orientationchange', ()=>setTimeout(build,250));
+  // The button set is rebuilt when the sport or selection changes, which can
+  // change the dock's height.
+  window.addEventListener('mbr:buttons', build);
+  setInterval(build, 1500);          // cheap catch-all for dynamic rebuilds
+})();
 
 // ── Local mode ───────────────────────────────────────────────────────────
 // Hides the Maine scheduled-games picker for anyone who'll never appear in it

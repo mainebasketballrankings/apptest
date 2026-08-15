@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Maine Basketball Rankings — Notifications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --green:#1a7a4a; --green2:#22a863; --gold:#c8921a; --red:#c0392b;
+  --gray:#555; --lgray:#999; --border:#e2e2e2; --bg:#f0f0f0;
+  --white:#fff; --black:#111;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--black);
+     -webkit-font-smoothing:antialiased;}
+
+.page{max-width:640px;margin:0 auto;
+      padding:calc(20px + env(safe-area-inset-top,0px)) 16px
+              calc(40px + env(safe-area-inset-bottom,0px));}
+.page-title{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:30px;}
+.page-sub{font-size:13px;color:var(--lgray);margin-bottom:18px;}
+
+/* Master switch, deliberately at the top. Someone who can't find this turns
+   notifications off at the OS level instead, and that's unrecoverable. */
+.master{background:var(--white);border:1px solid var(--border);border-radius:12px;
+        padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+        gap:12px;margin-bottom:18px;}
+.master-label{font-weight:600;font-size:15px;}
+.master-sub{font-size:12px;color:var(--lgray);margin-top:2px;}
+
+.switch{position:relative;width:50px;height:30px;flex:0 0 auto;border:none;
+        border-radius:15px;background:#ccc;cursor:pointer;transition:background .15s;}
+.switch[aria-checked="true"]{background:var(--green2);}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;
+               border-radius:50%;background:#fff;transition:transform .15s;
+               box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.switch[aria-checked="true"]::after{transform:translateX(20px);}
+
+.sec-head{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;
+          letter-spacing:.09em;text-transform:uppercase;color:var(--gray);
+          margin:22px 0 8px;}
+
+.card{background:var(--white);border:1px solid var(--border);border-radius:12px;
+      overflow:hidden;}
+.row{padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer;
+     display:flex;align-items:center;gap:12px;}
+.row:last-child{border-bottom:none;}
+.row:active{background:#fafafa;}
+
+.row-main{flex:1;min-width:0;}
+.row-name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:7px;}
+.row-meta{font-size:12px;color:var(--lgray);margin-top:2px;}
+
+.pin{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--gold);
+     border:1px solid var(--gold);border-radius:4px;padding:1px 4px;}
+
+/* The level control is the whole point: visible on the row, one tap to change.
+   Buried in a settings screen it may as well not exist. */
+.level{flex:0 0 auto;display:flex;border:1px solid var(--border);border-radius:8px;
+       overflow:hidden;}
+.level button{border:none;background:var(--white);font-family:'Barlow Condensed',sans-serif;
+      font-weight:700;font-size:11px;letter-spacing:.03em;color:var(--lgray);
+      padding:6px 7px;cursor:pointer;border-right:1px solid var(--border);}
+/* OFF reads red rather than green — it's a state, not a selection. */
+.level button[data-set-level="off"][aria-pressed="true"]{background:var(--gray);color:#fff;}
+.row.muted .row-name{color:var(--gray);}
+.row.muted .row-meta{opacity:.75;}
+.level button:last-child{border-right:none;}
+.level button[aria-pressed="true"]{background:var(--green);color:#fff;}
+
+.row-meta.lvl{color:var(--gray);font-weight:500;}
+.add{width:100%;margin-top:14px;padding:13px;border:1px dashed var(--border);
+     border-radius:12px;background:transparent;color:var(--gray);font-size:14px;
+     font-weight:500;cursor:pointer;font-family:'Barlow',sans-serif;}
+.add:active{background:#eaeaea;}
+.expiry{font-size:12px;color:var(--gray);}
+.expiry.soon{color:var(--gold);font-weight:600;}
+.expiry.permanent{color:var(--lgray);}
+
+.empty{background:var(--white);border:1px dashed var(--border);border-radius:12px;
+       padding:26px 18px;text-align:center;color:var(--lgray);font-size:14px;}
+.empty strong{display:block;color:var(--black);font-size:15px;margin-bottom:5px;}
+
+.note{font-size:12px;color:var(--lgray);margin-top:10px;line-height:1.45;}
+
+/* Expiry prompt. Shown when something has lapsed — the retention moment. */
+.prompt{background:#fffaf0;border:1px solid var(--gold);border-radius:12px;
+        padding:14px 16px;margin-bottom:18px;}
+.prompt-t{font-weight:600;font-size:14px;margin-bottom:3px;}
+.prompt-s{font-size:12px;color:var(--gray);margin-bottom:10px;}
+.prompt-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.pbtn{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;
+      letter-spacing:.05em;padding:8px 12px;border-radius:7px;cursor:pointer;
+      border:1px solid var(--border);background:var(--white);color:var(--black);}
+.pbtn.pri{background:var(--green);border-color:var(--green);color:#fff;}
+
+/* Sheet for the per-subscription detail. Bottom-anchored — same reasoning as
+   the shot sheet in the field scorer: lands under the thumb, can't be clipped. */
+.sheet-bg{position:fixed;inset:0;background:rgba(15,17,23,.5);display:none;
+          align-items:flex-end;z-index:100;}
+.sheet-bg.show{display:flex;}
+.sheet{background:var(--white);width:100%;border-radius:16px 16px 0 0;
+       padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));
+       max-height:85vh;overflow-y:auto;}
+.sheet h3{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;}
+.sheet .sub{font-size:12px;color:var(--lgray);margin-bottom:16px;}
+.opt-group{margin-bottom:16px;}
+.opt-lbl{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;
+         letter-spacing:.09em;text-transform:uppercase;color:var(--gray);margin-bottom:6px;}
+.opts{display:flex;gap:6px;flex-wrap:wrap;}
+.opt{border:1px solid var(--border);border-radius:8px;background:var(--white);
+     padding:9px 12px;font-size:13px;font-weight:500;cursor:pointer;}
+.opt[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#fff;}
+.sheet-actions{display:flex;gap:8px;margin-top:6px;}
+.sheet-actions button{flex:1;padding:13px;border-radius:9px;font-weight:600;font-size:14px;
+                      cursor:pointer;border:1px solid var(--border);background:var(--white);}
+.danger{color:var(--red);border-color:#f0c6c1 !important;}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="page-title">Notifications</h1>
+  <p class="page-sub" id="sub">Loading…</p>
+
+  <div id="prompts"></div>
+
+  <div class="master">
+    <div>
+      <div class="master-label">All notifications</div>
+      <div class="master-sub" id="masterSub">On</div>
+    </div>
+    <button class="switch" id="master" role="switch" aria-checked="true"
+            aria-label="All notifications"></button>
+  </div>
+
+  <div id="list"></div>
+
+  <p class="note" id="foot"></p>
+</div>
+
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const SB_URL = 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = window.MBR_ANON_KEY || '';   // injected by the app shell
+const sb = window.supabase && SB_KEY
+  ? supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'mbr-notify' } })
+  : null;
+
+// The device id comes from registration (see device_tokens). Until the app
+// shell exists this page runs against sample data so the layout can be worked on.
+const DEVICE_ID = window.MBR_DEVICE_ID || null;
+
+// short = the compact control on the row; label = the sheet, where there's room
+// to say what you actually get. "Live" meant nothing to anyone until it was
+// spelled out — it is NOT every basket, which would be ~120 pushes a game.
+const LEVELS = [
+  { key:'off',         short:'OFF',   label:'Nothing — muted' },
+  { key:'final',       short:'FINAL', label:'Final score only' },
+  { key:'final_start', short:'START', label:'When the game starts, and the final' },
+  { key:'live',        short:'LIVE',  label:'Start, each quarter or half, and the final' },
+];
+
+const EXPIRY_PRESETS = [
+  { key:'season',   label:'Rest of the season' },
+  { key:'tourney',  label:'Through the tournament' },
+  { key:'2weeks',   label:'Two weeks' },
+  { key:'friday',   label:'Until Friday' },
+  { key:'always',   label:'Always' },
+];
+
+let SUBS = [];
+// Sample until the nightly seed table exists; the real set comes from the
+// class+region cohort, recomputed after each final.
+let SEEDING = { on: true, teams: ['Erskine', 'Belfast', 'Oceanside', 'Medomak Valley'] };
+let editing = null;
+
+// ── Sample data, used only when there's no device yet ─────────────────────────
+function sampleSubs() {
+  const d = (n) => new Date(Date.now() + n*864e5).toISOString();
+  return [
+    { id:'s1', scope_type:'team',   scope_value:'Camden Hills', is_primary:true,
+      sport:'Basketball', gender:'Boys', level:'live',  delivery:'instant', expires_at:null },
+    { id:'s2', scope_type:'school', scope_value:'Camden Hills', is_primary:false,
+      sport:null, gender:null, level:'off', delivery:'instant', expires_at:null },
+    { id:'s3', scope_type:'region', scope_value:'B South', is_primary:false,
+      sport:'Basketball', gender:'Boys', level:'final', delivery:'digest', expires_at:d(46) },
+    { id:'s4', scope_type:'team',   scope_value:'Belfast', is_primary:false,
+      sport:'Basketball', gender:'Boys', level:'final', delivery:'instant', expires_at:d(5) },
+    { id:'s5', scope_type:'venue',  scope_value:'Augusta Civic Center', is_primary:false,
+      sport:null, gender:null, level:'final', delivery:'instant', expires_at:d(-1) },
+  ];
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const SCOPE_WORD = { team:'Team', school:'School', region:'Region',
+                     venue:'Venue', seeding:'Seeding' };
+
+// Two rows both reading "Camden Hills" — one the school, one the boys basketball
+// team — made the difference between them invisible. The title now carries the
+// full identity so the rows can't be mistaken for each other.
+function scopeTitle(s) {
+  if (s.scope_type === 'school')
+    return s.sport ? `${s.scope_value} ${s.sport} — all teams`
+                   : `${s.scope_value} — all teams`;
+  return [s.scope_value, s.gender, s.sport].filter(Boolean).join(' ');
+}
+
+// What you'll actually receive, said on the row. This lived only in the sheet,
+// which meant the row read "LIVE" and left you to guess — and nobody taps into
+// a detail screen to find out what a button they already pressed does.
+const LEVEL_LINE = {
+  off:         'Muted',
+  final:       'Final scores',
+  final_start: 'Game starts, and finals',
+  live:        'Starts, each quarter or half, and finals',
+};
+
+// The meta line explains breadth, not identity — identity is in the title now.
+function scopeLine(s) {
+  const bits = [];
+  if (s.scope_type === 'school') bits.push('Every sport, both genders');
+  if (s.scope_type === 'region') bits.push('Every team in the region');
+  if (s.scope_type === 'venue')  bits.push('Every game here');
+  if (s.delivery === 'digest')   bits.push('one summary at night');
+  return bits.join(' · ');
+}
+
+function expiryLine(s) {
+  if (!s.expires_at) return { text:'Always on', cls:'permanent' };
+  const days = Math.ceil((new Date(s.expires_at) - Date.now()) / 864e5);
+  if (days <= 0)  return { text:'Ended',            cls:'soon' };
+  if (days === 1) return { text:'Ends tomorrow',    cls:'soon' };
+  if (days <= 7)  return { text:`Ends in ${days} days`, cls:'soon' };
+  return { text:`Ends ${new Date(s.expires_at).toLocaleDateString('en-US',
+                  { month:'short', day:'numeric' })}`, cls:'' };
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  const live    = SUBS.filter(s => !s.expires_at || new Date(s.expires_at) > Date.now());
+  const lapsed  = SUBS.filter(s =>  s.expires_at && new Date(s.expires_at) <= Date.now());
+  const primary = live.filter(s => s.is_primary);
+  const rest    = live.filter(s => !s.is_primary);
+
+  document.getElementById('sub').textContent =
+    live.length ? `${live.length} active` : 'Nothing followed yet';
+
+  // Lapsed subscriptions surface as a prompt rather than vanishing. This is the
+  // moment someone either renews or doesn't — better here than a silent drop.
+  document.getElementById('prompts').innerHTML = lapsed.map(s => `
+    <div class="prompt">
+      <div class="prompt-t">Alerts for ${scopeTitle(s)} have ended</div>
+      <div class="prompt-s">You followed this until ${new Date(s.expires_at)
+        .toLocaleDateString('en-US',{month:'long',day:'numeric'})}.</div>
+      <div class="prompt-btns">
+        <button class="pbtn pri" data-renew="${s.id}" data-preset="season">Rest of season</button>
+        <button class="pbtn"     data-renew="${s.id}" data-preset="2weeks">Two weeks</button>
+        <button class="pbtn"     data-drop="${s.id}">No thanks</button>
+      </div>
+    </div>`).join('');
+
+  let html = '';
+  if (primary.length) {
+    html += `<div class="sec-head">My teams</div><div class="card">` +
+            primary.map(rowHtml).join('') + `</div>`;
+  }
+
+  // The auto-managed watch list. It has no team card to hang a bell on — it
+  // isn't a team, it's a rule — so this page is its only home. Off by default;
+  // it only makes sense once there's a primary team to compute "near" against.
+  if (primary.length) {
+    const on = SEEDING.on;
+    html += `<div class="sec-head">Following automatically</div>
+    <div class="card">
+      <div class="row" data-seeding>
+        <div class="row-main">
+          <div class="row-name">Teams near ${primary[0].scope_value} in the standings</div>
+          <div class="row-meta lvl">${on
+            ? 'Finals for whoever could still pass you, or be passed'
+            : 'Off — you can follow rivals by hand instead'}</div>
+          ${on ? `<div class="row-meta">Now watching: ${SEEDING.teams.join(', ')}</div>` : ''}
+        </div>
+        <button class="switch" role="switch" aria-checked="${on}"
+                data-seeding-toggle aria-label="Seeding watch"></button>
+      </div>
+    </div>
+    ${on ? `<p class="note">This list re-checks itself after every game, so it
+      narrows on its own as the season goes. It won't tell you a team can't
+      catch you — that depends on schedules and postponements, and a wrong
+      claim is worse than no claim.</p>` : ''}`;
+  }
+
+  if (rest.length) {
+    html += `<div class="sec-head">${primary.length ? 'Also following' : 'Following'}</div>` +
+            `<div class="card">` + rest.map(rowHtml).join('') + `</div>`;
+  }
+  if (!live.length) {
+    html = `<div class="empty"><strong>No alerts yet</strong>
+            Tap the bell on any team or scoreboard card to start getting scores.</div>`;
+  }
+  // Manual follows normally start from a bell on a team or scoreboard card;
+  // this is the way in for someone who's already here.
+  html += `<button class="add" data-add>+ Follow a team, school or region</button>`;
+  document.getElementById('list').innerHTML = html;
+
+  document.getElementById('foot').textContent = primary.length
+    ? 'Your teams stay on until you turn them off. Everything else ends on the date shown.'
+    : '';
+}
+
+function rowHtml(s) {
+  const ex = expiryLine(s);
+  return `
+  <div class="row${s.level === 'off' ? ' muted' : ''}" data-open="${s.id}">
+    <div class="row-main">
+      <div class="row-name">${scopeTitle(s)}
+        ${s.is_primary ? '<span class="pin">MY TEAM</span>' : ''}</div>
+      <div class="row-meta lvl">${LEVEL_LINE[s.level]}</div>
+      <div class="row-meta">${[scopeLine(s), ex.text].filter(Boolean)
+        .map((t,i) => i === 1 ? `<span class="expiry ${ex.cls}">${t}</span>` : t)
+        .join(' · ')}</div>
+    </div>
+    <div class="level" data-level-for="${s.id}">
+      ${LEVELS.map(l => `<button data-set-level="${l.key}" data-sub="${s.id}"
+         aria-pressed="${s.level === l.key}">${l.short}</button>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ── Sheet ────────────────────────────────────────────────────────────────────
+function openSheet(id) {
+  const s = SUBS.find(x => x.id === id); if (!s) return;
+  editing = id;
+  document.getElementById('sheet').innerHTML = `
+    <h3>${scopeTitle(s)}</h3>
+    <div class="sub">${scopeLine(s)}</div>
+
+    <div class="opt-group">
+      <div class="opt-lbl">Tell me about</div>
+      <div class="opts">${LEVELS.map(l => `<button class="opt" data-sheet-level="${l.key}"
+        aria-pressed="${s.level === l.key}">${l.label}</button>`).join('')}</div>
+    </div>
+
+    <div class="opt-group">
+      <div class="opt-lbl">How</div>
+      <div class="opts">
+        <button class="opt" data-sheet-delivery="instant"
+          aria-pressed="${s.delivery === 'instant'}">As they happen</button>
+        <button class="opt" data-sheet-delivery="digest"
+          aria-pressed="${s.delivery === 'digest'}">One summary at night</button>
+      </div>
+    </div>
+
+    <div class="opt-group">
+      <div class="opt-lbl">For how long</div>
+      <div class="opts">${EXPIRY_PRESETS.map(p => `<button class="opt"
+        data-sheet-expiry="${p.key}"
+        aria-pressed="${(p.key === 'always') === (!s.expires_at)}">${p.label}</button>`).join('')}</div>
+    </div>
+
+    <div class="sheet-actions">
+      <button data-sheet-close>Done</button>
+      <button class="danger" data-sheet-delete>Stop following</button>
+    </div>`;
+  document.getElementById('sheetBg').classList.add('show');
+}
+function closeSheet(){ editing = null; document.getElementById('sheetBg').classList.remove('show'); }
+
+// ── Mutations ────────────────────────────────────────────────────────────────
+function expiryFor(preset) {
+  const now = new Date();
+  switch (preset) {
+    case 'always':  return null;
+    case '2weeks':  return new Date(now.getTime() + 14*864e5).toISOString();
+    case 'friday': {
+      const d = new Date(now); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7));
+      d.setHours(23,59,0,0); return d.toISOString();
+    }
+    // Season and tournament should come from the sports table (season_end) and
+    // the tournament schedule. Placeholders until wired.
+    case 'season':  return new Date(now.getFullYear(), 2, 1).toISOString();
+    case 'tourney': return new Date(now.getTime() + 30*864e5).toISOString();
+  }
+}
+
+async function patch(id, fields) {
+  const s = SUBS.find(x => x.id === id); if (!s) return;
+  Object.assign(s, fields);
+  render();
+  if (!sb || !DEVICE_ID) return;                 // sample mode
+  const { error } = await sb.from('notification_subs')
+    .update(fields).eq('id', id).eq('device_id', DEVICE_ID);
+  if (error) console.error('patch failed', error);
+}
+
+async function drop(id) {
+  SUBS = SUBS.filter(x => x.id !== id);
+  render();
+  if (!sb || !DEVICE_ID) return;
+  await sb.from('notification_subs').delete().eq('id', id).eq('device_id', DEVICE_ID);
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-set-level],[data-open],[data-renew],[data-drop],' +
+    '[data-seeding],[data-seeding-toggle],[data-add],' +
+    '[data-sheet-level],[data-sheet-delivery],[data-sheet-expiry],[data-sheet-close],[data-sheet-delete]');
+  if (!t) return;
+
+  // Level buttons sit inside the row, so stop the row's open handler firing too.
+  if (t.dataset.setLevel) {
+    e.stopPropagation();
+    return patch(t.dataset.sub, { level: t.dataset.setLevel });
+  }
+  if (t.hasAttribute('data-seeding-toggle')) {
+    e.stopPropagation();
+    SEEDING.on = !SEEDING.on;
+    return render();
+  }
+  if (t.hasAttribute('data-add')) {
+    // Search sheet lands with the rest of the app; the bells on team and
+    // scoreboard cards are the primary way in.
+    return alert('Team search — not built yet');
+  }
+  if (t.hasAttribute('data-seeding')) return;
+  if (t.dataset.open)  return openSheet(t.dataset.open);
+  if (t.dataset.renew) return patch(t.dataset.renew, { expires_at: expiryFor(t.dataset.preset) });
+  if (t.dataset.drop)  return drop(t.dataset.drop);
+
+  if (t.dataset.sheetLevel)    { patch(editing, { level: t.dataset.sheetLevel });       return openSheet(editing); }
+  if (t.dataset.sheetDelivery) { patch(editing, { delivery: t.dataset.sheetDelivery }); return openSheet(editing); }
+  if (t.dataset.sheetExpiry)   { patch(editing, { expires_at: expiryFor(t.dataset.sheetExpiry) }); return openSheet(editing); }
+  if (t.hasAttribute('data-sheet-close'))  return closeSheet();
+  if (t.hasAttribute('data-sheet-delete')) { const id = editing; closeSheet(); return drop(id); }
+});
+
+document.getElementById('sheetBg').addEventListener('click', (e) => {
+  if (e.target.id === 'sheetBg') closeSheet();
+});
+
+// Master switch mutes everything without deleting it. Someone who wants silence
+// for a week should be able to get it here rather than in iOS settings, because
+// the OS-level switch is the one they never turn back on.
+document.getElementById('master').addEventListener('click', function () {
+  const on = this.getAttribute('aria-checked') !== 'true';
+  this.setAttribute('aria-checked', String(on));
+  document.getElementById('masterSub').textContent = on ? 'On' : 'Muted — nothing will be sent';
+  document.querySelector('.page').style.opacity = on ? '1' : '.55';
+});
+
+// ── Load ─────────────────────────────────────────────────────────────────────
+(async function load() {
+  if (sb && DEVICE_ID) {
+    const { data, error } = await sb
+      .from('notification_subs')
+      .select('id, scope_type, scope_value, level, delivery, expires_at, is_primary, gender, sport:sport_id(name)')
+      .eq('device_id', DEVICE_ID);
+    if (error) { console.error(error); SUBS = []; }
+    else SUBS = (data || []).map(r => ({ ...r, sport: r.sport?.name || null }));
+  } else {
+    SUBS = sampleSubs();
+    document.getElementById('sub').textContent = 'Sample data — no device registered yet';
+  }
+  render();
+})();
+</script>
+</body>
+</html>

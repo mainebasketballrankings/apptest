@@ -50,6 +50,10 @@
   <link rel="stylesheet" href="nav.css" />
 
   <style>
+    .team-record{font-size:12px;color:var(--lgray,#999);font-weight:400;
+      font-family:'Barlow Condensed',sans-serif;display:block;line-height:1.2;
+      margin-top:1px;}
+
     :root {
       --green:  #1a7a4a;
       --green2: #22a863;
@@ -1141,6 +1145,12 @@
     buildFilterButtons();
     renderAllGames();
 
+    // Records land after the cards; re-render when they arrive rather than
+    // holding the board for them.
+    const allTeamIds = [...new Set(allGames.flatMap(
+      g => [g.home_team?.id, g.away_team?.id].filter(Boolean)))];
+    fetchRecords(allTeamIds).then(() => renderAllGames());
+
     const activeGames = allGames.filter(g => g.status === 'active');
     if (activeGames.length) await fetchLiveEvents(activeGames);
   }
@@ -1899,40 +1909,67 @@
     return `<span class="stax-badge ${cls}">⚡${n.toFixed(1)}</span>`;
   }
 
+
+  // W-L records from the latest snapshot per team. Lifted from embed.html,
+  // which has had these since the logos moved and this page never picked up.
+  let recordMap = {};
+  async function fetchRecords(teamIds) {
+    if (!teamIds.length) return;
+    const chunks = [];
+    for (let i = 0; i < teamIds.length; i += 50) chunks.push(teamIds.slice(i, i + 50));
+    for (const chunk of chunks) {
+      const { data } = await sb
+        .from('rankings_snapshots')
+        .select('team_id,wins,losses')
+        .in('team_id', chunk)
+        .eq('season_year', 2026)
+        .order('snapshot_date', { ascending: false })
+        .limit(chunk.length * 40);
+      if (!data) continue;
+      const seen = new Set();
+      for (const row of data) {
+        if (!seen.has(row.team_id)) {
+          seen.add(row.team_id);
+          recordMap[row.team_id] = `${row.wins ?? 0}-${row.losses ?? 0}`;
+        }
+      }
+    }
+  }
+
   function streamIconEl(url) {
     if (!url) return '';
     let src = '';
     let alt = 'Stream';
 
     if (url.includes('easternmainesportsmedia') || url.includes('easternmainesports') || url.includes('eastern-maine')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278369/eastern_maine_sport_vp5nya.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/eastern%20maine%20sport.png';
       alt = 'Eastern Maine Sports';
     } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278312/You-Tube-14_nqkseu.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/You-Tube-14.png';
       alt = 'YouTube';
     } else if (url.includes('nfhs')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680700/nfhsnetworklogo2_hcomv2.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/nfhsnetworklogo2.png';
       alt = 'NFHS';
     } else if (url.includes('lctv') || url.includes('lctvonline')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680745/lctv_wikpnr.jpg';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/lctv.jpeg';
       alt = 'LCTV';
     } else if (url.includes('whou')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772683015/whou.live_.square-768x609_nwxdjx.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/whou.live_.square-768x609.png';
       alt = 'WHOU';
     } else if (url.includes('hudl.com')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680951/hudl_bq26ed.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/hudl.png';
       alt = 'Hudl';
     } else if (url.includes('theticket') || url.includes('ticket.tv')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1772680872/tickettv_llamh1.jpg';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/tickettv.jpeg';
       alt = 'The Ticket';
     } else if (url.includes('munzing')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278428/munzing_c4tion.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/munzing.png';
       alt = 'Munzing';
     } else if (url.includes('mainepublic') || url.includes('maine-public') || url.includes('mainepublic.org')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278462/maine_public_logoo_mlepsa.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine%20public%20logoo.png';
       alt = 'Maine Public';
     } else if (url.includes('mainecoast') || url.includes('maine-coast')) {
-      src = 'https://res.cloudinary.com/dulfssb6y/image/upload/v1773278552/maine_coast_tv_njnccc.png';
+      src = 'https://pub-607e71f4996b41a88bb949335554456d.r2.dev/maine_coast_tv.png';
       alt = 'Maine Coast TV';
     } else {
       return `<a href="${url}" target="_blank" rel="noopener" title="Watch live" style="color:var(--green2);font-size:18px;line-height:1;text-decoration:none">▶</a>`;
@@ -2100,14 +2137,14 @@
         <div class="team-row">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="team.html?team_id=${away.id}">${aR}${away.school_name}</a>
+            <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="team.html?team_id=${away.id}">${aR}${away.school_name}</a>${recordMap[away.id] ? ` <span class="team-record">${recordMap[away.id]}</span>` : ''}
           </div>
           ${aScEl}
         </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
-            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="team.html?team_id=${home.id}">${hR}${home.school_name}</a>
+            <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="team.html?team_id=${home.id}">${hR}${home.school_name}</a>${recordMap[home.id] ? ` <span class="team-record">${recordMap[home.id]}</span>` : ''}
           </div>
           ${hScEl}
         </div>

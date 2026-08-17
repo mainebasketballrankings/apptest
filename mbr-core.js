@@ -29,7 +29,7 @@
    deliberate: it keeps this first step a pure move, not a rewrite.
 
    CACHE NOTE: bump the ?v= query string when this file changes, or the service
-   worker may serve a stale copy. This revision is v=13.
+   worker may serve a stale copy. This revision is v=14.
 
    NATIVE (Capacitor): sign-in opens in the system browser and returns through
    the custom scheme in NATIVE_REDIRECT, and the push queue and auth session are
@@ -154,6 +154,7 @@
     seasonYearFor: (iso) => MBR.seasonYearFor(iso),
     trackingLevel: 'full_stats',           // NB: constraint rejects 'full'
     keepAwake : true,                      // scorers want it; the home screen sets false
+    isScoring : null,                      // () => true while a game is live, so OTA waits
   };
 
   // sportId may be supplied as a plain value OR a function. A function is safer:
@@ -945,6 +946,54 @@
     return on;
   }
 
+  // ── Over-the-air updates ─────────────────────────────────────────────────
+  // The scorers are web files inside a native shell, so a scoring bug can be
+  // fixed and delivered the same night instead of waiting on App Review. Apple
+  // permits this for interpreted code (3.3.2) as long as the app's purpose
+  // doesn't change — native plugins, the icon and Info.plist still need a build.
+  //
+  // The critical call is notifyAppReady(). Capgo activates a downloaded bundle
+  // provisionally and rolls back to the last good one if the app doesn't confirm
+  // a healthy boot. Miss this and every update reverts, silently, which looks
+  // exactly like "the update didn't work".
+  function otaPlugin() { return capPlugin('CapacitorUpdater'); }
+
+  let _otaReadySent = false;
+  function otaNotifyReady() {
+    if (_otaReadySent) return;
+    const U = otaPlugin(); if (!U) return;
+    _otaReadySent = true;
+    try { U.notifyAppReady(); } catch (e) { console.warn('ota notifyAppReady', e); }
+  }
+
+  // Check on launch and whenever the app comes back to the foreground — a coach
+  // leaves the app open all game, so "on launch" alone could mean days.
+  function otaInit() {
+    const U = otaPlugin(); if (!U) return;
+    otaNotifyReady();
+    // Never interrupt a game in progress: a bundle swap reloads the webview, and
+    // doing that mid-quarter would be worse than any bug it fixes. Scorers set
+    // this flag; the update lands on the next quiet foreground instead.
+    const busy = () => {
+      try { return typeof cfg.isScoring === 'function' ? !!cfg.isScoring() : false; }
+      catch (e) { return false; }
+    };
+    const check = () => {
+      if (busy() || !navigator.onLine) return;
+      try { U.notifyAppReady(); } catch (e) {}
+    };
+    if (global.document) {
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+    }
+    try { global.addEventListener('online', check); } catch (e) {}
+  }
+
+  function otaVersion() {
+    const U = otaPlugin();
+    if (!U || !U.current) return Promise.resolve(null);
+    return U.current().then(r => (r && r.bundle) ? r.bundle.version : null).catch(() => null);
+  }
+
   // ── Keep the screen on ───────────────────────────────────────────────────
   // A phone that sleeps in the third quarter is useless at the scorer's table.
   // iOS Safari's Wake Lock support is patchy, so prefer the native plugin and
@@ -1024,6 +1073,7 @@
     hydrateQueue();
     hydrateSession();
     hydrateLocalMode();
+    otaInit();
     if (cfg.keepAwake) {
       keepAwake(true);
       if (global.document) document.addEventListener('visibilitychange', () => {
@@ -1046,6 +1096,7 @@
     signInWithGoogle, signInWithApple, signIn, signInSheet, closeSignInSheet, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,
     autoUploadGameReport, emailGameReport,
     clamp, keepAwake, saveFile, initStatusBar, queueShare,
+    otaNotifyReady, otaVersion,
     localMode, setLocalMode, applyLocalMode,
     seasonYearFor: seasonYearForDate,
     get droppedRows() { return _droppedRows; },

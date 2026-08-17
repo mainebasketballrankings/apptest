@@ -384,8 +384,8 @@
 <body>
 
 <div class="page">
-  <div class="page-title">Heal Points</div>
-  <div class="page-sub">The Way Heal Points Should Be.</div>
+  <div class="page-title" id="pageTitle">Heal Points</div>
+  <div class="page-sub" id="pageSub">The Way Heal Points Should Be.</div>
 
   <div class="sport-tabs" id="sportTabs">
     <button class="sport-tab active" data-sport="basketball" data-season="2026">Basketball</button>
@@ -542,6 +542,9 @@
       // Build unique class+region combos
       const seen = new Map();
       (teamData || []).forEach(t => {
+        // Lobster Bowl is the all-star game, carried as class ALL. Not a bracket.
+        if (t.team_class === 'ALL' || t.team_region === 'Lobster Bowl' ||
+            t.team_region === 'out-of-state') return;
         const key = hasRegion
           ? `${t.team_class}|${t.team_region || ''}`
           : t.team_class;
@@ -583,6 +586,18 @@
       '<div class="loading"><div class="spinner"></div><span>Calculating…</span></div>';
     try {
     const cancelled = () => myToken !== _loadToken;
+
+    // Football is Crabtree, not Heal Points — a different formula with a
+    // different input set, so it takes its own path rather than running the
+    // Heal Points pass and relabelling the answer.
+    if (activeSport === 'football') {
+      const rows = await loadCrabtree(myToken);
+      if (rows === null || cancelled()) return;
+      allTeams = rows;
+      renderTable();
+      applyGate();
+      return;
+    }
 
     let teams = [];
 
@@ -897,7 +912,6 @@
     });
 
     if (cancelled()) return;
-    // Sort by Heal desc
     allTeams.sort((a, b) => b.heal - a.heal);
     renderTable();
   } catch(err) {
@@ -908,7 +922,57 @@
 }
 
   // ── Render table ───────────────────────────────────────────────
+
+  // ── Crabtree (football) ────────────────────────────────────────
+  // Football doesn't use Heal Points. Crabtree is your winning percentage plus
+  // your opponents' combined winning percentage — their total wins over their
+  // total games played, not the mean of their percentages — times 100.
+  //
+  // No class weighting, no preliminary index, no scores. Computed server-side by
+  // mbr_compute_crabtree so the page, the nightly stamp and the app all use one
+  // implementation. The cutoff is per class: Class A's regular season runs a
+  // week longer than the rest.
+  async function loadCrabtree(myToken) {
+    const [cls, region] = (activeRegion || '').split('|');
+    const { data, error } = await sb.rpc('mbr_compute_crabtree', {
+      p_season: activeSeason,
+      p_class:  cls || null,
+    });
+    if (error) throw error;
+    if (myToken !== _loadToken) return null;
+
+    const ids = (data || []).map(r => r.team_id);
+    if (!ids.length) return [];
+    const teamMap = {};
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data: ts } = await sb.from('teams')
+        .select('id, school_name, logo_url, team_class, team_region, gender')
+        .in('id', ids.slice(i, i + 200));
+      (ts || []).forEach(t => { teamMap[t.id] = t; });
+    }
+
+    return (data || [])
+      .map(r => {
+        const team = teamMap[r.team_id];
+        if (!team || !team.school_name || /^ZZ /i.test(team.school_name)) return null;
+        if (cls && team.team_class !== cls) return null;
+        if (region && (team.team_region || '') !== region) return null;
+        return { team, wins: r.wins, losses: r.played - r.wins, ties: 0,
+                 pi: null, heal: Number(r.crabtree), crabtree: Number(r.crabtree),
+                 gameDetails: [], denom: r.played };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.crabtree - a.crabtree);
+  }
+
   function renderTable() {
+    const IS_FOOTBALL = activeSport === 'football';
+    const title = document.getElementById('pageTitle');
+    const sub   = document.getElementById('pageSub');
+    if (title) title.textContent = IS_FOOTBALL ? 'Crabtree' : 'Heal Points';
+    if (sub) sub.textContent = IS_FOOTBALL
+      ? 'Winning percentage plus your opponents\u2019, times 100.'
+      : 'The Way Heal Points Should Be.';
     if (!allTeams.length) {
       document.getElementById('tableWrap').innerHTML =
         '<div class="empty"><h3>No data</h3></div>';
@@ -920,8 +984,8 @@
         <th>#</th>
         <th>Team</th>
         <th class="num">Record</th>
-        <th class="num hide-mobile">PI</th>
-        <th class="num">Heals</th>
+        ${IS_FOOTBALL ? '' : '<th class="num hide-mobile">PI</th>'}
+        <th class="num">${IS_FOOTBALL ? 'Crabtree' : 'Heals'}</th>
         <th></th>
       </tr></thead>
       <tbody>`;
@@ -942,8 +1006,8 @@
         <td class="td-rank">${i + 1}</td>
         <td><div class="td-team">${logoEl}<span class="team-name-cell">${team.school_name}</span><a href="team.html?team_id=${team.id}" onclick="event.stopPropagation()" style="margin-left:8px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--green);text-decoration:none;opacity:0.7" title="Team detail">↗</a></div></td>
         <td class="td-num">${recStr}</td>
-        <td class="td-num hide-mobile">${pi.toFixed(3)}</td>
-        <td class="td-num">${heal.toFixed(3)}</td>
+        ${IS_FOOTBALL ? '' : `<td class="td-num hide-mobile">${pi.toFixed(3)}</td>`}
+        <td class="td-num">${heal.toFixed(IS_FOOTBALL ? 4 : 3)}</td>
         <td class="td-chevron">▼</td>
       </tr>
       <tr class="detail-row ${isExp ? 'open' : ''}" data-detail-id="${team.id}">

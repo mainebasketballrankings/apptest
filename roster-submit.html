@@ -313,6 +313,20 @@
     return s === '' ? null : s;
   };
 
+  // Word and Google Docs silently turn ' into a curly U+2019. The uniqueness
+  // index is case-insensitive but not punctuation-insensitive, so an unnormalized
+  // paste files "Nicholas O’Neal" as a second, separate player.
+  // Accents are deliberately preserved --- Ouellette, Thériault and Pelletier are
+  // Maine surnames, not typos, and stripping them would be worse than the problem.
+  const SMART = { '\u2018': "'", '\u2019': "'", '\u201A': "'", '\u201B': "'",
+                  '\u201C': '"', '\u201D': '"', '\u201E': '"',
+                  '\u2013': '-', '\u2014': '-', '\u2212': '-',
+                  '\u00A0': ' ', '\u200B': '' };
+  const normName = v => String(v == null ? '' : v)
+    .replace(/[\u2018\u2019\u201A\u201B\u201C\u201D\u201E\u2013\u2014\u2212\u00A0\u200B]/g, c => SMART[c])
+    .replace(/\s+/g, ' ')
+    .trim();
+
   const SPORT_DISPLAY = [
     { slug: 'basketball',   label: 'Basketball'   },
     { slug: 'baseball',     label: 'Baseball'     },
@@ -719,40 +733,59 @@
 
     let inserted = 0, updated = 0, merged = 0, errors = 0;
 
+    // Every name in this submission, so the number fallback below can tell a
+    // stat stub apart from a real player who just happens to share a number.
+    const STUB_NAMES = new Set(['no name', 'text', 'unknown']);
+    const submittedNames = new Set(
+      parsedRows.map(r => normName(r.name).toLowerCase()).filter(Boolean)
+    );
+    // PostgREST ilike treats % and _ as wildcards; names shouldn't, so escape.
+    const ilikeLiteral = s => String(s || '').replace(/([%_\\])/g, '\\$1');
+
     for (const r of parsedRows) {
       const row = {
         team_id:       teamId,
         sport_id:      sportIdMap[selectedSport],
         season_year:   SEASON_YEAR,
         number:        normNum(r.number),
-        name:          r.name,
+        name:          normName(r.name),
         grade:         r.grade         || null,
         position:      r.position      || null,
         height:        r.height        || null,
         pronunciation: r.pronunciation || null,
       };
 
-      // 1. Match by number first — catches stat stubs from box score import
+      // 1. Match by name first. Name is the real identity key --- it is what the
+      //    unique index enforces --- and matching case-insensitively so a
+      //    box-score stub stored as "GRADY HREBEN" resolves to "Grady Hreben".
       let existing = null;
-      if (row.number) {
+      {
+        const { data: byName } = await sb.from('players')
+          .select('id, name')
+          .eq('team_id', row.team_id)
+          .eq('season_year', row.season_year)
+          .ilike('name', ilikeLiteral(row.name))
+          .maybeSingle();
+        if (byName) existing = byName;
+      }
+
+      // 2. Fall back to number --- this is what catches an unnamed stat stub
+      //    from a box-score import. Guarded: two players legitimately share a
+      //    number on a roster (JV/varsity), so if the row we'd match is itself
+      //    a named player appearing elsewhere in this submission, matching on
+      //    number would overwrite them with a different kid entirely.
+      if (!existing && row.number) {
         const { data: byNum } = await sb.from('players')
           .select('id, name')
           .eq('team_id', row.team_id)
           .eq('number', row.number)
-          .eq('season_year', row.season_year)
-          .maybeSingle();
-        if (byNum) existing = byNum;
-      }
-
-      // 2. Fall back to name match
-      if (!existing) {
-        const { data: byName } = await sb.from('players')
-          .select('id, name')
-          .eq('team_id', row.team_id)
-          .eq('name', row.name)
-          .eq('season_year', row.season_year)
-          .maybeSingle();
-        if (byName) existing = byName;
+          .eq('season_year', row.season_year);
+        if (byNum && byNum.length === 1) {
+          const cand = byNum[0];
+          const candName = (cand.name || '').trim().toLowerCase();
+          const isStub = !candName || STUB_NAMES.has(candName);
+          if (isStub || !submittedNames.has(candName)) existing = cand;
+        }
       }
 
       let error;

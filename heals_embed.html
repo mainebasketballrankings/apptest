@@ -683,22 +683,15 @@
     }
 
     // Season end date cutoffs — keyed by sport + season year
-    const SEASON_CUTOFFS = {
-      'basketball-2026': '2026-02-06', 'basketball-2025': '2025-02-07',
-      'baseball-2026':   '2026-06-04', 'baseball-2025':   '2025-06-04',
-      'softball-2026':   '2026-06-04', 'softball-2025':   '2025-06-04',
-      'lacrosse-2026':   '2026-06-06', 'lacrosse-2025':   '2025-06-06',
-      'soccer-2026':     '2026-10-22', 'soccer-2025':     '2025-10-22',
-      'field-hockey-2026':'2026-10-22','field-hockey-2025':'2025-10-22',
-      'football-2026':   '2026-11-01', 'football-2025':   '2025-11-01',
-    };
-    const cutoff = SEASON_CUTOFFS[`${activeSport}-${season}`] || null;
-
-    // Football cutoff varies by class (A ends Oct 31, others Oct 25)
-    const getFootballCutoff = (cls) => cls === 'A' ? '2025-11-01' : '2025-10-26';
-    const effectiveCutoff = activeSport === 'football'
-      ? getFootballCutoff(activeRegion?.split('|')[0] || activeRegion)
-      : cutoff;
+    // Cutoffs come from the season_cutoffs table, not a constant here. They used
+    // to be hardcoded, and the fall-sport entries were a year late: soccer-2026
+    // read 2026-10-22 for a season played in autumn 2025, so nothing was ever
+    // excluded and playoff results counted toward Heal Points. Reading them from
+    // the database means this page, the nightly stamp and the app can't drift.
+    const effectiveCutoff = await getSeasonCutoff(
+      SPORT_IDS[activeSport], season,
+      activeSport === 'football'
+        ? (activeRegion?.split('|')[0] || activeRegion) : null);
 
     // Game select — basketball uses team_classifications for oppClass, others use team_class
     const gameSelect = activeSport === 'basketball'
@@ -932,6 +925,27 @@
   // mbr_compute_crabtree so the page, the nightly stamp and the app all use one
   // implementation. The cutoff is per class: Class A's regular season runs a
   // week longer than the rest.
+
+  // Regular season end date. Class-specific rows win over the '*' catch-all,
+  // which is how football's Class A gets its extra week.
+  const _cutoffCache = {};
+  async function getSeasonCutoff(sportId, season, cls) {
+    const key = `${sportId}|${season}|${cls || '*'}`;
+    if (key in _cutoffCache) return _cutoffCache[key];
+    let out = null;
+    try {
+      const { data } = await sb.from('season_cutoffs')
+        .select('class_name, cutoff_date')
+        .eq('sport_id', sportId).eq('season_year', season);
+      const rows = data || [];
+      const hit = rows.find(r => cls && r.class_name === cls)
+               || rows.find(r => r.class_name === '*');
+      out = hit ? hit.cutoff_date : null;
+    } catch (e) { console.warn('[cutoff] lookup failed', e); }
+    _cutoffCache[key] = out;
+    return out;
+  }
+
   async function loadCrabtree(myToken) {
     const [cls, region] = (activeRegion || '').split('|');
     const { data, error } = await sb.rpc('mbr_compute_crabtree', {
@@ -951,7 +965,12 @@
       (ts || []).forEach(t => { teamMap[t.id] = t; });
     }
 
-    return (data || [])
+    // Records for every team in the season, so the expanded schedule can show
+    // each opponent's — that's what Crabtree is built from.
+    const recMap = {};
+    (data || []).forEach(r => { recMap[r.team_id] = { w: r.wins, p: r.played }; });
+
+    const rows = (data || [])
       .map(r => {
         const team = teamMap[r.team_id];
         if (!team || !team.school_name || /^ZZ /i.test(team.school_name)) return null;
@@ -963,6 +982,66 @@
       })
       .filter(Boolean)
       .sort((a, b) => b.crabtree - a.crabtree);
+
+    // Schedules for the teams on screen only — a class is a dozen or so teams,
+    // so this is one small query rather than one per row.
+    const shown = rows.map(r => r.team.id);
+    if (shown.length) {
+      const cutoff = await getSeasonCutoff(SPORT_IDS.football, activeSeason, cls);
+      let q = sb.from('games')
+        .select('id, game_date, home_team_id, away_team_id, home_score, away_score, status')
+        .eq('sport_id', SPORT_IDS.football)
+        .eq('season_year', activeSeason)
+        .eq('is_tournament', false)
+        .neq('status', 'cancelled')
+        .or(`home_team_id.in.(${shown.join(',')}),away_team_id.in.(${shown.join(',')})`)
+        .order('game_date', { ascending: true });
+      if (cutoff) q = q.lte('game_date', cutoff);
+      const { data: games } = await q;
+      if (myToken !== _loadToken) return null;
+
+      const nameFor = (id) => (teamMap[id] || {}).school_name || null;
+      const byTeam = {};
+      (games || []).forEach(g => {
+        [[g.home_team_id, true], [g.away_team_id, false]].forEach(([tid, isHome]) => {
+          if (!shown.includes(tid)) return;
+          const oppId = isHome ? g.away_team_id : g.home_team_id;
+          const mine  = isHome ? g.home_score : g.away_score;
+          const opp   = isHome ? g.away_score : g.home_score;
+          const rec   = recMap[oppId];
+          (byTeam[tid] ||= []).push({
+            g, atHome: !isHome, myScore: mine, oppScore: opp,
+            won: mine !== null && opp !== null && mine > opp,
+            tied: mine !== null && opp !== null && mine === opp,
+            opp: teamMap[oppId] || { school_name: nameFor(oppId) },
+            oppName: nameFor(oppId),
+            oppRank: null,
+            oppPI: null,
+            oppWins: rec ? rec.w : undefined,
+            oppPlayed: rec ? rec.p : undefined,
+          });
+        });
+      });
+
+      // Opponents can sit outside the class on screen, so fetch any names missed.
+      const missing = [...new Set(Object.values(byTeam).flat()
+        .filter(d => !d.oppName)
+        .map(d => d.atHome ? d.g.home_team_id : d.g.away_team_id))];
+      if (missing.length) {
+        const { data: extra } = await sb.from('teams')
+          .select('id, school_name').in('id', missing.slice(0, 200));
+        const extraMap = Object.fromEntries((extra || []).map(t => [t.id, t.school_name]));
+        Object.values(byTeam).flat().forEach(d => {
+          if (!d.oppName) {
+            d.oppName = extraMap[d.atHome ? d.g.home_team_id : d.g.away_team_id] || '—';
+            d.opp = { school_name: d.oppName };
+          }
+        });
+      }
+      rows.forEach(r => { r.gameDetails = byTeam[r.team.id] || []; });
+    }
+
+    return rows;
   }
 
   function renderTable() {
@@ -1061,13 +1140,18 @@
     const { team, gameDetails, wins, losses, ties, pi, heal, denom } = entry;
     const record = (ties || 0) > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
 
+
     let lines = '';
     gameDetails.forEach(d => {
       const dateObj = new Date(d.g.game_date + 'T12:00:00');
       const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).replace(' ', '-');
       const prefix  = d.atHome ? '@ ' : '';
       const rankStr = d.oppRank ? `#${d.oppRank} ` : '';
-      const piStr   = d.oppPI ? d.oppPI.toFixed(2) : '—';
+      const isFB    = activeSport === 'football';
+      const piStr   = isFB
+        ? (d.oppWins === undefined ? '—' : `${d.oppWins}-${d.oppPlayed - d.oppWins}`)
+        : (d.oppPI ? d.oppPI.toFixed(2) : '—');
+      const piSuffix = isFB ? '' : ' PI';
       const unplayed = d.g.status === 'scheduled' || d.myScore === null || d.oppScore === null;
       const scoreStr = unplayed ? dateStr : `${d.myScore}-${d.oppScore}`;
       const res = unplayed ? 'U' : (d.won ? 'W' : d.tied ? 'T' : 'L');
@@ -1083,11 +1167,11 @@
       const barEl = unplayed
         ? `<div class="gl-winpct">
             <div class="gl-bar-wrap" style="background:#e8e8e8"><div class="gl-bar" style="width:0%;background:#ccc"></div></div>
-            <div class="gl-bar-label" style="color:#aaa"><span class="lbl-full">${piStr} PI available</span><span class="lbl-short">${piStr} PI</span></div>
+            <div class="gl-bar-label" style="color:#aaa"><span class="lbl-full">${piStr}${piSuffix}${isFB ? '' : ' available'}</span><span class="lbl-short">${piStr}${piSuffix}</span></div>
            </div>`
         : `<div class="gl-winpct">
             <div class="gl-bar-wrap"><div class="gl-bar" style="width:${barWidth}%"></div></div>
-            ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr} PI</span><span class="lbl-short">${piStr} PI</span></div>` : ''}
+            ${wpPct !== null ? `<div class="gl-bar-label"><span class="lbl-full">${wpPct}%&nbsp;·&nbsp;${piStr}${piSuffix}</span><span class="lbl-short">${piStr}${piSuffix}</span></div>` : ''}
            </div>`;
 
       const scoreEl = unplayed
@@ -1097,7 +1181,7 @@
       lines += `<div class="game-line">
         ${resultEl}
         <span class="gl-date">${dateStr}</span>
-        <span class="gl-opp"><span class="at">${prefix}</span><span class="rank">${rankStr}</span>${d.opp?.school_name || '?'}</span>
+        <span class="gl-opp"><span class="at">${prefix}</span><span class="rank">${rankStr}</span>${d.opp?.school_name || d.oppName || '?'}</span>
         ${barEl}
         ${scoreEl}
       </div>`;
@@ -1112,10 +1196,16 @@
     return `<div class="detail-inner">
       <div class="detail-header">
         <span class="detail-team-name">${team.school_name}</span>
-        <span class="detail-summary">${record} &nbsp;|&nbsp; ${pi.toFixed(4)} PI &nbsp;|&nbsp; ${heal.toFixed(4)} Heals &nbsp;|&nbsp; <span style="${diffColor};font-weight:700">${diffStr}</span></span>
+        <span class="detail-summary">${record}
+          ${activeSport === 'football'
+            ? `&nbsp;|&nbsp; ${heal.toFixed(4)} Crabtree`
+            : `&nbsp;|&nbsp; ${pi.toFixed(4)} PI &nbsp;|&nbsp; ${heal.toFixed(4)} Heals`}
+          &nbsp;|&nbsp; <span style="${diffColor};font-weight:700">${diffStr}</span></span>
       </div>
       <div class="game-list">${lines}</div>
-      <div class="detail-note">[Win%] · Opp PI in brackets · Denominator: ${denom}</div>
+      <div class="detail-note">${activeSport === 'football'
+        ? `[Win%] · Opponent record · Games played: ${denom}`
+        : `[Win%] · Opp PI in brackets · Denominator: ${denom}`}</div>
     </div>`;
   }
 

@@ -1027,6 +1027,14 @@
   function toISO(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
+  // Season year for a given ISO date. MBR uses the school-year-ending year, so
+  // Aug-Dec belong to the NEXT calendar year: 2026-08-19 -> 2027, 2027-02-06 -> 2027.
+  // Derived from the date rather than hardcoded so it never needs a yearly edit.
+  function seasonFor(ds) {
+    const [y, m] = ds.split('-').map(Number);
+    return m >= 8 ? y + 1 : y;
+  }
+
   function fmtHeading(d) {
     return toISO(d) === toISO(new Date()) ? "Today's Games"
       : d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
@@ -1052,7 +1060,7 @@
       const { data, error } = await sb
         .from('rankings_snapshots')
         .select('team_id, rank_overall, snapshot_date, tournament_odds')
-        .eq('season_year', 2026)
+        .eq('season_year', seasonFor(toISO(currentDate)))
         .not('rank_overall', 'is', null)
         .order('snapshot_date', { ascending: false })
         .limit(2000);
@@ -1079,7 +1087,7 @@
         team_classifications ( classes ( name ) ) )
     `).eq('game_date', ds)
       .eq('sport_id', SPORT_IDS[sport])
-      .eq('season_year', season)
+      .eq('season_year', seasonFor(ds))
       .order('game_time', { ascending: true, nullsFirst: false });
     if (error || !data) return [];
     return data.filter(g => g.home_team && g.away_team).map(g => ({ ...g, _sport: sport }));
@@ -1922,7 +1930,7 @@
         .from('rankings_snapshots')
         .select('team_id,wins,losses')
         .in('team_id', chunk)
-        .eq('season_year', 2026)
+        .eq('season_year', seasonFor(toISO(currentDate)))
         .order('snapshot_date', { ascending: false })
         .limit(chunk.length * 40);
       if (!data) continue;

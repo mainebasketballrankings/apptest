@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="mbr-season.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -298,7 +299,19 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const SEASON_YEAR = 2026;
+  // School-year-ending year, computed. See mbr-season.js.
+  // Writes never honour a URL override — a stray ?season= must not misfile a roster.
+  const SEASON_YEAR = MBR_SEASON.current();
+
+  // Excel hands back "11.0" for a numeric cell. players.number is text, and the
+  // merge below matches on it exactly, so an unnormalized "11.0" never matches a
+  // stored "11" and silently inserts a duplicate instead of updating.
+  // Values like "5/14" or "Inj." are real roster entries and pass through untouched.
+  const normNum = v => {
+    if (v === null || v === undefined) return null;
+    const s = String(v).trim().replace(/^(\d+)\.0+$/, '$1');
+    return s === '' ? null : s;
+  };
 
   const SPORT_DISPLAY = [
     { slug: 'basketball',   label: 'Basketball'   },
@@ -587,7 +600,7 @@
     );
 
     const GRADE_RE    = /^(?:9|10|11|12|[Ff]r(?:esh)?|[Ss]o(?:ph)?|[Jj]r|[Ss]r|freshman|sophomore|junior|senior)$/i;
-    const NUMBER_RE   = /^\d{1,2}$/;
+    const NUMBER_RE   = /^\d{1,2}(\.0+)?$/; // tolerate Excel's "11.0" during column detection
     const NAME_RE     = /^[A-Z][a-z]+ [A-Z][a-z]+/; // "First Last"
     const POS_RE      = /^(?:[PCOF]|[1-3]B|SS|DH|UT|IF|LF|CF|RF|[GL]K|DEF|MID|FWD|[SGC]|OH|MB|RS|LS|QB|RB|WR|TE|OL|DL|LB|DB|[KP])(?: *[/|,] *(?:[PCOF]|[1-3]B|SS|DH|UT|IF|LF|CF|RF))*$/i;
     const PRONUN_RE   = /[A-Z]{2,}-|[a-z]+-[a-z]+/; // hyphenated phonetic like "BOW-ker" or "TEE-bow"
@@ -711,7 +724,7 @@
         team_id:       teamId,
         sport_id:      sportIdMap[selectedSport],
         season_year:   SEASON_YEAR,
-        number:        r.number        || null,
+        number:        normNum(r.number),
         name:          r.name,
         grade:         r.grade         || null,
         position:      r.position      || null,

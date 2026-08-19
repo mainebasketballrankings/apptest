@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="mbr-season.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -202,7 +203,7 @@
         <strong>school_name</strong> — must match exactly (e.g. "Camden Hills Regional") ·
         <strong>gender</strong> — Boys or Girls ·
         <strong>sport</strong> — basketball, baseball, softball, lacrosse, soccer, field-hockey, football, volleyball ·
-        <strong>season_year</strong> — use <strong>2026</strong> for the 25-26 season (2025 will warn) ·
+        <strong>season_year</strong> — school-year-<em>ending</em> year; <span id="seasonHint"></span> Leave blank to use the current season. ·
         <strong>height</strong> — basketball only (e.g. 6'2") ·
         <strong>pronunciation</strong> — phonetic spelling if needed, otherwise blank ·
         Stats columns: leave blank if not applicable for sport.
@@ -360,16 +361,19 @@
     }).filter(r => r.school_name || r.name); // skip blank lines
   }
 
+  // Handles 2027, "2027", "2026-27", "26-27" → 2027. See mbr-season.js.
+  // Blank season_year defaults to the current school year rather than failing,
+  // so a coach's export without the column still lands correctly.
+  const CURRENT_SEASON = MBR_SEASON.current();
+  // Populated from the helper so the instructions can never drift from the code.
+  document.addEventListener('DOMContentLoaded', () => {
+    const hint = document.getElementById('seasonHint');
+    if (hint) hint.innerHTML =
+      `use <strong>${CURRENT_SEASON}</strong> for the ${MBR_SEASON.currentLabel()} season.`;
+  });
   function parseSeasonYear(val) {
-    if (!val) return null;
-    val = String(val).trim();
-    // Handle "2025-26" or "25-26" style → take the ending year
-    const dashMatch = val.match(/(\d{2,4})[-–](\d{2,4})/);
-    if (dashMatch) {
-      const end = dashMatch[2];
-      return end.length === 2 ? 2000 + parseInt(end) : parseInt(end);
-    }
-    return parseInt(val) || null;
+    if (val === null || val === undefined || String(val).trim() === '') return CURRENT_SEASON;
+    return MBR_SEASON.parse(val);
   }
 
   function rowToPlayer(row) {
@@ -381,7 +385,7 @@
     return {
       _teamId:    teamId,
       _matchKey:  `${row.school_name} / ${row.gender} / ${row.sport}`,
-      _badYear:   sy === 2025,
+      _badYear:   sy !== CURRENT_SEASON,
       team_id:    teamId,
       sport_id:   sportId,
       season_year: sy,
@@ -425,7 +429,9 @@
       const matchCls  = r._teamId ? 'match-ok' : 'match-err';
       const matchTxt  = r._teamId ? '✓ ' + r._matchKey : '✗ ' + r._matchKey;
       const yearCls   = r._badYear ? 'match-warn' : '';
-      const yearTxt   = r._badYear ? `⚠ ${r.season_year} (should be 2026)` : (r.season_year || '');
+      const yearTxt   = r._badYear
+        ? `⚠ ${r.season_year} = ${MBR_SEASON.label(r.season_year)} (current is ${CURRENT_SEASON})`
+        : (r.season_year || '');
       const n = f => r[f] != null ? r[f] : '';
       return `<tr>
         <td class="${matchCls}">${matchTxt}</td>

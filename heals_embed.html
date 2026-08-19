@@ -624,7 +624,10 @@
       if (rows === null || cancelled()) return;
       allTeams = rows;
       renderTable();
-      applyGate();
+      // The embed has no paywall gate - that function only exists in heals.html.
+      // This branch was copied from there, so the call threw a ReferenceError and
+      // football fell through to "Failed to load" on every season.
+      if (typeof applyGate === 'function') applyGate();
       return;
     }
 

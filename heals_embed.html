@@ -392,9 +392,9 @@
     <button class="sport-tab" data-sport="baseball" data-season="2026">Baseball</button>
     <button class="sport-tab" data-sport="softball" data-season="2026">Softball</button>
     <button class="sport-tab" data-sport="lacrosse" data-season="2026">Lacrosse</button>
-    <button class="sport-tab" data-sport="soccer" data-season="2026">Soccer</button>
-    <button class="sport-tab" data-sport="field-hockey" data-season="2026">Field Hockey</button>
-    <button class="sport-tab" data-sport="football" data-season="2026">Football</button>
+    <button class="sport-tab" data-sport="soccer" data-season="2027">Soccer</button>
+    <button class="sport-tab" data-sport="field-hockey" data-season="2027">Field Hockey</button>
+    <button class="sport-tab" data-sport="football" data-season="2027">Football</button>
   </div>
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
@@ -407,6 +407,7 @@
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <label style="font-size:12px;color:var(--ink3);font-weight:500;">Season</label>
       <select id="seasonSelect" style="font-size:12px;border:1px solid var(--rule);border-radius:6px;padding:4px 8px;background:var(--paper2);color:var(--ink);cursor:pointer;">
+        <option value="2027">26-27</option>
         <option value="2026">25-26</option>
         <option value="2025">24-25</option>
       </select>
@@ -456,7 +457,35 @@
   let allTeams     = [];
   let expandedTeam = null;
 
+  // Default to whatever sport is actually in season rather than always
+  // basketball. Aug-Nov fall, Dec-Mar winter, Apr-Jul spring.
+  function currentSportKey() {
+    const m = new Date().getMonth() + 1;
+    if (m >= 8 && m <= 11) return 'soccer';
+    if (m === 12 || m <= 3) return 'basketball';
+    return 'baseball';
+  }
+  (function initDefaultSport() {
+    const key = currentSportKey();
+    const btn = document.querySelector(`.sport-tab[data-sport="${key}"]`);
+    if (!btn) return;
+    document.querySelectorAll('.sport-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeSport  = key;
+    activeSeason = parseInt(btn.dataset.season);
+    syncSeasonSelect();
+  })();
+
   // Season dropdown
+  // Keep the dropdown's displayed value in step with activeSeason. Without this
+  // the sport tabs change the season silently and the label lies about what's
+  // on screen (26-27 showing 25-26 data).
+  function syncSeasonSelect() {
+    const el = document.getElementById('seasonSelect');
+    if (el) el.value = activeSeason;
+  }
+  syncSeasonSelect();
+
   document.getElementById('seasonSelect').addEventListener('change', function() {
     activeSeason = parseInt(this.value);
     expandedTeam = null; // reset expansion — team IDs may differ between seasons
@@ -1226,6 +1255,7 @@
       btn.classList.add('active');
       activeSport  = btn.dataset.sport;
       activeSeason = parseInt(btn.dataset.season);
+      syncSeasonSelect();
       activeRegion = null;
       expandedTeam = null;
       // Reset gender to Boys for multi-gender sports

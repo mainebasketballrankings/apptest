@@ -326,9 +326,9 @@
     <button class="sport-tab" data-sport="baseball" data-season="2026">Baseball</button>
     <button class="sport-tab" data-sport="softball" data-season="2026">Softball</button>
     <button class="sport-tab" data-sport="lacrosse" data-season="2026">Lacrosse</button>
-    <button class="sport-tab" data-sport="soccer" data-season="2025">Soccer</button>
-    <button class="sport-tab" data-sport="field-hockey" data-season="2025">Field Hockey</button>
-    <button class="sport-tab" data-sport="football" data-season="2025">Football</button>
+    <button class="sport-tab" data-sport="soccer" data-season="2027">Soccer</button>
+    <button class="sport-tab" data-sport="field-hockey" data-season="2027">Field Hockey</button>
+    <button class="sport-tab" data-sport="football" data-season="2027">Football</button>
   </div>
   <script>
     (function(){
@@ -349,6 +349,7 @@
   <div id="season-row" style="display:flex;align-items:center;gap:8px;margin:8px 0 0;font-family:'Barlow',sans-serif;font-size:13px;color:var(--ink3)">
     <span>Season:</span>
     <select id="seasonSel" style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer">
+      <option value="2027">26-27</option>
       <option value="2026">25-26</option>
       <option value="2025">24-25</option>
       <option value="2024">23-24</option>
@@ -420,11 +421,17 @@
   let activeClass  = 'all';
   let activeSport  = localStorage.getItem('mbr_rankings_sport') || 'basketball';
   let activeSeason = parseInt(localStorage.getItem('mbr_rankings_season') || '2026');
+  // A stale saved season (e.g. 2025 for a fall sport) would load an empty table
+  // forever, since nothing on the page can clear it. Drop anything unusable.
+  if (![2024, 2025, 2026, 2027].includes(activeSeason)) activeSeason = 2026;
 
   // Season dropdown — default seasons per sport
   const SPORT_DEFAULT_SEASON = {
     'basketball': 2026, 'baseball': 2026, 'softball': 2026, 'lacrosse': 2026,
-    'soccer': 2025, 'field-hockey': 2025, 'football': 2025,
+    // 26-27 rankings are live for the fall sports; the rest still show 25-26.
+    // (These read 2025 before, but every fall snapshot moved to 2026 — the three
+    // fall tabs had been loading a season with no rows in it at all.)
+    'soccer': 2027, 'field-hockey': 2027, 'football': 2027,
   };
   let sortCol      = 'dirigo';
   let sortAsc      = false;

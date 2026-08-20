@@ -300,16 +300,24 @@
 <script>
 const SB_URL  = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
-const SPORT_REG_END = {
-  'basketball':    '2026-02-06',
-  'baseball':      '2026-06-04',
-  'softball':      '2026-06-04',
-  'lacrosse':      '2026-06-06',
-  'soccer':        '2026-10-22',
-  'field-hockey':  '2026-10-22',
-  'football':      '2026-11-01',
-  'volleyball':    '2026-11-01',
-};
+// Regular-season end dates come from the season_cutoffs table, not from here.
+// The old hardcoded map went stale every August and could not express football's
+// per-class cutoffs (2027: default Oct 24, but Class A Oct 31 and Class C Oct 30),
+// so Heal Points for those classes were computed against the wrong window.
+//
+// Resolution order: exact class row -> the '*' default row -> end of the school
+// year. That last fallback is deliberately permissive: games are already filtered
+// by is_tournament=false, so a missing cutoff row includes the full regular
+// season rather than silently zeroing a team's Heal Points.
+function resolveRegEnd(cutoffRows, className, seasonYear) {
+  const rows = cutoffRows || [];
+  const exact = className && rows.find(r => r.class_name === className);
+  if (exact) return exact.cutoff_date;
+  const star = rows.find(r => r.class_name === '*');
+  if (star) return star.cutoff_date;
+  console.warn(`No season_cutoffs row for season ${seasonYear}; using end of school year.`);
+  return `${seasonYear}-06-30`;
+}
 
 const SPORT_IDS = {
   'basketball':    'b31ab283-b28e-4ba8-9684-b1cf30cea219',
@@ -430,7 +438,6 @@ async function load() {
     const sport   = Object.keys(SPORT_IDS).find(k => SPORT_IDS[k] === team.sport_id) || 'basketball';
     const SPRING_SPORT_IDS = ['c87a4d6c-a471-47e1-b6a0-d1643d942bf0','095c9841-7261-4cb1-824e-6304792b53d0'];
     const isSpring = SPRING_SPORT_IDS.includes(team.sport_id);
-    const regEnd  = SPORT_REG_END[sport];
     const [pfLbl, paLbl] = SPORT_SCORE_LABELS[sport] || ['Avg PF', 'Avg PA'];
     // Current school year by default; ?season=2026 pulls up a prior season.
     const seasonYear = MBR_SEASON.fromUrl();
@@ -438,15 +445,24 @@ async function load() {
     // snapshot_date already available from snap[0] (fetched above with select=*)
     const latestSnapDate = stats?.snapshot_date || null;
 
-    const [games, classData, allSnaps, genderTeams] = await Promise.all([
+    const [games, classData, allSnaps, genderTeams, cutoffRows] = await Promise.all([
       sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=game_date.asc&select=*,stats_uploaded`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       latestSnapDate
         ? sb(`rankings_snapshots?snapshot_date=eq.${latestSnapDate}&season_year=eq.${seasonYear}&select=team_id,heal_points,rank_overall,rank_class,sos,avg_pf,avg_pa,pct_perfect&limit=500`)
         : Promise.resolve([]),
-      sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`)
+      sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`),
+      sb(`season_cutoffs?sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=class_name,cutoff_date`)
     ]);
     const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
+
+    // Class has to be resolved here rather than further down, because regEnd
+    // depends on it and the Heal Points queries below depend on regEnd.
+    const myClass   = classData[0];
+    const className = myClass?.classes?.name || team.team_class || '';
+    const regionName= myClass?.regions?.name || team.team_region || '';
+    const classReg  = [className, regionName].filter(Boolean).join(' ');
+    const regEnd    = resolveRegEnd(cutoffRows, className, seasonYear);
 
     // Rank computation — deferred until after genderTeamIds is loaded
 
@@ -582,10 +598,6 @@ async function load() {
     }
 
     const sibling   = siblings[0] || null;
-    const myClass   = classData[0];
-    const className = myClass?.classes?.name || team.team_class || '';
-    const regionName= myClass?.regions?.name || team.team_region || '';
-    const classReg  = [className, regionName].filter(Boolean).join(' ');
 
     // Compute ranks client-side from all snapshots
     // Use existing rank_overall/rank_class from DB, compute rank_region here
@@ -677,7 +689,7 @@ async function load() {
     let oddsHtml = '';
     const odds = stats?.tournament_odds || null;
     if (odds) {
-      const isTourney  = new Date() > new Date('2026-02-20');
+      const isTourney  = new Date() > new Date(regEnd);
       const oddsTitle  = isTourney ? 'Gold Ball Odds' : 'Tournament Odds';
 
       // Get cutoffs for this team's region
@@ -903,7 +915,7 @@ async function load() {
 
       summerHtml = `
       <div class="games-section">
-        <div class="section-header">Summer 2026</div>
+        <div class="section-header">Summer ${summerGames[0].game_date.slice(0,4)}</div>
         <div class="games-wrap">
           <table class="gt">
             <thead><tr>
@@ -1064,7 +1076,7 @@ async function load() {
             <span class="team-name-lg">${team.school_name}</span>
             ${rankHtml}
           </div>
-          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span><span style="font-size:12px;color:var(--gray);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">25-26</span><span class="meta-sep">|</span><a class="gender-link" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
+          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span><span style="font-size:12px;color:var(--gray);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">${MBR_SEASON.label(seasonYear)}</span><span class="meta-sep">|</span><a class="gender-link" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
           <div class="team-inline-stats">
             <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}</span></span>
             <span class="inline-stat"><span class="inline-lbl">POINT DIFF</span><span class="inline-val ${pointDiff >= 0 ? 'grn' : 'red'}">${diffStr}</span></span>

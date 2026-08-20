@@ -525,7 +525,7 @@
 
     const badge = document.getElementById('teamConfirmed');
     badge.style.display = 'block';
-    badge.innerHTML = `<div class="confirmed-badge">✓ ${selectedSchool} · ${selectedGender} ${sportLabel} · 25-26</div>`;
+    badge.innerHTML = `<div class="confirmed-badge">✓ ${selectedSchool} · ${selectedGender} ${sportLabel} · ${MBR_SEASON.label(SEASON_YEAR)}</div>`;
 
     const pa = document.getElementById('pasteArea');
     pa.value = '';

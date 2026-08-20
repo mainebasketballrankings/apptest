@@ -268,6 +268,16 @@ const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // year. That last fallback is deliberately permissive: games are already filtered
 // by is_tournament=false, so a missing cutoff row includes the full regular
 // season rather than silently zeroing a team's Heal Points.
+// Rewrites only the season param so team_id (and anything else) survives the
+// switch. Inside the embed this reloads the iframe, which is what we want ---
+// the host Ghost page keeps its own URL.
+function mbrGoToSeason(year) {
+  const q = new URLSearchParams(window.location.search);
+  q.set('season', year);
+  q.delete('season_year');            // avoid two params disagreeing
+  window.location.search = q.toString();
+}
+
 function resolveRegEnd(cutoffRows, className, seasonYear) {
   const rows = cutoffRows || [];
   const exact = className && rows.find(r => r.class_name === className);
@@ -404,14 +414,15 @@ async function load() {
     // snapshot_date already available from snap[0] (fetched above with select=*)
     const latestSnapDate = stats?.snapshot_date || null;
 
-    const [games, classData, allSnaps, genderTeams, cutoffRows] = await Promise.all([
+    const [games, classData, allSnaps, genderTeams, cutoffRows, seasonRows] = await Promise.all([
       sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&order=game_date.asc&select=*,stats_uploaded`),
       sb(`team_classifications?team_id=eq.${tid}&select=class_id,region_id,classes(name),regions(name)`),
       latestSnapDate
         ? sb(`rankings_snapshots?snapshot_date=eq.${latestSnapDate}&season_year=eq.${seasonYear}&select=team_id,heal_points,rank_overall,rank_class,sos,avg_pf,avg_pa,pct_perfect&limit=500`)
         : Promise.resolve([]),
       sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`),
-      sb(`season_cutoffs?sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=class_name,cutoff_date`)
+      sb(`season_cutoffs?sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=class_name,cutoff_date`),
+      sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&select=season_year&limit=2000`)
     ]);
     const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
 
@@ -422,6 +433,26 @@ async function load() {
     const regionName= myClass?.regions?.name || team.team_region || '';
     const classReg  = [className, regionName].filter(Boolean).join(' ');
     const regEnd    = resolveRegEnd(cutoffRows, className, seasonYear);
+
+    // Season switcher, built from the seasons this team actually played --- a
+    // fixed list would offer 24-25 to a volleyball team that has no 24-25 games
+    // and land the visitor on an empty page. Newest first. If the team has only
+    // ever played one season there is nothing to switch between, so it stays a
+    // plain chip.
+    const availableSeasons = [...new Set((seasonRows || []).map(r => r.season_year))]
+      .filter(Boolean).sort((a, b) => b - a);
+    if (!availableSeasons.includes(seasonYear)) availableSeasons.unshift(seasonYear);
+
+    const CHIP_CSS = 'font-size:12px;color:var(--gray);background:var(--bg);'
+                   + 'border:1px solid var(--border);border-radius:4px;padding:1px 6px;';
+    const seasonChipHtml = availableSeasons.length < 2
+      ? `<span style="${CHIP_CSS}">${MBR_SEASON.label(seasonYear)}</span>`
+      : `<select aria-label="Season" onchange="mbrGoToSeason(this.value)" style="${CHIP_CSS}`
+        + `font-family:inherit;font-weight:inherit;cursor:pointer;">`
+        + availableSeasons.map(y =>
+            `<option value="${y}"${y === seasonYear ? ' selected' : ''}>${MBR_SEASON.label(y)}</option>`
+          ).join('')
+        + `</select>`;
 
     // Rank computation — deferred until after genderTeamIds is loaded
 
@@ -1018,7 +1049,7 @@ async function load() {
             <span class="team-name-lg">${team.school_name}</span>
             ${rankHtml}
           </div>
-          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span><span style="font-size:12px;color:var(--gray);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">${MBR_SEASON.label(seasonYear)}</span><span class="meta-sep">|</span><a class="gender-link" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
+          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span>${seasonChipHtml}<span class="meta-sep">|</span><a class="gender-link" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
           <div class="team-inline-stats">
             <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}</span></span>
             <span class="inline-stat"><span class="inline-lbl">POINT DIFF</span><span class="inline-val ${pointDiff >= 0 ? 'grn' : 'red'}">${diffStr}</span></span>

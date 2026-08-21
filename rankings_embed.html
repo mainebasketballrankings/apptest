@@ -626,10 +626,19 @@
       const gbNum  = odds.gold_ball || 0;
       const heal   = r.dirigo ? r.dirigo.toFixed(2) : '—';
       const sos    = r.sos ? r.sos.toFixed(2) : '—';
-      const pct    = r.pct_perfect ? (r.pct_perfect * 100).toFixed(1) + '%' : '—';
-      const pf     = r.avg_pf ? r.avg_pf.toFixed(1) : '—';
-      const pa     = r.avg_pa ? r.avg_pa.toFixed(1) : '—';
-      const diffVal = (r.avg_pf && r.avg_pa) ? r.avg_pf - r.avg_pa : null;
+      // Same class of bug: 0% perfect predictions is a real, common value early
+      // in a season, not missing data.
+      const pct    = (r.pct_perfect !== null && r.pct_perfect !== undefined)
+        ? (r.pct_perfect * 100).toFixed(1) + '%' : '—';
+      // avg_pf/avg_pa of 0 is real data (a shutout), not missing data — a
+      // truthy check treats 0 as falsy and shows "—" for a team that just blanked
+      // an opponent. Check for null/undefined explicitly instead. Same fix for
+      // diff: 0 && x is always falsy, so a 2-0 game silently dropped its diff.
+      const hasPF  = r.avg_pf !== null && r.avg_pf !== undefined;
+      const hasPA  = r.avg_pa !== null && r.avg_pa !== undefined;
+      const pf     = hasPF ? r.avg_pf.toFixed(1) : '—';
+      const pa     = hasPA ? r.avg_pa.toFixed(1) : '—';
+      const diffVal = (hasPF && hasPA) ? r.avg_pf - r.avg_pa : null;
       const diff   = diffVal !== null
         ? (diffVal >= 0 ? '+' : '') + diffVal.toFixed(1)
         : '—';

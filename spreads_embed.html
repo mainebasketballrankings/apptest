@@ -493,7 +493,12 @@ const ds = toISO(currentDate);
     ct.addEventListener('click', (e) => {
       if (e.target.closest('a, button')) return;
       const gameId = ct.closest('.game-card')?.dataset.gameId;
-      if (gameId) window.open(`matchup.html?game_id=${gameId}`, '_blank');
+      // Absolute, and pointed at the Ghost page rather than a relative path: these
+      // embeds are served from app.mainebasketballrankings.com inside an iframe, so
+      // a relative link resolved back to the subdomain and dropped people out of
+      // the site. /matchup/ forwards ?id= into the embed the same way /game/ does.
+      if (gameId) window.open(
+        `https://www.mainebasketballrankings.com/matchup/?id=${gameId}`, '_blank');
     });
   });
 }

@@ -634,8 +634,12 @@
       // truthy check treats 0 as falsy and shows "—" for a team that just blanked
       // an opponent. Check for null/undefined explicitly instead. Same fix for
       // diff: 0 && x is always falsy, so a 2-0 game silently dropped its diff.
-      const hasPF  = r.avg_pf !== null && r.avg_pf !== undefined;
-      const hasPA  = r.avg_pa !== null && r.avg_pa !== undefined;
+      // Two different kinds of zero. A shutout is a real 0 and must show as 0.0;
+      // a team that hasn't played yet has no average at all and should show a
+      // dash. The value alone can't tell them apart — games played can.
+      const played = (r.wins || 0) + (r.losses || 0) + (r.ties || 0) > 0;
+      const hasPF  = played && r.avg_pf !== null && r.avg_pf !== undefined;
+      const hasPA  = played && r.avg_pa !== null && r.avg_pa !== undefined;
       const pf     = hasPF ? r.avg_pf.toFixed(1) : '—';
       const pa     = hasPA ? r.avg_pa.toFixed(1) : '—';
       const diffVal = (hasPF && hasPA) ? r.avg_pf - r.avg_pa : null;

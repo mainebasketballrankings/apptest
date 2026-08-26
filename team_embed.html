@@ -632,7 +632,7 @@ async function load() {
     const gLbl = team.gender === 'Boys' ? 'Boys' : 'Girls';
     const sLbl = team.gender === 'Boys' ? 'Girls' : 'Boys';
     const genderHtml = sibling
-      ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="https://app.mainebasketballrankings.com/team_embed.html?team_id=${sibling.id}" target="_blank">${sLbl} ↗</a>`
+      ? `<span class="gender-current">${gLbl}</span><a class="gender-link" href="https://www.mainebasketballrankings.com/team/?id=${sibling.id}" target="_blank">${sLbl} ↗</a>`
       : `<span class="gender-current">${gLbl}</span>`;
 
     const rankHtml = (rState || rClass) ? `
@@ -803,7 +803,7 @@ async function load() {
             ${at}
             ${logoEl(ot.logo_url, ot.school_name, false)}
             <div class="opp-info">
-              <a class="opp-name" href="https://app.mainebasketballrankings.com/team.html?team_id=${oid}" target="_blank" rel="noopener">${ot.school_name||'Unknown'}</a>
+              <a class="opp-name" href="https://www.mainebasketballrankings.com/team/?id=${oid}" target="_blank" rel="noopener">${ot.school_name||'Unknown'}</a>
               ${pillsHtml}
             </div>
           </div>
@@ -872,7 +872,7 @@ async function load() {
               ${at}
               ${logoEl(ot.logo_url, ot.school_name, false)}
               <div class="opp-info">
-                <a class="opp-name" href="https://app.mainebasketballrankings.com/team.html?team_id=${oid}" target="_blank" rel="noopener">${ot.school_name || 'Unknown'}</a>
+                <a class="opp-name" href="https://www.mainebasketballrankings.com/team/?id=${oid}" target="_blank" rel="noopener">${ot.school_name || 'Unknown'}</a>
                 ${evtLabel}
               </div>
             </div>
@@ -1136,7 +1136,7 @@ async function doSearch(q) {
 function goToTeam(id) {
   searchResults.classList.remove('open');
   searchInput.value = '';
-  window.open(`https://app.mainebasketballrankings.com/team_embed.html?team_id=${id}`, "_blank");
+  window.open(`https://www.mainebasketballrankings.com/team/?id=${id}`, "_blank");
 }
 
 // Default: visible. Auth callback adds blur if user is free tier.

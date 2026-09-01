@@ -618,6 +618,9 @@ async function load() {
 
     let wins = 0, losses = 0, pointDiff = 0;
     for (const g of games) {
+      // Summer games are their own section (below) and shouldn't count toward
+      // the season record — same signal the schedule split already uses.
+      if (g.is_summer) continue;
       if (g.status !== 'final') continue;
       const ih = g.home_team_id === tid;
       const ms = ih ? g.home_score : g.away_score;

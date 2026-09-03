@@ -569,8 +569,8 @@ async function loadTodaysGames(currentGameId, gameDate) {
     .from('games')
     .select(`id, sport_id, status, game_time,
       sport:sport_id(name),
-      home_team:home_team_id(school_name),
-      away_team:away_team_id(school_name)`)
+      home_team:home_team_id(school_name, gender),
+      away_team:away_team_id(school_name, gender)`)
     .eq('game_date', gameDate)
     .not('status', 'eq', 'postponed')
     .order('sport_id', { ascending: true })
@@ -578,13 +578,18 @@ async function loadTodaysGames(currentGameId, gameDate) {
 
   if (!games || !games.length) return;
 
-  // Sort: sport display name (pulled from the DB join, not a hardcoded ID map), then home team name
+  // Sort: sport display name (from the DB join), then gender, then home team name
   const sportOrder = ['Baseball','Basketball','Field Hockey','Football','Lacrosse','Soccer','Softball','Volleyball'];
+  const genderOrder = ['Boys','Girls'];
   games.sort((a, b) => {
     const sa = a.sport?.name || 'Other';
     const sb2 = b.sport?.name || 'Other';
     const si = sportOrder.indexOf(sa) - sportOrder.indexOf(sb2);
     if (si !== 0) return si;
+    const ga = a.home_team?.gender || '';
+    const gb = b.home_team?.gender || '';
+    const gi = genderOrder.indexOf(ga) - genderOrder.indexOf(gb);
+    if (gi !== 0) return gi;
     return (a.home_team?.school_name || '').localeCompare(b.home_team?.school_name || '');
   });
 
@@ -601,19 +606,21 @@ async function loadTodaysGames(currentGameId, gameDate) {
     sel.appendChild(blank);
   }
 
-  let lastSport = null;
+  let lastGroup = null;
   games.forEach(g => {
     const sport = g.sport?.name || 'Other';
+    const gender = g.home_team?.gender || '';
+    const groupLabel = gender ? `${gender} ${sport}` : sport;
     const away = g.away_team?.school_name || '?';
     const home = g.home_team?.school_name || '?';
     const status = g.status === 'final' ? ' ✓' : g.status === 'in_progress' ? ' ●' : '';
 
-    // Add optgroup when sport changes
-    if (sport !== lastSport) {
+    // Add optgroup when sport+gender changes
+    if (groupLabel !== lastGroup) {
       const grp = document.createElement('optgroup');
-      grp.label = sport;
+      grp.label = groupLabel;
       sel.appendChild(grp);
-      lastSport = sport;
+      lastGroup = groupLabel;
     }
 
     const label = `${away} @ ${home}${status}`;

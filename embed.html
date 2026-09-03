@@ -1971,6 +1971,23 @@
     return `<a href="${url}" target="_blank" rel="noopener" title="Watch on ${alt}"><img class="stream-icon" src="${src}" alt="${alt}" /></a>`;
   }
 
+  // Maps the embed's sport slug to the right scorer page + query string.
+  // The scorer suite covers all seven scoreable sports, but they live on
+  // three different pages, and field_scorer.html spells "field hockey" with
+  // an underscore (field_hockey) where this file uses a hyphen (field-hockey) —
+  // so that has to be translated, not passed straight through.
+  function scorerUrl(sport, gameId) {
+    if (sport === 'basketball') return `scorer.html?game_id=${gameId}`;
+    if (sport === 'football')   return `football_scorer.html?game_id=${gameId}`;
+    if (sport === 'baseball' || sport === 'softball')
+      return `baseball_scorer.html?sport=${sport}&game_id=${gameId}`;
+    if (sport === 'soccer' || sport === 'lacrosse' || sport === 'field-hockey') {
+      const fieldSport = sport === 'field-hockey' ? 'field_hockey' : sport;
+      return `field_scorer.html?sport=${fieldSport}&game_id=${gameId}`;
+    }
+    return null; // volleyball etc. — no live scorer for this sport yet
+  }
+
   function periodClockHTML(sport) {
     if (sport === 'soccer') {
       return `
@@ -2166,8 +2183,8 @@
       ${!isPPD ? `
       <div class="submit-panel" id="panel-${g.id}">
         <h4>${isFinal ? 'Edit Score' : 'Submit Score'}</h4>
-        ${!isFinal && (sport==='baseball'||sport==='softball') ? `
-        <a href="baseball_scorer.html?game_id=${g.id}" target="_blank" style="display:block;margin-bottom:10px;padding:8px 12px;background:var(--green);color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;text-align:center;">
+        ${!isFinal && scorerUrl(sport, g.id) ? `
+        <a href="${scorerUrl(sport, g.id)}" target="_blank" style="display:block;margin-bottom:10px;padding:8px 12px;background:var(--green);color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;text-align:center;">
           Score This Game Live →
         </a>` : ''}
         <form class="score-form" data-id="${g.id}" data-sport="${sport}">

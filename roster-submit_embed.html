@@ -372,11 +372,25 @@
     else console.log('sports loaded:', sports?.length);
     if (sports) sports.forEach(s => { sportIdMap[s.slug] = s.id; });
 
-    // Load teams — RLS disabled, school_name + gender + sport_id confirmed columns
-    const { data: teams, error: tErr } = await sb.from('teams')
-      .select('id, school_name, gender, sport_id');
+    // Load teams — paginated: PostgREST caps a single select at 1,000 rows,
+    // and this table has 1,000+, so an unpaginated fetch here silently drops
+    // whichever rows land past the cap (which teams get cut off depends on
+    // DB row order, not anything meaningful — that's what caused sports that
+    // do exist for a school to show up missing).
+    let teams = [];
+    let tErr = null;
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data: page, error } = await sb.from('teams')
+        .select('id, school_name, gender, sport_id')
+        .range(from, from + pageSize - 1);
+      if (error) { tErr = error; break; }
+      if (!page || !page.length) break;
+      teams.push(...page);
+      if (page.length < pageSize) break; // last page
+    }
     if (tErr) console.error('teams error:', tErr.message);
-    else console.log('teams loaded:', teams?.length);
+    else console.log('teams loaded:', teams.length);
 
     if (teams && teams.length) {
       const idToSlug = Object.fromEntries(

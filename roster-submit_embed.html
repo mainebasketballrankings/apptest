@@ -103,6 +103,9 @@
     }
     .sport-pill:hover { border-color: var(--orange); color: var(--orange); }
     .sport-pill.selected { background: var(--orange); border-color: var(--orange); color: #fff; }
+    .sport-pill.disabled { opacity: 0.4; cursor: not-allowed; }
+    .sport-pill.disabled:hover { border-color: var(--border); color: var(--gray); }
+    .sport-pill-error { font-size: 13px; color: var(--red); margin-top: 10px; }
 
     /* ── GENDER ── */
     .gender-row { display: flex; gap: 8px; margin-top: 14px; }
@@ -463,11 +466,16 @@
   function buildSportPills() {
     const wrap = document.getElementById('sportPills');
 
-    wrap.innerHTML = SPORT_DISPLAY.map(({ slug, label }) =>
-      `<div class="sport-pill" data-sport="${slug}">${label}</div>`
-    ).join('');
+    const schoolSports = new Set(
+      allTeams.filter(t => t.school_name === selectedSchool).map(t => t.sport_slug)
+    );
 
-    wrap.querySelectorAll('.sport-pill').forEach(el => {
+    wrap.innerHTML = SPORT_DISPLAY.map(({ slug, label }) => {
+      const has = schoolSports.has(slug);
+      return `<div class="sport-pill${has ? '' : ' disabled'}" data-sport="${slug}"${has ? '' : ' title="No ' + label + ' team on file for ' + selectedSchool + '"'}>${label}</div>`;
+    }).join('');
+
+    wrap.querySelectorAll('.sport-pill:not(.disabled)').forEach(el => {
       el.addEventListener('click', () => selectSport(el.dataset.sport));
     });
 
@@ -500,8 +508,12 @@
     } else if (hasGirls && !hasBoys) {
       selectGender('Girls', matches);
     } else if (!hasGirls && !hasBoys) {
-      // No teams found for this school — shouldn't happen (pill would be unavailable)
-      selectGender('Boys', matches);
+      // No team on file for this school+sport. The pill should be disabled
+      // before we ever get here — but never guess a gender if we do.
+      const label = SPORT_DISPLAY.find(s => s.slug === slug)?.label || slug;
+      document.getElementById('genderBtns').innerHTML =
+        `<div class="sport-pill-error">No ${label} team found for ${selectedSchool} — contact us to get it added.</div>`;
+      document.getElementById('genderWrap').style.display = 'block';
     } else {
       // Both exist — show toggle
       const btns = document.getElementById('genderBtns');

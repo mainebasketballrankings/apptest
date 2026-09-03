@@ -331,6 +331,20 @@ async function sb(path) {
   return r.json();
 }
 
+// Football doesn't use Heal Points — it uses the MPA's Crabtree system, computed
+// server-side by mbr_compute_crabtree (same RPC heals.html calls) so this page
+// can't drift from the official numbers. Class-scoped: returns every team in
+// p_class for the season, so we also use it to look up opponents' records below.
+async function sbRpc(fn, params) {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+  if (!r.ok) { const b = await r.text(); throw new Error(`${r.status} — ${b}`); }
+  return r.json();
+}
+
 const qp  = n => new URLSearchParams(location.search).get(n);
 const f2  = n => n != null ? (+n).toFixed(2) : '—';
 const fpc = n => n != null ? (+n * 100).toFixed(1) + '%' : '—';
@@ -433,6 +447,20 @@ async function load() {
     const regionName= myClass?.regions?.name || team.team_region || '';
     const classReg  = [className, regionName].filter(Boolean).join(' ');
     const regEnd    = resolveRegEnd(cutoffRows, className, seasonYear);
+
+    // Football uses Crabtree, not Heal Points — see sbRpc() above for why this
+    // calls the shared RPC instead of computing it here.
+    const IS_FOOTBALL = sport === 'football';
+    let crabtree = null, crabtreePlayed = null;
+    const oppRecordMap = {};
+    if (IS_FOOTBALL) {
+      try {
+        const crabtreeRows = await sbRpc('mbr_compute_crabtree', { p_season: seasonYear, p_class: className || null });
+        for (const r of (crabtreeRows || [])) oppRecordMap[r.team_id] = { w: r.wins, p: r.played };
+        const mine = (crabtreeRows || []).find(r => r.team_id === tid);
+        if (mine) { crabtree = Number(mine.crabtree); crabtreePlayed = mine.played; }
+      } catch (e) { console.warn('[crabtree] lookup failed', e); }
+    }
 
     // Season switcher, built from the seasons this team actually played --- a
     // fixed list would offer 24-25 to a volleyball team that has no 24-25 games
@@ -798,6 +826,8 @@ async function load() {
       const barW = wp !== null ? (wp*100).toFixed(1) : 0;
 
       const scoreTxt = fin ? `${ms}–${ops}` : (g.status==='scheduled' ? 'Sched.' : 'Live');
+      const oppRec = IS_FOOTBALL && oppRecordMap[oid]
+        ? `${oppRecordMap[oid].w}-${oppRecordMap[oid].p - oppRecordMap[oid].w}` : null;
 
       return `<tr>
         <td class="dtxt">${fdt(g.game_date)}${tb}</td>
@@ -822,30 +852,33 @@ async function load() {
         <td class="hsm">
           ${wp!==null?`<div class="wp-wrap">
             <div class="wp-bar-o"><div class="wp-bar-i" style="width:${barW}%"></div></div>
-            <span class="wp-txt">${wpPct} · ${f2(hd?.oppPI)} PI</span>
+            <span class="wp-txt">${wpPct}${IS_FOOTBALL ? (oppRec ? ` · ${oppRec} opp` : '') : ` · ${f2(hd?.oppPI)} PI`}</span>
           </div>`:''}
         </td>
-        <td class="hc ${hd&&hd.contrib?'':'none'}">${hd?(hd.contrib?'+'+f2(hd.contrib*10):'—'):''}</td>
+        ${IS_FOOTBALL ? '' : `<td class="hc ${hd&&hd.contrib?'':'none'}">${hd?(hd.contrib?'+'+f2(hd.contrib*10):'—'):''}</td>`}
       </tr>`;
     }).join('');
 
     const gamesHtml = `
       <div class="games-section">
-        <div class="section-header">${SPORT_NAME[sport] || 'Sport'} Schedule, Results &amp; Heal Points</div>
+        <div class="section-header">${SPORT_NAME[sport] || 'Sport'} Schedule, Results &amp; ${IS_FOOTBALL ? 'Crabtree' : 'Heal Points'}</div>
         <div class="games-wrap">
           <table class="gt">
             <thead><tr>
               <th>Date</th><th>Opponent</th><th class="r">Score</th>
-              <th class="r hsm">Diff</th><th class="hsm">Win Prob · Opp PI</th>
-              <th class="r">Heal +</th>
+              <th class="r hsm">Diff</th><th class="hsm">${IS_FOOTBALL ? 'Win Prob · Opp Rec' : 'Win Prob · Opp PI'}</th>
+              ${IS_FOOTBALL ? '' : '<th class="r">Heal +</th>'}
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
           <div class="games-footer">
+            ${IS_FOOTBALL ? `
+            <span>Games: <strong>${crabtreePlayed ?? played}</strong></span>
+            <span>Crabtree: <strong>${crabtree != null ? f2(crabtree) : '—'}</strong></span>` : `
             <span>Reg. games: <strong>${played}</strong></span>
             <span>Denominator: <strong>${denom}</strong></span>
             <span>PI: <strong>${f2(pi)}</strong></span>
-            <span>Heal Points: <strong>${f2(heals)}</strong></span>
+            <span>Heal Points: <strong>${f2(heals)}</strong></span>`}
           </div>
         </div>
       </div>`;
@@ -1056,7 +1089,7 @@ async function load() {
           <div class="team-inline-stats">
             <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}</span></span>
             <span class="inline-stat"><span class="inline-lbl">POINT DIFF</span><span class="inline-val ${pointDiff >= 0 ? 'grn' : 'red'}">${diffStr}</span></span>
-            <span class="inline-stat"><span class="inline-lbl">HEAL POINTS</span><span class="inline-val">${f2(heals)}</span></span>
+            <span class="inline-stat"><span class="inline-lbl">${IS_FOOTBALL ? 'CRABTREE' : 'HEAL POINTS'}</span><span class="inline-val">${IS_FOOTBALL ? (crabtree != null ? f2(crabtree) : '—') : f2(heals)}</span></span>
           </div>
         </div>
       </div>

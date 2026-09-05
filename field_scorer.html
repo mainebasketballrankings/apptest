@@ -50,6 +50,11 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .sport-btn.on small{color:var(--hl);}
 .su-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .su-f{margin-bottom:8px;}
+.uni-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}
+.uni-sw{width:26px;height:26px;border-radius:50%;border:2px solid rgba(0,0,0,.15);cursor:pointer;flex-shrink:0;}
+.uni-sw.on{border-color:var(--navy,#0f1117);box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--navy,#0f1117);}
+.uni-sw.none{background:repeating-linear-gradient(45deg,#ccc,#ccc 3px,#fff 3px,#fff 6px);}
+.tname[data-uni]::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--uni-color,transparent);margin-right:5px;vertical-align:middle;border:1px solid rgba(0,0,0,.3);}
 .su-f label{display:block;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:3px;}
 .su-f input,.su-f select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;
   padding:8px;font-family:'Barlow',sans-serif;font-size:14px;color:var(--text);}
@@ -99,7 +104,9 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .tscore{display:flex;align-items:center;justify-content:center;gap:14px;flex:1;}
 .tname{font-family:'Playfair Display',serif;font-weight:900;font-size:17px;cursor:pointer;padding:4px 8px;border-radius:6px;border:2px solid transparent;}
 .tname.team-active{border-color:currentColor;background:rgba(0,0,0,.06);}
-.tname.has-ball::after{content:' ●';color:var(--green);font-size:13px;vertical-align:middle;}
+.tname.has-ball{border-color:var(--green);background:rgba(21,128,61,0.14);}
+.tname.has-ball::after{content:' ●';color:var(--green);font-size:20px;vertical-align:middle;animation:poss-pulse 1.4s ease-in-out infinite;}
+@keyframes poss-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 .snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:50px;line-height:1;}
 .tscore.home .snum{color:var(--hl);} .tscore.away .snum{color:var(--al);}
 #clk-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 0;}
@@ -538,6 +545,7 @@ table.bs.gk th:nth-child(n+3), table.bs.gk td:nth-child(n+3){width:76px;}
           <div class="su-f"><label>Short</label><input id="su-home-short" maxlength="7" placeholder="CHILLS"></div>
           <div class="su-f"><label>Gender</label><select id="su-home-gender" onchange="suGenderChange('home')"><option value="boys">Boys</option><option value="girls">Girls</option></select></div>
         </div>
+        <div class="su-f"><label>Uniform color today</label><div class="uni-swatches" id="uni-home"></div></div>
       </div>
       <div>
         <div class="su-f su-ac">
@@ -549,6 +557,7 @@ table.bs.gk th:nth-child(n+3), table.bs.gk td:nth-child(n+3){width:76px;}
           <div class="su-f"><label>Short</label><input id="su-away-short" maxlength="7" placeholder="CAPE"></div>
           <div class="su-f"><label>Gender</label><select id="su-away-gender" onchange="suGenderChange('away')"><option value="boys">Boys</option><option value="girls">Girls</option></select></div>
         </div>
+        <div class="su-f"><label>Uniform color today</label><div class="uni-swatches" id="uni-away"></div></div>
       </div>
     </div>
     <div class="su-row">
@@ -849,8 +858,8 @@ let SP=SPORTS.soccer;
 
 // ══ GAME STATE ═══════════════════════════════════════════════
 const GAME={
-  home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
-  away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
+  home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0,color:null},
+  away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0,color:null},
   period:1, clockSec:2400, running:false, possession:'home', playoff:false, subVarsity:false, so:null,
   gender:'boys', mercyRunning:false, ended:false, endReason:'final'
 };
@@ -1248,6 +1257,7 @@ function suSetMode(mode){
     if(!document.getElementById('su-date').value)
       document.getElementById('su-date').value=new Date().toLocaleDateString('en-CA');
     document.getElementById('su-error').textContent='';
+    renderUniSwatches('home'); renderUniSwatches('away');
   }
 }
 async function loadTodaysGames(){
@@ -1419,6 +1429,33 @@ function suAutoShort(side){
   const s=document.getElementById(`su-${side}-short`);
   if(!s.value) s.value=shortFor(document.getElementById(`su-${side}-name`).value);
 }
+// Uniform-color picker: manual for now, since the team primary/secondary color
+// spreadsheet isn't populated in the database yet. Once it is, this can default
+// to teams.primary_color/secondary_color instead of starting blank every time.
+const UNI_COLORS=['#dc2626','#ea580c','#f59e0b','#facc15','#16a34a','#0d9488','#2563eb','#4338ca','#7c3aed','#db2777','#78350f','#111827','#ffffff'];
+function renderUniSwatches(side){
+  const c=document.getElementById(`uni-${side}`); if(!c) return;
+  const cur=GAME[side].color;
+  c.innerHTML = `<div class="uni-sw none${cur?'':' on'}" title="No color set" onclick="pickUniColor('${side}',null)"></div>` +
+    UNI_COLORS.map(col=>`<div class="uni-sw${cur===col?' on':''}" style="background:${col};${col==='#ffffff'?'border-color:#999;':''}" title="${col}" onclick="pickUniColor('${side}','${col}')"></div>`).join('');
+}
+function pickUniColor(side,color){
+  GAME[side].color=color;
+  renderUniSwatches(side);
+  updUniStyle();
+}
+// Applies the chosen colors as a left-border accent on each team's name/score
+// during live play, so the two teams are visually distinct at a glance and
+// harder to mix up mid-game — separate from the possession indicator.
+function updUniStyle(){
+  ['home','away'].forEach(side=>{
+    const el=document.getElementById(`nm-${side}`);
+    if(!el) return;
+    const col=GAME[side].color;
+    if(col){ el.style.setProperty('--uni-color', col); el.setAttribute('data-uni','1'); }
+    else { el.removeAttribute('data-uni'); }
+  });
+}
 function parseName(full){
   const p=(full||'').trim().split(/\s+/);
   if(p.length===1)return {fi:'',first:'',last:p[0]||''};
@@ -1531,6 +1568,22 @@ async function suKickOff(){
   GAME.home.short=document.getElementById('su-home-short').value||shortFor(hName);
   GAME.away.short=document.getElementById('su-away-short').value||shortFor(aName);
 
+  // A row with a number but no name means someone clearly meant to add a real
+  // player and didn't finish — silently dropping it (the old behavior) is how
+  // a team ends up playing a whole game a player short with no warning.
+  const incomplete = {};
+  ['home','away'].forEach(side=>{
+    incomplete[side] = SU[side].players.filter(p=>p.num && !(p.last||p.first));
+  });
+  if(incomplete.home.length || incomplete.away.length){
+    suSetMode('new'); err.style.color='var(--al)';
+    const parts=[];
+    if(incomplete.home.length) parts.push(`${hName}: #${incomplete.home.map(p=>p.num).join(', #')}`);
+    if(incomplete.away.length) parts.push(`${aName}: #${incomplete.away.map(p=>p.num).join(', #')}`);
+    err.textContent = `These players have a number but no name — add a name or remove the row before kicking off: ${parts.join(' · ')}`;
+    return;
+  }
+
   const byNum=(a,b)=>{
     const na=parseInt(a.num), nb=parseInt(b.num);
     if(isNaN(na)&&isNaN(nb)) return 0;
@@ -1623,7 +1676,7 @@ function enterScorer(){
   document.getElementById('nm-home').textContent=GAME.home.short;
   document.getElementById('nm-away').textContent=GAME.away.short;
   drawField(); renderBtns(); renderPl('home'); renderPl('away');
-  setChartSide('home'); updAll();
+  setChartSide('home'); updAll(); updUniStyle();
   setQueueStatus(); startClockSync();
 }
 
@@ -2420,8 +2473,36 @@ function openSubBox(){
         return `<div class="ast-item${out?' disabled':''}"${out?'':` onclick="subPick('${side}','${p.id}','in')"`}>`
           + `<b>${p.num||'–'}</b><span>${pName(p)}${out?' <span style="color:var(--al);font-size:10px">SENT OFF</span>':''}</span></div>`;
       }).join('')}
+      <div class="ast-item" style="color:var(--green);font-weight:700;" onclick="showAddBenchForm('${side}')">+ Add Player</div>
+      <div id="add-bench-form"></div>
     </div></div>`;
   document.getElementById('sub-modal').classList.add('show');
+}
+// Covers a player missed entirely at kickoff (forgot to add them, roster was
+// wrong, etc.) — creates a real PL[side] entry on the spot so they can be
+// subbed in immediately, rather than needing the setup screen to have had
+// them from the start.
+function showAddBenchForm(side){
+  const c=document.getElementById('add-bench-form');
+  if(!c) return;
+  c.innerHTML=`<div style="display:flex;gap:4px;margin-top:6px;">
+      <input id="abf-num" placeholder="#" inputmode="numeric" style="width:38px;padding:5px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
+      <input id="abf-name" placeholder="Name" style="flex:1;padding:5px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
+      <button class="btn btn-s" style="padding:5px 8px;font-size:11px;" onclick="confirmAddBench('${side}')">Add</button>
+    </div>`;
+  document.getElementById('abf-name').focus();
+}
+function confirmAddBench(side){
+  const num=(document.getElementById('abf-num')||{}).value||'';
+  const nameRaw=(document.getElementById('abf-name')||{}).value||'';
+  if(!nameRaw.trim()){ flash('Name required','bad'); return; }
+  const {fi,first,last}=parseName(nameRaw.trim());
+  const id=`${side[0]}n${PL[side].filter(p=>p.id.startsWith(side[0]+'n')).length+1}`;
+  const p={id, num, fi, first, last, on:false, gk:false, wasGK:false, starter:false};
+  PL[side].push(p);
+  flash(pName(p)+' added — tap OUT then tap them to bring on','made');
+  openSubBox();
+  scheduleSave();
 }
 // ══ KEEPER CHANGE ════════════════════════════════════════════
 // Three cases the scorer actually faces:
@@ -3450,9 +3531,12 @@ async function generatePDF(opts={}){
   sectionHead('Team Stats');
   const ta=teamTotals('away'), th=teamTotals('home');
   const acc=t=>t.sh?Math.round(t.sog/t.sh*100)+'%':'—';
+  const topA=GAME.away.topSec||0, topH=GAME.home.topSec||0, topTot=topA+topH;
+  const topPct=v=>topTot?Math.round(v*100/topTot)+'%':'—';
   let trows=[
     ['Goals',ta.g,th.g],['Shots',ta.sh,th.sh],['Shots on goal',ta.sog,th.sog],
-    ['Shot accuracy',acc(ta),acc(th)],['Saves',ta.sv,th.sv]
+    ['Shot accuracy',acc(ta),acc(th)],['Saves',ta.sv,th.sv],
+    ['Possession',`${fmt(topA)} (${topPct(topA)})`,`${fmt(topH)} (${topPct(topH)})`]
   ];
   if(SPORT_KEY.startsWith('soccer')){
     trows.push(['Corners',ta.corners,th.corners],['Offside',ta.offside,th.offside],
@@ -3654,7 +3738,7 @@ function checkRestore(){
   if(!s||!s.GAME)return;
   const age=Math.round((Date.now()-s.t)/60000);
   const b=document.createElement('div');b.id='restoreBanner';
-  b.innerHTML=`<span>Unfinished ${SPORTS[s.sport]?.label||''} game: ${s.GAME.away.short} ${s.GAME.away.score}–${s.GAME.home.score} ${s.GAME.home.short} (${age}m ago)</span>
+  b.innerHTML=`<span>Unfinished ${SPORTS[s.sport]?.label||''} game${s.test?' (TEST MODE)':''}: ${s.GAME.away.short} ${s.GAME.away.score}–${s.GAME.home.score} ${s.GAME.home.short} (${age}m ago)</span>
     <button style="background:#fff;color:#d97706;" onclick="restoreGame()">Resume</button>
     <button style="background:rgba(0,0,0,.2);color:#fff;" onclick="discardSave()">Discard</button>`;
   document.body.appendChild(b);
@@ -3668,6 +3752,7 @@ function restoreGame(){
   evts=s.evts||[]; dots=s.dots||[];
   G_game_id=s.ids.g; G_home_team_id=s.ids.h; G_away_team_id=s.ids.a;
   G_test_mode=!!s.test; _gameFinalized=!!s.fin;
+  updTestBanner();
   document.getElementById('restoreBanner')?.remove();
   enterScorer(); updPens(); renderLog(); renderFeed();
   flash('Game restored','made');

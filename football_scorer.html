@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
-<script src="mbr-core.js?v=13"></script>
+<script src="mbr-core.js?v=14"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -595,6 +595,8 @@ MBR.init({
   isTestMode: () => G_test_mode,
   gameId    : () => G_game_id,
   isFinalized: () => _gameFinalized,
+  // Hold OTA updates while a game is live — a bundle swap reloads the webview.
+  isScoring : () => !!G_game_id && !_gameFinalized,
   makePDF   : () => generatePDF({ returnBlob:true })
 });
 
@@ -3093,7 +3095,7 @@ function checkRestore(){
   const banner=document.createElement('div');
   banner.id='restoreBanner';
   banner.style.cssText='background:var(--green-bg);border:1px solid var(--green-border);border-radius:10px;padding:12px;margin:0 0 14px;font-size:14px;color:var(--text);width:100%;max-width:540px';
-  banner.innerHTML=`<div style="font-weight:600;margin-bottom:6px">Resume in-progress game?</div>
+  banner.innerHTML=`<div style="font-weight:600;margin-bottom:6px">Resume in-progress game?${data.test?' <span style="color:#b45309">(TEST MODE)</span>':''}</div>
     <div style="font-size:13px;color:var(--dim);margin-bottom:10px">${a} ${data.G.score?.away||0} · ${hh} ${data.G.score?.home||0} — ${q} · saved ${new Date(data.ts).toLocaleTimeString()}</div>
     <div style="display:flex;gap:8px">
       <button class="oconfirm" style="flex:1;padding:10px" onclick="restoreGame()">Resume</button>

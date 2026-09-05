@@ -7,7 +7,7 @@
 
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=13"></script>
+<script src="mbr-core.js?v=14"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -678,6 +678,9 @@ body{
 <body>
 
 <div id="scorer-ui" style="display:none;flex-direction:column;height:100dvh;overflow:hidden;">
+<div id="test-banner" style="display:none;background:#fef3c7;color:#b45309;font-weight:800;
+     font-size:12px;letter-spacing:.06em;text-align:center;padding:5px 8px;
+     font-family:'Barlow Condensed',sans-serif;flex:0 0 auto;">🧪 TEST MODE — NOTHING IS BEING SAVED</div>
 <!-- TOP BAR: [Fouls/TO] [Home Score+Name] [Clock/Period] [Away Score+Name] [Fouls/TO] -->
 <div id="topbar">
 <!-- Away fouls/TO (left) -->
@@ -1179,6 +1182,9 @@ MBR.init({
   isTestMode : () => G_test_mode,
   gameId     : () => G_game_id,
   isFinalized: () => _gameFinalized,
+  // Hold OTA updates while a game is being scored: applying a bundle reloads
+  // the webview, and doing that mid-quarter is worse than any bug it fixes.
+  isScoring  : () => !!G_game_id && !_gameFinalized,
   makePDF    : () => generatePDF({ returnBlob:true }),
   sportId    : () => BASKETBALL_SPORT_ID,
   // Season year now comes from the core's shared Aug-15 rule, which covers
@@ -1445,7 +1451,7 @@ function checkRestore(){
   const banner=document.createElement('div');
   banner.id='restoreBanner';
   banner.style.cssText='background:#e6f4ea;border:1px solid #b6e0c2;border-radius:10px;padding:12px;margin:0 0 14px;font-size:14px;color:#0f1117;';
-  banner.innerHTML=`<div style="font-weight:600;margin-bottom:6px">Resume in-progress game?</div>
+  banner.innerHTML=`<div style="font-weight:600;margin-bottom:6px">Resume in-progress game?${data.test?' <span style="color:#b45309">(TEST MODE)</span>':''}</div>
     <div style="font-size:13px;color:#6b7280;margin-bottom:10px">${(hs.short||hs.name||'HOME')} ${hs.score||0} · ${(as.short||as.name||'AWAY')} ${as.score||0} — ${per} · saved ${new Date(data.ts).toLocaleTimeString()}</div>
     <div style="display:flex;gap:8px">
       <button onclick="restoreGame()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-weight:600;cursor:pointer">Resume</button>
@@ -1462,6 +1468,7 @@ function restoreGame(){
   evts = data.evts || [];
   G_game_id=data.gid; G_home_team_id=data.hid; G_away_team_id=data.aid;
   G_test_mode=!!data.test; _gameFinalized=!!data.fin;
+  updTestBanner();
   clearInterval(clkInt); GAME.running=false;
   document.getElementById('setup-screen').style.display='none';
   document.getElementById('scorer-ui').style.display='flex';
@@ -1486,6 +1493,13 @@ function toggleTestMode(){
     btn.classList.toggle('active', G_test_mode);
     btn.textContent = G_test_mode ? '🧪 Test Mode: ON (nothing saved)' : '🧪 Test Mode: OFF';
   }
+  updTestBanner();
+}
+// Persistent reminder while scoring, so it cannot be forgotten mid-game —
+// especially important on restore, where nothing else on screen would show it.
+function updTestBanner(){
+  const el=document.getElementById('test-banner'); if(!el) return;
+  el.style.display = G_test_mode ? '' : 'none';
 }
 
 // ══ CLOCK ═════════════════════════════════════

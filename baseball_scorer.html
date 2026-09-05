@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Baseball Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
-<script src="mbr-core.js?v=13"></script>
+<script src="mbr-core.js?v=14"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -840,6 +840,8 @@ MBR.init({
   isTestMode : () => G_test_mode,
   gameId     : () => G_game_id,
   isFinalized: () => (typeof _gameFinalized !== 'undefined' ? _gameFinalized : false),
+  // Hold OTA updates while a game is live — a bundle swap reloads the webview.
+  isScoring  : () => !!G_game_id && !(typeof _gameFinalized !== 'undefined' && _gameFinalized),
   makePDF    : () => generatePDF({ returnBlob:true }),
   sportId    : () => (typeof G !== 'undefined' && G && G.sport === 'softball') ? SOFTBALL_SPORT_ID : BASEBALL_SPORT_ID,
   // Spring sports: the season year is simply the calendar year of the game.
@@ -3200,7 +3202,7 @@ function updateField(){
 // RENDER
 // ═══════════════════════════════════════════════
 function saveState(){
-  try { localStorage.setItem('mbr_bb_game', JSON.stringify({G,G_game_id,G_home_team_id,G_away_team_id})); }
+  try { localStorage.setItem('mbr_bb_game', JSON.stringify({G,G_game_id,G_home_team_id,G_away_team_id,test:G_test_mode,fin:_gameFinalized})); }
   catch(e){ console.warn('autosave failed',e); }
 }
 
@@ -4064,7 +4066,7 @@ function closeAC(side){
     const banner = document.createElement('div');
     banner.id = 'restoreBanner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a7a4a;color:#fff;font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2)';
-    banner.innerHTML = `<span>Resume: ${away} @ ${home} — ${score}, ${half} Inn ${inn}</span>
+    banner.innerHTML = `<span>Resume: ${away} @ ${home} — ${score}, ${half} Inn ${inn}${data.test?' <b>(TEST MODE)</b>':''}</span>
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button onmousedown="restoreGame()" style="background:#fff;color:#1a7a4a;border:none;border-radius:4px;padding:5px 14px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;cursor:pointer">Resume</button>
         <button onmousedown="discardSave()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:4px;padding:5px 14px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;cursor:pointer">Discard</button>
@@ -4080,6 +4082,8 @@ function restoreGame(){
     G_game_id      = data.G_game_id || null;
     G_home_team_id = data.G_home_team_id || null;
     G_away_team_id = data.G_away_team_id || null;
+    G_test_mode    = !!data.test;
+    _gameFinalized = !!data.fin;
     // Rebuild PBP DOM
     const log = document.getElementById('pbpLog');
     log.innerHTML = '';
@@ -4093,6 +4097,13 @@ function restoreGame(){
     document.getElementById('setupScreen').style.display='none';
     document.getElementById('gameScreen').style.display='flex';
     document.getElementById('gameScreen').style.flexDirection='column';
+    document.getElementById('testModeBanner').style.display = G_test_mode ? '' : 'none';
+    const pill = document.getElementById('testModePill');
+    if(pill){
+      pill.textContent = G_test_mode ? '🧪 Test Mode: ON' : '🧪 Test Mode: OFF';
+      pill.style.opacity = G_test_mode ? '1' : '0.4';
+      pill.style.boxShadow = G_test_mode ? '0 0 0 3px rgba(245,158,11,0.4)' : 'none';
+    }
     document.getElementById('restoreBanner')?.remove();
     init(true); // skip test players
     renderLU('away'); renderLU('home'); renderBench('away'); renderBench('home'); updateCRDropdowns('away'); updateCRDropdowns('home'); onSportChange();

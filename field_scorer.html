@@ -131,6 +131,13 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .pcard.sel{border-color:var(--hl);background:#c7dbfd;box-shadow:0 0 0 2px rgba(29,78,216,.35);}
 .pcard.gk{box-shadow:inset 4px 0 0 var(--green);}
 .pcard.gk.sel{box-shadow:inset 4px 0 0 var(--green),0 0 0 2px rgba(29,78,216,.35);}
+/* Uniform color tint on roster cards. :not(.sel) guarantees the "tap who's
+   next" selection highlight always wins over the tint — that feedback matters
+   more mid-game than the color coding does. */
+.pcard[data-uni]:not(.sel){background:var(--uni-bg);}
+.pcard[data-uni]:not(.sel) .pnum,
+.pcard[data-uni]:not(.sel) .pst,
+.pcard[data-uni]:not(.sel) .pnm{color:var(--uni-text);}
 .pnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;line-height:1;text-align:center;color:var(--text);}
 .pnm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pst{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--dim);}
@@ -1456,6 +1463,17 @@ function updUniStyle(){
     else { el.removeAttribute('data-uni'); }
   });
 }
+// Player-card tint: same source color as the team-name dot, applied at ~85%
+// so it still reads clearly as "this is their color" rather than a faint wash.
+// Text flips to white below a standard luminance threshold so it stays legible
+// against darker uniform colors (navy, black, forest green, etc).
+function uniCardVars(hex){
+  if(!hex) return null;
+  const h=hex.replace('#','');
+  const r=parseInt(h.substr(0,2),16), g=parseInt(h.substr(2,2),16), b=parseInt(h.substr(4,2),16);
+  const lum=(0.299*r+0.587*g+0.114*b)/255;
+  return { bg:`rgba(${r},${g},${b},0.85)`, text: lum<0.5?'#fff':'#0f1117' };
+}
 function parseName(full){
   const p=(full||'').trim().split(/\s+/);
   if(p.length===1)return {fi:'',first:'',last:p[0]||''};
@@ -2432,7 +2450,9 @@ function renderPl(side){
   // Two names per card: the full one for tablet, last-name-only for phones,
   // where eighteen full-width cards meant five players visible out of eighteen.
   // CSS picks which to show, so there's one render path rather than two.
-  const card=p=>`<div class="pcard${p.on?'':' off'}${selP&&selP.id===p.id?' sel':''}${p.gk?' gk':''}" onclick="selPlayer('${p.id}','${side}')">
+  const uniVars = uniCardVars(GAME[side].color);
+  const uniAttr = uniVars ? ` data-uni="1" style="--uni-bg:${uniVars.bg};--uni-text:${uniVars.text};"` : '';
+  const card=p=>`<div class="pcard${p.on?'':' off'}${selP&&selP.id===p.id?' sel':''}${p.gk?' gk':''}"${uniAttr} onclick="selPlayer('${p.id}','${side}')">
       <div class="pnum">${p.num||'–'}</div>
       <div class="pinfo">
         <div class="pnm"><span class="pnm-full">${pName(p)}</span><span class="pnm-short">${p.last||pName(p)}</span>${p.gk?' <span class="gk-badge">GK</span>':''}</div>

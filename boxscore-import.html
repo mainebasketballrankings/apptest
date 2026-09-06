@@ -385,20 +385,30 @@ const SPORT_LABELS = {
   'fa905ca5-f416-409b-81ac-777179ee5576': 'Football',
 };
 const FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+const SOCCER_SPORT_ID = 'ff80a695-0e78-4432-98f2-141b2b571e0e';
+const FIELD_HOCKEY_SPORT_ID = '1054869a-20d4-465f-8ca9-4bc4d2bafe1b';
 const IMPORT_SPORT_IDS = [
   'c87a4d6c-a471-47e1-b6a0-d1643d942bf0', // Baseball
   '095c9841-7261-4cb1-824e-6304792b53d0', // Softball
   FOOTBALL_SPORT_ID,
+  SOCCER_SPORT_ID,
+  FIELD_HOCKEY_SPORT_ID,
 ];
-// 'diamond' = baseball/softball (batting + pitching), 'football' = its own
-// six-category shape. Kept as a single helper so every branch below reads
-// the sport the same way instead of repeating the ID comparison.
+// 'diamond' = baseball/softball (batting + pitching tables).
+// 'football' = its own six-category tables.
+// 'field' = soccer/field hockey — NOT a stat table at all. Their reports log
+// goals/cards as a chronological event list ("GOAL — First Last (assist:
+// ...)"), so parsing has to extract raw events and this file aggregates them
+// into per-player totals itself, rather than asking the AI to sum for us.
 function sportKind(sportId) {
-  return sportId === FOOTBALL_SPORT_ID ? 'football' : 'diamond';
+  if (sportId === FOOTBALL_SPORT_ID) return 'football';
+  if (sportId === SOCCER_SPORT_ID || sportId === FIELD_HOCKEY_SPORT_ID) return 'field';
+  return 'diamond';
 }
 const TABS_BY_KIND = {
   diamond:  ['batting', 'pitching'],
   football: ['passing', 'rushing', 'receiving', 'defense', 'kicking', 'puntret'],
+  field:    ['scoring'],
 };
 
 // ── STATE ─────────────────────────────────────────────
@@ -414,6 +424,7 @@ const TAB_LABELS = {
   batting: 'Batting', pitching: 'Pitching',
   passing: 'Passing', rushing: 'Rushing', receiving: 'Receiving',
   defense: 'Defense', kicking: 'Kicking', puntret: 'Punt/Return',
+  scoring: 'Scoring & Discipline',
 };
 
 // ── BOOT ──────────────────────────────────────────────
@@ -701,7 +712,9 @@ async function extractPdfText(file) {
 
 // ── CLAUDE PARSE ─────────────────────────────────────
 async function parsePdfWithClaude(pdfText, kind) {
-  const prompt = kind === 'football' ? footballPrompt(pdfText) : diamondPrompt(pdfText);
+  const prompt = kind === 'football' ? footballPrompt(pdfText)
+    : kind === 'field' ? fieldPrompt(pdfText)
+    : diamondPrompt(pdfText);
 
   const resp = await fetch('https://vtwupenqieesoktonbzg.supabase.co/functions/v1/claude-proxy', {
     method: 'POST',
@@ -828,6 +841,37 @@ CRITICAL RULES:
 - "number" = digits only, no # symbol.
 - "team" field must exactly match the team name used in "home_team" or "away_team" above.
 - Ignore any "LNG" (long) columns — not needed.
+
+Box score text:
+${pdfText}`;
+}
+
+function fieldPrompt(pdfText) {
+  return `You are parsing a soccer or field hockey game report. Unlike a baseball or football box score, this report does NOT show individual stats in a table. Instead, goals and cards are logged as a chronological list of events, each naming the player involved — for example "GOAL — First Last (assist: First Last)" or "YELLOW CARD — First Last". Extract every such event as its own row; do not try to total them yourself.
+
+Return ONLY valid JSON, no markdown, no explanation:
+
+{
+  "game": {
+    "home_team": "exact team name as shown",
+    "away_team": "exact team name as shown",
+    "home_score": number,
+    "away_score": number,
+    "date": "as shown",
+    "sport": "soccer" or "field hockey"
+  },
+  "events": [
+    { "team": "exact team name as shown", "player": "First Last", "type": "goal" }
+  ]
+}
+
+CRITICAL RULES:
+- "type" must be exactly one of: goal, assist, card_yellow, card_red, card_green.
+- A goal WITH an assist produces TWO separate event rows: one "goal" row for the scorer, and one "assist" row for the assisting player. An unassisted goal produces only the "goal" row — never invent an assist that isn't shown.
+- "team" must be the team the player who did the action belongs to (the scorer's own team, the carded player's own team) — not whichever team the play happened against.
+- card_green only applies to field hockey. Soccer never has green cards — do not use that type for a soccer report.
+- If the same player has multiple goals or cards, include one event row per occurrence (a two-goal game shows two separate "goal" rows for that player).
+- Do NOT extract shots, shots on goal, saves, or possession — this report only tracks those as team totals, never attributed to an individual player, so there is nothing to extract for them.
 
 Box score text:
 ${pdfText}`;
@@ -964,23 +1008,24 @@ function renderPreview(parsed) {
   showStep('preview');
 }
 
-const FOOTBALL_TAB_COLS = {
+const GENERIC_TAB_COLS = {
   passing:   [['comp','Comp'],['att','Att'],['yds','Yds'],['td','TD'],['int','Int']],
   rushing:   [['att','Att'],['yds','Yds'],['td','TD']],
   receiving: [['rec','Rec'],['yds','Yds'],['td','TD']],
   defense:   [['tkl','Tkl'],['ast','Ast'],['sk','Sk'],['int','Int'],['pd','PD'],['blk','Blk']],
   kicking:   [['fg_made','FGM'],['fg_att','FGA'],['xp_made','XPM'],['xp_att','XPA']],
   puntret:   [['punts','Pnt'],['punt_yds','PYds'],['kr','KR'],['kr_yds','KRYds'],['pr','PR'],['pr_yds','PRYds']],
+  scoring:   [['goals','G'],['assists','A'],['card_yellow','Y'],['card_red','R'],['card_green','Gr']],
 };
 
 function renderTab(tab) {
   const rows  = parsedData[tab] || [];
   const isBat = tab === 'batting';
-  const fbCols = FOOTBALL_TAB_COLS[tab];
+  const genCols = GENERIC_TAB_COLS[tab];
 
-  if (fbCols) {
+  if (genCols) {
     document.getElementById('prevHead').innerHTML =
-      `<tr><th>#</th><th>Name</th><th>Team</th><th></th>${fbCols.map(([,label]) => `<th>${label}</th>`).join('')}</tr>`;
+      `<tr><th>#</th><th>Name</th><th>Team</th><th></th>${genCols.map(([,label]) => `<th>${label}</th>`).join('')}</tr>`;
   } else {
     document.getElementById('prevHead').innerHTML = isBat
       ? `<tr><th>#</th><th>Name</th><th>Pos</th><th>Team</th><th></th>
@@ -1011,13 +1056,13 @@ function renderTab(tab) {
       `<td><input class="editable" style="width:${w}px" value="${esc(p[field]??0)}"
          data-field="${field}" data-idx="${i}" data-tab="${tab}"></td>`;
 
-    if (fbCols) {
+    if (genCols) {
       tr.innerHTML = `
         <td><input class="editable" style="width:36px" value="${esc(p.number)}" data-field="number" data-idx="${i}" data-tab="${tab}"></td>
         <td><input class="editable" style="min-width:96px" value="${esc(p.name)}" data-field="name" data-idx="${i}" data-tab="${tab}"></td>
         <td style="font-size:11px;color:var(--lgray);white-space:nowrap;max-width:100px;overflow:hidden">${esc(p.team)}</td>
         <td>${tag}</td>
-        ${fbCols.map(([field]) => f(field, 36)).join('')}`;
+        ${genCols.map(([field]) => f(field, 36)).join('')}`;
     } else if (isBat) {
       const ipDisp = '';
       tr.innerHTML = `
@@ -1054,7 +1099,8 @@ function syncEdit(inp) {
   const val   = inp.value.trim();
   const NUM   = ['ab','runs','hits','rbi','bb','k_bat','doubles','triples','hr','sb','p_h','p_er','p_bb','k',
     'comp','att','yds','td','int','rec','tkl','ast','sk','pd','blk',
-    'fg_made','fg_att','xp_made','xp_att','punts','punt_yds','kr','kr_yds','pr','pr_yds'];
+    'fg_made','fg_att','xp_made','xp_att','punts','punt_yds','kr','kr_yds','pr','pr_yds',
+    'goals','assists','card_yellow','card_red','card_green'];
 
   if (field === 'ip_display') {
     const pts = val.split('.');
@@ -1105,17 +1151,17 @@ async function checkConflictThenPush() {
 
           same = prevTotal.ab === newTotal.ab && prevTotal.hits === newTotal.hits && prevTotal.rbi === newTotal.rbi;
         } else {
-          // Football has six categories with no single representative column
-          // the way batting has AB/H/RBI — compare row count + a summed
-          // checksum of every numeric field instead.
+          // Football/field have no single representative column the way
+          // batting has AB/H/RBI — compare row count + a summed checksum of
+          // every numeric field instead.
           const sumVals = obj => Object.values(obj).reduce((a, v) => a + (typeof v === 'number' ? v : 0), 0);
           prevTotal = { rows: existing.length, total: existing.reduce((s, r) => s + sumVals(JSON.parse(r.stats || '{}')), 0) };
 
           let newRows = 0, newSum = 0;
-          TABS_BY_KIND.football.forEach(tab => {
+          TABS_BY_KIND[currentKind].forEach(tab => {
             (parsedData[tab] || []).forEach(p => {
               newRows++;
-              newSum += sumVals(Object.fromEntries(Object.keys(FOOTBALL_TAB_DB_COLS[tab]).map(k => [k, p[k] || 0])));
+              newSum += sumVals(Object.fromEntries(Object.keys(GENERIC_TAB_DB_COLS[tab]).map(k => [k, p[k] || 0])));
             });
           });
           newTotal = { rows: newRows, total: newSum };
@@ -1156,20 +1202,21 @@ function showConflictBanner(type, prev, next) {
   wb.classList.add('active');
 }
 
-// Maps each football tab's parsed field names to the players-table columns
-// they add up into. Kept as one small table rather than six near-identical
-// push functions — same reasoning as FOOTBALL_TAB_COLS above for the preview.
-const FOOTBALL_TAB_DB_COLS = {
+// Maps each non-diamond tab's parsed field names to the players-table columns
+// they add up into. Kept as one small table rather than per-tab push
+// functions — same reasoning as GENERIC_TAB_COLS above for the preview.
+const GENERIC_TAB_DB_COLS = {
   passing:   { comp:'pass_comp', att:'pass_att', yds:'pass_yds', td:'pass_td', int:'pass_int' },
   rushing:   { att:'rush_att', yds:'rush_yds', td:'rush_td' },
   receiving: { rec:'rec', yds:'rec_yds', td:'rec_td' },
   defense:   { tkl:'tkl', ast:'tkl_ast', sk:'sk', int:'def_int', pd:'pd', blk:'blk_def' },
   kicking:   { fg_made:'fg_made', fg_att:'fg_att', xp_made:'xp_made', xp_att:'xp_att' },
   puntret:   { punts:'punts', punt_yds:'punt_yds', kr:'kr', kr_yds:'kr_yds', pr:'pr', pr_yds:'pr_yds' },
+  scoring:   { goals:'goals', assists:'ast', card_yellow:'card_yellow', card_red:'card_red', card_green:'card_green' },
 };
 
-async function pushFootballTab(tab, homeInfo, awayInfo) {
-  const colMap = FOOTBALL_TAB_DB_COLS[tab];
+async function pushGenericTab(tab, homeInfo, awayInfo) {
+  const colMap = GENERIC_TAB_DB_COLS[tab];
   const dbCols = Object.values(colMap);
   let pushed = 0;
 
@@ -1313,12 +1360,13 @@ async function pushToSupabase(forceReplace = false) {
         }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
       }
     } else {
-      // Football — one generic loop per tab, using FOOTBALL_TAB_DB_COLS to map
-      // parsed field names to player columns. Every tab follows the exact same
-      // shape (read current -> add delta -> write back -> record the delta for
-      // undo), so one function covers all six instead of six near-duplicates.
-      for (const tab of TABS_BY_KIND.football) {
-        pushed += await pushFootballTab(tab, homeInfo, awayInfo);
+      // Football and field sports (soccer/field hockey) — one generic loop
+      // per tab, using GENERIC_TAB_DB_COLS to map parsed field names to
+      // player columns. Every tab follows the exact same shape (read current
+      // -> add delta -> write back -> record the delta for undo), so one
+      // function covers all of them instead of one per tab.
+      for (const tab of TABS_BY_KIND[currentKind]) {
+        pushed += await pushGenericTab(tab, homeInfo, awayInfo);
       }
     }
 
@@ -1393,8 +1441,8 @@ async function reversePreviousImport(gameId) {
         w:       Math.max(0, (b.w||0) - (delta.w||0)),
         l:       Math.max(0, (b.l||0) - (delta.l||0)),
       }).eq('id', imp.player_id);
-    } else if (FOOTBALL_TAB_DB_COLS[imp.stat_type]) {
-      const colMap = FOOTBALL_TAB_DB_COLS[imp.stat_type];
+    } else if (GENERIC_TAB_DB_COLS[imp.stat_type]) {
+      const colMap = GENERIC_TAB_DB_COLS[imp.stat_type];
       const dbCols = Object.values(colMap);
       const { data: cur } = await sb.from('players').select(dbCols.join(',')).eq('id', imp.player_id).single();
       const b = cur || {};
@@ -1434,17 +1482,43 @@ async function ensurePlayer(p, teamId, sportId, roster) {
 }
 
 // ── FILE HANDLING ─────────────────────────────────────
+// Turns the raw per-event list a field-sport report produces into per-player
+// totals, matching the shape every other tab already has (one row per
+// player). Done here in JS rather than asking the AI to pre-sum, since
+// counting occurrences reliably is exactly the kind of thing a deterministic
+// pass over an array does better than an LLM does.
+function aggregateFieldEvents(parsed) {
+  const byKey = {};
+  (parsed.events || []).forEach(e => {
+    const name = (e.player || '').trim();
+    const key = `${e.team}|${name.toLowerCase()}`;
+    if (!byKey[key]) {
+      const parts = name.split(/\s+/);
+      byKey[key] = {
+        team: e.team, name, last: parts[parts.length - 1] || '', number: '',
+        goals: 0, assists: 0, card_yellow: 0, card_red: 0, card_green: 0,
+      };
+    }
+    if (byKey[key][e.type] !== undefined) byKey[key][e.type]++;
+  });
+  parsed.scoring = Object.values(byKey);
+  return parsed;
+}
+
 async function handleFile(file) {
   if (!file || file.type !== 'application/pdf') { showError('Please select a PDF file.'); return; }
   document.getElementById('errorBox').className = 'error-box';
   document.getElementById('parsingSub').textContent = currentKind === 'football'
     ? 'Extracting passing, rushing, receiving, defense, kicking & return stats'
+    : currentKind === 'field'
+    ? 'Extracting goals, assists & cards'
     : 'Extracting batting and pitching stats';
   showStep('parsing');
   try {
     const text = await extractPdfText(file);
     if (text.trim().length < 80) throw new Error('Could not extract text — is this a scanned image PDF?');
-    const parsed = await parsePdfWithClaude(text, currentKind);
+    let parsed = await parsePdfWithClaude(text, currentKind);
+    if (currentKind === 'field') parsed = aggregateFieldEvents(parsed);
     // Use game's known team IDs directly — no fuzzy matching needed
     const homeId = currentGame.home_team_id || currentGame.home_team?.id;
     const awayId = currentGame.away_team_id || currentGame.away_team?.id;

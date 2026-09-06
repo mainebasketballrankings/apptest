@@ -328,16 +328,13 @@
       <div class="parse-state" id="stepParsing">
         <div class="spinner"></div>
         <div style="font-weight:600;font-size:15px;margin-bottom:4px">Reading box score…</div>
-        <div style="font-size:13px;color:var(--lgray)">Extracting batting and pitching stats</div>
+        <div style="font-size:13px;color:var(--lgray)" id="parsingSub">Extracting batting and pitching stats</div>
       </div>
 
       <!-- C: Preview -->
       <div class="preview-section" id="stepPreview">
         <div class="game-info-bar" id="gameInfoBar"></div>
-        <div class="preview-tabs">
-          <button class="preview-tab active" data-tab="batting">Batting</button>
-          <button class="preview-tab" data-tab="pitching">Pitching</button>
-        </div>
+        <div class="preview-tabs" id="previewTabs"></div>
         <div class="prev-tbl-wrap">
           <table class="prev-tbl">
             <thead id="prevHead"></thead>
@@ -387,10 +384,22 @@ const SPORT_LABELS = {
   '1054869a-20d4-465f-8ca9-4bc4d2bafe1b': 'Field Hockey',
   'fa905ca5-f416-409b-81ac-777179ee5576': 'Football',
 };
-const SPRING_SPORT_IDS = [
-  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
-  '095c9841-7261-4cb1-824e-6304792b53d0',
+const FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+const IMPORT_SPORT_IDS = [
+  'c87a4d6c-a471-47e1-b6a0-d1643d942bf0', // Baseball
+  '095c9841-7261-4cb1-824e-6304792b53d0', // Softball
+  FOOTBALL_SPORT_ID,
 ];
+// 'diamond' = baseball/softball (batting + pitching), 'football' = its own
+// six-category shape. Kept as a single helper so every branch below reads
+// the sport the same way instead of repeating the ID comparison.
+function sportKind(sportId) {
+  return sportId === FOOTBALL_SPORT_ID ? 'football' : 'diamond';
+}
+const TABS_BY_KIND = {
+  diamond:  ['batting', 'pitching'],
+  football: ['passing', 'rushing', 'receiving', 'defense', 'kicking', 'puntret'],
+};
 
 // ── STATE ─────────────────────────────────────────────
 let allTeams         = [];
@@ -400,6 +409,12 @@ let teamPlayersCache  = {};  // {team_id: [players]} for all teams in a game
 let currentGame      = null;
 let parsedData       = null;
 let activeTab        = 'batting';
+let currentKind      = 'diamond'; // 'diamond' or 'football' — drives which tabs/columns render
+const TAB_LABELS = {
+  batting: 'Batting', pitching: 'Pitching',
+  passing: 'Passing', rushing: 'Rushing', receiving: 'Receiving',
+  defense: 'Defense', kicking: 'Kicking', puntret: 'Punt/Return',
+};
 
 // ── BOOT ──────────────────────────────────────────────
 async function init() {
@@ -428,7 +443,7 @@ schoolInput.addEventListener('input', () => {
   const bySchool = {};
   allTeams.forEach(t => {
     if (!t.school_name.toLowerCase().includes(q)) return;
-    if (!SPRING_SPORT_IDS.includes(t.sport_id)) return; // baseball + softball only
+    if (!IMPORT_SPORT_IDS.includes(t.sport_id)) return; // baseball, softball, football
     if (!bySchool[t.school_name]) bySchool[t.school_name] = [];
     bySchool[t.school_name].push(t);
   });
@@ -456,7 +471,7 @@ schoolInput.addEventListener('input', () => {
     item.addEventListener('mousedown', e => { e.preventDefault();
       const school      = item.dataset.school;
       const springTeams = allTeams.filter(t =>
-        t.school_name === school && SPRING_SPORT_IDS.includes(t.sport_id)
+        t.school_name === school && IMPORT_SPORT_IDS.includes(t.sport_id)
       );
       if (springTeams.length === 1) {
         selectTeam(springTeams[0]);
@@ -626,6 +641,7 @@ async function loadExistingPlayers(teamId) {
 // ── MODAL ─────────────────────────────────────────────
 function openModal(game) {
   currentGame = game;
+  currentKind = sportKind(selectedTeam?.sport_id);
   teamPlayersCache = {};  // clear cache so rosters reload fresh for this game
   resetModalState();
 
@@ -684,8 +700,33 @@ async function extractPdfText(file) {
 }
 
 // ── CLAUDE PARSE ─────────────────────────────────────
-async function parsePdfWithClaude(pdfText) {
-  const prompt = `You are parsing a baseball/softball box score. The box score contains stats for TWO teams. You MUST return ALL players from BOTH teams in the batting and pitching arrays.
+async function parsePdfWithClaude(pdfText, kind) {
+  const prompt = kind === 'football' ? footballPrompt(pdfText) : diamondPrompt(pdfText);
+
+  const resp = await fetch('https://vtwupenqieesoktonbzg.supabase.co/functions/v1/claude-proxy', {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}` },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  const raw  = data.content?.find(b => b.type === 'text')?.text || '';
+  return JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
+}
+
+function diamondPrompt(pdfText) {
+  return `You are parsing a baseball/softball box score. The box score contains stats for TWO teams. You MUST return ALL players from BOTH teams in the batting and pitching arrays.
 
 Return ONLY valid JSON, no markdown, no explanation:
 
@@ -735,28 +776,61 @@ CRITICAL RULES:
 - "team" field must exactly match the team name used in "home_team" or "away_team" above.
 
 Box score text:
-${pdfText}\``;
+${pdfText}`;
+}
 
-  const resp = await fetch('https://vtwupenqieesoktonbzg.supabase.co/functions/v1/claude-proxy', {
-    method: 'POST',
-    cache: 'no-store',
-    headers: { 'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON}` },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
+function footballPrompt(pdfText) {
+  return `You are parsing a football box score. The box score contains stats for TWO teams, broken into Passing, Rushing, Receiving, Defense, Kicking, and Punting/Returns tables. You MUST return ALL players from BOTH teams in every array they appear in.
 
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API ${resp.status}`);
-  }
+Return ONLY valid JSON, no markdown, no explanation:
 
-  const data = await resp.json();
-  const raw  = data.content?.find(b => b.type === 'text')?.text || '';
-  return JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
+{
+  "game": {
+    "home_team": "exact team name as shown",
+    "away_team": "exact team name as shown",
+    "home_score": number,
+    "away_score": number,
+    "date": "as shown",
+    "sport": "football"
+  },
+  "passing": [
+    { "team": "exact team name", "name": "First Last", "last": "Last", "number": "digits only",
+      "comp": 0, "att": 0, "yds": 0, "td": 0, "int": 0 }
+  ],
+  "rushing": [
+    { "team": "exact team name", "name": "First Last", "last": "Last", "number": "digits only",
+      "att": 0, "yds": 0, "td": 0 }
+  ],
+  "receiving": [
+    { "team": "exact team name", "name": "First Last", "last": "Last", "number": "digits only",
+      "rec": 0, "yds": 0, "td": 0 }
+  ],
+  "defense": [
+    { "team": "exact team name", "name": "First Last", "last": "Last", "number": "digits only",
+      "tkl": 0, "ast": 0, "sk": 0, "int": 0, "pd": 0, "blk": 0 }
+  ],
+  "kicking": [
+    { "team": "exact team name", "name": "First Last", "last": "Last", "number": "digits only",
+      "fg_made": 0, "fg_att": 0, "xp_made": 0, "xp_att": 0 }
+  ],
+  "puntret": [
+    { "team": "exact team name", "name": "First Last", "last": "Last", "number": "digits only",
+      "punts": 0, "punt_yds": 0, "kr": 0, "kr_yds": 0, "pr": 0, "pr_yds": 0 }
+  ]
+}
+
+CRITICAL RULES:
+- Every array MUST contain players from BOTH teams.
+- Kicking's "FG" and "XP" columns are shown as "made/attempted" (e.g. "0/0", "2/2") — split these into fg_made/fg_att and xp_made/xp_att.
+- Defense's "INT" (interceptions caught) is a different stat from Passing's "INT" (interceptions thrown) — keep them in their own arrays, don't merge them.
+- Sacks ("SK") can be fractional (e.g. 0.5) if the box score shows a half-sack — preserve decimals.
+- Exclude Totals/Team rows. Include every individual player listed, including ones with all-zero stats if they're named in a table.
+- "number" = digits only, no # symbol.
+- "team" field must exactly match the team name used in "home_team" or "away_team" above.
+- Ignore any "LNG" (long) columns — not needed.
+
+Box score text:
+${pdfText}`;
 }
 
 // ── PLAYER MATCHING ───────────────────────────────────
@@ -807,7 +881,7 @@ async function loadTeamInfo(teamId) {
 async function resolveTeamId(boxScoreTeamName) {
   const tn = boxScoreTeamName.toLowerCase();
 
-  // Must match sport — baseball or softball only, prefer same sport as selected team
+  // Must match sport — prefer same sport as selected team
   const sportId = selectedTeam?.sport_id;
 
   // Try exact match first, preferring same sport
@@ -850,45 +924,71 @@ function renderPreview(parsed) {
     <div class="gi-item"><div class="gi-label">Score</div><div class="gi-val">${g.home_score} – ${g.away_score}</div></div>
     <div class="gi-item"><div class="gi-label">Sport</div><div class="gi-val" style="text-transform:capitalize">${esc(g.sport)}</div></div>`;
 
-  document.querySelectorAll('.preview-tab').forEach(btn => {
+  const tabs = TABS_BY_KIND[currentKind];
+  const tabsEl = document.getElementById('previewTabs');
+  tabsEl.innerHTML = tabs.map((t, i) =>
+    `<button class="preview-tab${i===0?' active':''}" data-tab="${t}">${TAB_LABELS[t]}</button>`
+  ).join('');
+  tabsEl.querySelectorAll('.preview-tab').forEach(btn => {
     btn.onclick = () => {
-      document.querySelectorAll('.preview-tab').forEach(b => b.classList.remove('active'));
+      tabsEl.querySelectorAll('.preview-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeTab = btn.dataset.tab;
       renderTab(activeTab);
     };
   });
 
-  activeTab = 'batting';
-  document.querySelectorAll('.preview-tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.tab === 'batting'));
-  renderTab('batting');
+  activeTab = tabs[0];
+  renderTab(activeTab);
 
-  const allBat   = parsed.batting || [];
-  const teams    = [...new Set(allBat.map(p => p.team))];
-  const newCount = allBat.filter(p => {
-    const isH = parsed.game.home_team === p.team ||
-      (parsed._homeInfo && parsed.game.home_team.toLowerCase().includes((p.team||'').toLowerCase().split(' ')[0]));
-    const roster = isH ? parsed._homeInfo?.roster : parsed._awayInfo?.roster;
-    return !matchPlayer(p, roster);
-  }).length;
+  // Summary: total rows across every tab this sport has, and how many are new
+  // players not already on the roster — same idea as before, just no longer
+  // assuming "batting" is the only array that exists.
+  let totalRows = 0, newCount = 0;
+  const teamsSeen = new Set();
+  tabs.forEach(tab => {
+    const rows = parsed[tab] || [];
+    rows.forEach(p => {
+      totalRows++;
+      teamsSeen.add(p.team);
+      const isH = parsed.game.home_team === p.team ||
+        (parsed._homeInfo && parsed.game.home_team.toLowerCase().includes((p.team||'').toLowerCase().split(' ')[0]));
+      const roster = isH ? parsed._homeInfo?.roster : parsed._awayInfo?.roster;
+      if (!matchPlayer(p, roster)) newCount++;
+    });
+  });
   document.getElementById('prevSummary').innerHTML =
-    `<strong>${allBat.length}</strong> players across <strong>${teams.length}</strong> teams`
-    + (newCount ? ` · <span class="new-count">${newCount} new</span> will be created` : ' · all matched');
+    `<strong>${totalRows}</strong> rows across <strong>${teamsSeen.size}</strong> teams`
+    + (newCount ? ` · <span class="new-count">${newCount} new</span> players will be created` : ' · all matched');
 
   showStep('preview');
 }
 
+const FOOTBALL_TAB_COLS = {
+  passing:   [['comp','Comp'],['att','Att'],['yds','Yds'],['td','TD'],['int','Int']],
+  rushing:   [['att','Att'],['yds','Yds'],['td','TD']],
+  receiving: [['rec','Rec'],['yds','Yds'],['td','TD']],
+  defense:   [['tkl','Tkl'],['ast','Ast'],['sk','Sk'],['int','Int'],['pd','PD'],['blk','Blk']],
+  kicking:   [['fg_made','FGM'],['fg_att','FGA'],['xp_made','XPM'],['xp_att','XPA']],
+  puntret:   [['punts','Pnt'],['punt_yds','PYds'],['kr','KR'],['kr_yds','KRYds'],['pr','PR'],['pr_yds','PRYds']],
+};
+
 function renderTab(tab) {
   const rows  = parsedData[tab] || [];
   const isBat = tab === 'batting';
+  const fbCols = FOOTBALL_TAB_COLS[tab];
 
-  document.getElementById('prevHead').innerHTML = isBat
-    ? `<tr><th>#</th><th>Name</th><th>Pos</th><th>Team</th><th></th>
-       <th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th>
-       <th>2B</th><th>3B</th><th>HR</th><th>SB</th></tr>`
-    : `<tr><th>#</th><th>Name</th><th>Team</th><th></th>
-       <th>IP</th><th>H</th><th>ER</th><th>BB</th><th>K</th><th>W</th><th>L</th></tr>`;
+  if (fbCols) {
+    document.getElementById('prevHead').innerHTML =
+      `<tr><th>#</th><th>Name</th><th>Team</th><th></th>${fbCols.map(([,label]) => `<th>${label}</th>`).join('')}</tr>`;
+  } else {
+    document.getElementById('prevHead').innerHTML = isBat
+      ? `<tr><th>#</th><th>Name</th><th>Pos</th><th>Team</th><th></th>
+         <th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th>
+         <th>2B</th><th>3B</th><th>HR</th><th>SB</th></tr>`
+      : `<tr><th>#</th><th>Name</th><th>Team</th><th></th>
+         <th>IP</th><th>H</th><th>ER</th><th>BB</th><th>K</th><th>W</th><th>L</th></tr>`;
+  }
 
   const body = document.getElementById('prevBody');
   body.innerHTML = '';
@@ -911,7 +1011,14 @@ function renderTab(tab) {
       `<td><input class="editable" style="width:${w}px" value="${esc(p[field]??0)}"
          data-field="${field}" data-idx="${i}" data-tab="${tab}"></td>`;
 
-    if (isBat) {
+    if (fbCols) {
+      tr.innerHTML = `
+        <td><input class="editable" style="width:36px" value="${esc(p.number)}" data-field="number" data-idx="${i}" data-tab="${tab}"></td>
+        <td><input class="editable" style="min-width:96px" value="${esc(p.name)}" data-field="name" data-idx="${i}" data-tab="${tab}"></td>
+        <td style="font-size:11px;color:var(--lgray);white-space:nowrap;max-width:100px;overflow:hidden">${esc(p.team)}</td>
+        <td>${tag}</td>
+        ${fbCols.map(([field]) => f(field, 36)).join('')}`;
+    } else if (isBat) {
       const ipDisp = '';
       tr.innerHTML = `
         <td><input class="editable" style="width:36px" value="${esc(p.number)}" data-field="number" data-idx="${i}" data-tab="batting"></td>
@@ -945,11 +1052,15 @@ function syncEdit(inp) {
   const field = inp.dataset.field;
   const tab   = inp.dataset.tab;
   const val   = inp.value.trim();
-  const NUM   = ['ab','runs','hits','rbi','bb','k_bat','doubles','triples','hr','sb','p_h','p_er','p_bb','k'];
+  const NUM   = ['ab','runs','hits','rbi','bb','k_bat','doubles','triples','hr','sb','p_h','p_er','p_bb','k',
+    'comp','att','yds','td','int','rec','tkl','ast','sk','pd','blk',
+    'fg_made','fg_att','xp_made','xp_att','punts','punt_yds','kr','kr_yds','pr','pr_yds'];
 
   if (field === 'ip_display') {
     const pts = val.split('.');
     parsedData[tab][idx].ip_outs = (parseInt(pts[0])||0)*3 + (parseInt(pts[1])||0);
+  } else if (field === 'sk') {
+    parsedData[tab][idx][field] = parseFloat(val) || 0;
   } else if (NUM.includes(field)) {
     parsedData[tab][idx][field] = parseInt(val) || 0;
   } else if (field === 'w' || field === 'l') {
@@ -977,27 +1088,42 @@ async function checkConflictThenPush() {
         .eq('game_id', currentGame.id);
 
       if (existing?.length) {
-        // Build a summary diff to show the user
-        const prevTotal = existing.filter(r => r.stat_type === 'batting')
-          .reduce((sum, r) => {
-            const s = JSON.parse(r.stats || '{}');
-            return { ab: sum.ab + (s.ab||0), hits: sum.hits + (s.hits||0), rbi: sum.rbi + (s.rbi||0) };
-          }, { ab: 0, hits: 0, rbi: 0 });
+        let prevTotal, newTotal, same;
 
-        const newBat = (parsedData.batting || []);
-        const newTotal = newBat.reduce((sum, p) => ({
-          ab: sum.ab + (p.ab||0), hits: sum.hits + (p.hits||0), rbi: sum.rbi + (p.rbi||0)
-        }), { ab: 0, hits: 0, rbi: 0 });
+        if (currentKind === 'diamond') {
+          // Build a summary diff to show the user
+          prevTotal = existing.filter(r => r.stat_type === 'batting')
+            .reduce((sum, r) => {
+              const s = JSON.parse(r.stats || '{}');
+              return { ab: sum.ab + (s.ab||0), hits: sum.hits + (s.hits||0), rbi: sum.rbi + (s.rbi||0) };
+            }, { ab: 0, hits: 0, rbi: 0 });
 
-        // Check if they're identical
-        const same = prevTotal.ab === newTotal.ab && prevTotal.hits === newTotal.hits && prevTotal.rbi === newTotal.rbi;
+          const newBat = (parsedData.batting || []);
+          newTotal = newBat.reduce((sum, p) => ({
+            ab: sum.ab + (p.ab||0), hits: sum.hits + (p.hits||0), rbi: sum.rbi + (p.rbi||0)
+          }), { ab: 0, hits: 0, rbi: 0 });
 
-        if (same) {
-          // Identical — just confirm and skip
-          showConflictBanner('identical', prevTotal, newTotal);
+          same = prevTotal.ab === newTotal.ab && prevTotal.hits === newTotal.hits && prevTotal.rbi === newTotal.rbi;
         } else {
-          showConflictBanner('different', prevTotal, newTotal);
+          // Football has six categories with no single representative column
+          // the way batting has AB/H/RBI — compare row count + a summed
+          // checksum of every numeric field instead.
+          const sumVals = obj => Object.values(obj).reduce((a, v) => a + (typeof v === 'number' ? v : 0), 0);
+          prevTotal = { rows: existing.length, total: existing.reduce((s, r) => s + sumVals(JSON.parse(r.stats || '{}')), 0) };
+
+          let newRows = 0, newSum = 0;
+          TABS_BY_KIND.football.forEach(tab => {
+            (parsedData[tab] || []).forEach(p => {
+              newRows++;
+              newSum += sumVals(Object.fromEntries(Object.keys(FOOTBALL_TAB_DB_COLS[tab]).map(k => [k, p[k] || 0])));
+            });
+          });
+          newTotal = { rows: newRows, total: newSum };
+
+          same = prevTotal.rows === newTotal.rows && prevTotal.total === newTotal.total;
         }
+
+        showConflictBanner(same ? 'identical' : 'different', prevTotal, newTotal);
         btn.disabled = false; btn.textContent = '✓ Push Stats';
         return;
       }
@@ -1011,19 +1137,70 @@ async function checkConflictThenPush() {
 
 function showConflictBanner(type, prev, next) {
   const wb = document.getElementById('warnBox');
+  const detail = currentKind === 'diamond'
+    ? { prevLine: `${prev.ab} AB · ${prev.hits} H · ${prev.rbi} RBI`, nextLine: `${next.ab} AB · ${next.hits} H · ${next.rbi} RBI` }
+    : { prevLine: `${prev.rows} rows · ${prev.total} total`, nextLine: `${next.rows} rows · ${next.total} total` };
+
   if (type === 'identical') {
     wb.innerHTML = `⚠ This game was already imported with identical stats. <button class="btn btn-sm btn-orange" style="margin-left:8px" onclick="pushToSupabase(true)">Re-import Anyway</button>`;
   } else {
     wb.innerHTML = `
       ⚠ This game was already imported with different stats.<br>
       <div style="display:flex;gap:24px;margin:10px 0;font-size:13px">
-        <div><strong>Previous import:</strong> ${prev.ab} AB · ${prev.hits} H · ${prev.rbi} RBI</div>
-        <div><strong>This file:</strong> ${next.ab} AB · ${next.hits} H · ${next.rbi} RBI</div>
+        <div><strong>Previous import:</strong> ${detail.prevLine}</div>
+        <div><strong>This file:</strong> ${detail.nextLine}</div>
       </div>
       <button class="btn btn-sm btn-ghost" onclick="pushToSupabase(false)">Keep Previous</button>
       <button class="btn btn-sm btn-orange" style="margin-left:8px" onclick="pushToSupabase(true)">Replace with This File</button>`;
   }
   wb.classList.add('active');
+}
+
+// Maps each football tab's parsed field names to the players-table columns
+// they add up into. Kept as one small table rather than six near-identical
+// push functions — same reasoning as FOOTBALL_TAB_COLS above for the preview.
+const FOOTBALL_TAB_DB_COLS = {
+  passing:   { comp:'pass_comp', att:'pass_att', yds:'pass_yds', td:'pass_td', int:'pass_int' },
+  rushing:   { att:'rush_att', yds:'rush_yds', td:'rush_td' },
+  receiving: { rec:'rec', yds:'rec_yds', td:'rec_td' },
+  defense:   { tkl:'tkl', ast:'tkl_ast', sk:'sk', int:'def_int', pd:'pd', blk:'blk_def' },
+  kicking:   { fg_made:'fg_made', fg_att:'fg_att', xp_made:'xp_made', xp_att:'xp_att' },
+  puntret:   { punts:'punts', punt_yds:'punt_yds', kr:'kr', kr_yds:'kr_yds', pr:'pr', pr_yds:'pr_yds' },
+};
+
+async function pushFootballTab(tab, homeInfo, awayInfo) {
+  const colMap = FOOTBALL_TAB_DB_COLS[tab];
+  const dbCols = Object.values(colMap);
+  let pushed = 0;
+
+  for (const p of (parsedData[tab] || [])) {
+    const isHome = parsedData.game.home_team === p.team ||
+      (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
+    const teamInfo = isHome ? homeInfo : awayInfo;
+    if (!teamInfo) continue;
+
+    const pid = await ensurePlayer(p, teamInfo.teamId, teamInfo.sportId, teamInfo.roster);
+    if (!pid) continue;
+
+    const { data: cur } = await sb.from('players').select(dbCols.join(',')).eq('id', pid).single();
+    const b = cur || {};
+    const updates = {};
+    const delta = {};
+    for (const [srcField, dbCol] of Object.entries(colMap)) {
+      const v = p[srcField] || 0;
+      updates[dbCol] = (b[dbCol] || 0) + v;
+      delta[srcField] = v;
+    }
+    await sb.from('players').update(updates).eq('id', pid);
+
+    await sb.from('game_stat_imports').upsert({
+      game_id: currentGame.id, player_id: pid, stat_type: tab,
+      stats: JSON.stringify(delta)
+    }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
+
+    pushed++;
+  }
+  return pushed;
 }
 
 async function pushToSupabase(forceReplace = false) {
@@ -1050,100 +1227,108 @@ async function pushToSupabase(forceReplace = false) {
 
     let pushed = 0, created = 0;
 
-    // Push ALL batting rows (both teams)
-    for (const p of (parsedData.batting || [])) {
-      // Figure out which team this player belongs to
-      const isHome = parsedData.game.home_team === p.team ||
-        (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
-      const teamInfo = isHome ? homeInfo : awayInfo;
-      if (!teamInfo) continue; // can't resolve team — skip
+    if (currentKind === 'diamond') {
+      // Push ALL batting rows (both teams)
+      for (const p of (parsedData.batting || [])) {
+        // Figure out which team this player belongs to
+        const isHome = parsedData.game.home_team === p.team ||
+          (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
+        const teamInfo = isHome ? homeInfo : awayInfo;
+        if (!teamInfo) continue; // can't resolve team — skip
 
-      const pid = await ensurePlayer(p, teamInfo.teamId, teamInfo.sportId, teamInfo.roster);
-      if (!pid) continue;
+        const pid = await ensurePlayer(p, teamInfo.teamId, teamInfo.sportId, teamInfo.roster);
+        if (!pid) continue;
 
-      const { data: cur } = await sb.from('players')
-        .select('ab,hits,hr,rbi,sb,bb,k_bat,doubles,triples,runs,games')
-        .eq('id', pid).single();
-      const b = cur || {};
+        const { data: cur } = await sb.from('players')
+          .select('ab,hits,hr,rbi,sb,bb,k_bat,doubles,triples,runs,games')
+          .eq('id', pid).single();
+        const b = cur || {};
 
-      const newAb   = (b.ab||0)   + (p.ab||0);
-      const newHits = (b.hits||0) + (p.hits||0);
-      const ba      = newAb > 0 ? parseFloat((newHits/newAb).toFixed(3)) : null;
+        const newAb   = (b.ab||0)   + (p.ab||0);
+        const newHits = (b.hits||0) + (p.hits||0);
+        const ba      = newAb > 0 ? parseFloat((newHits/newAb).toFixed(3)) : null;
 
-      await sb.from('players').update({
-        ab:      newAb, hits: newHits,
-        hr:      (b.hr||0)      + (p.hr||0),
-        rbi:     (b.rbi||0)     + (p.rbi||0),
-        sb:      (b.sb||0)      + (p.sb||0),
-        bb:      (b.bb||0)      + (p.bb||0),
-        k_bat:   (b.k_bat||0)   + (p.k_bat||0),
-        doubles: (b.doubles||0) + (p.doubles||0),
-        triples: (b.triples||0) + (p.triples||0),
-        runs:    (b.runs||0)    + (p.runs||0),
-        games:   (b.games||0)   + 1,
-        ba,
-      }).eq('id', pid);
+        await sb.from('players').update({
+          ab:      newAb, hits: newHits,
+          hr:      (b.hr||0)      + (p.hr||0),
+          rbi:     (b.rbi||0)     + (p.rbi||0),
+          sb:      (b.sb||0)      + (p.sb||0),
+          bb:      (b.bb||0)      + (p.bb||0),
+          k_bat:   (b.k_bat||0)   + (p.k_bat||0),
+          doubles: (b.doubles||0) + (p.doubles||0),
+          triples: (b.triples||0) + (p.triples||0),
+          runs:    (b.runs||0)    + (p.runs||0),
+          games:   (b.games||0)   + 1,
+          ba,
+        }).eq('id', pid);
 
-      await sb.from('game_stat_imports').upsert({
-        game_id: currentGame.id, player_id: pid, stat_type: 'batting',
-        stats: JSON.stringify({
-          ab: p.ab||0, hits: p.hits||0, hr: p.hr||0, rbi: p.rbi||0,
-          sb: p.sb||0, bb: p.bb||0, k_bat: p.k_bat||0,
-          doubles: p.doubles||0, triples: p.triples||0, runs: p.runs||0, games: 1
-        })
-      }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
+        await sb.from('game_stat_imports').upsert({
+          game_id: currentGame.id, player_id: pid, stat_type: 'batting',
+          stats: JSON.stringify({
+            ab: p.ab||0, hits: p.hits||0, hr: p.hr||0, rbi: p.rbi||0,
+            sb: p.sb||0, bb: p.bb||0, k_bat: p.k_bat||0,
+            doubles: p.doubles||0, triples: p.triples||0, runs: p.runs||0, games: 1
+          })
+        }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
 
-      pushed++;
-    }
+        pushed++;
+      }
 
-    // Push ALL pitching rows (both teams)
-    for (const p of (parsedData.pitching || [])) {
-      const isHome = parsedData.game.home_team === p.team ||
-        (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
-      const teamInfo = isHome ? homeInfo : awayInfo;
-      if (!teamInfo) continue;
+      // Push ALL pitching rows (both teams)
+      for (const p of (parsedData.pitching || [])) {
+        const isHome = parsedData.game.home_team === p.team ||
+          (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
+        const teamInfo = isHome ? homeInfo : awayInfo;
+        if (!teamInfo) continue;
 
-      const match = matchPlayer(p, teamInfo.roster);
-      if (!match) continue;
+        const match = matchPlayer(p, teamInfo.roster);
+        if (!match) continue;
 
-      const { data: cur } = await sb.from('players')
-        .select('ip_outs,p_h,p_er,p_bb,k,w,l').eq('id', match.id).single();
-      const b = cur || {};
+        const { data: cur } = await sb.from('players')
+          .select('ip_outs,p_h,p_er,p_bb,k,w,l').eq('id', match.id).single();
+        const b = cur || {};
 
-      const newIpOuts = (b.ip_outs||0) + (p.ip_outs||0);
-      const newEr     = (b.p_er||0)    + (p.p_er||0);
-      const ip        = newIpOuts / 3;
-      const era       = ip > 0 ? parseFloat(((newEr*9)/ip).toFixed(2)) : null;
+        const newIpOuts = (b.ip_outs||0) + (p.ip_outs||0);
+        const newEr     = (b.p_er||0)    + (p.p_er||0);
+        const ip        = newIpOuts / 3;
+        const era       = ip > 0 ? parseFloat(((newEr*9)/ip).toFixed(2)) : null;
 
-      await sb.from('players').update({
-        ip_outs: newIpOuts,
-        p_h:  (b.p_h||0)  + (p.p_h||0),
-        p_er: newEr,
-        p_bb: (b.p_bb||0) + (p.p_bb||0),
-        k:    (b.k||0)    + (p.k||0),
-        era,
-        w: p.w ? (b.w||0)+1 : (b.w||0),
-        l: p.l ? (b.l||0)+1 : (b.l||0),
-      }).eq('id', match.id);
+        await sb.from('players').update({
+          ip_outs: newIpOuts,
+          p_h:  (b.p_h||0)  + (p.p_h||0),
+          p_er: newEr,
+          p_bb: (b.p_bb||0) + (p.p_bb||0),
+          k:    (b.k||0)    + (p.k||0),
+          era,
+          w: p.w ? (b.w||0)+1 : (b.w||0),
+          l: p.l ? (b.l||0)+1 : (b.l||0),
+        }).eq('id', match.id);
 
-      await sb.from('game_stat_imports').upsert({
-        game_id: currentGame.id, player_id: match.id, stat_type: 'pitching',
-        stats: JSON.stringify({
-          ip_outs: p.ip_outs||0, p_h: p.p_h||0, p_er: p.p_er||0,
-          p_bb: p.p_bb||0, k: p.k||0, w: p.w?1:0, l: p.l?1:0
-        })
-      }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
+        await sb.from('game_stat_imports').upsert({
+          game_id: currentGame.id, player_id: match.id, stat_type: 'pitching',
+          stats: JSON.stringify({
+            ip_outs: p.ip_outs||0, p_h: p.p_h||0, p_er: p.p_er||0,
+            p_bb: p.p_bb||0, k: p.k||0, w: p.w?1:0, l: p.l?1:0
+          })
+        }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
+      }
+    } else {
+      // Football — one generic loop per tab, using FOOTBALL_TAB_DB_COLS to map
+      // parsed field names to player columns. Every tab follows the exact same
+      // shape (read current -> add delta -> write back -> record the delta for
+      // undo), so one function covers all six instead of six near-duplicates.
+      for (const tab of TABS_BY_KIND.football) {
+        pushed += await pushFootballTab(tab, homeInfo, awayInfo);
+      }
     }
 
     if (currentGame?.id) {
       // Store full parsed box score for game page reconstruction
+      const boxScore = { game: parsedData.game };
+      TABS_BY_KIND[currentKind].forEach(tab => { boxScore[tab] = parsedData[tab]; });
       await sb.from('games').update({
         stats_uploaded: true,
-        box_score_json: {
-          game:     parsedData.game,
-          batting:  parsedData.batting,
-          pitching: parsedData.pitching,
-        }
+        box_score_json: boxScore,
       }).eq('id', currentGame.id);
     }
 
@@ -1208,6 +1393,16 @@ async function reversePreviousImport(gameId) {
         w:       Math.max(0, (b.w||0) - (delta.w||0)),
         l:       Math.max(0, (b.l||0) - (delta.l||0)),
       }).eq('id', imp.player_id);
+    } else if (FOOTBALL_TAB_DB_COLS[imp.stat_type]) {
+      const colMap = FOOTBALL_TAB_DB_COLS[imp.stat_type];
+      const dbCols = Object.values(colMap);
+      const { data: cur } = await sb.from('players').select(dbCols.join(',')).eq('id', imp.player_id).single();
+      const b = cur || {};
+      const updates = {};
+      for (const [srcField, dbCol] of Object.entries(colMap)) {
+        updates[dbCol] = Math.max(0, (b[dbCol]||0) - (delta[srcField]||0));
+      }
+      await sb.from('players').update(updates).eq('id', imp.player_id);
     }
     // Delete the old import record
     await sb.from('game_stat_imports')
@@ -1242,11 +1437,14 @@ async function ensurePlayer(p, teamId, sportId, roster) {
 async function handleFile(file) {
   if (!file || file.type !== 'application/pdf') { showError('Please select a PDF file.'); return; }
   document.getElementById('errorBox').className = 'error-box';
+  document.getElementById('parsingSub').textContent = currentKind === 'football'
+    ? 'Extracting passing, rushing, receiving, defense, kicking & return stats'
+    : 'Extracting batting and pitching stats';
   showStep('parsing');
   try {
     const text = await extractPdfText(file);
     if (text.trim().length < 80) throw new Error('Could not extract text — is this a scanned image PDF?');
-    const parsed = await parsePdfWithClaude(text);
+    const parsed = await parsePdfWithClaude(text, currentKind);
     // Use game's known team IDs directly — no fuzzy matching needed
     const homeId = currentGame.home_team_id || currentGame.home_team?.id;
     const awayId = currentGame.away_team_id || currentGame.away_team?.id;

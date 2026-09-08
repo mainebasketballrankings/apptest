@@ -470,6 +470,10 @@ async function init() {
   // Build linescore from box_score_json if present
   const bsj = g.box_score_json;
   const isFootball = g.sport_id === FOOTBALL_SPORT_ID;
+  // Soccer and field hockey import as scoring/goalkeeping (see
+  // boxscore-import.html), not baseball's batting/pitching — without this they
+  // fall through to the diamond path and render "No batting data".
+  const isField = g.sport_id === SOCCER_SPORT_ID || g.sport_id === FIELD_HOCKEY_SPORT_ID;
 
   // Team colors — neutral defaults until primary_color is in DB
   const aColor = at.primary_color || '#2563a8'; // away = blue
@@ -601,14 +605,24 @@ async function init() {
           <button class="sec-tab" onclick="showFbTab('defense',this)">Defense</button>
           <button class="sec-tab" onclick="showFbTab('kicking',this)">Kicking</button>
         </div>` : ''}
-        ${!isFootball && !bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
-        ${!isFootball && bsj ? `<div class="section-tabs">
+        ${!isFootball && !isField && !bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
+        ${!isFootball && !isField && bsj ? `<div class="section-tabs">
           <button class="sec-tab active" onclick="showBoxTab('batting',this)">Batting</button>
           <button class="sec-tab" onclick="showBoxTab('pitching',this)">Pitching</button>
+        </div>` : ''}
+        ${isField && !bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
+        ${isField && bsj ? `<div class="section-tabs">
+          <button class="sec-tab active" onclick="showFieldTab('scoring',this)">Scoring</button>
+          <button class="sec-tab" onclick="showFieldTab('goalkeeping',this)">Goalkeeping</button>
         </div>` : ''}
       </div>
       <div class="box-wrap" id="boxContent">
         ${isFootball ? '<div class="loading" style="padding:24px">Loading box score…</div>'
+          : isField ? (bsj ? renderFieldBox('scoring', bsj, ht.school_name, at.school_name) : `
+          <div class="no-boxscore">
+            <strong>No box score imported yet</strong>
+            <a href="boxscore-import.html">Import stats from a PDF box score →</a>
+          </div>`)
           : (bsj ? renderBatting(bsj, ht.school_name, at.school_name) : `
           <div class="no-boxscore">
             <strong>No box score imported yet</strong>
@@ -657,8 +671,13 @@ async function init() {
   // Load season records for both teams
   loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel);
   if (bsj) loadBoxScoreRosters(g).then(() => {
-    // Re-render box score with full names
-    showBoxTab(activeTab || 'batting', document.querySelector('.sec-tab.active'));
+    // Re-render box score with full names, staying on whichever tab is open
+    // and using the renderer this sport actually uses.
+    if (isField) {
+      showFieldTab(window._fieldTab || 'scoring', document.querySelector('.sec-tab.active'));
+    } else {
+      showBoxTab(activeTab || 'batting', document.querySelector('.sec-tab.active'));
+    }
   });
 }
 
@@ -669,6 +688,8 @@ async function init() {
 // games.box_score_json (which is baseball-shaped: batting/pitching).
 // ══════════════════════════════════════════════════════
 const FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+const SOCCER_SPORT_ID = 'ff80a695-0e78-4432-98f2-141b2b571e0e';
+const FIELD_HOCKEY_SPORT_ID = '1054869a-20d4-465f-8ca9-4bc4d2bafe1b';
 
 const FB_CATS = {
   passing: { label: 'Passing',
@@ -867,6 +888,78 @@ function renderBatting(bsj, homeName, awayName) {
       ${playerRows(homeRows, true)}
     </tbody>
   </table>`;
+}
+
+// ══════════════════════════════════════════════════════
+// FIELD SPORT BOX SCORE (soccer / field hockey)
+// Imported via boxscore-import.html into games.box_score_json as
+// { scoring: [...], goalkeeping: [...] } — a different shape from both
+// baseball's batting/pitching and football's per-event stat lines.
+// ══════════════════════════════════════════════════════
+const FIELD_CATS = {
+  scoring: {
+    key: 'scoring',
+    cols: [
+      ['G',   p => p.goals ?? 0,       p => (p.goals ?? 0) > 0],
+      ['A',   p => p.assists ?? 0,     p => (p.assists ?? 0) > 0],
+      ['SH',  p => p.shots ?? 0],
+      ['SOG', p => p.sog ?? 0],
+      ['FL',  p => p.fouls ?? 0],
+      ['Y',   p => p.card_yellow ?? 0, p => (p.card_yellow ?? 0) > 0],
+      ['R',   p => p.card_red ?? 0,    p => (p.card_red ?? 0) > 0],
+    ],
+    empty: 'No scoring data',
+  },
+  goalkeeping: {
+    key: 'goalkeeping',
+    cols: [
+      ['SV',    p => p.gk_saves ?? 0, p => (p.gk_saves ?? 0) > 0],
+      ['GA',    p => p.gk_ga ?? 0],
+      ['FACED', p => p.gk_sog_faced ?? 0],
+      ['SV%',   p => {
+        const faced = p.gk_sog_faced ?? 0;
+        return faced > 0 ? `${Math.round((p.gk_saves ?? 0) / faced * 100)}%` : '—';
+      }],
+    ],
+    empty: 'No goalkeeping data',
+  },
+};
+
+function renderFieldBox(cat, bsj, homeName, awayName) {
+  const spec = FIELD_CATS[cat] || FIELD_CATS.scoring;
+  const rows = (bsj && bsj[spec.key]) || [];
+  if (!rows.length) return `<div class="no-boxscore"><strong>${spec.empty}</strong></div>`;
+
+  const homeRows = rows.filter(p => teamIs(p.team, homeName));
+  const awayRows = rows.filter(p => teamIs(p.team, awayName));
+
+  const playerRows = (players, isHome) => players.map(p => `<tr>
+      <td class="left player-name">${resolvedName(p, isHome)}${p.number ? `<span class="pos-tag">#${esc2(p.number)}</span>` : ''}</td>
+      ${spec.cols.map(([, get, hot]) =>
+        `<td class="${hot && hot(p) ? 'highlight' : ''}">${get(p)}</td>`).join('')}
+    </tr>`).join('');
+
+  const span = spec.cols.length + 1;
+  return `<table class="box" id="field${cat}Table">
+    <thead><tr>
+      <th class="left">Player</th>
+      ${spec.cols.map(([label]) => `<th>${label}</th>`).join('')}
+    </tr></thead>
+    <tbody>
+      <tr class="team-divider"><td colspan="${span}">${awayName} (Away)</td></tr>
+      ${playerRows(awayRows, false)}
+      <tr class="team-divider"><td colspan="${span}">${homeName} (Home)</td></tr>
+      ${playerRows(homeRows, true)}
+    </tbody>
+  </table>`;
+}
+
+function showFieldTab(cat, btn) {
+  window._fieldTab = cat;
+  document.querySelectorAll('.sec-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('boxContent').innerHTML =
+    renderFieldBox(cat, window._bsj, window._htName, window._atName);
 }
 
 function renderPitching(bsj, homeName, awayName) {

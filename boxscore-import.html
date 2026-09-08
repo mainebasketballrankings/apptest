@@ -371,6 +371,17 @@ const SUPABASE_URL  = 'https://vtwupenqieesoktonbzg.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// MBR labels a season by the calendar year it ENDS in: the 26-27 school year
+// is season_year 2027. A season is treated as starting in August, so anything
+// from August onward belongs to the next year's season. This was previously
+// hardcoded to 2026 in six places, which meant the page silently kept serving
+// last season's schedule after the new one began.
+function curSeason() {
+  const d = new Date();
+  return d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear();
+}
+const SEASON_YEAR = curSeason();
+
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -555,7 +566,7 @@ async function loadSchedule(team) {
       home_team:home_team_id(id, school_name),
       away_team:away_team_id(id, school_name)`)
     .or(`home_team_id.eq.${team.id},away_team_id.eq.${team.id}`)
-    .eq('season_year', 2026)
+    .eq('season_year', SEASON_YEAR)
     .order('game_date');
 
   if (error) {
@@ -645,7 +656,7 @@ async function loadExistingPlayers(teamId) {
   const { data } = await sb.from('players')
     .select('id, name, number, season_year')
     .eq('team_id', teamId)
-    .eq('season_year', 2026);
+    .eq('season_year', SEASON_YEAR);
   return data || [];
 }
 
@@ -922,7 +933,7 @@ async function loadTeamInfo(teamId) {
     const { data } = await sb.from('players')
       .select('id, name, number, season_year')
       .eq('team_id', teamId)
-      .eq('season_year', 2026);
+      .eq('season_year', SEASON_YEAR);
     teamPlayersCache[teamId] = data || [];
   }
   return { teamId: team.id, sportId: team.sport_id, roster: teamPlayersCache[teamId] };
@@ -958,7 +969,7 @@ async function resolveTeamId(boxScoreTeamName) {
     const { data } = await sb.from('players')
       .select('id, name, number, season_year')
       .eq('team_id', team.id)
-      .eq('season_year', 2026);
+      .eq('season_year', SEASON_YEAR);
     teamPlayersCache[team.id] = data || [];
   }
   return { teamId: team.id, sportId: team.sport_id, roster: teamPlayersCache[team.id] };
@@ -1486,14 +1497,14 @@ async function ensurePlayer(p, teamId, sportId, roster) {
   const { data, error } = await sb.from('players').insert({
     team_id:     teamId,
     sport_id:    sportId,
-    season_year: 2026,
+    season_year: SEASON_YEAR,
     name:        p.name,
     number:      p.number,
     position:    p.position || null,
   }).select('id').single();
 
   if (error) { console.error('Create player:', error); return null; }
-  const newP = { id: data.id, name: p.name, number: p.number, season_year: 2026 };
+  const newP = { id: data.id, name: p.name, number: p.number, season_year: SEASON_YEAR };
   roster.push(newP);
   if (teamPlayersCache[teamId]) teamPlayersCache[teamId].push(newP);
   return data.id;

@@ -348,8 +348,10 @@ function logoEl(url, name, sz = 40) {
 let currentDate = null;
 
 async function loadGamesForDate(date) {
+  // No season_year filter: an exact game_date already pins down the season, and
+  // hardcoding one meant dates outside it came back empty ("No games on this date").
   const games = await api(
-    `games?game_date=eq.${date}&season_year=eq.2026&status=in.(final,scheduled,postponed,active)` +
+    `games?game_date=eq.${date}&status=in.(final,scheduled,postponed,active)` +
     `&select=id,sport_id,home_team:home_team_id(school_name),away_team:away_team_id(school_name)` +
     `&order=sport_id,home_team_id&limit=100`
   );
@@ -446,10 +448,10 @@ async function init() {
   // Get snapshot closest to game date, fall back to latest if none before game date
   const snapDate = g.game_date || new Date().toISOString().slice(0,10);
   const [hSnapArr, aSnapArr, hSnapLatArr, aSnapLatArr] = await Promise.all([
-    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.2026&snapshot_date=lt.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
-    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.2026&snapshot_date=lt.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
-    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.2026&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
-    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.2026&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.${g.season_year}&snapshot_date=lt.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.${g.season_year}&snapshot_date=lt.${snapDate}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.home_team_id}&season_year=eq.${g.season_year}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
+    api(`rankings_snapshots?team_id=eq.${g.away_team_id}&season_year=eq.${g.season_year}&order=snapshot_date.desc&select=team_id,heal_points,rank_overall,dirigo,snapshot_date&limit=1`),
   ]);
   const hSnap = hSnapArr?.[0] || hSnapLatArr?.[0] || {};
   const aSnap = aSnapArr?.[0] || aSnapLatArr?.[0] || {};
@@ -835,8 +837,8 @@ let _homeRoster = [], _awayRoster = [];
 
 async function loadBoxScoreRosters(g) {
   const [hr, ar] = await Promise.all([
-    api(`players?team_id=eq.${g.home_team_id}&season_year=eq.2026&select=name,number`),
-    api(`players?team_id=eq.${g.away_team_id}&season_year=eq.2026&select=name,number`),
+    api(`players?team_id=eq.${g.home_team_id}&season_year=eq.${g.season_year}&select=name,number`),
+    api(`players?team_id=eq.${g.away_team_id}&season_year=eq.${g.season_year}&select=name,number`),
   ]);
   _homeRoster = hr || [];
   _awayRoster = ar || [];
@@ -1032,8 +1034,8 @@ function teamIs(teamName, schoolName) {
 async function loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel) {
   // Load both teams' games to compute record at time of this game
   const [hGames, aGames] = await Promise.all([
-    api(`games?or=(home_team_id.eq.${g.home_team_id},away_team_id.eq.${g.home_team_id})&sport_id=eq.${g.sport_id}&season_year=eq.2026&status=eq.final&select=id,game_date,home_team_id,home_score,away_score&order=game_date.asc`),
-    api(`games?or=(home_team_id.eq.${g.away_team_id},away_team_id.eq.${g.away_team_id})&sport_id=eq.${g.sport_id}&season_year=eq.2026&status=eq.final&select=id,game_date,home_team_id,home_score,away_score&order=game_date.asc`)
+    api(`games?or=(home_team_id.eq.${g.home_team_id},away_team_id.eq.${g.home_team_id})&sport_id=eq.${g.sport_id}&season_year=eq.${g.season_year}&status=eq.final&select=id,game_date,home_team_id,home_score,away_score&order=game_date.asc`),
+    api(`games?or=(home_team_id.eq.${g.away_team_id},away_team_id.eq.${g.away_team_id})&sport_id=eq.${g.sport_id}&season_year=eq.${g.season_year}&status=eq.final&select=id,game_date,home_team_id,home_score,away_score&order=game_date.asc`)
   ]);
 
   function recordAtDate(games, teamId, beforeDate) {

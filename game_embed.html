@@ -303,6 +303,13 @@
 
 <script>
 const SB_URL = (window.MBREmbed ? MBREmbed.config.SUPABASE_URL : 'https://vtwupenqieesoktonbzg.supabase.co');
+
+// Declared up here, not next to the render code that uses them: `const` is not
+// hoisted, so a declaration further down the file is still in its temporal dead
+// zone when the render function runs, and referencing it throws.
+const FOOTBALL_SPORT_ID     = 'fa905ca5-f416-409b-81ac-777179ee5576';
+const SOCCER_SPORT_ID       = 'ff80a695-0e78-4432-98f2-141b2b571e0e';
+const FIELD_HOCKEY_SPORT_ID = '1054869a-20d4-465f-8ca9-4bc4d2bafe1b';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
 const SPORT_LABELS = {
@@ -687,9 +694,14 @@ async function init() {
 // full stat line as JSON in `notes`, so football reads from there rather than
 // games.box_score_json (which is baseball-shaped: batting/pitching).
 // ══════════════════════════════════════════════════════
+<<<<<<< HEAD
+// FOOTBALL_SPORT_ID is declared at the top of this script alongside the other
+// sport IDs.
+=======
 const FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
 const SOCCER_SPORT_ID = 'ff80a695-0e78-4432-98f2-141b2b571e0e';
 const FIELD_HOCKEY_SPORT_ID = '1054869a-20d4-465f-8ca9-4bc4d2bafe1b';
+>>>>>>> 375947c1e24f0f8901bfdbd35769f6b70625034a
 
 const FB_CATS = {
   passing: { label: 'Passing',

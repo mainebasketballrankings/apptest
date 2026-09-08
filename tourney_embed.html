@@ -219,12 +219,7 @@
 
   <div class="region-row" id="regionRow"></div>
 
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>≥30% Gold Ball</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>≥10% Gold Ball</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fde047"></div>≥3% Gold Ball</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fca5a5"></div>&lt;3% Gold Ball</div>
-  </div>
+  <div class="legend" id="legend"></div>
 
   <div class="gate-wrap" id="gateWrap">
     <div class="tbl-wrap" id="tblWrap">
@@ -533,6 +528,13 @@ function renderTableTourney() {
   const isLax = activeSport === 'lax';
   const showRegional = !isLax;
 
+  const champLabel = isLax ? 'Championship' : 'Gold Ball';
+  document.getElementById('legend').innerHTML =
+    `<div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>≥30% ${champLabel}</div>`
+    + `<div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>≥10% ${champLabel}</div>`
+    + `<div class="legend-item"><div class="legend-dot" style="background:#fde047"></div>≥3% ${champLabel}</div>`
+    + `<div class="legend-item"><div class="legend-dot" style="background:#fca5a5"></div>&lt;3% ${champLabel}</div>`;
+
   let html = `<table>
     <thead><tr>
       <th class="left">#</th>
@@ -607,6 +609,22 @@ function renderTableRegular() {
 
   document.getElementById('simBadge').textContent = '10,000 simulations';
 
+  // How many bye/playoff spots this region has. Every simulation fills exactly
+  // the same number of spots, so summing each team's probability across the
+  // region recovers those counts (e.g. 18 teams whose bye% sums to 4.00 and
+  // playoff% to 12.00 = 4 byes, 12 in). Avoids shipping the bracket structure
+  // to the client separately, and it can't drift from the sim that produced it.
+  const byeCount = Math.round(currentRegional.reduce((a, s) => a + (s.bye || 0), 0) / 100);
+  const inCount  = Math.round(currentRegional.reduce((a, s) => a + (s.playoff || 0), 0) / 100);
+
+  document.getElementById('legend').innerHTML =
+    `<div class="legend-item"><div class="legend-dot" style="background:#f0fdf4;border:1px solid #86efac"></div>`
+    + `Projected bye${byeCount ? ` (top ${byeCount})` : ''}</div>`
+    + `<div class="legend-item"><div class="legend-dot" style="background:#fefce8;border:1px solid #fde047"></div>`
+    + `Projected in, no bye${inCount ? ` (through ${inCount})` : ''}</div>`
+    + `<div class="legend-item"><div class="legend-dot" style="background:#fff;border:1px solid #ddd"></div>`
+    + `Projected out</div>`;
+
   let html = `<table>
     <thead><tr>
       <th class="left">#</th>
@@ -620,7 +638,15 @@ function renderTableRegular() {
     </tr></thead><tbody>`;
 
   currentRegional.forEach((s, i) => {
-    const tier = s.bye >= 50 ? 'bye' : s.playoff >= 50 ? 'in' : s.playoff >= 15 ? 'bubble' : 'out';
+    // Colour by projected playoff POSITION, not probability: the standings are
+    // sorted by average seed, so row N is the team currently projected into
+    // the Nth spot. Green = would get a first-round bye, yellow = in the
+    // tournament but no bye, white = out. The Bye%/In%/Out% columns already
+    // carry the confidence, so the row colour shows the bracket instead.
+    const rank = i + 1;
+    const tier = (byeCount && rank <= byeCount) ? 'bye'
+               : (inCount  && rank <= inCount)  ? 'bubble'
+               : 'out';
     const inLabel = s.bye >= 99.99    ? 'BYE'
                   : s.playoff >= 99.99 ? 'IN'
                   : s.out >= 99.99     ? 'OUT'

@@ -199,18 +199,21 @@
   <p class="page-sub">10,000 Monte Carlo simulations · Click any team for W-L breakdown</p>
 
   <div class="sport-tabs" id="sportTabs">
-    <button class="sport-tab active" data-sport="baseball">Baseball</button>
+    <button class="sport-tab active" data-sport="soccer">Soccer</button>
+    <button class="sport-tab" data-sport="fieldhockey">Field Hockey</button>
+    <button class="sport-tab" data-sport="football">Football</button>
+    <button class="sport-tab" data-sport="baseball">Baseball</button>
     <button class="sport-tab" data-sport="softball">Softball</button>
     <button class="sport-tab" data-sport="lax">Lacrosse</button>
   </div>
 
-  <div class="gender-tabs" id="genderTabs" style="display:none">
+  <div class="gender-tabs" id="genderTabs" style="display:flex">
     <button class="gender-tab active" data-gender="Boys">Boys</button>
     <button class="gender-tab" data-gender="Girls">Girls</button>
   </div>
 
   <div class="controls-row">
-    <select class="season-select" id="seasonSel"><option value="2026">25-26</option></select>
+    <select class="season-select" id="seasonSel"></select>
     <span class="sim-badge" id="simBadge"></span>
   </div>
 
@@ -249,15 +252,31 @@ const SB_URL = (window.MBREmbed ? MBREmbed.config.SUPABASE_URL : 'https://vtwupe
 const SB_KEY = (window.MBREmbed ? MBREmbed.config.SUPABASE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA');
 
 const SPORT_IDS = {
-  baseball: 'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
-  softball: '095c9841-7261-4cb1-824e-6304792b53d0',
-  lax:      '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
+  soccer:      'ff80a695-0e78-4432-98f2-141b2b571e0e',
+  fieldhockey: '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
+  football:    'fa905ca5-f416-409b-81ac-777179ee5576',
+  baseball:    'c87a4d6c-a471-47e1-b6a0-d1643d942bf0',
+  softball:    '095c9841-7261-4cb1-824e-6304792b53d0',
+  lax:         '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d',
 };
-const SPORT_GENDER = { baseball:'Boys', softball:'Girls', lax:null };
+// null = this sport has both genders under one sport_id, so the gender tabs
+// have to be shown and the user's choice used instead.
+const SPORT_GENDER = {
+  soccer:null, fieldhockey:'Girls', football:'Boys',
+  baseball:'Boys', softball:'Girls', lax:null,
+};
+// Sports whose season runs in the fall — these live under the NEXT calendar
+// year's season_year (the 26-27 season is season_year 2027), unlike spring
+// sports where 25-26 is 2026.
+const FALL_SPORTS = new Set(['soccer', 'fieldhockey', 'football']);
+const SEASONS = {
+  fall:   [{ value: 2027, label: '26-27' }],
+  spring: [{ value: 2026, label: '25-26' }],
+};
 
-let activeSport  = 'baseball';
+let activeSport  = 'soccer';
 let activeGender = 'Boys';
-let activeSeason = 2026;
+let activeSeason = 2027;
 let activeRegion = null;
 let allSnaps     = [];
 let regions      = [];
@@ -283,18 +302,30 @@ function getSB() {
 loadData();
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
+function syncSeasonOptions() {
+  const sel = document.getElementById('seasonSel');
+  const list = SEASONS[FALL_SPORTS.has(activeSport) ? 'fall' : 'spring'];
+  sel.innerHTML = list.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+  // Keep the current pick if it's still valid, otherwise take the newest.
+  if (!list.some(s => s.value === activeSeason)) activeSeason = list[0].value;
+  sel.value = String(activeSeason);
+}
+syncSeasonOptions();
+
 document.getElementById('sportTabs').addEventListener('click', e => {
   const pill = e.target.closest('.sport-tab');
   if (!pill) return;
   document.querySelectorAll('.sport-tab').forEach(p => p.classList.remove('active'));
   pill.classList.add('active');
   activeSport = pill.dataset.sport;
-  const isLax = activeSport === 'lax';
-  document.getElementById('genderTabs').style.display = isLax ? 'flex' : 'none';
-  activeGender = isLax
+  // Sports with both genders under one sport_id need the gender picker.
+  const needsGender = SPORT_GENDER[activeSport] === null;
+  document.getElementById('genderTabs').style.display = needsGender ? 'flex' : 'none';
+  activeGender = needsGender
     ? (document.querySelector('.gender-tab.active')?.dataset.gender || 'Boys')
     : SPORT_GENDER[activeSport];
   activeRegion = null;
+  syncSeasonOptions();
   loadData();
 });
 

@@ -408,7 +408,7 @@ function sportKind(sportId) {
 const TABS_BY_KIND = {
   diamond:  ['batting', 'pitching'],
   football: ['passing', 'rushing', 'receiving', 'defense', 'kicking', 'puntret'],
-  field:    ['scoring'],
+  field:    ['scoring', 'goalkeeping'],
 };
 
 // ── STATE ─────────────────────────────────────────────
@@ -424,7 +424,7 @@ const TAB_LABELS = {
   batting: 'Batting', pitching: 'Pitching',
   passing: 'Passing', rushing: 'Rushing', receiving: 'Receiving',
   defense: 'Defense', kicking: 'Kicking', puntret: 'Punt/Return',
-  scoring: 'Scoring & Discipline',
+  scoring: 'Scoring', goalkeeping: 'Goalkeeping',
 };
 
 // ── BOOT ──────────────────────────────────────────────
@@ -847,7 +847,7 @@ ${pdfText}`;
 }
 
 function fieldPrompt(pdfText) {
-  return `You are parsing a soccer or field hockey game report. Unlike a baseball or football box score, this report does NOT show individual stats in a table. Instead, goals and cards are logged as a chronological list of events, each naming the player involved — for example "GOAL — First Last (assist: First Last)" or "YELLOW CARD — First Last". Extract every such event as its own row; do not try to total them yourself.
+  return `You are parsing a soccer or field hockey box score. It has two tables per team: a per-player stat table with columns #, PLAYER, G, A, SH, SOG, FL, Y, R — and a separate KEEPER table with columns #, KEEPER, SV, GA, SOG FACED, SV%. A goalkeeper appears in BOTH tables: once as a normal (usually all-zero) player row, and again in the keeper table with their goalkeeping numbers. You MUST return every player from BOTH teams in the "scoring" array, and every keeper from both teams in the "goalkeeping" array.
 
 Return ONLY valid JSON, no markdown, no explanation:
 
@@ -860,18 +860,25 @@ Return ONLY valid JSON, no markdown, no explanation:
     "date": "as shown",
     "sport": "soccer" or "field hockey"
   },
-  "events": [
-    { "team": "exact team name as shown", "player": "First Last", "type": "goal" }
+  "scoring": [
+    { "team": "exact team name as shown", "name": "First Last", "last": "Last", "number": "digits only",
+      "goals": 0, "assists": 0, "shots": 0, "sog": 0, "fouls": 0, "card_yellow": 0, "card_red": 0 }
+  ],
+  "goalkeeping": [
+    { "team": "exact team name as shown", "name": "First Last", "last": "Last", "number": "digits only",
+      "gk_saves": 0, "gk_ga": 0, "gk_sog_faced": 0 }
   ]
 }
 
 CRITICAL RULES:
-- "type" must be exactly one of: goal, assist, card_yellow, card_red, card_green.
-- A goal WITH an assist produces TWO separate event rows: one "goal" row for the scorer, and one "assist" row for the assisting player. An unassisted goal produces only the "goal" row — never invent an assist that isn't shown.
-- "team" must be the team the player who did the action belongs to (the scorer's own team, the carded player's own team) — not whichever team the play happened against.
-- card_green only applies to field hockey. Soccer never has green cards — do not use that type for a soccer report.
-- If the same player has multiple goals or cards, include one event row per occurrence (a two-goal game shows two separate "goal" rows for that player).
-- Do NOT extract shots, shots on goal, saves, or possession — this report only tracks those as team totals, never attributed to an individual player, so there is nothing to extract for them.
+- Both arrays MUST contain rows from BOTH teams.
+- "scoring" = every row in the main per-player table, including goalkeepers (their row there is usually all zeros — that's correct, include it as-is).
+- "goalkeeping" = every row in the separate KEEPER table. Do not compute or include SV% — it's derived from saves and shots faced, not something to extract.
+- Exclude "TOTALS" rows. Include every individual player, even ones with all-zero stats.
+- "Y" column = yellow cards → card_yellow. "R" column = red cards → card_red. "FL" = fouls.
+- "number" = digits only, no # symbol. If the keeper table doesn't repeat a jersey number, use the number from their row in the main player table.
+- "team" must exactly match the team name used in "home_team" or "away_team" above.
+- This report does not track green cards, possession, or any other stat as an individual box-score column — don't invent fields beyond what's listed above.
 
 Box score text:
 ${pdfText}`;
@@ -1015,7 +1022,8 @@ const GENERIC_TAB_COLS = {
   defense:   [['tkl','Tkl'],['ast','Ast'],['sk','Sk'],['int','Int'],['pd','PD'],['blk','Blk']],
   kicking:   [['fg_made','FGM'],['fg_att','FGA'],['xp_made','XPM'],['xp_att','XPA']],
   puntret:   [['punts','Pnt'],['punt_yds','PYds'],['kr','KR'],['kr_yds','KRYds'],['pr','PR'],['pr_yds','PRYds']],
-  scoring:   [['goals','G'],['assists','A'],['card_yellow','Y'],['card_red','R'],['card_green','Gr']],
+  scoring:     [['goals','G'],['assists','A'],['shots','SH'],['sog','SOG'],['fouls','FL'],['card_yellow','Y'],['card_red','R']],
+  goalkeeping: [['gk_saves','SV'],['gk_ga','GA'],['gk_sog_faced','Faced']],
 };
 
 function renderTab(tab) {
@@ -1100,7 +1108,8 @@ function syncEdit(inp) {
   const NUM   = ['ab','runs','hits','rbi','bb','k_bat','doubles','triples','hr','sb','p_h','p_er','p_bb','k',
     'comp','att','yds','td','int','rec','tkl','ast','sk','pd','blk',
     'fg_made','fg_att','xp_made','xp_att','punts','punt_yds','kr','kr_yds','pr','pr_yds',
-    'goals','assists','card_yellow','card_red','card_green'];
+    'goals','assists','shots','sog','fouls','card_yellow','card_red',
+    'gk_saves','gk_ga','gk_sog_faced'];
 
   if (field === 'ip_display') {
     const pts = val.split('.');
@@ -1212,7 +1221,8 @@ const GENERIC_TAB_DB_COLS = {
   defense:   { tkl:'tkl', ast:'tkl_ast', sk:'sk', int:'def_int', pd:'pd', blk:'blk_def' },
   kicking:   { fg_made:'fg_made', fg_att:'fg_att', xp_made:'xp_made', xp_att:'xp_att' },
   puntret:   { punts:'punts', punt_yds:'punt_yds', kr:'kr', kr_yds:'kr_yds', pr:'pr', pr_yds:'pr_yds' },
-  scoring:   { goals:'goals', assists:'ast', card_yellow:'card_yellow', card_red:'card_red', card_green:'card_green' },
+  scoring:     { goals:'goals', assists:'ast', shots:'shots', sog:'sog', fouls:'fouls', card_yellow:'card_yellow', card_red:'card_red' },
+  goalkeeping: { gk_saves:'gk_saves', gk_ga:'gk_ga', gk_sog_faced:'gk_sog_faced' },
 };
 
 async function pushGenericTab(tab, homeInfo, awayInfo) {
@@ -1237,6 +1247,10 @@ async function pushGenericTab(tab, homeInfo, awayInfo) {
       const v = p[srcField] || 0;
       updates[dbCol] = (b[dbCol] || 0) + v;
       delta[srcField] = v;
+    }
+    if (tab === 'goalkeeping') {
+      const faced = updates.gk_sog_faced || 0;
+      updates.gk_svpct = faced > 0 ? parseFloat(((updates.gk_saves || 0) / faced * 100).toFixed(1)) : null;
     }
     await sb.from('players').update(updates).eq('id', pid);
 
@@ -1450,6 +1464,10 @@ async function reversePreviousImport(gameId) {
       for (const [srcField, dbCol] of Object.entries(colMap)) {
         updates[dbCol] = Math.max(0, (b[dbCol]||0) - (delta[srcField]||0));
       }
+      if (imp.stat_type === 'goalkeeping') {
+        const faced = updates.gk_sog_faced || 0;
+        updates.gk_svpct = faced > 0 ? parseFloat(((updates.gk_saves || 0) / faced * 100).toFixed(1)) : null;
+      }
       await sb.from('players').update(updates).eq('id', imp.player_id);
     }
     // Delete the old import record
@@ -1482,43 +1500,19 @@ async function ensurePlayer(p, teamId, sportId, roster) {
 }
 
 // ── FILE HANDLING ─────────────────────────────────────
-// Turns the raw per-event list a field-sport report produces into per-player
-// totals, matching the shape every other tab already has (one row per
-// player). Done here in JS rather than asking the AI to pre-sum, since
-// counting occurrences reliably is exactly the kind of thing a deterministic
-// pass over an array does better than an LLM does.
-function aggregateFieldEvents(parsed) {
-  const byKey = {};
-  (parsed.events || []).forEach(e => {
-    const name = (e.player || '').trim();
-    const key = `${e.team}|${name.toLowerCase()}`;
-    if (!byKey[key]) {
-      const parts = name.split(/\s+/);
-      byKey[key] = {
-        team: e.team, name, last: parts[parts.length - 1] || '', number: '',
-        goals: 0, assists: 0, card_yellow: 0, card_red: 0, card_green: 0,
-      };
-    }
-    if (byKey[key][e.type] !== undefined) byKey[key][e.type]++;
-  });
-  parsed.scoring = Object.values(byKey);
-  return parsed;
-}
-
 async function handleFile(file) {
   if (!file || file.type !== 'application/pdf') { showError('Please select a PDF file.'); return; }
   document.getElementById('errorBox').className = 'error-box';
   document.getElementById('parsingSub').textContent = currentKind === 'football'
     ? 'Extracting passing, rushing, receiving, defense, kicking & return stats'
     : currentKind === 'field'
-    ? 'Extracting goals, assists & cards'
+    ? 'Extracting scoring and goalkeeping stats'
     : 'Extracting batting and pitching stats';
   showStep('parsing');
   try {
     const text = await extractPdfText(file);
     if (text.trim().length < 80) throw new Error('Could not extract text — is this a scanned image PDF?');
-    let parsed = await parsePdfWithClaude(text, currentKind);
-    if (currentKind === 'field') parsed = aggregateFieldEvents(parsed);
+    const parsed = await parsePdfWithClaude(text, currentKind);
     // Use game's known team IDs directly — no fuzzy matching needed
     const homeId = currentGame.home_team_id || currentGame.home_team?.id;
     const awayId = currentGame.away_team_id || currentGame.away_team?.id;

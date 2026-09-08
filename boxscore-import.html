@@ -1242,9 +1242,7 @@ async function pushGenericTab(tab, homeInfo, awayInfo) {
   let pushed = 0;
 
   for (const p of (parsedData[tab] || [])) {
-    const isHome = parsedData.game.home_team === p.team ||
-      (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
-    const teamInfo = isHome ? homeInfo : awayInfo;
+    const teamInfo = resolveTeamForRow(p, homeInfo, awayInfo);
     if (!teamInfo) continue;
 
     const pid = await ensurePlayer(p, teamInfo.teamId, teamInfo.sportId, teamInfo.roster);
@@ -1303,9 +1301,7 @@ async function pushToSupabase(forceReplace = false) {
       // Push ALL batting rows (both teams)
       for (const p of (parsedData.batting || [])) {
         // Figure out which team this player belongs to
-        const isHome = parsedData.game.home_team === p.team ||
-          (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
-        const teamInfo = isHome ? homeInfo : awayInfo;
+        const teamInfo = resolveTeamForRow(p, homeInfo, awayInfo);
         if (!teamInfo) continue; // can't resolve team — skip
 
         const pid = await ensurePlayer(p, teamInfo.teamId, teamInfo.sportId, teamInfo.roster);
@@ -1348,9 +1344,7 @@ async function pushToSupabase(forceReplace = false) {
 
       // Push ALL pitching rows (both teams)
       for (const p of (parsedData.pitching || [])) {
-        const isHome = parsedData.game.home_team === p.team ||
-          (homeInfo && parsedData.game.home_team.toLowerCase().includes(p.team?.toLowerCase()?.split(' ')[0]));
-        const teamInfo = isHome ? homeInfo : awayInfo;
+        const teamInfo = resolveTeamForRow(p, homeInfo, awayInfo);
         if (!teamInfo) continue;
 
         const match = matchPlayer(p, teamInfo.roster);
@@ -1488,6 +1482,35 @@ async function reversePreviousImport(gameId) {
       .eq('player_id', imp.player_id)
       .eq('stat_type', imp.stat_type);
   }
+}
+
+// Decide which team a parsed box-score row belongs to.
+//
+// The old logic was `isHome ? homeInfo : awayInfo` — a two-way branch with no
+// "no idea" case, so ANY row that failed the home test was silently assigned
+// to the away team, creating phantom players on that roster. Here it matches
+// each side explicitly and returns null when the answer isn't clear, so the
+// caller skips the row instead of filing it under the wrong school.
+function resolveTeamForRow(p, homeInfo, awayInfo) {
+  const rowTeam = (p.team || '').trim().toLowerCase();
+  if (!rowTeam) return null;
+  const home = (parsedData.game.home_team || '').trim().toLowerCase();
+  const away = (parsedData.game.away_team || '').trim().toLowerCase();
+
+  if (rowTeam === home) return homeInfo;
+  if (rowTeam === away) return awayInfo;
+
+  // Fall back to a loose match, but only when exactly ONE side matches —
+  // if both (or neither) look plausible, we genuinely don't know.
+  const loose = (a, b) => a && b && (a.includes(b) || b.includes(a));
+  const hMatch = loose(home, rowTeam);
+  const aMatch = loose(away, rowTeam);
+  if (hMatch && !aMatch) return homeInfo;
+  if (aMatch && !hMatch) return awayInfo;
+
+  console.warn(`[import] could not match team "${p.team}" to either `
+    + `"${parsedData.game.home_team}" or "${parsedData.game.away_team}" — skipping ${p.name}`);
+  return null;
 }
 
 async function ensurePlayer(p, teamId, sportId, roster) {

@@ -133,6 +133,10 @@
 
     /* COMBINED GAMES TABLE */
     .games-section { margin-bottom: 16px; }
+    .ad-banner { margin: 0 0 16px; text-align: center; }
+    .ad-banner a { display: inline-block; max-width: 100%; line-height: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); transition: border-color 0.15s, box-shadow 0.15s; }
+    .ad-banner a:hover { border-color: var(--orange); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .ad-banner img { display: block; max-width: 100%; height: auto; }
     .games-wrap { background: var(--white); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
     table.gt { width: 100%; border-collapse: collapse; font-size: 14px; }
     table.gt thead tr { background: #ffffff; border-bottom: 2px solid var(--border); }
@@ -1077,6 +1081,16 @@ async function load() {
         </div>`;
     }
 
+    // School-specific ad slot. One creative for now (a "your ad here" house
+    // ad); when a school is sold, swap the src/href for that team.
+    const adBannerHtml = `
+      <div class="ad-banner">
+        <a href="https://www.mainebasketballrankings.com/advertise/" target="_blank" rel="noopener sponsored">
+          <img src="https://pub-c4f1f071a6bc444e85f07cd51aec57a0.r2.dev/your%20ad%20here.jpg"
+               alt="Advertise on ${team.school_name} team pages" loading="lazy">
+        </a>
+      </div>`;
+
     app.innerHTML = `
       <div class="team-header">
         ${logoEl(team.logo_url, team.school_name, true)}
@@ -1097,6 +1111,7 @@ async function load() {
       
       ${gamesHtml}
       ${summerHtml}
+      ${adBannerHtml}
       ${rosterHtml}`;
 
     document.title = `${team.school_name} ${SPORT_NAME[sport] || ''} — Maine Basketball Rankings`;

@@ -413,9 +413,14 @@ async function load() {
   if (!tid) { app.innerHTML = `<div class="error-state">No team_id specified.</div>`; return; }
 
   try {
+    // Resolved before the snapshot query below, which has to be filtered by it —
+    // otherwise the stat cards show the newest snapshot from ANY season while
+    // the rest of the page shows the season actually selected.
+    const seasonYear = MBR_SEASON.fromUrl();
+
     const [teams, snap] = await Promise.all([
       sb(`teams?id=eq.${tid}&select=id,school_name,logo_url,gender,sport_id,team_class,team_region`),
-      sb(`rankings_snapshots?team_id=eq.${tid}&order=snapshot_date.desc&limit=1&select=*`)
+      sb(`rankings_snapshots?team_id=eq.${tid}&season_year=eq.${seasonYear}&order=snapshot_date.desc&limit=1&select=*`)
     ]);
     if (!teams.length) { app.innerHTML = `<div class="error-state">Team not found.</div>`; return; }
     const team  = teams[0];
@@ -426,8 +431,7 @@ async function load() {
     const SPRING_SPORT_IDS = ['c87a4d6c-a471-47e1-b6a0-d1643d942bf0','095c9841-7261-4cb1-824e-6304792b53d0'];
     const isSpring = SPRING_SPORT_IDS.includes(team.sport_id);
     const [pfLbl, paLbl] = SPORT_SCORE_LABELS[sport] || ['Avg PF', 'Avg PA'];
-    // Current school year by default; ?season=2026 pulls up a prior season.
-    const seasonYear = MBR_SEASON.fromUrl();
+    // seasonYear resolved at the top of load() — the snapshot query needs it.
 
     // snapshot_date already available from snap[0] (fetched above with select=*)
     const latestSnapDate = stats?.snapshot_date || null;

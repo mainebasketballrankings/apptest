@@ -827,6 +827,24 @@
       return Math.max(count, 12);
     };
 
+    // Hide teams that aren't actually playing this season. A team with zero
+    // games scheduled isn't fielding a squad (e.g. John Bapst field hockey,
+    // Valley football), but a stale rankings snapshot from an earlier push
+    // keeps them on the board otherwise.
+    //
+    // The guard matters: in the preseason NOBODY has games loaded yet, and
+    // filtering unconditionally would empty the whole page. So this only
+    // applies once at least one team in the sport has a schedule.
+    const anyScheduled = Object.keys(schedCountMap).length > 0;
+    if (anyScheduled) {
+      const before = teams.length;
+      teams = teams.filter(t => (schedCountMap[t.id] || 0) > 0);
+      teamIds = teams.map(t => t.id);
+      if (teams.length !== before) {
+        console.log(`[rankings] hid ${before - teams.length} team(s) with no games scheduled`);
+      }
+    }
+
     // Load rank from rankings_snapshots — paginate to avoid .in() size limits
     const snapMap = {};
     if (allTeamIds.length) {

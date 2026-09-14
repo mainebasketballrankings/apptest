@@ -488,6 +488,12 @@ input,select,button{font-family:inherit;}
     <div class="adj-grid" id="adjGrid"></div>
     <div class="sec-lbl" style="margin-top:10px">Note (optional)</div>
     <input type="text" id="adjNote" class="adj-note" placeholder="e.g. defensive 2-pt, 1-pt safety">
+    <div class="sec-lbl" style="margin-top:14px">Field Direction</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.4;margin-bottom:8px">
+      The field flips automatically at the end of each quarter. Use this only if
+      it's pointing the wrong way — it changes the display, not the score or possession.
+    </div>
+    <button class="ocancel" style="width:100%" onclick="flipFieldManual()">⇄ Flip Field Direction</button>
     <button class="oconfirm" style="margin-top:12px" onclick="applyAdj()">Done</button>
   </div>
 </div>
@@ -1454,6 +1460,26 @@ function buildFieldSVG(frame, ballOn, target, opts={}){
 // from the coin toss (the team that won the toss picks a direction). Fixed for
 // the whole game — the field never flips. Halftime swap is handled separately.
 let FIELD_FRAME = 'away';
+
+// Manual override for the field direction.
+//
+// FIELD_FRAME flips automatically at the end of every quarter, and at halftime
+// the second-half possession is derived from G.openKick (who kicked off to open
+// the game). If G.openKick is wrong — a setup that got restarted, a coin toss
+// recorded backwards — the automatic flip lands the wrong way and there was
+// previously no way to correct it mid-game.
+//
+// This only changes which way the display points. Possession, ball spot, down
+// and score are untouched: correcting those is what the possession control and
+// Adjust Score are for.
+function flipFieldManual(){
+  saveSnapshot();                       // undoable, same as any other correction
+  FIELD_FRAME = other(FIELD_FRAME);
+  addPBP(`Field direction flipped manually`, true);
+  closeOv('ovAdj');
+  render();
+  scheduleSave();
+}
 // The END ZONE LABELS are fixed for the whole game (you're in the press box; the
 // stadium doesn't move). Only the direction of PLAY reverses each quarter, which
 // is what FIELD_FRAME flips. FIELD_LABEL_FRAME is set once at kickoff and never
@@ -3204,14 +3230,16 @@ async function fetchTeamLogos(){
   const out={away:null,home:null};
   try{
     const ids=[G_away_team_id,G_home_team_id].filter(Boolean);
-    if(!ids.length) return out;
+    if(!ids.length){ console.warn('[logos] no team ids set — away:',G_away_team_id,'home:',G_home_team_id); return out; }
     const rows=await sbFetch(`teams?id=in.(${ids.join(',')})&select=id,logo_url`);
+    console.log('[logos] ids',ids,'rows',rows);
     (rows||[]).forEach(r=>{
       let u=r.logo_url||'';
       if(u.includes('res.cloudinary.com')){ const m=u.match(/\/([^\/]+)\.(png|jpg|jpeg|webp)(\?|$)/i); if(m) u='https://pub-c29fa4b169e04191805575af7679d5f9.r2.dev/'+m[1]+'.'+m[2]; }
       if(r.id===G_away_team_id) out.away=u; if(r.id===G_home_team_id) out.home=u;
     });
-  }catch(e){}
+    if(!out.away && !out.home) console.warn('[logos] ids matched no rows — check G_*_team_id against teams.id');
+  }catch(e){ console.warn('[logos] fetch failed',e); }
   return out;
 }
 async function generatePDF(opts={}){
@@ -3244,7 +3272,7 @@ async function generatePDF(opts={}){
   if(mbr){ const mh=27, mw=(mbr.w/mbr.h)*mh; try{ doc.addImage(mbr.data,'PNG',ML+CW/2-mw/2,y,mw,mh); y+=mh+6; }catch(e){ ff(13,'bold'); clr(30,30,30); doc.text('MAINE BASKETBALL RANKINGS',ML+CW/2,y+14,{align:'center'}); y+=28; } }
   else { ff(13,'bold'); clr(30,30,30); doc.text('MAINE BASKETBALL RANKINGS',ML+CW/2,y+14,{align:'center'}); y+=28; }
   ff(9,'normal'); clr(130,130,130);
-  doc.text([dstr,(G.level==='jv'?'JV':'Varsity'),'Lobster Bowl'].filter(Boolean).join('  \u2022  ')+(G.loc?'  \u2022  '+sanitize(G.loc):''), ML+CW/2, y, {align:'center'}); y+=14;
+  doc.text([dstr,(G.level==='jv'?'JV':'Varsity')].filter(Boolean).join('  \u2022  ')+(G.loc?'  \u2022  '+sanitize(G.loc):''), ML+CW/2, y, {align:'center'}); y+=14;
   doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(ML,y,ML+CW,y); y+=12;
 
   // ── TEAMS + SCORE with logos ──

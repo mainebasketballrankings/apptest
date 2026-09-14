@@ -1862,6 +1862,13 @@
     if (!timeInput) return;
     const noTimePeriods = ['Halftime', 'End Q4', 'Final', ''];
     timeInput.style.display = noTimePeriods.includes(sel.value) ? 'none' : '';
+    // Reflect it on the checkbox too, so the form doesn't show "Final" picked
+    // with "Final score" still unchecked — never auto-unchecks, since someone
+    // may have checked it manually for a period that doesn't say Final.
+    if (sel.value === 'Final') {
+      const finalCb = form.querySelector('input[name="is_final"]');
+      if (finalCb) finalCb.checked = true;
+    }
   });
 
   // Baseball inning select → sync hidden period field
@@ -2244,7 +2251,12 @@
     const gameClock = period
       ? (noTime || !clockTime ? period : `${period} | ${clockTime}`)
       : null;
-    const isFinal = form.is_final.checked;
+    // Selecting "Final" as the period/status is itself a declaration the game
+    // is over — the checkbox shouldn't be a second, easy-to-miss step required
+    // on top of it. This also covers baseball/volleyball, where `period` comes
+    // from a hidden input synced off the inning/game selectors rather than a
+    // direct select the user picks "Final" from.
+    const isFinal = form.is_final.checked || period === 'Final';
 
     btn.disabled = true;
     btn.textContent = 'Submitting…';

@@ -55,6 +55,54 @@
       color: var(--black); background: #fff; cursor: pointer;
     }
 
+    /* ── GAME SEARCH ──
+       The results list is deliberately in normal document flow rather than an
+       absolutely-positioned overlay: this page runs in an iframe sized from
+       scrollHeight, and an overlay would be clipped by a short frame. */
+    .search-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .game-search {
+      flex: 1; min-width: 0; padding: 7px 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+      font-family: 'Barlow', sans-serif; font-size: 13px;
+      color: var(--black); background: #fff;
+    }
+    .game-search:focus { outline: none; border-color: var(--green); }
+    .search-clear {
+      background: #f5f5f5; border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 12px; font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 14px; cursor: pointer; color: var(--gray);
+    }
+    .search-clear:hover { background: var(--green); color: #fff; border-color: var(--green); }
+    .search-results {
+      border: 1px solid var(--border); border-radius: 8px;
+      background: #fff; margin-bottom: 14px; overflow: hidden;
+    }
+    .search-result {
+      display: flex; align-items: baseline; gap: 10px; width: 100%;
+      padding: 9px 12px; border: none; border-bottom: 1px solid var(--border);
+      background: #fff; cursor: pointer; text-align: left;
+      font-family: 'Barlow', sans-serif; font-size: 13px; color: var(--black);
+    }
+    .search-result:last-child { border-bottom: none; }
+    .search-result:hover { background: #f5f7f5; }
+    .search-result .sr-date {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 12px; color: var(--gray); min-width: 88px; flex: 0 0 auto;
+    }
+    .search-result .sr-match { flex: 1; min-width: 0; }
+    .search-result .sr-sport {
+      font-size: 11px; color: var(--gray); text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .search-result .sr-score {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 13px; color: var(--green); flex: 0 0 auto;
+    }
+    .search-note {
+      padding: 10px 12px; font-family: 'Barlow', sans-serif;
+      font-size: 13px; color: var(--gray);
+    }
+
     /* ── MATCHUP HEADER ── */
     .matchup-card {
       background: var(--white); border: 1px solid var(--border);
@@ -298,6 +346,13 @@
     <button id="btnNext">→</button>
     <select class="game-select" id="gameSelect"></select>
   </div>
+  <div class="search-row">
+    <input class="game-search" id="gameSearch" type="search"
+           placeholder="Search for a game by team…" autocomplete="off"
+           spellcheck="false" />
+    <button class="search-clear" id="searchClear" hidden>Clear</button>
+  </div>
+  <div class="search-results" id="searchResults" hidden></div>
   <div id="root"><div class="loading">Loading game…</div></div>
 </div>
 
@@ -320,7 +375,7 @@ const SPORT_LABELS = {
   '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d': 'Lacrosse',
   '1054869a-20d4-465f-8ca9-4bc4d2bafe1b': 'Field Hockey',
   'fa905ca5-f416-409b-81ac-777179ee5576': 'Football',
-  'e26b0fcc-...'                          : 'Volleyball',
+  'e26b0fcc-e661-4945-8b2d-063c37ace44f': 'Volleyball',
 };
 
 function api(path) {
@@ -385,18 +440,248 @@ async function navigateToGame(gameId) {
   await init();
 }
 
+function todayStr() {
+  // Not toISOString(): that's UTC, so after ~8pm Eastern it returns tomorrow
+  // and "today's games" silently becomes the wrong day.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function offsetDate(date, days) {
   const d = new Date(date + 'T12:00:00');
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
+// ── GAME SEARCH ───────────────────────────────────────
+// The date arrows only move a day at a time, so finding a game more than a
+// few days out meant a lot of clicking. This searches by team name across all
+// dates instead.
+//
+// Two round trips rather than one: PostgREST can filter on an embedded table,
+// but matching "either home OR away team's name" across two separate embeds
+// isn't expressible in one request. So resolve names to team ids first, then
+// ask for games on either side.
+function searchEsc(s) {
+  // Strip the characters PostgREST's filter grammar treats as syntax, so a
+  // stray comma or paren in the box can't malform the query.
+  return s.replace(/[,()*]/g, ' ').trim();
+}
+
+// Sport and gender words are recognised in the search box so "medomak football"
+// narrows instead of returning nothing. Built from SPORT_LABELS so it can't
+// drift from the real sport list.
+const SPORT_BY_WORD = (() => {
+  const m = {};
+  for (const id of Object.keys(SPORT_LABELS)) {
+    const label = SPORT_LABELS[id].toLowerCase();
+    m[label] = id;                       // "field hockey"
+    m[label.replace(/\s+/g, '')] = id;   // "fieldhockey"
+    const last = label.split(' ').pop(); // "hockey"
+    if (!(last in m)) m[last] = id;
+  }
+  m['fb'] = m['football'];
+  m['bball'] = m['basketball'];
+  return m;
+})();
+const GENDER_BY_WORD = {
+  boys: 'Boys', boy: 'Boys', b: 'Boys', mens: 'Boys', men: 'Boys',
+  girls: 'Girls', girl: 'Girls', g: 'Girls', womens: 'Girls', women: 'Girls',
+};
+
+// "medomak wells" should mean both teams, not a school literally named that —
+// so the query is parsed into parts and every part has to match.
+function parseQuery(qRaw) {
+  const cleaned = searchEsc(qRaw).toLowerCase();
+  // Two-word sport names have to be caught before the split.
+  let sportId = null;
+  let rest = cleaned;
+  for (const word of Object.keys(SPORT_BY_WORD).sort((a, b) => b.length - a.length)) {
+    if (!word.includes(' ')) continue;
+    if (rest.includes(word)) { sportId = SPORT_BY_WORD[word]; rest = rest.replace(word, ' '); break; }
+  }
+  const names = [];
+  let gender = null;
+  for (const tok of rest.split(/\s+/).filter(Boolean)) {
+    if (!sportId && SPORT_BY_WORD[tok]) { sportId = SPORT_BY_WORD[tok]; continue; }
+    if (!gender && GENDER_BY_WORD[tok]) { gender = GENDER_BY_WORD[tok]; continue; }
+    names.push(tok);
+  }
+  return { names, sportId, gender };
+}
+
+async function searchGames(qRaw) {
+  const { names, sportId, gender } = parseQuery(qRaw);
+  // A bare sport or gender word would match half the database; require a name
+  // unless it's long enough to be deliberate on its own.
+  if (!names.length && !sportId) return null;
+  if (names.length && names.join('').length < 2) return null;
+
+  // Each name term becomes its own set of team ids, and a game has to involve a
+  // team from every set — that's what makes "medomak wells" find the matchup
+  // rather than nothing.
+  const idSets = [];
+  for (const n of names) {
+    const teams = await api(
+      `teams?school_name=ilike.*${encodeURIComponent(n)}*&owner_id=is.null&select=id&limit=60`
+    );
+    if (!teams?.length) return [];
+    idSets.push(teams.map(t => t.id).join(','));
+  }
+
+  const clauses = idSets.map(ids => `or(home_team_id.in.(${ids}),away_team_id.in.(${ids}))`);
+  let where = `status=in.(final,scheduled,postponed,active)`;
+  if (clauses.length === 1) where += `&${clauses[0].replace(/^or\(/, 'or=(')}`;
+  else if (clauses.length > 1) where += `&and=(${clauses.join(',')})`;
+  if (sportId) where += `&sport_id=eq.${sportId}`;
+
+  // gender lives on the team, not the game — without it, the boys' and girls'
+  // soccer games between the same two schools on the same day are two
+  // identical-looking rows.
+  const sel = `id,game_date,sport_id,status,home_score,away_score,` +
+              `home_team:home_team_id(school_name,gender),` +
+              `away_team:away_team_id(school_name,gender)`;
+  const today = todayStr();
+
+  // Ordered strictly by date, the whole result set is next season's schedule and
+  // the game you just looked at is nowhere near the top. What's wanted is
+  // "closest to now", so take a window either side of today and interleave.
+  const [past, future] = await Promise.all([
+    api(`games?${where}&game_date=lte.${today}&select=${sel}&order=game_date.desc&limit=25`),
+    api(`games?${where}&game_date=gt.${today}&select=${sel}&order=game_date.asc&limit=25`),
+  ]);
+
+  let all = [...(past || []), ...(future || [])];
+  if (gender) {
+    all = all.filter(g => (g.home_team?.gender || g.away_team?.gender) === gender);
+  }
+  const dist = g => Math.abs(new Date(g.game_date + 'T12:00:00') - new Date(today + 'T12:00:00'));
+  all.sort((a, b) => dist(a) - dist(b));
+  return all;
+}
+
+function renderSearchResults(games) {
+  const box = document.getElementById('searchResults');
+  if (games === null) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  if (!games.length) {
+    box.innerHTML = '<div class="search-note">No games found.</div>';
+    return;
+  }
+  box.innerHTML = games.map(g => {
+    const d = new Date(g.game_date + 'T12:00:00');
+    // Results span seasons (the same matchup recurs each year), so the year
+    // isn't decoration here — without it two rows can look identical.
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const sport = SPORT_LABELS[g.sport_id] || '';
+    const away = g.away_team?.school_name || '?';
+    const home = g.home_team?.school_name || '?';
+    // Only worth showing where the sport actually fields both.
+    const gen = g.home_team?.gender || g.away_team?.gender || '';
+    const tag = (gen && sport) ? `${sport} · ${gen}` : (sport || gen);
+    const score = (g.status === 'final' && g.away_score != null && g.home_score != null)
+      ? `${g.away_score}–${g.home_score}` : '';
+    return `<button class="search-result" data-id="${g.id}">
+        <span class="sr-date">${date}</span>
+        <span class="sr-match">${away} @ ${home}<br><span class="sr-sport">${tag}</span></span>
+        <span class="sr-score">${score}</span>
+      </button>`;
+  }).join('');
+}
+
+function wireSearch() {
+  const input = document.getElementById('gameSearch');
+  const clear = document.getElementById('searchClear');
+  const box   = document.getElementById('searchResults');
+  if (!input) return;
+  let timer = null;
+  let seq   = 0;   // drop responses that arrive after a newer keystroke
+
+  function reset() {
+    input.value = '';
+    clear.hidden = true;
+    renderSearchResults(null);
+  }
+
+  input.oninput = () => {
+    clear.hidden = !input.value;
+    clearTimeout(timer);
+    const q = input.value;
+    const parsed = parseQuery(q);
+    if (!parsed.names.join('').length && !parsed.sportId) { renderSearchResults(null); return; }
+    if (parsed.names.length && parsed.names.join('').length < 2) { renderSearchResults(null); return; }
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      box.hidden = false;
+      box.innerHTML = '<div class="search-note">Searching…</div>';
+      try {
+        const games = await searchGames(q);
+        if (mine === seq) renderSearchResults(games);
+      } catch (e) {
+        if (mine === seq) box.innerHTML = '<div class="search-note">Search failed.</div>';
+      }
+    }, 250);
+  };
+
+  input.onkeydown = (e) => { if (e.key === 'Escape') reset(); };
+  clear.onclick = reset;
+  box.onclick = (e) => {
+    const btn = e.target.closest('.search-result');
+    if (!btn) return;
+    reset();
+    navigateToGame(btn.dataset.id);
+  };
+}
+
+// Wiring the date nav is independent of whether a game is being shown — the
+// page is reachable with no game_id at all now, and the nav and search still
+// need to work there.
+function wireDateNav(selectedGameId) {
+  const sel = document.getElementById('gameSelect');
+  if (selectedGameId) {
+    for (const opt of sel.options) {
+      if (opt.value === selectedGameId) { opt.selected = true; break; }
+    }
+  } else if (sel.options.length && sel.options[0].value) {
+    // Nothing is being displayed yet, so don't let the dropdown imply the first
+    // game of the day is on screen.
+    const ph = document.createElement('option');
+    ph.textContent = 'Pick a game…';
+    ph.value = '';
+    sel.insertBefore(ph, sel.firstChild);
+    ph.selected = true;
+  }
+  sel.onchange = () => { if (sel.value) navigateToGame(sel.value); };
+
+  const hop = async (days) => {
+    currentDate = offsetDate(currentDate, days);
+    setDateLabel(currentDate);
+    await loadGamesForDate(currentDate);
+    if (sel.options.length && sel.options[0].value !== '') {
+      navigateToGame(sel.options[0].value);
+    }
+  };
+  document.getElementById('btnPrev').onclick = () => hop(-1);
+  document.getElementById('btnNext').onclick = () => hop(1);
+}
+
 // ── MAIN ──────────────────────────────────────────────
 async function init() {
   const params = new URLSearchParams(location.search);
   const gameId = params.get('game_id');
+
+  // No game_id is a normal way to arrive here (mainebasketballrankings.com/game/
+  // with no id), not an error. Show today's slate and the search box rather
+  // than a dead end.
   if (!gameId) {
-    document.getElementById('root').innerHTML = '<div class="err">No game_id specified.</div>';
+    currentDate = todayStr();
+    setDateLabel(currentDate);
+    await loadGamesForDate(currentDate);
+    wireDateNav(null);
+    document.getElementById('root').innerHTML =
+      `<div class="loading" style="padding:36px 16px;text-align:center">
+         Search for a team above, or pick a game from today's list.
+       </div>`;
     return;
   }
 
@@ -416,30 +701,7 @@ async function init() {
   // Wire date nav
   setDateLabel(currentDate);
   await loadGamesForDate(currentDate);
-  const sel = document.getElementById('gameSelect');
-  // Set current game as selected
-  for (const opt of sel.options) {
-    if (opt.value === gameId) { opt.selected = true; break; }
-  }
-  sel.onchange = () => navigateToGame(sel.value);
-  document.getElementById('btnPrev').onclick = async () => {
-    const newDate = offsetDate(currentDate, -1);
-    currentDate = newDate;
-    setDateLabel(newDate);
-    await loadGamesForDate(newDate);
-    if (sel.options.length && sel.options[0].value !== '') {
-      navigateToGame(sel.options[0].value);
-    }
-  };
-  document.getElementById('btnNext').onclick = async () => {
-    const newDate = offsetDate(currentDate, 1);
-    currentDate = newDate;
-    setDateLabel(newDate);
-    await loadGamesForDate(newDate);
-    if (sel.options.length && sel.options[0].value !== '') {
-      navigateToGame(sel.options[0].value);
-    }
-  };
+  wireDateNav(gameId);
   const ht      = g.home_team || {};
   const at      = g.away_team || {};
   const isFinal = g.status === 'final';
@@ -668,7 +930,15 @@ async function init() {
       const el = document.getElementById('boxContent');
       if (!el) return;
       if (!box) {
-        el.innerHTML = '<div class="no-boxscore"><strong>No player stats for this game</strong></div>';
+        // Every other sport offers a way out of the empty state; football was
+        // the one dead end. It can't be decided in the header markup like the
+        // others, since football stats may arrive from the live scorer instead
+        // of an import and that's only known once this resolves.
+        el.innerHTML = `
+          <div class="no-boxscore">
+            <strong>No box score imported yet</strong>
+            <a href="boxscore-import.html">Import stats from a PDF box score →</a>
+          </div>`;
         return;
       }
       // open on the first tab that actually has data
@@ -813,7 +1083,11 @@ async function loadFootballBox(gameId) {
 function renderFootballBox(cat, homeId, awayId, homeName, awayName) {
   const data = window._fbBox;
   const spec = FB_CATS[cat] || FB_CATS.passing;
-  if (!data) return '<div class="no-boxscore"><strong>No player stats for this game</strong></div>';
+  if (!data) return `
+    <div class="no-boxscore">
+      <strong>No box score imported yet</strong>
+      <a href="boxscore-import.html">Import stats from a PDF box score →</a>
+    </div>`;
 
   const sortFor = list => list.slice().sort((a, b) => {
     // headline stat descending, so the leaders sit on top
@@ -1178,6 +1452,7 @@ async function loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel) 
     </div>`;
 }
 
+wireSearch();
 init();
 </script>
 

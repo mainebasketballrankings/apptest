@@ -55,6 +55,54 @@
       color: var(--black); background: #fff; cursor: pointer;
     }
 
+    /* ── GAME SEARCH ──
+       The results list is deliberately in normal document flow rather than an
+       absolutely-positioned overlay: this page runs in an iframe sized from
+       scrollHeight, and an overlay would be clipped by a short frame. */
+    .search-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .game-search {
+      flex: 1; min-width: 0; padding: 7px 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+      font-family: 'Barlow', sans-serif; font-size: 13px;
+      color: var(--black); background: #fff;
+    }
+    .game-search:focus { outline: none; border-color: var(--green); }
+    .search-clear {
+      background: #f5f5f5; border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 12px; font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 14px; cursor: pointer; color: var(--gray);
+    }
+    .search-clear:hover { background: var(--green); color: #fff; border-color: var(--green); }
+    .search-results {
+      border: 1px solid var(--border); border-radius: 8px;
+      background: #fff; margin-bottom: 14px; overflow: hidden;
+    }
+    .search-result {
+      display: flex; align-items: baseline; gap: 10px; width: 100%;
+      padding: 9px 12px; border: none; border-bottom: 1px solid var(--border);
+      background: #fff; cursor: pointer; text-align: left;
+      font-family: 'Barlow', sans-serif; font-size: 13px; color: var(--black);
+    }
+    .search-result:last-child { border-bottom: none; }
+    .search-result:hover { background: #f5f7f5; }
+    .search-result .sr-date {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 12px; color: var(--gray); min-width: 62px; flex: 0 0 auto;
+    }
+    .search-result .sr-match { flex: 1; min-width: 0; }
+    .search-result .sr-sport {
+      font-size: 11px; color: var(--gray); text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .search-result .sr-score {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 13px; color: var(--green); flex: 0 0 auto;
+    }
+    .search-note {
+      padding: 10px 12px; font-family: 'Barlow', sans-serif;
+      font-size: 13px; color: var(--gray);
+    }
+
     /* ── MATCHUP HEADER ── */
     .matchup-card {
       background: var(--white); border: 1px solid var(--border);
@@ -298,6 +346,13 @@
     <button id="btnNext">→</button>
     <select class="game-select" id="gameSelect"></select>
   </div>
+  <div class="search-row">
+    <input class="game-search" id="gameSearch" type="search"
+           placeholder="Search for a game by team…" autocomplete="off"
+           spellcheck="false" />
+    <button class="search-clear" id="searchClear" hidden>Clear</button>
+  </div>
+  <div class="search-results" id="searchResults" hidden></div>
   <div id="root"><div class="loading">Loading game…</div></div>
 </div>
 
@@ -389,6 +444,125 @@ function offsetDate(date, days) {
   const d = new Date(date + 'T12:00:00');
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+// ── GAME SEARCH ───────────────────────────────────────
+// The date arrows only move a day at a time, so finding a game more than a
+// few days out meant a lot of clicking. This searches by team name across all
+// dates instead.
+//
+// Two round trips rather than one: PostgREST can filter on an embedded table,
+// but matching "either home OR away team's name" across two separate embeds
+// isn't expressible in one request. So resolve names to team ids first, then
+// ask for games on either side.
+function searchEsc(s) {
+  // Strip the characters PostgREST's filter grammar treats as syntax, so a
+  // stray comma or paren in the box can't malform the query.
+  return s.replace(/[,()*]/g, ' ').trim();
+}
+
+async function searchGames(qRaw) {
+  const q = searchEsc(qRaw);
+  if (q.length < 2) return null;
+
+  const teams = await api(
+    `teams?school_name=ilike.*${encodeURIComponent(q)}*&owner_id=is.null` +
+    `&select=id&limit=40`
+  );
+  if (!teams?.length) return [];
+  const ids = teams.map(t => t.id).join(',');
+
+  // gender comes off the team, not the game — without it, the boys' and girls'
+  // soccer games between the same two schools on the same day are two
+  // identical-looking rows.
+  const sel = `id,game_date,sport_id,status,home_score,away_score,` +
+              `home_team:home_team_id(school_name,gender),` +
+              `away_team:away_team_id(school_name,gender)`;
+  const where = `or=(home_team_id.in.(${ids}),away_team_id.in.(${ids}))` +
+                `&status=in.(final,scheduled,postponed,active)`;
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Ordered strictly by date, the whole result set is next season's schedule and
+  // the game you just looked at is nowhere near the top. What's wanted is
+  // "closest to now", so take a window either side of today and interleave.
+  const [past, future] = await Promise.all([
+    api(`games?${where}&game_date=lte.${today}&${'select=' + sel}&order=game_date.desc&limit=20`),
+    api(`games?${where}&game_date=gt.${today}&${'select=' + sel}&order=game_date.asc&limit=20`),
+  ]);
+
+  const all = [...(past || []), ...(future || [])];
+  const dist = g => Math.abs(new Date(g.game_date + 'T12:00:00') - new Date(today + 'T12:00:00'));
+  all.sort((a, b) => dist(a) - dist(b));
+  return all;
+}
+
+function renderSearchResults(games) {
+  const box = document.getElementById('searchResults');
+  if (games === null) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  if (!games.length) {
+    box.innerHTML = '<div class="search-note">No games found.</div>';
+    return;
+  }
+  box.innerHTML = games.map(g => {
+    const d = new Date(g.game_date + 'T12:00:00');
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const sport = SPORT_LABELS[g.sport_id] || '';
+    const away = g.away_team?.school_name || '?';
+    const home = g.home_team?.school_name || '?';
+    // Only worth showing where the sport actually fields both.
+    const gen = g.home_team?.gender || g.away_team?.gender || '';
+    const tag = (gen && sport) ? `${sport} · ${gen}` : (sport || gen);
+    const score = (g.status === 'final' && g.away_score != null && g.home_score != null)
+      ? `${g.away_score}–${g.home_score}` : '';
+    return `<button class="search-result" data-id="${g.id}">
+        <span class="sr-date">${date}</span>
+        <span class="sr-match">${away} @ ${home}<br><span class="sr-sport">${tag}</span></span>
+        <span class="sr-score">${score}</span>
+      </button>`;
+  }).join('');
+}
+
+function wireSearch() {
+  const input = document.getElementById('gameSearch');
+  const clear = document.getElementById('searchClear');
+  const box   = document.getElementById('searchResults');
+  if (!input) return;
+  let timer = null;
+  let seq   = 0;   // drop responses that arrive after a newer keystroke
+
+  function reset() {
+    input.value = '';
+    clear.hidden = true;
+    renderSearchResults(null);
+  }
+
+  input.oninput = () => {
+    clear.hidden = !input.value;
+    clearTimeout(timer);
+    const q = input.value;
+    if (searchEsc(q).length < 2) { renderSearchResults(null); return; }
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      box.hidden = false;
+      box.innerHTML = '<div class="search-note">Searching…</div>';
+      try {
+        const games = await searchGames(q);
+        if (mine === seq) renderSearchResults(games);
+      } catch (e) {
+        if (mine === seq) box.innerHTML = '<div class="search-note">Search failed.</div>';
+      }
+    }, 250);
+  };
+
+  input.onkeydown = (e) => { if (e.key === 'Escape') reset(); };
+  clear.onclick = reset;
+  box.onclick = (e) => {
+    const btn = e.target.closest('.search-result');
+    if (!btn) return;
+    reset();
+    navigateToGame(btn.dataset.id);
+  };
 }
 
 // ── MAIN ──────────────────────────────────────────────
@@ -1190,6 +1364,7 @@ async function loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel) 
     </div>`;
 }
 
+wireSearch();
 init();
 </script>
 

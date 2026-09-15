@@ -440,6 +440,13 @@ async function navigateToGame(gameId) {
   await init();
 }
 
+function todayStr() {
+  // Not toISOString(): that's UTC, so after ~8pm Eastern it returns tomorrow
+  // and "today's games" silently becomes the wrong day.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function offsetDate(date, days) {
   const d = new Date(date + 'T12:00:00');
   d.setDate(d.getDate() + days);
@@ -480,7 +487,7 @@ async function searchGames(qRaw) {
               `away_team:away_team_id(school_name,gender)`;
   const where = `or=(home_team_id.in.(${ids}),away_team_id.in.(${ids}))` +
                 `&status=in.(final,scheduled,postponed,active)`;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
 
   // Ordered strictly by date, the whole result set is next season's schedule and
   // the game you just looked at is nowhere near the top. What's wanted is
@@ -565,12 +572,55 @@ function wireSearch() {
   };
 }
 
+// Wiring the date nav is independent of whether a game is being shown — the
+// page is reachable with no game_id at all now, and the nav and search still
+// need to work there.
+function wireDateNav(selectedGameId) {
+  const sel = document.getElementById('gameSelect');
+  if (selectedGameId) {
+    for (const opt of sel.options) {
+      if (opt.value === selectedGameId) { opt.selected = true; break; }
+    }
+  } else if (sel.options.length && sel.options[0].value) {
+    // Nothing is being displayed yet, so don't let the dropdown imply the first
+    // game of the day is on screen.
+    const ph = document.createElement('option');
+    ph.textContent = 'Pick a game…';
+    ph.value = '';
+    sel.insertBefore(ph, sel.firstChild);
+    ph.selected = true;
+  }
+  sel.onchange = () => { if (sel.value) navigateToGame(sel.value); };
+
+  const hop = async (days) => {
+    currentDate = offsetDate(currentDate, days);
+    setDateLabel(currentDate);
+    await loadGamesForDate(currentDate);
+    if (sel.options.length && sel.options[0].value !== '') {
+      navigateToGame(sel.options[0].value);
+    }
+  };
+  document.getElementById('btnPrev').onclick = () => hop(-1);
+  document.getElementById('btnNext').onclick = () => hop(1);
+}
+
 // ── MAIN ──────────────────────────────────────────────
 async function init() {
   const params = new URLSearchParams(location.search);
   const gameId = params.get('game_id');
+
+  // No game_id is a normal way to arrive here (mainebasketballrankings.com/game/
+  // with no id), not an error. Show today's slate and the search box rather
+  // than a dead end.
   if (!gameId) {
-    document.getElementById('root').innerHTML = '<div class="err">No game_id specified.</div>';
+    currentDate = todayStr();
+    setDateLabel(currentDate);
+    await loadGamesForDate(currentDate);
+    wireDateNav(null);
+    document.getElementById('root').innerHTML =
+      `<div class="loading" style="padding:36px 16px;text-align:center">
+         Search for a team above, or pick a game from today's list.
+       </div>`;
     return;
   }
 
@@ -590,30 +640,7 @@ async function init() {
   // Wire date nav
   setDateLabel(currentDate);
   await loadGamesForDate(currentDate);
-  const sel = document.getElementById('gameSelect');
-  // Set current game as selected
-  for (const opt of sel.options) {
-    if (opt.value === gameId) { opt.selected = true; break; }
-  }
-  sel.onchange = () => navigateToGame(sel.value);
-  document.getElementById('btnPrev').onclick = async () => {
-    const newDate = offsetDate(currentDate, -1);
-    currentDate = newDate;
-    setDateLabel(newDate);
-    await loadGamesForDate(newDate);
-    if (sel.options.length && sel.options[0].value !== '') {
-      navigateToGame(sel.options[0].value);
-    }
-  };
-  document.getElementById('btnNext').onclick = async () => {
-    const newDate = offsetDate(currentDate, 1);
-    currentDate = newDate;
-    setDateLabel(newDate);
-    await loadGamesForDate(newDate);
-    if (sel.options.length && sel.options[0].value !== '') {
-      navigateToGame(sel.options[0].value);
-    }
-  };
+  wireDateNav(gameId);
   const ht      = g.home_team || {};
   const at      = g.away_team || {};
   const isFinal = g.status === 'final';

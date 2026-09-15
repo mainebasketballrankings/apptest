@@ -660,6 +660,22 @@
       border-color: var(--black);
       color: #fff;
     }
+    /* Set scores sit to the left of the match score on each team row, so the
+       two rows read as a grid: one column per set. */
+    .vb-sets { display: flex; gap: 0; flex: 0 0 auto; align-items: center; }
+    .vb-set {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 15px; color: var(--lgray); width: 26px; text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .vb-set.won { color: var(--black); }
+    .si-vb-sets { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+    .si-vb-row { display: flex; align-items: center; gap: 6px; }
+    .si-vb-lbl {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+      font-size: 12px; color: var(--gray); min-width: 42px;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
     .si-vb-pts {
       display: flex;
       align-items: center;
@@ -1081,7 +1097,7 @@
     const { data, error } = await sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index, event,
       is_neutral_site, is_tournament, is_summer,
-      home_score, away_score, home_score_live, away_score_live, game_clock, notes,
+      home_score, away_score, home_score_live, away_score_live, game_clock, notes, quarter_scores,
       home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, team_class,
         team_classifications ( classes ( name ) ) ),
       away_team:away_team_id ( id, school_name, gender, logo_url, team_class,
@@ -1898,22 +1914,46 @@
 
   // Volleyball selects/inputs → sync hidden period field
   _gc.addEventListener('change', e => {
-    if (e.target.matches('select[name="vb_game"]')) syncVbPeriod(e.target.closest('.score-form'));
+    if (e.target.matches('input[name^="vb_h"], input[name^="vb_a"]')) syncVbPeriod(e.target.closest('.score-form'));
   });
   _gc.addEventListener('input', e => {
-    if (e.target.matches('input[name="vb_home_pts"], input[name="vb_away_pts"]')) syncVbPeriod(e.target.closest('.score-form'));
+    if (e.target.matches('input[name^="vb_h"], input[name^="vb_a"]')) syncVbPeriod(e.target.closest('.score-form'));
   });
+
+  // Read the five set rows off a volleyball form. Returns only the sets that
+  // have both numbers filled, so a match in progress reports what's finished.
+  function vbSets(form) {
+    const out = [];
+    for (let n = 1; n <= 5; n++) {
+      const h = form.querySelector(`input[name="vb_h${n}"]`)?.value.trim() ?? '';
+      const a = form.querySelector(`input[name="vb_a${n}"]`)?.value.trim() ?? '';
+      if (h === '' || a === '') continue;
+      const hv = parseInt(h), av = parseInt(a);
+      if (isNaN(hv) || isNaN(av)) continue;
+      out.push([hv, av]);
+    }
+    return out;
+  }
 
   function syncVbPeriod(form) {
     if (!form) return;
-    const g  = form.querySelector('select[name="vb_game"]')?.value || '';
-    const hp = form.querySelector('input[name="vb_home_pts"]')?.value.trim() || '';
-    const ap = form.querySelector('input[name="vb_away_pts"]')?.value.trim() || '';
-    let val  = g;
-    if (g && g !== 'Final' && hp !== '' && ap !== '') val += ` (${hp}–${ap})`;
+    const sets = vbSets(form);
+    // The match score IS the count of sets won, so typing it separately would
+    // just be a second place to get it wrong. Fill it in from the sets instead.
+    const hw = sets.filter(s => s[0] > s[1]).length;
+    const aw = sets.filter(s => s[1] > s[0]).length;
+    if (sets.length) {
+      if (form.home_score) form.home_score.value = hw;
+      if (form.away_score) form.away_score.value = aw;
+    }
     const hidden = form.querySelector('input[name="period"]');
-    if (hidden) hidden.value = val;
+    if (hidden) {
+      // Best-of-five: first to three sets ends it.
+      hidden.value = (hw === 3 || aw === 3) ? 'Final'
+                   : sets.length ? `Set ${sets.length + 1}` : '';
+    }
   }
+
 
   function section(label, games, notesMap, sport) {
     return `<div class="section-label">${label}</div>
@@ -2025,22 +2065,20 @@
         </div>`;
     }
     if (sport === 'volleyball') {
+      // A volleyball result is a set line (25-21, 25-16, 18-25...), not one score,
+      // so all five sets are enterable. The match score is derived from them
+      // rather than typed, which is why the home/away score inputs above are
+      // filled in automatically as these change.
+      const sets = [1,2,3,4,5].map(n => `
+        <div class="si-vb-row">
+          <span class="si-vb-lbl">Set ${n}</span>
+          <input type="number" name="vb_h${n}" min="0" max="99" placeholder="\u2014" class="si-time" />
+          <span>\u2013</span>
+          <input type="number" name="vb_a${n}" min="0" max="99" placeholder="\u2014" class="si-time" />
+        </div>`).join('');
       return `
-        <select name="vb_game" class="si-select" style="flex:0 0 auto;width:auto;">
-          <option value="">Game</option>
-          <option value="G1">Game 1</option>
-          <option value="G2">Game 2</option>
-          <option value="G3">Game 3</option>
-          <option value="G4">Game 4</option>
-          <option value="G5">Game 5</option>
-          <option value="Final">Final</option>
-        </select>
         <input type="hidden" name="period" value="" />
-        <div class="si-vb-pts">
-          <input type="number" name="vb_home_pts" min="0" max="99" placeholder="0" class="si-time" />
-          <span>–</span>
-          <input type="number" name="vb_away_pts" min="0" max="99" placeholder="0" class="si-time" />
-        </div>`;
+        <div class="si-vb-sets">${sets}</div>`;
     }
     // Default: basketball, football, lacrosse, field-hockey
     return `
@@ -2129,6 +2167,22 @@
           : `<div class="team-score">${aSc}</div>`)
       : `<div class="team-score empty">–</div>`;
 
+    // Volleyball reads as a row of set scores, not one number - a set is a
+    // result in its own right, not a quarter of the match. Sets sit beside the
+    // match score on each team's row, so the two rows line up into a grid.
+    const vbSets_ = (sport === 'volleyball' && g.quarter_scores
+                     && Array.isArray(g.quarter_scores.sets))
+      ? g.quarter_scores.sets.filter(x => Array.isArray(x) && x.length === 2) : [];
+    const vbCells = (side) => vbSets_.length
+      ? `<div class="vb-sets">${vbSets_.map(st => {
+           const mine = side === 'home' ? st[0] : st[1];
+           const thrs = side === 'home' ? st[1] : st[0];
+           return `<span class="vb-set${mine > thrs ? ' won' : ''}">${mine}</span>`;
+         }).join('')}</div>`
+      : '';
+    const aScFull = vbCells('away') + aScEl;
+    const hScFull = vbCells('home') + hScEl;
+
     // Footer
     const loc = g.location || (g.is_neutral_site ? 'Neutral site' : `@ ${home.school_name}`);
     const dateShort = fmtShortDate(g.game_date);
@@ -2157,14 +2211,14 @@
           <div class="team-name-wrap">
             <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="https://www.mainebasketballrankings.com/team/?id=${away.id}" target="_blank">${aR}${away.school_name}</a>${recordMap[away.id] ? ` <span style="font-size:12px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif;display:block;line-height:1.2;margin-top:1px">${recordMap[away.id]}</span>` : ''}
           </div>
-          ${aScEl}
+          ${aScFull}
         </div>
         <div class="team-row">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
             <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="https://www.mainebasketballrankings.com/team/?id=${home.id}" target="_blank">${hR}${home.school_name}</a>${recordMap[home.id] ? ` <span style="font-size:12px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif;display:block;line-height:1.2;margin-top:1px">${recordMap[home.id]}</span>` : ''}
           </div>
-          ${hScEl}
+          ${hScFull}
         </div>
       </div>
       <div class="card-footer">
@@ -2262,9 +2316,16 @@
     btn.textContent = 'Submitting…';
 
     // Write directly to games table — auto-authorized
+    // Volleyball carries its set line in quarter_scores; the match score stays
+    // in home_score/away_score (3-2) so rankings and everything else downstream
+    // keep reading one shape regardless of sport.
+    const vbs = (activeSport === 'volleyball' || form.querySelector('input[name="vb_h1"]'))
+      ? vbSets(form) : null;
+
     const gameUpdate = isFinal
       ? { status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock, notes: form.notes.value.trim() || null }
       : { status: 'active', home_score_live: hSc, away_score_live: aSc, game_clock: gameClock, notes: form.notes.value.trim() || null };
+    if (vbs && vbs.length) gameUpdate.quarter_scores = { sets: vbs };
 
     const { error } = await sb.from('games').update(gameUpdate).eq('id', id);
 

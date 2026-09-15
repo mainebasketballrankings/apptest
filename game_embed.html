@@ -87,7 +87,7 @@
     .search-result:hover { background: #f5f7f5; }
     .search-result .sr-date {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-      font-size: 12px; color: var(--gray); min-width: 62px; flex: 0 0 auto;
+      font-size: 12px; color: var(--gray); min-width: 88px; flex: 0 0 auto;
     }
     .search-result .sr-match { flex: 1; min-width: 0; }
     .search-result .sr-sport {
@@ -570,7 +570,9 @@ function renderSearchResults(games) {
   }
   box.innerHTML = games.map(g => {
     const d = new Date(g.game_date + 'T12:00:00');
-    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Results span seasons (the same matchup recurs each year), so the year
+    // isn't decoration here — without it two rows can look identical.
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const sport = SPORT_LABELS[g.sport_id] || '';
     const away = g.away_team?.school_name || '?';
     const home = g.home_team?.school_name || '?';

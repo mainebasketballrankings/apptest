@@ -660,6 +660,10 @@ async function init() {
     window._fbHomeId = g.home_team_id;
     window._fbAwayId = g.away_team_id;
     loadFootballBox(g.id).then(box => {
+      // No live-scorer events doesn't mean no stats — a PDF import puts them in
+      // box_score_json instead. Try that before giving up.
+      if (!box) box = footballBoxFromBsj(bsj, g.home_team_id, ht.school_name,
+                                              g.away_team_id, at.school_name);
       window._fbBox = box;
       const el = document.getElementById('boxContent');
       if (!el) return;
@@ -679,7 +683,12 @@ async function init() {
 
   // Load season records for both teams
   loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel);
-  if (bsj) loadBoxScoreRosters(g).then(() => {
+  // Football renders its own box asynchronously above. This re-render exists to
+  // swap in full roster names for the diamond/field sports, and for football it
+  // raced that and overwrote the table with renderBatting() — which, on a
+  // football box_score_json that has no `batting` key, printed "No batting
+  // data" over a perfectly good football box score.
+  if (bsj && !isFootball) loadBoxScoreRosters(g).then(() => {
     // Re-render box score with full names, staying on whichever tab is open
     // and using the renderer this sport actually uses.
     if (isField) {
@@ -721,6 +730,67 @@ const FB_CATS = {
     has: p => ((p.fga||0)+(p.xpa||0)+(p.punts||0)) > 0,
     hot: p => false },
 };
+
+// Football stats arrive by two different routes with two different shapes.
+// The live scorer writes one player_final_stats event per player, keyed by
+// team_id, using the abbreviated keys FB_CATS reads. boxscore-import.html
+// instead writes games.box_score_json as one array per category, with each row
+// naming its team by full school name ("Greely High School") and using the
+// PDF's own column names. Both are valid sources; this maps the second onto
+// the first so renderFootballBox doesn't care which one filled it.
+const FB_BSJ_MAP = {
+  passing:   { comp: 'pc', att: 'pa', yds: 'pyd', td: 'ptd', int: 'pint' },
+  rushing:   { att: 'ra', yds: 'ryd', td: 'rtd' },
+  receiving: { rec: 'rec', yds: 'recyd', td: 'rectd' },
+  defense:   { tkl: 'tkl', ast: 'ast', sk: 'sack', int: 'dint', pd: 'pd', blk: 'blk' },
+  kicking:   { fg_made: 'fgm', fg_att: 'fga', xp_made: 'xpm', xp_att: 'xpa' },
+  puntret:   { punts: 'punts', punt_yds: 'puntyd' },
+};
+
+function footballBoxFromBsj(bsj, homeId, homeName, awayId, awayName) {
+  if (!bsj) return null;
+  const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  // The teams table stores "Greely"; the PDF prints "Greely High School".
+  // Longest name first so a school whose name contains another's doesn't
+  // get matched by the shorter one.
+  const cands = [[homeId, norm(homeName)], [awayId, norm(awayName)]]
+    .filter(c => c[1])
+    .sort((a, b) => b[1].length - a[1].length);
+  const teamIdFor = raw => {
+    const t = norm(raw);
+    if (!t) return null;
+    for (const [id, nm] of cands) if (t === nm || t.includes(nm)) return id;
+    return null;
+  };
+
+  const byTeam = {};
+  const seen   = {};   // team_id -> dedupe key -> player (players span categories)
+  let any = false;
+
+  for (const cat of Object.keys(FB_BSJ_MAP)) {
+    const rows = Array.isArray(bsj[cat]) ? bsj[cat] : [];
+    for (const r of rows) {
+      const tid = teamIdFor(r.team);
+      if (!tid) continue;
+      const name = r.name || r.last || '';
+      if (!name) continue;
+      const key = (r.number != null ? r.number : '') + '|' + norm(name);
+      seen[tid] = seen[tid] || {};
+      let p = seen[tid][key];
+      if (!p) {
+        p = { name: name, number: (r.number != null ? r.number : '') };
+        seen[tid][key] = p;
+        (byTeam[tid] = byTeam[tid] || []).push(p);
+      }
+      const map = FB_BSJ_MAP[cat];
+      for (const from of Object.keys(map)) {
+        const v = Number(r[from]);
+        if (!isNaN(v) && v) { p[map[from]] = (p[map[from]] || 0) + v; any = true; }
+      }
+    }
+  }
+  return any ? byTeam : null;
+}
 
 async function loadFootballBox(gameId) {
   let rows = [];

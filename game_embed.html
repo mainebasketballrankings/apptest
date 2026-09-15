@@ -668,7 +668,15 @@ async function init() {
       const el = document.getElementById('boxContent');
       if (!el) return;
       if (!box) {
-        el.innerHTML = '<div class="no-boxscore"><strong>No player stats for this game</strong></div>';
+        // Every other sport offers a way out of the empty state; football was
+        // the one dead end. It can't be decided in the header markup like the
+        // others, since football stats may arrive from the live scorer instead
+        // of an import and that's only known once this resolves.
+        el.innerHTML = `
+          <div class="no-boxscore">
+            <strong>No box score imported yet</strong>
+            <a href="boxscore-import.html">Import stats from a PDF box score →</a>
+          </div>`;
         return;
       }
       // open on the first tab that actually has data
@@ -813,7 +821,11 @@ async function loadFootballBox(gameId) {
 function renderFootballBox(cat, homeId, awayId, homeName, awayName) {
   const data = window._fbBox;
   const spec = FB_CATS[cat] || FB_CATS.passing;
-  if (!data) return '<div class="no-boxscore"><strong>No player stats for this game</strong></div>';
+  if (!data) return `
+    <div class="no-boxscore">
+      <strong>No box score imported yet</strong>
+      <a href="boxscore-import.html">Import stats from a PDF box score →</a>
+    </div>`;
 
   const sortFor = list => list.slice().sort((a, b) => {
     // headline stat descending, so the leaders sit on top

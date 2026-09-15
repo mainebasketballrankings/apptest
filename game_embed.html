@@ -375,7 +375,7 @@ const SPORT_LABELS = {
   '9c34ec5c-81b4-4e2e-9f60-740bb30fee4d': 'Lacrosse',
   '1054869a-20d4-465f-8ca9-4bc4d2bafe1b': 'Field Hockey',
   'fa905ca5-f416-409b-81ac-777179ee5576': 'Football',
-  'e26b0fcc-...'                          : 'Volleyball',
+  'e26b0fcc-e661-4945-8b2d-063c37ace44f': 'Volleyball',
 };
 
 function api(path) {
@@ -468,36 +468,93 @@ function searchEsc(s) {
   return s.replace(/[,()*]/g, ' ').trim();
 }
 
+// Sport and gender words are recognised in the search box so "medomak football"
+// narrows instead of returning nothing. Built from SPORT_LABELS so it can't
+// drift from the real sport list.
+const SPORT_BY_WORD = (() => {
+  const m = {};
+  for (const id of Object.keys(SPORT_LABELS)) {
+    const label = SPORT_LABELS[id].toLowerCase();
+    m[label] = id;                       // "field hockey"
+    m[label.replace(/\s+/g, '')] = id;   // "fieldhockey"
+    const last = label.split(' ').pop(); // "hockey"
+    if (!(last in m)) m[last] = id;
+  }
+  m['fb'] = m['football'];
+  m['bball'] = m['basketball'];
+  return m;
+})();
+const GENDER_BY_WORD = {
+  boys: 'Boys', boy: 'Boys', b: 'Boys', mens: 'Boys', men: 'Boys',
+  girls: 'Girls', girl: 'Girls', g: 'Girls', womens: 'Girls', women: 'Girls',
+};
+
+// "medomak wells" should mean both teams, not a school literally named that —
+// so the query is parsed into parts and every part has to match.
+function parseQuery(qRaw) {
+  const cleaned = searchEsc(qRaw).toLowerCase();
+  // Two-word sport names have to be caught before the split.
+  let sportId = null;
+  let rest = cleaned;
+  for (const word of Object.keys(SPORT_BY_WORD).sort((a, b) => b.length - a.length)) {
+    if (!word.includes(' ')) continue;
+    if (rest.includes(word)) { sportId = SPORT_BY_WORD[word]; rest = rest.replace(word, ' '); break; }
+  }
+  const names = [];
+  let gender = null;
+  for (const tok of rest.split(/\s+/).filter(Boolean)) {
+    if (!sportId && SPORT_BY_WORD[tok]) { sportId = SPORT_BY_WORD[tok]; continue; }
+    if (!gender && GENDER_BY_WORD[tok]) { gender = GENDER_BY_WORD[tok]; continue; }
+    names.push(tok);
+  }
+  return { names, sportId, gender };
+}
+
 async function searchGames(qRaw) {
-  const q = searchEsc(qRaw);
-  if (q.length < 2) return null;
+  const { names, sportId, gender } = parseQuery(qRaw);
+  // A bare sport or gender word would match half the database; require a name
+  // unless it's long enough to be deliberate on its own.
+  if (!names.length && !sportId) return null;
+  if (names.length && names.join('').length < 2) return null;
 
-  const teams = await api(
-    `teams?school_name=ilike.*${encodeURIComponent(q)}*&owner_id=is.null` +
-    `&select=id&limit=40`
-  );
-  if (!teams?.length) return [];
-  const ids = teams.map(t => t.id).join(',');
+  // Each name term becomes its own set of team ids, and a game has to involve a
+  // team from every set — that's what makes "medomak wells" find the matchup
+  // rather than nothing.
+  const idSets = [];
+  for (const n of names) {
+    const teams = await api(
+      `teams?school_name=ilike.*${encodeURIComponent(n)}*&owner_id=is.null&select=id&limit=60`
+    );
+    if (!teams?.length) return [];
+    idSets.push(teams.map(t => t.id).join(','));
+  }
 
-  // gender comes off the team, not the game — without it, the boys' and girls'
+  const clauses = idSets.map(ids => `or(home_team_id.in.(${ids}),away_team_id.in.(${ids}))`);
+  let where = `status=in.(final,scheduled,postponed,active)`;
+  if (clauses.length === 1) where += `&${clauses[0].replace(/^or\(/, 'or=(')}`;
+  else if (clauses.length > 1) where += `&and=(${clauses.join(',')})`;
+  if (sportId) where += `&sport_id=eq.${sportId}`;
+
+  // gender lives on the team, not the game — without it, the boys' and girls'
   // soccer games between the same two schools on the same day are two
   // identical-looking rows.
   const sel = `id,game_date,sport_id,status,home_score,away_score,` +
               `home_team:home_team_id(school_name,gender),` +
               `away_team:away_team_id(school_name,gender)`;
-  const where = `or=(home_team_id.in.(${ids}),away_team_id.in.(${ids}))` +
-                `&status=in.(final,scheduled,postponed,active)`;
   const today = todayStr();
 
   // Ordered strictly by date, the whole result set is next season's schedule and
   // the game you just looked at is nowhere near the top. What's wanted is
   // "closest to now", so take a window either side of today and interleave.
   const [past, future] = await Promise.all([
-    api(`games?${where}&game_date=lte.${today}&${'select=' + sel}&order=game_date.desc&limit=20`),
-    api(`games?${where}&game_date=gt.${today}&${'select=' + sel}&order=game_date.asc&limit=20`),
+    api(`games?${where}&game_date=lte.${today}&select=${sel}&order=game_date.desc&limit=25`),
+    api(`games?${where}&game_date=gt.${today}&select=${sel}&order=game_date.asc&limit=25`),
   ]);
 
-  const all = [...(past || []), ...(future || [])];
+  let all = [...(past || []), ...(future || [])];
+  if (gender) {
+    all = all.filter(g => (g.home_team?.gender || g.away_team?.gender) === gender);
+  }
   const dist = g => Math.abs(new Date(g.game_date + 'T12:00:00') - new Date(today + 'T12:00:00'));
   all.sort((a, b) => dist(a) - dist(b));
   return all;
@@ -548,7 +605,9 @@ function wireSearch() {
     clear.hidden = !input.value;
     clearTimeout(timer);
     const q = input.value;
-    if (searchEsc(q).length < 2) { renderSearchResults(null); return; }
+    const parsed = parseQuery(q);
+    if (!parsed.names.join('').length && !parsed.sportId) { renderSearchResults(null); return; }
+    if (parsed.names.length && parsed.names.join('').length < 2) { renderSearchResults(null); return; }
     timer = setTimeout(async () => {
       const mine = ++seq;
       box.hidden = false;

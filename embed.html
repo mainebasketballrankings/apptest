@@ -241,6 +241,10 @@
 
     /* CARD */
     .game-card {
+      /* Sized-based layout below keys off the card's own width, not the
+         viewport: the same card is 3-per-row or 4-per-row depending on where
+         it's embedded, and only the card knows how much room it has. */
+      container-type: inline-size;
       background: var(--white);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -682,12 +686,23 @@
       font-variant-numeric: tabular-nums;
     }
     .vb-set.won { color: var(--black); }
-    /* Only on rows carrying a set line. .team-name is overflow:visible so a
-       long single word ("Marshwood") spills out of its shrunken column and
-       lands on top of the set scores; clip it here rather than let two things
-       occupy the same pixels. Other sports keep the full wrapping name. */
-    .team-row.has-sets .team-name {
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    /* Narrow card (the default): there isn't room for a long school name AND
+       five set cells AND the match score on one line, so the sets drop to
+       their own line under that team's name. Each team still gets its own set
+       row, so a set stays that team's score rather than reading as a total. */
+    .vb-setrow {
+      display: flex; gap: 4px; justify-content: flex-end;
+      margin: -3px 0 7px 0; padding-right: 2px;
+    }
+    .vb-scorewrap .vb-sets { display: none; }
+
+    /* Wide enough and the sets go back inline, next to the score. */
+    @container (min-width: 340px) {
+      .vb-setrow { display: none; }
+      .vb-scorewrap .vb-sets { display: flex; }
+      .team-row.has-sets .team-name {
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
     }
     .si-vb-sets { display: flex; flex-direction: column; gap: 5px; width: 100%; }
     .si-vb-row { display: flex; align-items: center; gap: 6px; }
@@ -2205,6 +2220,10 @@
     const wrapSc = (cells, sc) => cells
       ? `<div class="vb-scorewrap">${cells}${sc}</div>` : sc;
     const rowCls = vbSets_.length ? 'team-row has-sets' : 'team-row';
+    // Rendered twice, shown once: inline beside the score on a wide card,
+    // on its own line beneath the name on a narrow one. CSS picks which.
+    const vbStack = (side) => vbSets_.length
+      ? `<div class="vb-setrow">${vbCells(side)}</div>` : '';
     const aScFull = wrapSc(vbCells('away'), aScEl);
     const hScFull = wrapSc(vbCells('home'), hScEl);
 
@@ -2238,6 +2257,7 @@
           </div>
           ${aScFull}
         </div>
+        ${vbStack('away')}
         <div class="${rowCls}">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
@@ -2245,6 +2265,7 @@
           </div>
           ${hScFull}
         </div>
+        ${vbStack('home')}
       </div>
       <div class="card-footer">
         ${footerMeta}

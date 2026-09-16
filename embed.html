@@ -665,17 +665,20 @@
     }
     /* Set scores sit to the left of the match score on each team row, so the
        two rows read as a grid: one column per set. */
-<<<<<<< HEAD
     /* flex-shrink:0 so the set line never gets squeezed into the team name
        when cards are narrow (4-per-row). */
-    .vb-scorewrap { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
-=======
-    .vb-scorewrap { display: flex; align-items: center; gap: 10px; }
->>>>>>> 859d83d86f43dab45e8a09fa70092e2feac47ac4
-    .vb-sets { display: flex; gap: 0; flex: 0 0 auto; align-items: center; }
+    .vb-scorewrap {
+      display: flex; align-items: center; gap: 10px;
+      flex: 0 0 auto; flex-wrap: nowrap;
+    }
+    .vb-sets { display: flex; gap: 4px; flex: 0 0 auto; align-items: center; flex-wrap: nowrap; }
     .vb-set {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-      font-size: 14px; color: var(--lgray); width: 22px; text-align: center;
+      font-size: 14px; line-height: 1; color: var(--lgray);
+      /* min-width, not width, plus its own margin: the cells stay legible even
+         if the flex gap above doesn't apply, and a three-digit set score still
+         fits instead of being clipped. */
+      min-width: 20px; padding: 0 2px; text-align: center;
       font-variant-numeric: tabular-nums;
     }
     .vb-set.won { color: var(--black); }

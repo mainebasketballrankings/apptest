@@ -682,10 +682,18 @@
       font-variant-numeric: tabular-nums;
     }
     .vb-set.won { color: var(--black); }
+<<<<<<< HEAD
     /* Only on rows carrying a set line. .team-name is overflow:visible so a
        long single word ("Marshwood") spills out of its shrunken column and
        lands on top of the set scores; clip it here rather than let two things
        occupy the same pixels. Other sports keep the full wrapping name. */
+=======
+    /* Sets stay inline beside the score at every width. On a narrow card that
+       leaves little room for the name, so it truncates - .team-name is
+       overflow:visible by default, which would otherwise let a long single
+       word ("Marshwood") spill across the set scores. Only rows carrying sets
+       are affected; other sports keep the full wrapping name. */
+>>>>>>> 545b7365a6fca607400b398c69897b8f4a875ce8
     .team-row.has-sets .team-name {
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }

@@ -665,20 +665,30 @@
     }
     /* Set scores sit to the left of the match score on each team row, so the
        two rows read as a grid: one column per set. */
-<<<<<<< HEAD
     /* flex-shrink:0 so the set line never gets squeezed into the team name
        when cards are narrow (4-per-row). */
-    .vb-scorewrap { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
-=======
-    .vb-scorewrap { display: flex; align-items: center; gap: 10px; }
->>>>>>> 859d83d86f43dab45e8a09fa70092e2feac47ac4
-    .vb-sets { display: flex; gap: 0; flex: 0 0 auto; align-items: center; }
+    .vb-scorewrap {
+      display: flex; align-items: center; gap: 10px;
+      flex: 0 0 auto; flex-wrap: nowrap;
+    }
+    .vb-sets { display: flex; gap: 4px; flex: 0 0 auto; align-items: center; flex-wrap: nowrap; }
     .vb-set {
       font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-      font-size: 14px; color: var(--lgray); width: 22px; text-align: center;
+      font-size: 14px; line-height: 1; color: var(--lgray);
+      /* min-width, not width, plus its own margin: the cells stay legible even
+         if the flex gap above doesn't apply, and a three-digit set score still
+         fits instead of being clipped. */
+      min-width: 20px; padding: 0 2px; text-align: center;
       font-variant-numeric: tabular-nums;
     }
     .vb-set.won { color: var(--black); }
+    /* Only on rows carrying a set line. .team-name is overflow:visible so a
+       long single word ("Marshwood") spills out of its shrunken column and
+       lands on top of the set scores; clip it here rather than let two things
+       occupy the same pixels. Other sports keep the full wrapping name. */
+    .team-row.has-sets .team-name {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .si-vb-sets { display: flex; flex-direction: column; gap: 5px; width: 100%; }
     .si-vb-row { display: flex; align-items: center; gap: 6px; }
     .si-vb-lbl {
@@ -2194,6 +2204,7 @@
     // arrive as ONE grid item - passing two dropped the score onto its own line.
     const wrapSc = (cells, sc) => cells
       ? `<div class="vb-scorewrap">${cells}${sc}</div>` : sc;
+    const rowCls = vbSets_.length ? 'team-row has-sets' : 'team-row';
     const aScFull = wrapSc(vbCells('away'), aScEl);
     const hScFull = wrapSc(vbCells('home'), hScEl);
 
@@ -2220,14 +2231,14 @@
     <div class="game-card ${isLive ? 'live' : ''} ${isPPD ? 'postponed' : ''}" data-game-id="${g.id}">
       ${topBar}
       <div class="card-body">
-        <div class="team-row">
+        <div class="${rowCls}">
           <div class="logo-wrap">${logoEl(away)}</div>
           <div class="team-name-wrap">
             <a class="team-name ${isFinal ? (aWin?'winner':'loser') : ''}" href="https://www.mainebasketballrankings.com/team/?id=${away.id}" target="_blank">${aR}${away.school_name}</a>${recordMap[away.id] ? ` <span style="font-size:12px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif;display:block;line-height:1.2;margin-top:1px">${recordMap[away.id]}</span>` : ''}
           </div>
           ${aScFull}
         </div>
-        <div class="team-row">
+        <div class="${rowCls}">
           <div class="logo-wrap">${logoEl(home)}</div>
           <div class="team-name-wrap">
             <a class="team-name ${isFinal ? (hWin?'winner':'loser') : ''}" href="https://www.mainebasketballrankings.com/team/?id=${home.id}" target="_blank">${hR}${home.school_name}</a>${recordMap[home.id] ? ` <span style="font-size:12px;color:var(--lgray);font-weight:400;font-family:'Barlow Condensed',sans-serif;display:block;line-height:1.2;margin-top:1px">${recordMap[home.id]}</span>` : ''}

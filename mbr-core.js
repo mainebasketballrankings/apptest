@@ -382,6 +382,40 @@
   function signOut() { sessionSave(null); }
   function isSignedIn() { return !!sessionLoad(); }
 
+  // ── Account deletion (App Store 5.1.1(v)) ────────────────────────────────
+  // Calls public.delete_my_account(), which only ever acts on the caller's
+  // own auth.uid(): deletes their own teams and games (and everything hanging
+  // off them) and the login itself. Official MPA games they scored belong to
+  // the schedule, not to them, and stay. Local session is cleared on success.
+  async function deleteAccount() {
+    const s = await ensureSession();
+    if (!s) throw new Error('Not signed in');
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/delete_my_account`, {
+      method: 'POST',
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${s.access_token}`,
+                 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!r.ok) {
+      let msg = `HTTP ${r.status}`;
+      try { const j = await r.json(); if (j && j.message) msg = j.message; } catch (e) {}
+      throw new Error(msg);
+    }
+    const out = await r.json().catch(() => ({}));
+    sessionSave(null);
+    _me = null;
+    // The games behind these were just deleted on the server; left in place,
+    // the home screen offers "Resume" into a game that no longer exists.
+    // Push queues are left alone: they can hold events for official MPA games,
+    // and events for deleted games are dropped as permanent rejects anyway.
+    try {
+      ['mbr_home_resume', 'mbr_bb_game', 'mbr_bs_game', 'mbr_fb_game', 'mbr_field_game',
+       'mbr_bb_setup_resume', 'mbr_bs_setup_resume', 'mbr_fb_setup_resume', 'mbr_field_setup_resume']
+        .forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    } catch (e) {}
+    return out;
+  }
+
   // Who is signed in. Cached, because the scorer asks on every render.
   let _me = null;
   async function currentUser(force) {
@@ -1091,6 +1125,11 @@
     queueLoad, queueSave, flushQueue, setQueueStatus, isPermanentReject,
     durableGet, durableSet, durableDel, hydrateQueue, hydrateSession,
     NATIVE, NATIVE_REDIRECT, captureFromUrl,
+    // School logos stay off inside the App Store build: Apple's 4.1(a) asks for
+    // proof of rights to third-party marks, and the reader app already went
+    // logo-free for the same reason. The web scorers keep them.
+    schoolLogos: !NATIVE,
+    deleteAccount,
     loadSchools, schoolIds, createGame, resolveTeamId, createTeam, resolveOrCreateTeamId,
     listMyTeams, saveTeamRoster, myTeamsAll, myGames, deleteGame, deleteTeam,
     signInWithGoogle, signInWithApple, signIn, signInSheet, closeSignInSheet, authUrl, signOut, isSignedIn, currentUser, currentUserId, ensureSession,

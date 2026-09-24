@@ -5,8 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
 <!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
-<script src="mbr-core.js?v=14"></script>
+<script>
+  // Web only. Inside the app, Analytics would have to be declared on the App
+  // Store privacy label as third-party tracking; the gtag() calls below just
+  // queue into an unused dataLayer there.
+  if (!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+    var ga = document.createElement('script'); ga.async = true;
+    ga.src = 'https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2';
+    document.head.appendChild(ga);
+  }
+</script>
+<script src="mbr-core.js?v=15"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -50,10 +59,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .sport-btn.on small{color:var(--hl);}
 .su-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .su-f{margin-bottom:8px;}
-.uni-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}
-.uni-sw{width:26px;height:26px;border-radius:50%;border:2px solid rgba(0,0,0,.15);cursor:pointer;flex-shrink:0;}
-.uni-sw.on{border-color:var(--navy,#0f1117);box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--navy,#0f1117);}
-.uni-sw.none{background:repeating-linear-gradient(45deg,#ccc,#ccc 3px,#fff 3px,#fff 6px);}
 .su-f label{display:block;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:3px;}
 .su-f input,.su-f select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;
   padding:8px;font-family:'Barlow',sans-serif;font-size:14px;color:var(--text);}
@@ -101,10 +106,9 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .pen-pill{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;background:var(--al);color:#fff;border-radius:4px;padding:2px 5px;margin-top:3px;display:inline-block;}
 .pen-pill.g{background:var(--green);} .pen-pill.y{background:var(--gold);}
 .tscore{display:flex;align-items:center;justify-content:center;gap:14px;flex:1;}
-.tname{font-family:'Playfair Display',serif;font-weight:900;font-size:17px;cursor:pointer;padding:4px 8px;border-radius:6px;border:2px solid transparent;max-width:34vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tname{font-family:'Playfair Display',serif;font-weight:900;font-size:17px;cursor:pointer;padding:4px 8px;border-radius:6px;border:2px solid transparent;}
 .tname.team-active{border-color:currentColor;background:rgba(0,0,0,.06);}
-.tname.has-ball::after{content:' ●';color:var(--green);font-size:34px;vertical-align:middle;animation:poss-pulse 1.4s ease-in-out infinite;}
-@keyframes poss-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.tname.has-ball::after{content:' ●';color:var(--green);font-size:13px;vertical-align:middle;}
 .snum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:50px;line-height:1;}
 .tscore.home .snum{color:var(--hl);} .tscore.away .snum{color:var(--al);}
 #clk-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 0;}
@@ -129,13 +133,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;
 .pcard.sel{border-color:var(--hl);background:#c7dbfd;box-shadow:0 0 0 2px rgba(29,78,216,.35);}
 .pcard.gk{box-shadow:inset 4px 0 0 var(--green);}
 .pcard.gk.sel{box-shadow:inset 4px 0 0 var(--green),0 0 0 2px rgba(29,78,216,.35);}
-/* Uniform color tint on roster cards. :not(.sel) guarantees the "tap who's
-   next" selection highlight always wins over the tint — that feedback matters
-   more mid-game than the color coding does. */
-.pcard[data-uni]:not(.sel){background:var(--uni-bg);}
-.pcard[data-uni]:not(.sel) .pnum,
-.pcard[data-uni]:not(.sel) .pst,
-.pcard[data-uni]:not(.sel) .pnm{color:var(--uni-text);}
 .pnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;line-height:1;text-align:center;color:var(--text);}
 .pnm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pst{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--dim);}
@@ -550,7 +547,6 @@ table.bs.gk th:nth-child(n+3), table.bs.gk td:nth-child(n+3){width:76px;}
           <div class="su-f"><label>Short</label><input id="su-home-short" maxlength="7" placeholder="CHILLS"></div>
           <div class="su-f"><label>Gender</label><select id="su-home-gender" onchange="suGenderChange('home')"><option value="boys">Boys</option><option value="girls">Girls</option></select></div>
         </div>
-        <div class="su-f"><label>Uniform color today</label><div class="uni-swatches" id="uni-home"></div></div>
       </div>
       <div>
         <div class="su-f su-ac">
@@ -562,7 +558,6 @@ table.bs.gk th:nth-child(n+3), table.bs.gk td:nth-child(n+3){width:76px;}
           <div class="su-f"><label>Short</label><input id="su-away-short" maxlength="7" placeholder="CAPE"></div>
           <div class="su-f"><label>Gender</label><select id="su-away-gender" onchange="suGenderChange('away')"><option value="boys">Boys</option><option value="girls">Girls</option></select></div>
         </div>
-        <div class="su-f"><label>Uniform color today</label><div class="uni-swatches" id="uni-away"></div></div>
       </div>
     </div>
     <div class="su-row">
@@ -863,8 +858,8 @@ let SP=SPORTS.soccer;
 
 // ══ GAME STATE ═══════════════════════════════════════════════
 const GAME={
-  home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0,color:null},
-  away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0,color:null},
+  home:{name:'Home',short:'HOME',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
+  away:{name:'Away',short:'AWAY',score:0,shots:0,sog:0,saves:0,to:0,pens:[],down:0,gk:null,topSec:0},
   period:1, clockSec:2400, running:false, possession:'home', playoff:false, subVarsity:false, so:null,
   gender:'boys', mercyRunning:false, ended:false, endReason:'final'
 };
@@ -1262,7 +1257,6 @@ function suSetMode(mode){
     if(!document.getElementById('su-date').value)
       document.getElementById('su-date').value=new Date().toLocaleDateString('en-CA');
     document.getElementById('su-error').textContent='';
-    renderUniSwatches('home'); renderUniSwatches('away');
   }
 }
 async function loadTodaysGames(){
@@ -1434,31 +1428,6 @@ function suAutoShort(side){
   const s=document.getElementById(`su-${side}-short`);
   if(!s.value) s.value=shortFor(document.getElementById(`su-${side}-name`).value);
 }
-// Uniform-color picker: manual for now, since the team primary/secondary color
-// spreadsheet isn't populated in the database yet. Once it is, this can default
-// to teams.primary_color/secondary_color instead of starting blank every time.
-const UNI_COLORS=['#dc2626','#ea580c','#f59e0b','#facc15','#16a34a','#0d9488','#2563eb','#4338ca','#7c3aed','#db2777','#78350f','#111827','#ffffff'];
-function renderUniSwatches(side){
-  const c=document.getElementById(`uni-${side}`); if(!c) return;
-  const cur=GAME[side].color;
-  c.innerHTML = `<div class="uni-sw none${cur?'':' on'}" title="No color set" onclick="pickUniColor('${side}',null)"></div>` +
-    UNI_COLORS.map(col=>`<div class="uni-sw${cur===col?' on':''}" style="background:${col};${col==='#ffffff'?'border-color:#999;':''}" title="${col}" onclick="pickUniColor('${side}','${col}')"></div>`).join('');
-}
-function pickUniColor(side,color){
-  GAME[side].color=color;
-  renderUniSwatches(side);
-}
-// Player-card tint: same source color as the uniform swatch picker, applied at ~85%
-// so it still reads clearly as "this is their color" rather than a faint wash.
-// Text flips to white below a standard luminance threshold so it stays legible
-// against darker uniform colors (navy, black, forest green, etc).
-function uniCardVars(hex){
-  if(!hex) return null;
-  const h=hex.replace('#','');
-  const r=parseInt(h.substr(0,2),16), g=parseInt(h.substr(2,2),16), b=parseInt(h.substr(4,2),16);
-  const lum=(0.299*r+0.587*g+0.114*b)/255;
-  return { bg:`rgba(${r},${g},${b},0.85)`, text: lum<0.5?'#fff':'#0f1117' };
-}
 function parseName(full){
   const p=(full||'').trim().split(/\s+/);
   if(p.length===1)return {fi:'',first:'',last:p[0]||''};
@@ -1571,22 +1540,6 @@ async function suKickOff(){
   GAME.home.short=document.getElementById('su-home-short').value||shortFor(hName);
   GAME.away.short=document.getElementById('su-away-short').value||shortFor(aName);
 
-  // A row with a number but no name means someone clearly meant to add a real
-  // player and didn't finish — silently dropping it (the old behavior) is how
-  // a team ends up playing a whole game a player short with no warning.
-  const incomplete = {};
-  ['home','away'].forEach(side=>{
-    incomplete[side] = SU[side].players.filter(p=>p.num && !(p.last||p.first));
-  });
-  if(incomplete.home.length || incomplete.away.length){
-    suSetMode('new'); err.style.color='var(--al)';
-    const parts=[];
-    if(incomplete.home.length) parts.push(`${hName}: #${incomplete.home.map(p=>p.num).join(', #')}`);
-    if(incomplete.away.length) parts.push(`${aName}: #${incomplete.away.map(p=>p.num).join(', #')}`);
-    err.textContent = `These players have a number but no name — add a name or remove the row before kicking off: ${parts.join(' · ')}`;
-    return;
-  }
-
   const byNum=(a,b)=>{
     const na=parseInt(a.num), nb=parseInt(b.num);
     if(isNaN(na)&&isNaN(nb)) return 0;
@@ -1676,8 +1629,8 @@ function enterScorer(){
   document.getElementById('setup').classList.add('hide');
   document.getElementById('scorer-ui').style.display='flex';
   document.body.style.touchAction='none';
-  document.getElementById('nm-home').textContent=GAME.home.name;
-  document.getElementById('nm-away').textContent=GAME.away.name;
+  document.getElementById('nm-home').textContent=GAME.home.short;
+  document.getElementById('nm-away').textContent=GAME.away.short;
   drawField(); renderBtns(); renderPl('home'); renderPl('away');
   setChartSide('home'); updAll();
   setQueueStatus(); startClockSync();
@@ -2435,9 +2388,7 @@ function renderPl(side){
   // Two names per card: the full one for tablet, last-name-only for phones,
   // where eighteen full-width cards meant five players visible out of eighteen.
   // CSS picks which to show, so there's one render path rather than two.
-  const uniVars = uniCardVars(GAME[side].color);
-  const uniAttr = uniVars ? ` data-uni="1" style="--uni-bg:${uniVars.bg};--uni-text:${uniVars.text};"` : '';
-  const card=p=>`<div class="pcard${p.on?'':' off'}${selP&&selP.id===p.id?' sel':''}${p.gk?' gk':''}"${uniAttr} onclick="selPlayer('${p.id}','${side}')">
+  const card=p=>`<div class="pcard${p.on?'':' off'}${selP&&selP.id===p.id?' sel':''}${p.gk?' gk':''}" onclick="selPlayer('${p.id}','${side}')">
       <div class="pnum">${p.num||'–'}</div>
       <div class="pinfo">
         <div class="pnm"><span class="pnm-full">${pName(p)}</span><span class="pnm-short">${p.last||pName(p)}</span>${p.gk?' <span class="gk-badge">GK</span>':''}</div>
@@ -2478,36 +2429,8 @@ function openSubBox(){
         return `<div class="ast-item${out?' disabled':''}"${out?'':` onclick="subPick('${side}','${p.id}','in')"`}>`
           + `<b>${p.num||'–'}</b><span>${pName(p)}${out?' <span style="color:var(--al);font-size:10px">SENT OFF</span>':''}</span></div>`;
       }).join('')}
-      <div class="ast-item" style="color:var(--green);font-weight:700;" onclick="showAddBenchForm('${side}')">+ Add Player</div>
-      <div id="add-bench-form"></div>
     </div></div>`;
   document.getElementById('sub-modal').classList.add('show');
-}
-// Covers a player missed entirely at kickoff (forgot to add them, roster was
-// wrong, etc.) — creates a real PL[side] entry on the spot so they can be
-// subbed in immediately, rather than needing the setup screen to have had
-// them from the start.
-function showAddBenchForm(side){
-  const c=document.getElementById('add-bench-form');
-  if(!c) return;
-  c.innerHTML=`<div style="display:flex;gap:4px;margin-top:6px;">
-      <input id="abf-num" placeholder="#" inputmode="numeric" style="width:38px;padding:5px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
-      <input id="abf-name" placeholder="Name" style="flex:1;padding:5px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
-      <button class="btn btn-s" style="padding:5px 8px;font-size:11px;" onclick="confirmAddBench('${side}')">Add</button>
-    </div>`;
-  document.getElementById('abf-name').focus();
-}
-function confirmAddBench(side){
-  const num=(document.getElementById('abf-num')||{}).value||'';
-  const nameRaw=(document.getElementById('abf-name')||{}).value||'';
-  if(!nameRaw.trim()){ flash('Name required','bad'); return; }
-  const {fi,first,last}=parseName(nameRaw.trim());
-  const id=`${side[0]}n${PL[side].filter(p=>p.id.startsWith(side[0]+'n')).length+1}`;
-  const p={id, num, fi, first, last, on:false, gk:false, wasGK:false, starter:false};
-  PL[side].push(p);
-  flash(pName(p)+' added — tap OUT then tap them to bring on','made');
-  openSubBox();
-  scheduleSave();
 }
 // ══ KEEPER CHANGE ════════════════════════════════════════════
 // Three cases the scorer actually faces:
@@ -3336,7 +3259,7 @@ async function generatePDF(opts={}){
   let siteLogo=null, homeLogo=null, awayLogo=null;
   try{ siteLogo=await imgData(SITE_LOGO_URL); }catch(e){}
   try{
-    if(G_home_team_id||G_away_team_id){
+    if((G_home_team_id||G_away_team_id) && !(window.MBR && MBR.schoolLogos===false)){
       const rows=await sbFetch(`teams?or=(id.eq.${G_home_team_id},id.eq.${G_away_team_id})&select=id,logo_url`);
       if(Array.isArray(rows)){
         const hm=rows.find(r=>r.id===G_home_team_id), aw=rows.find(r=>r.id===G_away_team_id);
@@ -3536,12 +3459,9 @@ async function generatePDF(opts={}){
   sectionHead('Team Stats');
   const ta=teamTotals('away'), th=teamTotals('home');
   const acc=t=>t.sh?Math.round(t.sog/t.sh*100)+'%':'—';
-  const topA=GAME.away.topSec||0, topH=GAME.home.topSec||0, topTot=topA+topH;
-  const topPct=v=>topTot?Math.round(v*100/topTot)+'%':'—';
   let trows=[
     ['Goals',ta.g,th.g],['Shots',ta.sh,th.sh],['Shots on goal',ta.sog,th.sog],
-    ['Shot accuracy',acc(ta),acc(th)],['Saves',ta.sv,th.sv],
-    ['Possession',`${fmt(topA)} (${topPct(topA)})`,`${fmt(topH)} (${topPct(topH)})`]
+    ['Shot accuracy',acc(ta),acc(th)],['Saves',ta.sv,th.sv]
   ];
   if(SPORT_KEY.startsWith('soccer')){
     trows.push(['Corners',ta.corners,th.corners],['Offside',ta.offside,th.offside],
@@ -3743,7 +3663,7 @@ function checkRestore(){
   if(!s||!s.GAME)return;
   const age=Math.round((Date.now()-s.t)/60000);
   const b=document.createElement('div');b.id='restoreBanner';
-  b.innerHTML=`<span>Unfinished ${SPORTS[s.sport]?.label||''} game${s.test?' (TEST MODE)':''}: ${s.GAME.away.short} ${s.GAME.away.score}–${s.GAME.home.score} ${s.GAME.home.short} (${age}m ago)</span>
+  b.innerHTML=`<span>Unfinished ${SPORTS[s.sport]?.label||''} game: ${s.GAME.away.short} ${s.GAME.away.score}–${s.GAME.home.score} ${s.GAME.home.short} (${age}m ago)</span>
     <button style="background:#fff;color:#d97706;" onclick="restoreGame()">Resume</button>
     <button style="background:rgba(0,0,0,.2);color:#fff;" onclick="discardSave()">Discard</button>`;
   document.body.appendChild(b);
@@ -3757,7 +3677,6 @@ function restoreGame(){
   evts=s.evts||[]; dots=s.dots||[];
   G_game_id=s.ids.g; G_home_team_id=s.ids.h; G_away_team_id=s.ids.a;
   G_test_mode=!!s.test; _gameFinalized=!!s.fin;
-  updTestBanner();
   document.getElementById('restoreBanner')?.remove();
   enterScorer(); updPens(); renderLog(); renderFeed();
   flash('Game restored','made');

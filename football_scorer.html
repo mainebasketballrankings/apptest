@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
-<script src="mbr-core.js?v=14"></script>
+<script src="mbr-core.js?v=15"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -3228,6 +3228,7 @@ async function loadImgBase64(url){
 // Fetch team logo URLs from the DB when we have team ids (rewrite Cloudinary->R2).
 async function fetchTeamLogos(){
   const out={away:null,home:null};
+  if(window.MBR && MBR.schoolLogos===false) return out;   // app build: no school marks (4.1(a))
   try{
     const ids=[G_away_team_id,G_home_team_id].filter(Boolean);
     if(!ids.length){ console.warn('[logos] no team ids set — away:',G_away_team_id,'home:',G_home_team_id); return out; }

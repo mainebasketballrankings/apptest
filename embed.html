@@ -2634,7 +2634,13 @@
     const cardEl = document.querySelector(`[data-game-id="${id}"]`);
     if (!cardEl || !gameObj) return;
     const updated = { ...gameObj, status: 'final', home_score: hSc, away_score: aSc, game_clock: gameClock, notes };
-    const sport = activeSport !== 'all' ? activeSport : 'baseball';
+    // The card's own section knows its sport. The old fallback hard-coded
+    // 'baseball' on the All tab, so saving any final there re-rendered the card
+    // as baseball (innings and Top/Mid/Bot on a field hockey game).
+    const sport = cardEl.closest('[data-sport-section]')?.dataset.sportSection
+               || gameObj._sport
+               || (activeSport !== 'all' ? activeSport : null);
+    if (!sport) { location.reload(); return; }
     const notesMap = buildNotesMap([updated]);
     cardEl.outerHTML = card(updated, notesMap, sport);
     // no attachCardListeners needed — delegation handles it

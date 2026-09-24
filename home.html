@@ -267,6 +267,9 @@ body{
     <span class="sp"></span>
     <a href="#" id="introAgain" style="color:var(--dim);text-decoration:none">How this works</a>
     <span style="color:var(--border)">·</span>
+    <a href="https://www.mainebasketballrankings.com/privacy/" id="privLink" style="color:var(--dim);text-decoration:none"
+       onclick="event.preventDefault();var B=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Browser;B?B.open({url:this.href}):window.open(this.href,'_blank','noopener')">Privacy</a>
+    <span style="color:var(--border)">·</span>
     <span id="netLbl"></span>
   </div>
 </div>
@@ -322,7 +325,7 @@ body{
 
 <div class="toast" id="toast"></div>
 
-<script src="mbr-core.js?v=13" onerror="window.__coreMissing=true"></script>
+<script src="mbr-core.js?v=15" onerror="window.__coreMissing=true"></script>
 <script>
 const BUILD = 'home-2026-07-31a';
 
@@ -431,6 +434,10 @@ async function findActive(){
     try{
       const rows = await sbFetch(`games?id=eq.${crumb.game_id}&select=${sel}&limit=1`);
       if(rows && rows.length && rows[0].status === 'active') return {g:rows[0], crumb};
+      // The game is there but over (final, postponed...): nothing to resume.
+      // An empty result is NOT treated the same way: a personal game can be
+      // hidden from a signed-out device by RLS while still being scoreable.
+      if(rows && rows.length){ try{ localStorage.removeItem(RESUME_KEY); }catch(e){} crumb = null; }
     }catch(e){}
   }
   if(crumb) return {crumb};
@@ -562,10 +569,13 @@ function authLine(){
   return `<div class="authline" id="authLine">
     <span id="whoLbl">Signed in</span>
     <span style="flex:1"></span>
-    <button class="linkbtn" id="soBtn">Sign out</button></div>`;
+    <button class="linkbtn" id="soBtn">Sign out</button>
+    <span style="color:var(--border)">·</span>
+    <button class="linkbtn" id="delAcctBtn" style="color:var(--al)">Delete account</button></div>`;
 }
 function wireAuth(){
   const so = $('#soBtn'); if(so) so.onclick = doSignOut;
+  const da = $('#delAcctBtn'); if(da) da.onclick = doDeleteAccount;
   if(hasCore() && MBR.isSignedIn()){
     MBR.currentUser().then(u => {
       const el = $('#whoLbl');
@@ -584,6 +594,21 @@ function doSignIn(){
     title: 'Save your teams',
     note : 'Your rosters and season stats follow your account \u2014 on this device and any other.'
   });
+}
+// Apple 5.1.1(v): an app that creates accounts must let people delete them
+// from inside the app. Two confirms, because it can't be undone.
+async function doDeleteAccount(){
+  if(!hasCore() || !MBR.deleteAccount){ toast('Core module not loaded'); return; }
+  if(!navigator.onLine){ toast('Connect to the internet to delete your account'); return; }
+  if(!confirm('Delete your account?\n\nThis permanently deletes your saved teams, rosters, and the games you created. Official MPA games you scored stay on the schedule.')) return;
+  if(!confirm('This can\u2019t be undone. Delete your account now?')) return;
+  try{
+    await MBR.deleteAccount();
+    toast('Your account has been deleted');
+    setTimeout(() => { renderTeams(); renderResume(); }, 150);
+  }catch(e){
+    toast('Couldn\u2019t delete account: ' + (e && e.message ? e.message : 'try again'));
+  }
 }
 function doSignOut(){
   if(!hasCore()) return;

@@ -395,6 +395,7 @@
     <button class="sport-tab" data-sport="soccer" data-season="2027">Soccer</button>
     <button class="sport-tab" data-sport="field-hockey" data-season="2027">Field Hockey</button>
     <button class="sport-tab" data-sport="football" data-season="2027">Football</button>
+    <button class="sport-tab" data-sport="volleyball" data-season="2027">Volleyball</button>
   </div>
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
@@ -440,6 +441,7 @@
     'soccer':       'ff80a695-0e78-4432-98f2-141b2b571e0e',
     'field-hockey': '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
     'football':     'fa905ca5-f416-409b-81ac-777179ee5576',
+    'volleyball':   'e26b0fcc-e661-4945-8b2d-063c37ace44f',
   };
   const SPORT_SEASON = {
     'basketball': 2026, 'baseball': 2026, 'softball': 2026,
@@ -447,7 +449,7 @@
   };
   const SPORT_GENDER = {
     'baseball': 'Boys', 'softball': 'Girls',
-    'field-hockey': 'Girls', 'football': 'Boys',
+    'field-hockey': 'Girls', 'football': 'Boys', 'volleyball': 'Girls',
   };
 
   let activeGender = 'Boys';
@@ -556,7 +558,7 @@
       }
     } else {
       // Sports with regions use team_region; LAX has no regions
-      const SPORTS_NO_REGION = ['lacrosse'];
+      const SPORTS_NO_REGION = ['lacrosse', 'volleyball'];
       const hasRegion = !SPORTS_NO_REGION.includes(activeSport);
       label.textContent = hasRegion ? 'Region' : 'Class';
 
@@ -654,7 +656,7 @@
         .map(tc => ({ ...tc.team, class: tc.classes?.name, region: tc.regions?.abbreviation }));
     } else {
       // Other sports: get teams by sport_id + team_class + team_region
-      const SPORTS_NO_REGION = ['lacrosse'];
+      const SPORTS_NO_REGION = ['lacrosse', 'volleyball'];
       const hasRegion = !SPORTS_NO_REGION.includes(activeSport);
 
       // activeRegion is 'A|North' for sports with regions, 'A' for LAX

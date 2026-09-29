@@ -326,6 +326,7 @@
     <button class="sport-tab" data-sport="soccer" data-season="2027">Soccer</button>
     <button class="sport-tab" data-sport="field-hockey" data-season="2027">Field Hockey</button>
     <button class="sport-tab" data-sport="football" data-season="2027">Football</button>
+    <button class="sport-tab" data-sport="volleyball" data-season="2027">Volleyball</button>
   </div>
   <script>
     (function(){
@@ -398,12 +399,14 @@
     'soccer':       'ff80a695-0e78-4432-98f2-141b2b571e0e',
     'field-hockey': '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
     'football':     'fa905ca5-f416-409b-81ac-777179ee5576',
+    'volleyball':   'e26b0fcc-e661-4945-8b2d-063c37ace44f',
   };
   const SINGLE_GENDER = {
     'baseball':     'Boys',
     'softball':     'Girls',
     'field-hockey': 'Girls',
     'football':     'Boys',
+    'volleyball':   'Girls',
   };
   const SPORT_CLASSES = {
     'basketball':   ['A','B','C','D','S'],
@@ -413,6 +416,7 @@
     'soccer':       ['A','B','C','D','8'],
     'field-hockey': ['A','B','C'],
     'football':     ['A','B','C','D','8L','8S'],
+    'volleyball':   ['A','B','C','D'],
   };
 
   let allData      = [];
@@ -430,7 +434,7 @@
     // 26-27 rankings are live for the fall sports; the rest still show 25-26.
     // (These read 2025 before, but every fall snapshot moved to 2026 — the three
     // fall tabs had been loading a season with no rows in it at all.)
-    'soccer': 2027, 'field-hockey': 2027, 'football': 2027,
+    'soccer': 2027, 'field-hockey': 2027, 'football': 2027, 'volleyball': 2027,
   };
   let sortCol      = 'dirigo';
   let sortAsc      = false;

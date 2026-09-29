@@ -6,6 +6,7 @@
 <title>MBR Football Scorer v0.1</title>
 <link rel="manifest" href="manifest-football.json"/>
 <script src="mbr-core.js?v=15"></script>
+<script src="mbr-pro.js?v=1"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -713,11 +714,15 @@ function spotLabel(ballOn=G.ballOn, poss=G.poss){
 // PHYSICAL yard-line label that matches the FIXED field display: it names the
 // painted end zone the ball is nearest, so it stays in sync after an ends-change.
 // absYd(val,frame) is exactly the value buildFieldSVG hands to X(), where x=0 is
-// the LEFT end zone = FIELD_LABEL_FRAME team's goal. After teams change ends the
+// the LEFT end zone = the goal of the team defending it NOW (FIELD_FRAME). After teams change ends the
 // ball is drawn on the opposite side, and this label follows it (EAST 18 → WEST 18).
 function fieldLabelPhys(val=G.ballOn, frame=G.poss){
-  const x = clamp(Math.round(absYd(val, frame)), 0, 100);   // yards from the LEFT (label-frame) goal
-  const L = FIELD_LABEL_FRAME;
+  const x = clamp(Math.round(absYd(val, frame)), 0, 100);   // yards from the LEFT goal
+  // Named for whoever defends each half NOW (FIELD_FRAME), not who defended it
+  // at kickoff. The old pinned label frame named the halves backwards in the
+  // 2nd and 4th quarters ("MV 44" for a ball on Hermon's own 44), which is
+  // why the spot and the scoreboard disagreed with the field.
+  const L = FIELD_FRAME;
   if(x>=100) return abbr(other(L))+' goal';
   if(x<=0)   return abbr(L)+' goal';
   if(x===50) return '50';
@@ -1175,6 +1180,15 @@ function trackDownEff(side, downBefore, converted){
   if(downBefore===3){ t.thirdA=(t.thirdA||0)+1; if(converted) t.thirdC=(t.thirdC||0)+1; }
   else if(downBefore===4){ t.fourthA=(t.fourthA||0)+1; if(converted) t.fourthC=(t.fourthC||0)+1; }
 }
+// Stat convention (NCAA statisticians' manual, which high school box scores
+// follow): a touchdown scored by rush or pass counts as a first down. The TD
+// branches skip commitPlay(), which is where first downs are otherwise
+// credited, so every offensive TD used to be missing from the 1st-down total.
+function creditTDFirstDown(side, kind){
+  if(!(G.tstat && G.tstat[side])) return;
+  const t=G.tstat[side]; t.fd++;
+  if(kind==='pass') t.fdPass=(t.fdPass||0)+1; else if(kind==='rush') t.fdRush=(t.fdRush||0)+1;
+}
 // Move ball within the current possession to absolute spot (poss own-goal frame), handle down/distance.
 function commitPlay(newBallOn){
   newBallOn = clamp(newBallOn, 0, 100);
@@ -1391,7 +1405,7 @@ function buildFieldSVG(frame, ballOn, target, opts={}){
   // side, and the spot picker (which converts clicks back via absYd() in
   // FIELD_FRAME space) stays in perfect lockstep with the display. Re-mirroring
   // here would desync the two — that was the fb-2026-08-04a regression.
-  frame = FIELD_LABEL_FRAME;                // used ONLY for the end-zone labels below
+  frame = FIELD_FRAME;                      // end-zone labels = the team defending that end NOW
   const X = y => 100 + y*8;                 // yard(0-100)→x ; field 100..900 (8 units/yd)
   const H = opts.h||430, midY = H/2;        // ~53yd tall vs 100yd field — proportional
   const numF = 34, rx = 20, ry = 12, fdW = 3.5, losW = 2.5;
@@ -1472,6 +1486,22 @@ let FIELD_FRAME = 'away';
 // This only changes which way the display points. Possession, ball spot, down
 // and score are untouched: correcting those is what the possession control and
 // Adjust Score are for.
+// 2nd half: the receiving team (G.poss) attacks RIGHT when its own goal is on
+// the left, i.e. when FIELD_FRAME === G.poss.
+function askSecondHalfDirection(){
+  const r = abbr(G.poss);
+  msg('Second half',
+    `Which way is <strong>${r}</strong> going on the kickoff return?`+
+    `<div style="display:flex;gap:10px;margin-top:14px">`+
+    `<button class="ocancel" style="flex:1;font-size:18px" onclick="setSecondHalfDirection('left')">\u2190 ${r} goes left</button>`+
+    `<button class="ocancel" style="flex:1;font-size:18px" onclick="setSecondHalfDirection('right')">${r} goes right \u2192</button>`+
+    `</div><div style="font-size:12px;color:var(--dim);margin-top:10px">Picture the field as it's drawn on your screen. You can change it later under Adjust \u2192 Flip Field Direction.</div>`);
+}
+function setSecondHalfDirection(dir){
+  const want = dir==='right' ? G.poss : other(G.poss);
+  if(FIELD_FRAME !== want){ FIELD_FRAME = want; addPBP(`2nd-half direction set: ${abbr(G.poss)} going ${dir}`, true); }
+  closeOv('ovMsg'); render(); scheduleSave();
+}
 function flipFieldManual(){
   saveSnapshot();                       // undoable, same as any other correction
   FIELD_FRAME = other(FIELD_FRAME);
@@ -1745,6 +1775,12 @@ function resolveFumble(carrierSide, fumSpotOwn, opts={}){
     return {lost:false,td:false};
   }
   // defense recovers. Work in the RECOVERING team's frame.
+  // Runs credit the ball carrier's fumlost before calling here (onKind 'run');
+  // every other kind of lost fumble (reception, sack, kickoff, punt) is
+  // counted at team level so Fumbles lost / Turnovers include it.
+  if(opts.onKind!=='run' && G.tstat && G.tstat[carrierSide]){
+    G.tstat[carrierSide].fumLostX = (G.tstat[carrierSide].fumLostX||0) + 1;
+  }
   const fumAtDef = 100 - clamp(fumSpotOwn,0,100);
   const endDef = (opts.advToOwn!=null) ? opts.advToOwn : fumAtDef;   // already def-frame if provided
   const retYds = Math.max(0, endDef - fumAtDef);
@@ -1801,6 +1837,7 @@ function confirmRun(){
   if(td){
     st.rtd++;
     trackDownEff(G.poss, downBefore, true);   // a rushing TD converts the down
+    creditTDFirstDown(G.poss, 'rush');         // and, by stat convention, is a first down
     addPBP(`${p.rusher.name} ${gain} yd rush ${tackTxt}`);
     pushEvt('run',{player:p.rusher.name,num:p.rusher.number,detail:{gain,td:true,
       tackler:p.tackler?.name||null, tacklerNum:p.tackler?.number||null}});
@@ -1944,12 +1981,14 @@ function confirmPass(){
     if(!p.passer||!p.receiver){ openOv('ovPlay'); msg('Missing player','Pick both passer and receiver.'); return; }
     const gain=Math.round(p.toSpot-G.ballOn);
     const ps=statFor(G.poss,p.passer.name,p.passer.number); ps.pa++; ps.pc++; ps.pyd+=gain;
+    if(gain>(ps.plong||0)) ps.plong=gain;   // passing LNG
     const rs=statFor(G.poss,p.receiver.name,p.receiver.number); rs.rec++; rs.recyd+=gain; if(gain>rs.reclong) rs.reclong=gain;
     if(p.tackler){ const d=statFor(defSide(),p.tackler.name,p.tackler.number); d.tkl++; }
     const td=p.toSpot>=100;
     if(td){
       ps.ptd++; rs.rectd++;
       trackDownEff(G.poss, downBefore, true);   // a TD pass converts the down
+      creditTDFirstDown(G.poss, 'pass');         // and, by stat convention, is a first down
       addPBP(`${p.passer.name} ${gain} yd TD pass to ${p.receiver.name}`);
       pushEvt('pass_comp',{player:p.passer.name,num:p.passer.number,detail:{gain,
         receiver:p.receiver.name, receiverNum:p.receiver.number||null, td:true}});
@@ -2913,6 +2952,9 @@ function advanceQuarter(){
       G.poss=other(G.openKick); G.ballOn=25; G.down=1; G.distance=10; G.kickoffPending=true; G.pendingPAT=false;
       startDrive();
       addPBP(`<strong>Halftime.</strong> Teams change ends. ${abbr(G.poss)} receives 2nd-half kickoff`, true);
+      // Which goal each team defends in the 2nd half comes from the halftime
+      // choice, not a fixed rule, so the auto-flip above is only a guess. Ask.
+      setTimeout(askSecondHalfDirection, 0);
     } else {
       // End of Q1 or Q3: teams change ends, but possession/spot carry over.
       // Flip the field so the offense keeps driving the correct way visually.
@@ -3039,7 +3081,7 @@ function teamTotals(side){
     rushYds: rushYd, rushAtt, yardsPerRush: dec(rushYd, rushAtt),
     redZone:`${t.rzTD||0}-${t.rzTrips||0}`,
     penalties:`${t.pen}-${t.penyd}`,
-    fumLost: sum('fumlost'), turnovers: sum('pint')+sum('fumlost'),
+    fumLost: sum('fumlost')+(t.fumLostX||0), turnovers: sum('pint')+sum('fumlost')+(t.fumLostX||0),
     defstTD: t.defstTD||0,
     top: fmtClock(t.topSec||0),
     // legacy fields kept for any other callers
@@ -3244,6 +3286,9 @@ async function fetchTeamLogos(){
   return out;
 }
 async function generatePDF(opts={}){
+  // Reports on your own games are Pro; Maine schedule games stay free. The
+  // background upload (returnBlob) is not a report the user sees, so it isn't gated.
+  if(!opts.returnBlob && window.MBRPro && !(await MBRPro.allowReport(G_game_id))) return;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'letter'});
   const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
@@ -3581,6 +3626,7 @@ function applyTeamParam(){
 }
 function pickMyTeam(side, id){
   const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;
+  if(window.MBRPro && !MBRPro.require('teams')) return;   // saved teams are Pro (app only)
   document.getElementById(`${side}NameInp`).value=t.school_name;
   document.getElementById(`${side}AbbrInp`).value=autoAbbr(t.school_name);
   if(side==='home') G_home_team_id=t.id; else G_away_team_id=t.id;   // reuse, never recreate

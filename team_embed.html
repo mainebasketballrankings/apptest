@@ -400,7 +400,12 @@ function healsCalc(games, tid, smap, regEnd, getScheduled, sportKey) {
     if (tied) piSum += wval * 0.5;
     const contrib = won ? opi / denom : tied ? (opi * 0.5) / denom : 0;
     healSum += contrib;
-    details[`${g.game_date}_${oid}`] = { wp: pyth(ms, os, sportKey), contrib, oppPI: opi };
+    // The workbook's Actual Win% (pushed as actual_win_prob, home side) is the
+    // real number; the Pythagorean fallback only sees the final score, so every
+    // 3-0 sweep came out 72.5% no matter how close the sets were.
+    const awp = (g.actual_win_prob != null && g.actual_win_prob !== '' && !isNaN(+g.actual_win_prob))
+      ? (ih ? +g.actual_win_prob : 1 - +g.actual_win_prob) : null;
+    details[`${g.game_date}_${oid}`] = { wp: awp ?? pyth(ms, os, sportKey), contrib, oppPI: opi };
   }
   const played = reg.filter(g => g.status === 'final').length;
   const pi = played === 0 ? 1.0 : piSum / denom;

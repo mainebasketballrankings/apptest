@@ -496,7 +496,7 @@
         .from('rankings_snapshots')
         .select(`
           id, rank_overall, rank_class, rank_region, snapshot_date,
-          pi, heal_points, dirigo, mheals_18, wins, losses, avg_pf, avg_pa, sos,
+          pi, heal_points, dirigo, mheals_18, wins, losses, ties, avg_pf, avg_pa, sos,
           pct_perfect, signature_win, ats_record, win_pct,
           tournament_odds,
           team:team_id (
@@ -674,7 +674,7 @@
           </div>
         </td>
 
-        <td class="td-record td-num">${r.wins}-${r.losses}</td>
+        <td class="td-record td-num">${r.wins}-${r.losses}${r.ties ? '-' + r.ties : ''}</td>
         ${showPF   ? `<td class="td-num hide-mobile">${pf}</td>` : ''}
         ${showPA   ? `<td class="td-num hide-mobile">${pa}</td>` : ''}
         ${showDiff ? `<td class="td-num hide-mobile" style="${diffColor};font-weight:700">${diff}</td>` : ''}

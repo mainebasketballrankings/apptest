@@ -657,7 +657,7 @@ async function load() {
 
     const { pi, heals, played, denom, details } = healsCalc(games, tid, smap, regEnd, getScheduled, sport);
 
-    let wins = 0, losses = 0, pointDiff = 0;
+    let wins = 0, losses = 0, ties = 0, pointDiff = 0;
     for (const g of games) {
       // Summer games are their own section (below) and shouldn't count toward
       // the season record — same signal the schedule split already uses.
@@ -667,7 +667,8 @@ async function load() {
       const ms = ih ? g.home_score : g.away_score;
       const os = ih ? g.away_score : g.home_score;
       if (ms != null && os != null) pointDiff += (ms - os);
-      ms > os ? wins++ : losses++;
+      // A draw is its own column, not a loss (soccer and field hockey tie).
+      if (ms > os) wins++; else if (ms < os) losses++; else if (ms != null) ties++;
     }
     const diffStr = pointDiff >= 0 ? `+${pointDiff}` : `${pointDiff}`;
 
@@ -823,7 +824,7 @@ async function load() {
       const lost= fin && ms < ops;
       const df  = fin ? ms - ops : null;
       const at  = g.is_neutral ? `<span class="atsym">N</span>` : !ih ? `<span class="atsym">@</span>` : '';
-      const res = fin ? (won ? 'W' : 'L') : (g.status === 'scheduled' ? '–' : '●');
+      const res = fin ? (won ? 'W' : lost ? 'L' : 'T') : (g.status === 'scheduled' ? '–' : '●');
       const tb  = g.is_tournament ? `<span class="tbadge">T</span>` : '';
 
       // Rank pill: state rank only
@@ -911,7 +912,7 @@ async function load() {
         const lost= fin && ms < ops;
         const df  = fin ? ms - ops : null;
         const at  = g.is_neutral_site ? `<span class="atsym">N</span>` : !ih ? `<span class="atsym">@</span>` : '';
-        const res = fin ? (won ? 'W' : 'L') : (g.status === 'scheduled' ? '–' : '●');
+        const res = fin ? (won ? 'W' : lost ? 'L' : 'T') : (g.status === 'scheduled' ? '–' : '●');
         const scoreTxt = fin ? `${ms}–${ops}` : (g.status === 'scheduled' ? 'Sched.' : 'Live');
         const evtLabel = g.event ? `<div style="font-size:11px;color:var(--gray);margin-top:1px">${g.event}</div>` : '';
         return `<tr>
@@ -1110,7 +1111,7 @@ async function load() {
           </div>
           <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span>${seasonChipHtml}<span class="meta-sep">|</span><a class="gender-link" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
           <div class="team-inline-stats">
-            <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}</span></span>
+            <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}${ties ? '–' + ties : ''}</span></span>
             <span class="inline-stat"><span class="inline-lbl">POINT DIFF</span><span class="inline-val ${pointDiff >= 0 ? 'grn' : 'red'}">${diffStr}</span></span>
             <span class="inline-stat"><span class="inline-lbl">${IS_FOOTBALL ? 'CRABTREE' : 'HEAL POINTS'}</span><span class="inline-val">${IS_FOOTBALL ? (crabtree != null ? f2(crabtree) : '—') : f2(heals)}</span></span>
           </div>

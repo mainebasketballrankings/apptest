@@ -411,6 +411,13 @@ input,select,button{font-family:inherit;}
       <span class="toggle-pill" id="penLossDown" onclick="this.classList.toggle('on')">Loss of down</span>
       <span class="toggle-pill on" id="penReplay" onclick="this.classList.toggle('on')">Replay down</span>
     </div>
+    <!-- Only shown right after a kick or turnover, before the new series' first snap. -->
+    <div id="penReturnWrap" style="display:none">
+      <div class="res-row" style="margin-top:6px">
+        <span class="toggle-pill" id="penReturn" onclick="this.classList.toggle('on');syncPenReturnHint()">During the kick or return — new 1st &amp; 10</span>
+      </div>
+      <div class="sec-lbl" id="penReturnHint" style="opacity:.7"></div>
+    </div>
     <div class="oactions">
       <button class="oconfirm" onclick="confirmPenalty()">Apply Penalty</button>
     </div>
@@ -1008,7 +1015,7 @@ async function startGame(){
   G.quarter=1; G.clock=G.qLen*60; G.score={away:0,home:0}; G.timeouts={away:3,home:3};
   MBR.startClockSync(gameClockLabel, 20000);   // keep games.game_clock fresh for the XML feed
   G.stats={away:{},home:{}}; G.drives=[]; G.curDrive=null; G.pbp=[]; G.pend=null;
-  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.kicker={away:null,home:null}; G.punter={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null; G.koFrom=40;
+  G.lineScore={}; G.pendingPAT=false; G.kickoffPending=true; G.qb={away:null,home:null}; G.kicker={away:null,home:null}; G.punter={away:null,home:null}; G.lastTD=null; G.lastFG=null; G.scoreLog=[]; G._pendingDriveSummary=null; G.otPossCount=0; G.otFirst=null; G.koFrom=40; G.freshSeries=false;
 
   // Sort each roster by uniform number, then seed the starting QB. The QB is
   // captured as an object reference BEFORE the sort, so it survives reordering.
@@ -1224,6 +1231,7 @@ function changePoss(newPoss, newBallOn, reason){
   G.ballOn = clamp(newBallOn, 1, 99);
   G.down = 1;
   G.distance = Math.min(10, 100 - G.ballOn);
+  G.freshSeries = true;   // no snap yet in this series (see applyPenalty)
   startDrive();
   stopClock();
 }
@@ -1813,6 +1821,7 @@ function fumRunSpot(){ const p=G.pend; const rt=p.fumRecover==='def'?defSide():G
 
 function confirmRun(){
   const p=G.pend;
+  G.freshSeries = false;   // a snap: the series has begun
   if(!p.rusher){ msg('Pick a rusher','Tap Rusher to choose who carried the ball.'); return; }
   if(G.pendingPAT){ closeOv('ovPlay'); resolveConversion(p.toSpot>=100, p.rusher, `${p.rusher.name} run`); G.pend=null; render(); return; }
   // An ACCEPTED penalty wipes the play: no stats, no yardage, no score, and the
@@ -1946,6 +1955,7 @@ function intSpot(){ openSpotPicker(defSide(), G.pend.intSpot, v=>{G.pend.intSpot
 
 function confirmPass(){
   const p=G.pend;
+  G.freshSeries = false;   // a snap (pass, sack): the series has begun
   closeOv('ovPlay');
   if(p.passer) G.qb[G.poss]=p.passer;   // remember the QB for this side
   if(G.pendingPAT){
@@ -2296,6 +2306,9 @@ function puntEndSpot(){ openSpotPicker(G.poss, G.pend.puntEnd, v=>{G.pend.puntEn
 
 function confirmKick(){
   const p=G.pend, recv=G.poss, kicking=defSide();
+  // A punt or field goal is a snap. If it changes possession, changePoss marks
+  // the new series fresh again; if the kicking team keeps it, it isn't.
+  if(p.sub==='punt' || p.sub==='fg') G.freshSeries = false;
   closeOv('ovPlay');
   // Remember the specialists so the next kick prefills them (like the QB).
   // On a kickoff the kicker belongs to the DEFENSE (G.poss is the receiving team).
@@ -2317,7 +2330,7 @@ function confirmKick(){
       if(p.koOOBChoice==='spot'){
         const takeAt = clamp(100-(from+25), 1, 99);
         addPBP(`Kickoff <strong>out of bounds</strong> — ${abbr(recv)} ball at their ${takeAt}`);
-        G.kickoffPending=false; G.ballOn=takeAt; G.down=1; G.distance=Math.min(10,100-takeAt);
+        G.kickoffPending=false; G.ballOn=takeAt; G.down=1; G.distance=Math.min(10,100-takeAt); G.freshSeries=true;
         G.koFrom=40;                                   // next free kick is a normal one
         if(G.curDrive) G.curDrive.startBallOn=G.ballOn; else startDrive();
       } else {
@@ -2339,7 +2352,7 @@ function confirmKick(){
         onside:true, recoverTeam:abbr(recovTeam), recoveredBy:p.koOnsideRecoverer?.name||null, spot:spotLabel(spotOwn,recovTeam)}});
       if(recovTeam===recv){
         // receiving team recovers — they keep, fresh 1st & 10 at the spot
-        G.ballOn=spotOwn; G.down=1; G.distance=Math.min(10,100-G.ballOn);
+        G.ballOn=spotOwn; G.down=1; G.distance=Math.min(10,100-G.ballOn); G.freshSeries=true;
         if(G.curDrive) G.curDrive.startBallOn=G.ballOn;
       } else {
         // kicking team recovers — possession flips to them at the spot (already their frame)
@@ -2374,7 +2387,7 @@ function confirmKick(){
       });
       // resolveFumble handles PBP, possession, and any scoop-and-score TD.
     } else {
-      G.ballOn=clamp(advTo,1,99); G.down=1; G.distance=Math.min(10,100-G.ballOn);
+      G.ballOn=clamp(advTo,1,99); G.down=1; G.distance=Math.min(10,100-G.ballOn); G.freshSeries=true;
       if(G.curDrive) G.curDrive.startBallOn=G.ballOn;
       G.kickoffPending=false;
       const fumTxt = (p.koFumble && !p.koFumLost) ? `, ${abbr(recv)} recovered own fumble` : '';
@@ -2572,7 +2585,7 @@ function penTypeChips(selName, fn){
 function penDefaultTeam(t){ return t.side==='off'?G.poss : t.side==='def'?defSide() : defSide(); }
 
 // shared enforcement — moves ball, sets down/distance, logs PBP + event
-function applyPenalty({team, yds, name, autoFirst, lossDown, replay, fromSpot, resetDist}){
+function applyPenalty({team, yds, name, autoFirst, lossDown, replay, fromSpot, resetDist, newSeries}){
   const onDef = team!==G.poss;
   // Enforce from the given spot (previous LOS for most fouls; spot of foul for a
   // spot foul). Falls back to current ballOn if the caller didn't specify.
@@ -2584,12 +2597,24 @@ function applyPenalty({team, yds, name, autoFirst, lossDown, replay, fromSpot, r
   if(onDef){ const half=Math.floor((100-spot)/2); const eff=Math.min(yds,half); capped=eff<yds; nb=spot+eff; }
   else { const half=Math.floor(spot/2); const eff=Math.min(yds,half); capped=eff<yds; nb=spot-eff; }
   G.ballOn=clamp(nb,1,99);
-  if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); if(G.tstat&&G.tstat[G.poss]){ G.tstat[G.poss].fd++; G.tstat[G.poss].fdPen=(G.tstat[G.poss].fdPen||0)+1; } }
+  if(newSeries){
+    // Foul during a kick, a return, or any change of possession: it happens
+    // before the new series exists, so the series starts AFTER enforcement —
+    // 1st & 10 from the new spot. The old code kept the first-down line from
+    // before the penalty (1st & 20 on the receiving team's own block in the
+    // back; 1st & 5 on the kicking team's hold). Not an earned first down, so
+    // no first-down stat either way.
+    G.down=1; G.distance=Math.min(10,100-G.ballOn);
+    if(G.curDrive && !G.curDrive.plays) G.curDrive.startBallOn=G.ballOn;   // drive starts at the first snap
+  }
+  else if(autoFirst){ G.down=1; G.distance=Math.min(10,100-G.ballOn); if(G.tstat&&G.tstat[G.poss]){ G.tstat[G.poss].fd++; G.tstat[G.poss].fdPen=(G.tstat[G.poss].fdPen||0)+1; } }
   else { G.distance=Math.max(1, target-G.ballOn); if(lossDown && !replay) G.down=Math.min(4,G.down+1); }
   if(G.tstat&&G.tstat[team]){ G.tstat[team].pen++; G.tstat[team].penyd+=yds; }
   const nm = (name && name!=='Other') ? name : 'Penalty';
-  addPBP(`Penalty — <strong>${nm}</strong> on ${abbr(team)}, ${yds} yd${capped?' (half-distance to goal)':''}${autoFirst?', automatic 1st':''}${lossDown?', loss of down':''} — ${ddLabel()} at ${spotLabel()}`);
-  pushEvt('penalty',{side:team,detail:{name:nm, yds, on:abbr(team), autoFirst, lossDown, replay, halfDistance:capped}});
+  const tags = newSeries ? ' (during the return)'
+    : `${autoFirst?', automatic 1st':''}${lossDown?', loss of down':''}`;
+  addPBP(`Penalty — <strong>${nm}</strong> on ${abbr(team)}, ${yds} yd${capped?' (half-distance to goal)':''}${tags} — ${ddLabel()} at ${spotLabel()}`);
+  pushEvt('penalty',{side:team,detail:{name:nm, yds, on:abbr(team), autoFirst:!!(autoFirst&&!newSeries), lossDown:!!(lossDown&&!newSeries), replay, halfDistance:capped, duringReturn:!!newSeries}});
   stopClock();
 }
 
@@ -2604,8 +2629,22 @@ function openPenalty(){
   document.getElementById('penAutoFirst').classList.remove('on');
   document.getElementById('penLossDown').classList.remove('on');
   document.getElementById('penReplay').classList.add('on');
+  // Right after a kick or turnover (no snap yet), a live-ball foul belongs to
+  // the kick or return. Offer that, on by default; picking a pre-snap foul
+  // (false start, offside…) turns it off, since those happen before the snap
+  // of the new series and keep its line to gain.
+  const canReturn = !!G.freshSeries && !G.kickoffPending && !G.pendingPAT;
+  document.getElementById('penReturnWrap').style.display = canReturn ? '' : 'none';
+  document.getElementById('penReturn').classList.toggle('on', canReturn);
+  syncPenReturnHint();
   renderPenList(); renderPenTeam();
   openOv('ovPenalty');
+}
+function syncPenReturnHint(){
+  const on = document.getElementById('penReturn').classList.contains('on');
+  document.getElementById('penReturnHint').textContent = on
+    ? 'Enforced from where the ball is now, then 1st & 10. If the officials marked it from somewhere else, fix the spot afterwards.'
+    : 'Before the first snap of this series: the down and line to gain stay as they are.';
 }
 function renderPenList(){
   document.getElementById('penTypeRow').innerHTML = penTypeChips(_penName, 'selectPenType');
@@ -2620,6 +2659,7 @@ function selectPenType(i){
   document.getElementById('penAutoFirst').classList.toggle('on', !!t.auto && onDef);
   document.getElementById('penLossDown').classList.toggle('on', !!t.lossDown);
   document.getElementById('penReplay').classList.toggle('on', !!t.pre);
+  if(G.freshSeries && !G.kickoffPending && !G.pendingPAT){ document.getElementById('penReturn').classList.toggle('on', !t.pre); syncPenReturnHint(); }
   renderPenList(); renderPenTeam();
 }
 function renderPenTeam(){
@@ -2632,8 +2672,13 @@ function confirmPenalty(){
   const autoFirst=document.getElementById('penAutoFirst').classList.contains('on');
   const lossDown=document.getElementById('penLossDown').classList.contains('on');
   const replay=document.getElementById('penReplay').classList.contains('on');
+  const newSeries = !!G.freshSeries && !G.kickoffPending && !G.pendingPAT
+                    && document.getElementById('penReturn').classList.contains('on');
   closeOv('ovPenalty');
-  applyPenalty({team:_penTeam, yds, name:_penName, autoFirst, lossDown, replay});
+  applyPenalty({team:_penTeam, yds, name:_penName, autoFirst, lossDown, replay, newSeries});
+  // Any foul marked off here settles the series; a second one before the snap
+  // (a false start after a return foul) is a normal pre-snap foul.
+  G.freshSeries = false;
   G.pend=null; render();
 }
 
@@ -2776,7 +2821,8 @@ function cloneState(){
     pbpLen:G.pbp.length, scoreLogLen:(G.scoreLog?G.scoreLog.length:0),
     pendingPAT:!!G.pendingPAT, kickoffPending:!!G.kickoffPending,
     pendingDriveSummary:G._pendingDriveSummary||null,
-    otPossCount:G.otPossCount||0, otFirst:G.otFirst||null, koFrom:(G.koFrom==null?40:G.koFrom)
+    otPossCount:G.otPossCount||0, otFirst:G.otFirst||null, koFrom:(G.koFrom==null?40:G.koFrom),
+    freshSeries:!!G.freshSeries
   };
 }
 function saveSnapshot(){
@@ -2802,6 +2848,7 @@ function restoreState(s){
   G._pendingDriveSummary = (s.pendingDriveSummary!==undefined) ? s.pendingDriveSummary : null;
   G.otPossCount = s.otPossCount||0; G.otFirst = s.otFirst||null;
   G.koFrom = (s.koFrom==null?40:s.koFrom);
+  G.freshSeries = !!s.freshSeries;
   _lastPbpLength=-1;
 }
 function doUndo(){
@@ -3005,6 +3052,7 @@ function otPickFirst(team){
 }
 function otStartPossession(team){
   G.poss = team; G.ballOn = 90; G.down = 1; G.distance = 10;   // 1st & Goal at opponent's 10
+  G.freshSeries = false;   // OT series: no kick or return to have fouled on
   G.kickoffPending = false; G.pendingPAT = false;
   startDrive();
   addPBP(`<strong>${abbr(team)} ball</strong> — 1st &amp; Goal at the ${abbr(other(team))} 10`, true);

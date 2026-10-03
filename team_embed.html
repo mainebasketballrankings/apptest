@@ -499,7 +499,7 @@ async function load() {
 
     // Paginated fetch helper
     // Fetch roster players for this team
-    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops,w,l,ip_outs,era,whip,k&order=number.asc&limit=100`);
+    const playersPromise = sb(`players?team_id=eq.${tid}&sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=id,number,name,pronunciation,grade,position,height,games,ppg,rpg,apg,stl,blk,fgm,fga,fgp,tpm,tpa,tpp,ftm,fta,ftp,eff,plusminus,ba,hr,rbi,sb,ops,w,l,ip_outs,era,whip,k,pass_comp,pass_att,pass_yds,pass_td,pass_int,rush_att,rush_yds,rush_td,rec,rec_yds,rec_td,tkl,tkl_ast,sk,def_int,pd&order=number.asc&limit=100`);
 
     async function fetchAll(query) {
       const pageSize = 1000;
@@ -956,7 +956,118 @@ async function load() {
     let rosterHtml = '';
     try {
       const players = await playersPromise;
-      if (players && players.length) {
+      // ── Football: roster + season stats ──────────────────────────────
+      // Two sources, merged per player:
+      //   1. players table — season totals written by boxscore-import.html
+      //   2. live-scored games (Sport ScoreKeepers) — each game's
+      //      player_final_stats events, for games NOT already covered by an
+      //      import, so a game entered both ways is never counted twice.
+      if (sport === 'football') {
+        const plist = players || [];
+        const norm  = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+        const firstNum = s => String(s == null ? '' : s).split('/')[0].trim();
+        const blank = () => ({ pc:0,pa:0,pyd:0,ptd:0,pint:0, ra:0,ryd:0,rtd:0, rec:0,recyd:0,rectd:0, tkl:0,ast:0,sk:0,dint:0,pd:0 });
+
+        const rows = plist.map(p => ({
+          number: p.number, name: p.name, pron: p.pronunciation, pos: p.position, grade: p.grade,
+          s: {
+            pc:+p.pass_comp||0, pa:+p.pass_att||0, pyd:+p.pass_yds||0, ptd:+p.pass_td||0, pint:+p.pass_int||0,
+            ra:+p.rush_att||0, ryd:+p.rush_yds||0, rtd:+p.rush_td||0,
+            rec:+p.rec||0, recyd:+p.rec_yds||0, rectd:+p.rec_td||0,
+            tkl:+p.tkl||0, ast:+p.tkl_ast||0, sk:+p.sk||0, dint:+p.def_int||0, pd:+p.pd||0,
+          },
+        }));
+
+        // Live-scored finals for this team, minus any game a box score was imported for.
+        try {
+          const finals = (games || []).filter(g => g.status === 'final').map(g => g.id);
+          if (finals.length) {
+            const ids = finals.join(',');
+            const playerIds = new Set(plist.map(p => p.id));
+            const [evts, imps] = await Promise.all([
+              sb(`game_events?team_id=eq.${tid}&event_type=eq.player_final_stats&game_id=in.(${ids})&select=game_id,notes,created_at&order=created_at.desc&limit=2000`),
+              playerIds.size ? sb(`game_stat_imports?game_id=in.(${ids})&select=game_id,player_id&limit=5000`) : Promise.resolve([]),
+            ]);
+            const imported = new Set((imps || []).filter(r => playerIds.has(r.player_id)).map(r => r.game_id));
+            const byName = new Map(rows.map(r => [norm(r.name), r]));
+            const seen = new Set();   // game|player — newest wins if End Game was pressed twice
+            for (const e of (evts || [])) {
+              if (imported.has(e.game_id)) continue;
+              let d; try { d = JSON.parse(e.notes || '{}'); } catch (x) { continue; }
+              const key = e.game_id + '|' + norm(d.name);
+              if (!d.name || seen.has(key)) continue;
+              seen.add(key);
+              let r = byName.get(norm(d.name));
+              if (!r) {
+                const num = firstNum(d.number);
+                const hits = num ? rows.filter(x => firstNum(x.number) === num) : [];
+                r = hits.length === 1 ? hits[0] : null;
+              }
+              if (!r) { r = { number: d.number, name: d.name, s: blank() }; rows.push(r); byName.set(norm(d.name), r); }
+              const s = r.s;
+              s.pc += +d.pc||0; s.pa += +d.pa||0; s.pyd += +d.pyd||0; s.ptd += +d.ptd||0; s.pint += +d.pint||0;
+              s.ra += +d.ra||0; s.ryd += +d.ryd||0; s.rtd += +d.rtd||0;
+              s.rec += +d.rec||0; s.recyd += +d.recyd||0; s.rectd += +d.rectd||0;
+              s.tkl += +d.tkl||0; s.ast += +d.ast||0; s.sk += +d.sack||0; s.dint += +d.dint||0; s.pd += +d.pd||0;
+            }
+          }
+        } catch (x) { console.warn('football live stats', x); }
+
+        if (rows.length) {
+          rows.sort((a, b) => (parseInt(a.number) || 999) - (parseInt(b.number) || 999));
+          const numCell  = r => `<td class="rt-num">${r.number != null && r.number !== '' ? r.number : '—'}</td>`;
+          const nameCell = r => `<td class="rt-name">${r.name || ''}</td>`;
+          const nameTh   = '<th>#</th><th style="position:sticky;left:0;background:var(--bg);z-index:3">Name</th><th class="rt-stat-gap-th"></th>';
+          const gap      = '<td class="rt-stat-gap"></td>';
+          const avg = (y, n) => n ? (y / n).toFixed(1) : '';
+
+          const cats = [
+            { key:'pass', label:'Passing', has: s => s.pa > 0, sort: s => s.pyd,
+              head:['C/A','YDS','TD','INT'], cells: s => [`${s.pc}/${s.pa}`, s.pyd, s.ptd, s.pint] },
+            { key:'rush', label:'Rushing', has: s => s.ra > 0, sort: s => s.ryd,
+              head:['ATT','YDS','AVG','TD'], cells: s => [s.ra, s.ryd, avg(s.ryd, s.ra), s.rtd] },
+            { key:'recv', label:'Receiving', has: s => s.rec > 0, sort: s => s.recyd,
+              head:['REC','YDS','AVG','TD'], cells: s => [s.rec, s.recyd, avg(s.recyd, s.rec), s.rectd] },
+            { key:'def', label:'Defense', has: s => s.tkl + s.ast + s.sk + s.dint + s.pd > 0, sort: s => s.tkl + s.ast,
+              head:['TKL','AST','TOT','SK','INT','PD'], cells: s => [s.tkl, s.ast, s.tkl + s.ast, s.sk, s.dint, s.pd] },
+          ].filter(c => rows.some(r => c.has(r.s)));
+
+          const bioHead = '<th>#</th><th style="position:sticky;left:0;background:var(--bg);z-index:3">Name</th>'
+            + '<th style="text-align:center">Pronunciation</th><th style="text-align:center">Pos</th><th style="text-align:center">Grade</th>';
+          const bioBody = rows.filter(r => r.pos !== undefined || r.grade !== undefined).map(r =>
+            `<tr>${numCell(r)}${nameCell(r)}<td class="rt-pron">${r.pron || ''}</td><td class="rt-pos">${r.pos || ''}</td><td class="rt-grade" style="text-align:center">${r.grade || ''}</td></tr>`).join('');
+
+          const panels = [{ key:'roster', label:'Roster', html:
+            `<table class="rt"><thead><tr>${bioHead}</tr></thead><tbody>${bioBody}</tbody></table>` }];
+          for (const c of cats) {
+            const body = rows.filter(r => c.has(r.s)).sort((a, b) => c.sort(b.s) - c.sort(a.s)).map(r =>
+              `<tr>${numCell(r)}${nameCell(r)}${gap}${c.cells(r.s).map(v => `<td class="rt-stat">${v}</td>`).join('')}</tr>`).join('');
+            panels.push({ key:c.key, label:c.label, html:
+              `<table class="rt"><thead><tr>${nameTh}${c.head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>` });
+          }
+          // Lead with stats when there are any: that's what people come for.
+          const first = panels.length > 1 ? panels[1].key : 'roster';
+          window.fbTab = key => {
+            panels.forEach(p => {
+              const t = document.getElementById('fbt-' + p.key), b = document.getElementById('fbp-' + p.key);
+              if (t) t.classList.toggle('active', p.key === key);
+              if (b) b.style.display = p.key === key ? '' : 'none';
+            });
+          };
+          rosterHtml = `
+            <div class="roster-section">
+              <div class="section-header"><span>Roster &amp; Stats</span><a class="submit-roster-link" href="roster-submit.html">Submit Roster</a></div>
+              <div style="background:var(--white);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <div style="padding:0 12px;background:var(--white);border-bottom:2px solid var(--border)">
+                  <div class="stat-tabs">${panels.map(p =>
+                    `<button class="stat-tab${p.key === first ? ' active' : ''}" id="fbt-${p.key}" onclick="fbTab('${p.key}')">${p.label}</button>`).join('')}</div>
+                </div>
+                ${panels.map(p =>
+                  `<div class="roster-wrap" style="border:none;border-radius:0${p.key === first ? '' : ';display:none'}" id="fbp-${p.key}">${p.html}</div>`).join('')}
+              </div>
+            </div>`;
+        }
+      } else if (players && players.length) {
         // Sort numerically — number column is stored as text so DB sort is lexicographic
         players.sort((a, b) => (parseInt(a.number) || 99) - (parseInt(b.number) || 99));
         const isBball = sport === 'basketball';

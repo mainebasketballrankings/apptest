@@ -605,7 +605,16 @@ async function drawCard() {
 
   // header: Maine logo + wordmark
   const ml = await loadImg(MAINE_LOGO);
-  if (ml) { const h = 150, w = ml.width / ml.height * h; ctx.drawImage(ml, 56, 40, w, h); }
+  // The logo is the same wood as the background, so lift it off with a soft
+  // dark halo (two passes: a tight edge and a wider glow).
+  if (ml) {
+    const h = 150, w = ml.width / ml.height * h;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 8;
+    ctx.drawImage(ml, 56, 40, w, h); ctx.drawImage(ml, 56, 40, w, h);
+    ctx.shadowColor = 'rgba(0,0,0,.95)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2; ctx.drawImage(ml, 56, 40, w, h);
+    ctx.restore();
+  }
   ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
   fitText(ctx, 'MAINE BASKETBALL RANKINGS', 185, 104, W - 185 - 56, 700, 62);
   ctx.fillStyle = 'rgba(255,255,255,.8)';
@@ -622,7 +631,8 @@ async function drawCard() {
     const t = BY_ID.get(myTeam);
     const tl = await proxiedLogo(t.logo_url);
     let tx = px + 36;
-    if (tl) { const s = 110; ctx.drawImage(tl, tx, y + 30, s, s); tx += s + 24; }
+    if (tl) { const s = 110; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+              ctx.drawImage(tl, tx, y + 30, s, s); ctx.restore(); tx += s + 24; }
     ctx.fillStyle = '#fff'; fitText(ctx, t.school_name.toUpperCase(), tx, y + 100, px + pw - 36 - tx, 700, 76);
     ctx.font = FC(600,30); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillText(`CURRENTLY ${record(t.id)}`, tx, y + 138);
     const best = r.seeds.reduce((bi, v, i, a) => v > a[bi] ? i : bi, 0);

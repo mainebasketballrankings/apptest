@@ -444,7 +444,7 @@ function render() {
   const rows = regTeams.map(t => ({ t, r: CUR[t.id], b: BASE[t.id] }))
     .sort((x, y) => x.r.avgSeed - y.r.avgSeed);
   const seedCols = Math.min(regTeams.length, Math.max(nin, 4));
-  const showBye = nbye > 0 && nbye < nin;
+  const showBye = nbye > 0 && nbye < nin;   // table column only
 
   let hero = '';
   if (myTeam) {
@@ -454,8 +454,9 @@ function render() {
       <div class="hero-team">${logo(t)}<div><div class="nm">${esc(t.school_name)}</div><div class="rec">${record(t.id)} · ${esc(region)}</div></div></div>
       <div class="tiles">
         <div class="tile"><div class="k">Makes playoffs</div><div class="v ${cls(r.in, b.in)}">${pctFull(r.in)}</div><div class="d">${nPicks ? 'was ' + pctFull(b.in) : 'no picks yet'}</div></div>
-        ${showBye ? `<div class="tile"><div class="k">First-round bye</div><div class="v ${cls(r.bye, b.bye)}">${pctFull(r.bye)}</div><div class="d">${nPicks ? 'was ' + pctFull(b.bye) : '&nbsp;'}</div></div>`
-                  : `<div class="tile"><div class="k">Top seed</div><div class="v ${cls(r.seeds[0], b.seeds[0])}">${pctFull(r.seeds[0])}</div><div class="d">${nPicks ? 'was ' + pctFull(b.seeds[0]) : '&nbsp;'}</div></div>`}
+        ${(() => { const ms = milestone(myTeam); return ms.text
+          ? `<div class="tile"><div class="k">${ms.label}</div><div class="v">${ms.text} seed</div><div class="d">${pctFull(ms.cur)} of sims</div></div>`
+          : `<div class="tile"><div class="k">${ms.label}</div><div class="v ${cls(ms.cur, ms.was)}">${pctFull(ms.cur)}</div><div class="d">${nPicks ? 'was ' + pctFull(ms.was) : '&nbsp;'}</div></div>`; })()}
         <div class="tile"><div class="k">Most likely seed</div><div class="v">#${best + 1}</div><div class="d">${pctFull(r.seeds[best])} of sims</div></div>
       </div></div>`;
   }
@@ -496,6 +497,26 @@ function render() {
     renderGamesOnly();
   };
 }
+// The "next goal" for a team, picked from its own region's bracket: top seed
+// if it's in play, else a bye (where only some teams get one), else hosting a
+// first-round game, else the best seed it reaches at all. A 0.0% top-seed tile
+// tells a 0-5 team nothing.
+function milestone(id) {
+  const r = CUR[id], b = BASE[id];
+  const sl = M.slots[region] || {}; const nin = sl.in ?? M.regions[region].length; const nbye = sl.bye ?? 0;
+  const topK = (x, k) => x.seeds.slice(0, k).reduce((a, v) => a + v, 0);
+  const opts = [{ label: 'Top seed', k: 1 }];
+  if (nbye > 1 && nbye < nin) opts.push({ label: 'First-round bye', k: nbye });
+  const host = Math.floor(nin / 2);
+  if (host > 1 && host !== nbye) opts.push({ label: 'Home playoff game', k: host });
+  for (const o of opts) {
+    const cur = topK(r, o.k), was = topK(b, o.k);
+    if (Math.max(cur, was) >= 0.05) return { label: o.label, cur, was };
+  }
+  const best = r.seeds.findIndex(v => v >= 0.005);
+  return { label: 'Best case', text: best >= 0 ? `#${best + 1}` : '—', cur: best >= 0 ? r.seeds[best] : 0 };
+}
+
 const cls = (now, was) => now - was > 0.005 ? 'up' : was - now > 0.005 ? 'down' : '';
 
 function renderGamesOnly() { const g = $('games'); if (g) g.innerHTML = gamesHtml(); }
@@ -634,20 +655,20 @@ async function drawCard() {
     if (tl) { const s = 110; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
               ctx.drawImage(tl, tx, y + 30, s, s); ctx.restore(); tx += s + 24; }
     ctx.fillStyle = '#fff'; fitText(ctx, t.school_name.toUpperCase(), tx, y + 100, px + pw - 36 - tx, 700, 76);
-    ctx.font = FC(600,30); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillText(`CURRENTLY ${record(t.id)}`, tx, y + 138);
+    ctx.font = FC(600,30); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillText(`CURRENTLY ${record(t.id)}`, tx, y + 134);
     const best = r.seeds.reduce((bi, v, i, a) => v > a[bi] ? i : bi, 0);
-    const stats = [['PLAYOFFS', r.in, b.in], [(M.slots[region]?.bye ?? 0) && (M.slots[region].bye < M.slots[region].in) ? 'BYE' : 'TOP SEED',
-                   (M.slots[region]?.bye ?? 0) && (M.slots[region].bye < M.slots[region].in) ? r.bye : r.seeds[0],
-                   (M.slots[region]?.bye ?? 0) && (M.slots[region].bye < M.slots[region].in) ? b.bye : b.seeds[0]],
+    const ms = milestone(myTeam);
+    const stats = [['PLAYOFFS', r.in, b.in],
+                   ms.text ? [ms.label.toUpperCase(), null, null, `${ms.text} SEED`] : [ms.label.toUpperCase(), ms.cur, ms.was],
                    [`#${best + 1} SEED`, r.seeds[best], b.seeds[best]]];
     const cw = (pw - 72) / 3;
-    stats.forEach(([k, v, was], i) => {
+    stats.forEach(([k, v, was, text], i) => {
       const sx = px + 36 + i * cw;
-      ctx.fillStyle = '#fff'; fitText(ctx, pctFull(v), sx, y + 245, cw - 20, 800, 88);
-      ctx.font = FC(700,26); ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillText(k, sx, y + 168);
-      if (lines.length && Math.abs(v - was) >= .005) {
+      ctx.fillStyle = '#fff'; fitText(ctx, text || pctFull(v), sx, y + 252, cw - 20, 800, 88);
+      ctx.font = FC(700,26); ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillText(k, sx, y + 176);
+      if (!text && lines.length && Math.abs(v - was) >= .005) {
         ctx.font = FC(600,26); ctx.fillStyle = v > was ? '#7ee2a0' : '#ff8f8f';
-        ctx.fillText(`${v > was ? '▲' : '▼'} from ${pctFull(was)}`, sx, y + 280);
+        ctx.fillText(`${v > was ? "▲" : "▼"} from ${pctFull(was)}`, sx, y + 286);
       }
     });
     y += 324;

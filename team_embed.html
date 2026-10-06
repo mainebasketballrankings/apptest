@@ -453,6 +453,21 @@ async function load() {
     ]);
     const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
 
+    // Football: games live-scored in Sport ScoreKeepers have player stats
+    // (player_final_stats events) even when no box score was imported, so the
+    // schedule's 📊 should light up for those too.
+    const FB_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+    let liveStatGames = new Set();
+    if (team.sport_id === FB_SPORT_ID) {
+      const finIds = (games || []).filter(g => g.status === 'final').map(g => g.id);
+      if (finIds.length) {
+        try {
+          const ev = await sb(`game_events?event_type=eq.player_final_stats&game_id=in.(${finIds.join(',')})&select=game_id&limit=5000`);
+          liveStatGames = new Set((ev || []).map(e => e.game_id));
+        } catch (x) { console.warn('football stat flags', x); }
+      }
+    }
+
     // Class has to be resolved here rather than further down, because regEnd
     // depends on it and the Heal Points queries below depend on regEnd.
     const myClass   = classData[0];
@@ -857,7 +872,7 @@ async function load() {
         </td>
         <td class="sc ${won?'w':lost?'l':''}">
           <span class="rbadge ${res==='W'?'W':res==='L'?'L':''}">${res}</span> ${scoreTxt}
-          ${fin && isSpring ? (g.stats_uploaded
+          ${fin && (isSpring || team.sport_id === FB_SPORT_ID) ? ((g.stats_uploaded || liveStatGames.has(g.id))
             ? `<a class="stats-pill uploaded" href="game.html?game_id=${g.id}" title="View box score">📊</a>`
             : `<a class="stats-pill pending" href="boxscore-import.html" title="Import box score stats">+ Stats</a>`
           ) : ''}

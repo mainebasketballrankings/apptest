@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Maine Basketball Rankings Baseball Scorer"/>
 <meta name="theme-color" content="#0f1117"/>
 <script src="mbr-core.js?v=15"></script>
+<script src="mbr-pro.js?v=1"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -1270,6 +1271,7 @@ function applyTeamParam(){
 }
 function pickMyTeam(side, id){
   const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;
+  if(window.MBRPro && !MBRPro.require('teams')) return;   // saved teams are Pro (app only)
   document.getElementById(`${side}NameInp`).value=t.school_name;
   if(side==='home') G_home_team_id=t.id; else G_away_team_id=t.id;   // reuse, never recreate
   loadOwnedRoster(side, t.roster||[]);
@@ -3426,23 +3428,39 @@ function buildBoxScore(){
 // ═══════════════════════════════════════════════
 // PDF GAME REPORT
 // ═══════════════════════════════════════════════
-async function loadImgBase64(url){
-  if(!url) return null;
+// R2 public URLs show fine in <img> but send no CORS headers, so a canvas
+// can't read them and the PDF silently loses every image. Fetch through the
+// img-proxy edge function (adds CORS), fall back to a direct fetch, then
+// re-encode as PNG so jsPDF always gets the format it's told.
+async function _imgDataUrl(url){
+  async function load(u, hdrs){
+    const r = await fetch(u, hdrs ? {headers:hdrs} : undefined); if(!r.ok) return null;
+    const b = await r.blob();
+    return await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>res(null); fr.readAsDataURL(b); });
+  }
+  try{ const d = await load(`${SB_URL}/functions/v1/img-proxy?url=${encodeURIComponent(url)}`, {apikey:SB_KEY}); if(d) return d; }catch(e){}
+  try{ return await load(url); }catch(e){ return null; }
+}
+async function _imgToPng(dataUrl){
+  if(!dataUrl) return null;
   return await new Promise(resolve=>{
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
+        const c=document.createElement('canvas');
+        c.width=img.naturalWidth; c.height=img.naturalHeight;
+        c.getContext('2d').drawImage(img,0,0);
+        resolve({data:c.toDataURL('image/png'), w:img.naturalWidth, h:img.naturalHeight});
       } catch(e){ resolve(null); }
     };
     img.onerror = () => resolve(null);
-    img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    img.src = dataUrl;
   });
+}
+async function loadImgBase64(url){
+  if(!url) return null;
+  const p = await _imgToPng(await _imgDataUrl(url));
+  return p ? p.data : null;
 }
 
 // Ask the backend to email this game's report to matching subscribers (deduped
@@ -3451,11 +3469,14 @@ async function loadImgBase64(url){
 
 
 async function generatePDF({ returnBlob = false } = {}){
+  // Reports on your own games are Pro; Maine schedule games stay free. The
+  // background upload (returnBlob) is not a report the user sees, so it isn't gated.
+  if(!returnBlob && window.MBRPro && !(await MBRPro.allowReport(G_game_id))) return;
   const { jsPDF } = window.jspdf;
 
   // Fetch logos by school name if not already stored on G.teams
   async function getLogoUrl(team){
-    if(window.MBR && MBR.schoolLogos===false) return null;  // app build: no school marks (4.1(a))
+    if(window.MBR && MBR.schoolLogos===false && !returnBlob) return null;  // app: no school marks in-app (4.1(a)); website upload keeps them
     if(team.logo_url) return team.logo_url;
     try {
       const sportId = G.sport==='softball'?'095c9841-7261-4cb1-824e-6304792b53d0':'c87a4d6c-a471-47e1-b6a0-d1643d942bf0';

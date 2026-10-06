@@ -17,6 +17,7 @@
   }
 </script>
 <script src="mbr-core.js?v=15"></script>
+<script src="mbr-pro.js?v=1"></script>
 <script>
 // Current season under the shared Aug-15 rule. Rosters are stored per season, so
 // player lookups try the current season first and then fall back to unfiltered —
@@ -3156,6 +3157,7 @@ function applyTeamParam(){
 }
 function pickMyTeam(side, id){
   const t=MY_TEAMS.find(x=>x.id===id); if(!t) return;
+  if(window.MBRPro && !MBRPro.require('teams')) return;   // saved teams are Pro (app only)
   suSetMode('new');
   document.getElementById(`su-${side}-name`).value=t.school_name;
   document.getElementById(`su-${side}-short`).value=shortFor(t.school_name);
@@ -3473,6 +3475,7 @@ function quarterBreakdown(side){
 
 // ── CSV ───────────────────────────────────────────────────────
 function generateCSV(){
+  if(window.MBRPro && MBRPro.reportBlocked(G_game_id)) return;   // same answer the PDF just got
   const qs=qtrScores();
   const rows=[];
   const hdr=(t)=>rows.push([t]);
@@ -3541,6 +3544,9 @@ function generateCSV(){
 
 // ── PDF ───────────────────────────────────────────────────────
 async function generatePDF(opts={}){
+  // Reports on your own games are Pro; Maine schedule games stay free. The
+  // background upload (returnBlob) is not a report the user sees, so it isn't gated.
+  if(!opts.returnBlob && window.MBRPro && !(await MBRPro.allowReport(G_game_id))) return;
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'letter'});
   const PW=279.4,PH=215.9;
@@ -3575,7 +3581,7 @@ async function generatePDF(opts={}){
   let siteLogo=null,homeLogo=null,awayLogo=null;
   try{ siteLogo=await imgData(SITE_LOGO_URL); }catch(e){}
   try{
-    if((G_home_team_id||G_away_team_id) && !(window.MBR && MBR.schoolLogos===false)){
+    if((G_home_team_id||G_away_team_id) && !(window.MBR && MBR.schoolLogos===false && !opts.returnBlob)){  // website upload keeps logos; in-app report doesn't (4.1(a))
       const rows=await sbFetch(`teams?or=(id.eq.${G_home_team_id},id.eq.${G_away_team_id})&select=id,logo_url`);
       if(Array.isArray(rows)){
         const hm=rows.find(r=>r.id===G_home_team_id), aw=rows.find(r=>r.id===G_away_team_id);

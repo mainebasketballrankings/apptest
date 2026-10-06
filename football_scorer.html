@@ -3298,11 +3298,23 @@ function addScore(side, pts){
 // ═══════════════════════════════════════════════
 // PDF GAME REPORT
 // ═══════════════════════════════════════════════
-async function loadImgBase64(url){
-  if(!url) return null;
+// R2 public URLs show fine in <img> but send no CORS headers, so a canvas
+// can't read them and the PDF silently loses every image. Fetch through the
+// img-proxy edge function (adds CORS), fall back to a direct fetch, then
+// re-encode as PNG so jsPDF always gets the format it's told.
+async function _imgDataUrl(url){
+  async function load(u, hdrs){
+    const r = await fetch(u, hdrs ? {headers:hdrs} : undefined); if(!r.ok) return null;
+    const b = await r.blob();
+    return await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>res(null); fr.readAsDataURL(b); });
+  }
+  try{ const d = await load(`${SB_URL}/functions/v1/img-proxy?url=${encodeURIComponent(url)}`, {apikey:SB_KEY}); if(d) return d; }catch(e){}
+  try{ return await load(url); }catch(e){ return null; }
+}
+async function _imgToPng(dataUrl){
+  if(!dataUrl) return null;
   return await new Promise(resolve=>{
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
         const c=document.createElement('canvas');
@@ -3312,13 +3324,19 @@ async function loadImgBase64(url){
       } catch(e){ resolve(null); }
     };
     img.onerror = () => resolve(null);
-    img.src = url + (url.includes('?')?'&':'?') + '_t=' + Date.now();
+    img.src = dataUrl;
   });
 }
+async function loadImgBase64(url){
+  if(!url) return null;
+  return await _imgToPng(await _imgDataUrl(url));
+}
 // Fetch team logo URLs from the DB when we have team ids (rewrite Cloudinary->R2).
-async function fetchTeamLogos(){
+async function fetchTeamLogos(forUpload){
   const out={away:null,home:null};
-  if(window.MBR && MBR.schoolLogos===false) return out;   // app build: no school marks (4.1(a))
+  // App build: no school marks on anything shown in the app (4.1(a)). The silent
+  // website upload (forUpload) is never displayed in the app, so it keeps them.
+  if(window.MBR && MBR.schoolLogos===false && !forUpload) return out;
   try{
     const ids=[G_away_team_id,G_home_team_id].filter(Boolean);
     if(!ids.length){ console.warn('[logos] no team ids set — away:',G_away_team_id,'home:',G_home_team_id); return out; }
@@ -3370,7 +3388,7 @@ async function generatePDF(opts={}){
   doc.setDrawColor(210); doc.setLineWidth(.5); doc.line(ML,y,ML+CW,y); y+=12;
 
   // ── TEAMS + SCORE with logos ──
-  const logos = await fetchTeamLogos();
+  const logos = await fetchTeamLogos(!!opts.returnBlob);
   const aLogo = logos.away ? await loadImgBase64(logos.away) : null;
   const hLogo = logos.home ? await loadImgBase64(logos.home) : null;
   const lsz=44, gap=10;

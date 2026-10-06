@@ -630,11 +630,7 @@ async function drawCard() {
   // dark halo (two passes: a tight edge and a wider glow).
   if (ml) {
     const h = 150, w = ml.width / ml.height * h;
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 8;
-    ctx.drawImage(ml, 56, 40, w, h); ctx.drawImage(ml, 56, 40, w, h);
-    ctx.shadowColor = 'rgba(0,0,0,.95)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2; ctx.drawImage(ml, 56, 40, w, h);
-    ctx.restore();
+    drawOutlined(ctx, ml, 56, 40, w, h, 5, '#fff');
   }
   ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
   fitText(ctx, 'MAINE BASKETBALL RANKINGS', 185, 104, W - 185 - 56, 700, 62);
@@ -652,8 +648,16 @@ async function drawCard() {
     const t = BY_ID.get(myTeam);
     const tl = await proxiedLogo(t.logo_url);
     let tx = px + 36;
-    if (tl) { const s = 110; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
-              ctx.drawImage(tl, tx, y + 30, s, s); ctx.restore(); tx += s + 24; }
+    if (tl) {
+      // White disc behind the school logo: dark or red marks vanish on the
+      // dark panel otherwise (Camden Hills), and every logo is drawn for white.
+      const d = 118, cx = tx + d / 2, cy = y + 22 + d / 2;
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4;
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, d / 2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      const inner = d * 0.78, sc = Math.min(inner / tl.width, inner / tl.height);
+      ctx.drawImage(tl, cx - tl.width * sc / 2, cy - tl.height * sc / 2, tl.width * sc, tl.height * sc);
+      tx += d + 26;
+    }
     ctx.fillStyle = '#fff'; fitText(ctx, t.school_name.toUpperCase(), tx, y + 100, px + pw - 36 - tx, 700, 76);
     ctx.font = FC(600,30); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillText(`CURRENTLY ${record(t.id)}`, tx, y + 134);
     const best = r.seeds.reduce((bi, v, i, a) => v > a[bi] ? i : bi, 0);
@@ -716,6 +720,23 @@ function fitText(ctx, txt, x, y, max, w, px, cond = true) {
   let size = px;
   do { ctx.font = cond ? FC(w, size) : FB(w, size); } while (ctx.measureText(txt).width > max && --size > 12);
   ctx.fillText(txt, x, y);
+}
+// Image with a solid outline: stamp a one-colour silhouette around it, then
+// the image on top.
+function drawOutlined(ctx, img, x, y, w, h, r, color) {
+  const pad = r + 2, c = document.createElement('canvas');
+  c.width = Math.ceil(w + pad * 2); c.height = Math.ceil(h + pad * 2);
+  const g = c.getContext('2d');
+  g.drawImage(img, pad, pad, w, h);
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4;
+  for (let a = 0; a < 360; a += 15) {
+    const dx = Math.cos(a * Math.PI / 180) * r, dy = Math.sin(a * Math.PI / 180) * r;
+    ctx.drawImage(c, x - pad + dx, y - pad + dy);
+    if (a === 0) { ctx.shadowColor = 'transparent'; }
+  }
+  ctx.restore();
+  ctx.drawImage(img, x, y, w, h);
 }
 function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function clip(ctx, s, max) { if (ctx.measureText(s).width <= max) return s; while (s.length && ctx.measureText(s + '…').width > max) s = s.slice(0, -1); return s + '…'; }

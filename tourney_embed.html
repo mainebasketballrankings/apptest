@@ -196,7 +196,7 @@
 <body>
 <div class="page">
   <h1 class="page-title">Gold Ball Odds</h1>
-  <p class="page-sub">10,000 Monte Carlo simulations · Click any team for W-L breakdown</p>
+  <p class="page-sub">10,000 Monte Carlo simulations · Click any team for W-L breakdown<span id="updatedAt"></span></p>
 
   <div class="sport-tabs" id="sportTabs">
     <button class="sport-tab active" data-sport="soccer">Soccer</button>
@@ -345,6 +345,7 @@ document.getElementById('seasonSel').addEventListener('change', e => {
 async function loadData() {
   const myVersion = ++_loadVersion;
   document.getElementById('tblWrap').innerHTML = '<div class="state-msg"><span class="spinner"></span>Loading…</div>';
+  document.getElementById('updatedAt').textContent = '';
   document.getElementById('regionRow').innerHTML = '';
   document.getElementById('simBadge').textContent = '';
 
@@ -390,6 +391,19 @@ async function loadData() {
   const snapMap = {};
   for (const s of snaps) {
     if (!snapMap[s.team_id]) snapMap[s.team_id] = s;
+  }
+
+  // "Updated …": the nightly run stamps the odds with its run time (as_of);
+  // older rows only have the snapshot date.
+  {
+    const stamps = snaps.map(s => s.tournament_odds?.as_of).filter(Boolean).sort();
+    const el = document.getElementById('updatedAt');
+    if (stamps.length) {
+      const d = new Date(stamps[stamps.length - 1]);
+      el.textContent = ' · Updated ' + d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } else if (latestSnapDate) {
+      el.textContent = ' · Updated ' + new Date(latestSnapDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
   }
 
   // Detect tournament mode: new format has play_in key, old has bye/playoff

@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta property="og:site_name" content="Maine Basketball Rankings" />
 <meta property="og:title" content="Playoff Calculator — Maine Basketball Rankings" />
+<<<<<<< HEAD
+<meta property="og:description" content="Football, soccer, field hockey and volleyball: pick the winners, simulate the rest, see what it means for the playoff race." />
+=======
 <meta property="og:description" content="Pick the winners, simulate the rest. See what it means for the playoff race." />
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMHHJT0QX2"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-LMHHJT0QX2');</script>
 <title>Playoff Calculator</title>
@@ -27,6 +31,16 @@
   .title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;line-height:1.05}
   .sub{font-size:14px;color:var(--lgray);margin:2px 0 18px}
 
+<<<<<<< HEAD
+  .sport-row{display:flex;gap:18px;flex-wrap:wrap;margin:-6px 0 14px;border-bottom:1px solid var(--border)}
+  .sport-row:empty{display:none}
+  .sport-btn{background:none;border:none;border-bottom:3px solid transparent;color:var(--lgray);cursor:pointer;
+    font:700 15px 'Barlow Condensed',sans-serif;letter-spacing:.04em;padding:6px 0 7px;text-transform:uppercase;margin-bottom:-1px}
+  .sport-btn:hover{color:var(--ink)}
+  .sport-btn.active{color:var(--ink);border-bottom-color:var(--ink)}
+  .updated{font:600 11px 'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--lgray)}
+=======
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   .region-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
   .region-btn{background:#fff;border:1.5px solid var(--border);border-radius:6px;color:var(--gray);cursor:pointer;
     font:700 12px 'Barlow Condensed',sans-serif;letter-spacing:.04em;padding:5px 12px;text-transform:uppercase}
@@ -116,14 +130,24 @@
 <body>
 <div class="page">
   <div class="title">Playoff Calculator</div>
+<<<<<<< HEAD
+  <p class="sub"><span id="sportLbl">Football</span> · Pick the winners you want, we simulate everything else 10,000 times.</p>
+
+  <div class="sport-row" id="sportRow"></div>
+=======
   <p class="sub">Football · Pick the winners you want, we simulate everything else 10,000 times.</p>
 
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   <div class="region-row" id="regionRow"></div>
 
   <div class="bar">
     <label for="teamSel">Your team</label>
     <select id="teamSel"><option value="">— none —</option></select>
     <span class="spacer"></span>
+<<<<<<< HEAD
+    <span class="updated" id="updated"></span>
+=======
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
     <button class="btn ghost" id="clearBtn" disabled>Clear picks</button>
     <button class="btn" id="shareBtn" disabled>Share</button>
   </div>
@@ -150,6 +174,34 @@
 </div>
 
 <script>
+<<<<<<< HEAD
+// ═══ Playoff calculator engine ═════════════════════════════════════════════
+// A port of simulate_fall.py, both ranking systems:
+//
+//   Crabtree (football)
+//     crabtree = (own win% + opponents' combined win%) * 100
+//     one entry per meeting, NH opponents padded with their known out-of-state
+//     record plus coin flips for the rest of their season.
+//
+//   Heal points (soccer, field hockey, volleyball)
+//     PI   = win points earned (by the beaten team's class) / max(scheduled, 12)
+//            — a team with no wins gets PI 1
+//     Heal = sum of beaten opponents' PI / max(scheduled, 12) * 10
+//     A tie is half a win: half the points, half the opponent's PI. Same maths
+//     as the site's Heal page and mbr_compute_heals().
+//
+// Each sim ranks every region; top IN make it, top BYE get a bye. Picks simply
+// pin a game's home-win probability to 1 or 0.
+const PCEngine = (() => {
+
+  // MPA win points by the beaten team's class (mbr_win_pts in Supabase).
+  const WIN_PTS = { A: 40, B: 38, C: 36, D: 34, S: 32, '8': 30 };
+
+  // cfg.regions (from the nightly run's workbook) wins over the teams table,
+  // so the calculator ranks exactly the races the Tourney Odds page does.
+  function regionKey(t, cfg) {
+    if (cfg && cfg.regions) return cfg.regions[t.school_name] || null;
+=======
 // ═══ Playoff calculator engine (football / Crabtree) ═══════════════════════
 // A line-for-line port of simulate_fall.py's football path:
 //   crabtree = (own win% + opponents' combined win%) * 100
@@ -160,11 +212,16 @@
 const PCEngine = (() => {
 
   function regionKey(t) {
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
     const c = (t.team_class || '').trim();
     if (!c || c === 'ALL') return null;
     const cls = c.replace(/^8\s*(Large|Small)$/i, (m, s) => '8 ' + s[0].toUpperCase() + s.slice(1).toLowerCase());
     return t.team_region ? `${cls} ${t.team_region}` : cls;
   }
+<<<<<<< HEAD
+  const classOf = region => String(region || '').split(' ')[0];
+=======
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 
   // Deterministic RNG so the same picks always give the same numbers (and a
   // shared link shows exactly what the sharer saw).
@@ -177,14 +234,38 @@ const PCEngine = (() => {
     };
   }
 
+<<<<<<< HEAD
+  // teams:  [{id, school_name, team_class, team_region}]
+  // games:  [{id, home_team_id, away_team_id, status, home_score, away_score, win_prob, game_date}]
+  // cfg:    {slots: {region: {in, bye}}, regions?, nh_total?, nh?}
+  // system: 'crabtree' | 'heal'
+  function build(teams, games, cfg, system = 'crabtree') {
+    const heal = system === 'heal';
+=======
   // teams: [{id, school_name, team_class, team_region}]
   // games: [{id, home_team_id, away_team_id, status, home_score, away_score, win_prob}]
   // cfg:   {slots: {region: {in, bye}}, nh_total, nh: {name: {wins, losses}}}
   function build(teams, games, cfg) {
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
     const byId = new Map(teams.map(t => [t.id, t]));
     const idx = new Map(); const list = [];
     const add = id => { if (!idx.has(id)) { idx.set(id, list.length); list.push(byId.get(id)); } return idx.get(id); };
 
+<<<<<<< HEAD
+    games = games.filter(g => g.status !== 'cancelled' && byId.has(g.home_team_id) && byId.has(g.away_team_id));
+    let ranked = new Set(teams.filter(t => regionKey(t, cfg)).map(t => t.id));
+    // Crabtree keeps games against out-of-state teams that play a ranked team
+    // (their record feeds the Maine team's opponents' win%). Heal only counts
+    // games between two classed teams, exactly like the nightly run.
+    const usable = games.filter(g => heal
+      ? ranked.has(g.home_team_id) && ranked.has(g.away_team_id)
+      : ranked.has(g.home_team_id) || ranked.has(g.away_team_id));
+    // A team with no games left in the data isn't in the race (the nightly
+    // run drops it too).
+    const active = new Set(usable.flatMap(g => [g.home_team_id, g.away_team_id]));
+    ranked = new Set([...ranked].filter(id => active.has(id)));
+
+=======
     const ranked = new Set(teams.filter(t => regionKey(t)).map(t => t.id));
     // Same filter as the Python: games between known teams, plus games against
     // out-of-state teams that play a known team. User-created placeholder teams
@@ -193,28 +274,81 @@ const PCEngine = (() => {
       && (ranked.has(g.home_team_id) || ranked.has(g.away_team_id)));
 
     // Fix the team order so ranked teams come first in a stable order.
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
     teams.filter(t => ranked.has(t.id)).forEach(t => add(t.id));
     usable.forEach(g => { add(g.home_team_id); add(g.away_team_id); });
     const N = list.length;
 
+<<<<<<< HEAD
+    // Heal's denominator is each team's own schedule length (min 12),
+    // counting every game on it — including ones against unclassed teams.
+    const den = new Float64Array(N).fill(12);
+    if (heal) {
+      const cnt = new Map();
+      for (const g of games) for (const id of [g.home_team_id, g.away_team_id]) cnt.set(id, (cnt.get(id) || 0) + 1);
+      for (let i = 0; i < N; i++) den[i] = Math.max(cnt.get(list[i].id) || 0, 12);
+    }
+    const pts = new Float64Array(N);
+    for (let i = 0; i < N; i++) pts[i] = WIN_PTS[classOf(regionKey(list[i], cfg))] ?? 36;
+
+    const baseW = new Float64Array(N), baseL = new Float64Array(N), baseT = new Float64Array(N), played = new Float64Array(N);
+    const opps = Array.from({ length: N }, () => []);
+    const doneH = [], doneA = [], doneC = [], sched = [];
+=======
     const baseW = new Float64Array(N), baseL = new Float64Array(N), played = new Float64Array(N);
     const opps = Array.from({ length: N }, () => []);
     const done = [], sched = [];
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
     for (const g of usable) {
       const h = idx.get(g.home_team_id), a = idx.get(g.away_team_id);
       opps[h].push(a); opps[a].push(h);
       played[h]++; played[a]++;
       const final = g.status === 'final' && g.home_score != null && g.away_score != null;
       if (final) {
+<<<<<<< HEAD
+        const hs = +g.home_score, as = +g.away_score;
+        const c = hs > as ? 1 : hs < as ? 0 : 0.5;          // home credit; a tie is half a win
+        if (c === 1) { baseW[h]++; baseL[a]++; } else if (c === 0) { baseW[a]++; baseL[h]++; } else { baseT[h]++; baseT[a]++; }
+        doneH.push(h); doneA.push(a); doneC.push(c);
+=======
         const hw = +g.home_score > +g.away_score;          // matches the Python (tie = away)
         if (hw) { baseW[h]++; baseL[a]++; } else { baseW[a]++; baseL[h]++; }
         done.push(g.id);
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
       } else {
         const p = g.win_prob == null || isNaN(+g.win_prob) ? 0.5 : Math.min(1, Math.max(0, +g.win_prob));
         sched.push({ id: g.id, h, a, p, date: g.game_date });
       }
     }
 
+<<<<<<< HEAD
+    // Out-of-state padding (Crabtree only)
+    const nh = [];
+    if (!heal) {
+      const vsMaine = new Map();
+      for (const g of usable) for (const [x, y] of [[g.home_team_id, g.away_team_id], [g.away_team_id, g.home_team_id]])
+        if (!ranked.has(x) && ranked.has(y)) vsMaine.set(x, (vsMaine.get(x) || 0) + 1);
+      const nhTotal = cfg.nh_total || 9;
+      for (const [name, rec] of Object.entries(cfg.nh || {})) {
+        const t = teams.find(x => x.school_name === name);
+        if (!t || !vsMaine.has(t.id)) continue;
+        const kw = +rec.wins || 0, known = kw + (+rec.losses || 0);
+        const unknown = Math.max(0, nhTotal - vsMaine.get(t.id) - known);
+        const i = idx.get(t.id);
+        baseW[i] += kw; played[i] += known + unknown;
+        nh.push({ i, unknown });
+      }
+    }
+
+    const rankedIdx = list.map((t, i) => ranked.has(t.id) ? i : -1).filter(i => i >= 0);
+    const regionOf = new Map(rankedIdx.map(i => [i, regionKey(list[i], cfg)]));
+    const regions = {};
+    for (const i of rankedIdx) (regions[regionOf.get(i)] ||= []).push(i);
+
+    return { system, list, idx, N, baseW, baseL, baseT, played, opps, sched, nh, rankedIdx, regionOf, regions,
+             den, pts, done: { h: Int32Array.from(doneH), a: Int32Array.from(doneA), c: Float64Array.from(doneC) },
+             slots: cfg.slots || {}, completed: doneH.length };
+=======
     // Out-of-state padding
     const nh = [];
     const vsMaine = new Map();
@@ -238,11 +372,38 @@ const PCEngine = (() => {
 
     return { list, idx, N, baseW, baseL, played, opps, sched, nh, rankedIdx, regionOf, regions,
              slots: cfg.slots || {}, completed: done.length };
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   }
 
   // picks: {gameId: 'h' | 'a'}
   function run(m, picks = {}, nSims = 10000, seed = 2027) {
     const rnd = mulberry32(seed);
+<<<<<<< HEAD
+    const { N, baseW, baseL, baseT, played, opps, sched, nh, rankedIdx, regions, slots, den, pts, done } = m;
+    const heal = m.system === 'heal';
+    const S = sched.length, D = done.h.length;
+    const prob = new Float64Array(S);
+    sched.forEach((g, k) => prob[k] = picks[g.id] === 'h' ? 1 : picks[g.id] === 'a' ? 0 : g.p);
+    const sH = Int32Array.from(sched, g => g.h), sA = Int32Array.from(sched, g => g.a);
+
+    const rankCount = new Float64Array(N * 20);
+    const inCount = new Float64Array(N), byeCount = new Float64Array(N), ratingSum = new Float64Array(N);
+    const wl = new Map(rankedIdx.map(i => [i, new Map()]));
+    const W = new Float64Array(N), L = new Float64Array(N), rating = new Float64Array(N);
+    const draw = new Float64Array(S);
+    // Region arrays are re-sorted in place each sim; a stable sort from the
+    // same starting order every time keeps tie-breaks identical to before.
+    const regList = Object.keys(regions);
+    const regBase = regList.map(r => regions[r].slice()), regArr = regBase.map(a => a.slice());
+    const regIn = regList.map((r, i) => (slots[r] || {}).in ?? regBase[i].length);
+    const regBye = regList.map(r => (slots[r] || {}).bye ?? 0);
+    const byRating = (x, y) => rating[y] - rating[x];                     // this sim's home credit per scheduled game
+    const prelim = new Float64Array(N), pi = new Float64Array(N), hs = new Float64Array(N);
+    // Win points from finished games never change between sims.
+    const basePrelim = new Float64Array(N);
+    for (let k = 0; k < D; k++) { const h = done.h[k], a = done.a[k], c = done.c[k];
+      if (c > 0) basePrelim[h] += pts[a] * c; if (c < 1) basePrelim[a] += pts[h] * (1 - c); }
+=======
     const { N, baseW, baseL, played, opps, sched, nh, rankedIdx, regions, slots } = m;
     const S = sched.length;
     const prob = new Float64Array(S);
@@ -252,10 +413,51 @@ const PCEngine = (() => {
     const inCount = new Float64Array(N), byeCount = new Float64Array(N), ratingSum = new Float64Array(N);
     const wl = new Map(rankedIdx.map(i => [i, new Map()]));
     const W = new Float64Array(N), L = new Float64Array(N), crab = new Float64Array(N);
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 
     for (let s = 0; s < nSims; s++) {
       W.set(baseW); L.set(baseL);
       for (let k = 0; k < S; k++) {
+<<<<<<< HEAD
+        if (rnd() < prob[k]) { draw[k] = 1; W[sH[k]]++; L[sA[k]]++; } else { draw[k] = 0; W[sA[k]]++; L[sH[k]]++; }
+      }
+
+      if (heal) {
+        prelim.set(basePrelim); hs.fill(0);
+        for (let k = 0; k < S; k++) { if (draw[k]) prelim[sH[k]] += pts[sA[k]]; else prelim[sA[k]] += pts[sH[k]]; }
+        for (let i = 0; i < N; i++) pi[i] = prelim[i] > 0 ? prelim[i] / den[i] : 1;
+        for (let k = 0; k < D; k++) { const h = done.h[k], a = done.a[k], c = done.c[k];
+          if (c > 0) hs[h] += pi[a] * c; if (c < 1) hs[a] += pi[h] * (1 - c); }
+        for (let k = 0; k < S; k++) { if (draw[k]) hs[sH[k]] += pi[sA[k]]; else hs[sA[k]] += pi[sH[k]]; }
+        for (const t of rankedIdx) rating[t] = hs[t] / den[t] * 10;
+      } else {
+        for (const n of nh) {
+          let f = 0; for (let u = 0; u < n.unknown; u++) if (rnd() < 0.5) f++;
+          W[n.i] += f;
+        }
+        // a tie is half a win in the win%
+        for (const t of rankedIdx) {
+          const p = played[t];
+          if (!p) { rating[t] = 0; continue; }
+          let ow = 0, op = 0;
+          for (const o of opps[t]) { ow += W[o] + baseT[o] / 2; op += played[o]; }
+          rating[t] = Math.round(((W[t] + baseT[t] / 2) / p + (op ? ow / op : 0)) * 100 * 1e4) / 1e4;
+        }
+      }
+
+      for (let gi = 0; gi < regList.length; gi++) {
+        const arr = regArr[gi]; for (let q = 0; q < arr.length; q++) arr[q] = regBase[gi][q]; arr.sort(byRating);
+        const nin = regIn[gi], nbye = regBye[gi];
+        arr.forEach((t, r) => {
+          rankCount[t * 20 + Math.min(r, 19)]++;
+          if (r < nin) inCount[t]++;
+          if (r < nbye) byeCount[t]++;
+          ratingSum[t] += rating[t];
+        });
+      }
+      for (const t of rankedIdx) {
+        const key = W[t] * 1e4 + L[t] * 100 + baseT[t];      // decoded to "W-L(-T)" below
+=======
         const g = sched[k];
         if (rnd() < prob[k]) { W[g.h]++; L[g.a]++; } else { W[g.a]++; L[g.h]++; }
       }
@@ -282,25 +484,56 @@ const PCEngine = (() => {
       }
       for (const t of rankedIdx) {
         const key = `${W[t]}-${L[t]}`;
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
         const mm = wl.get(t); mm.set(key, (mm.get(key) || 0) + 1);
       }
     }
 
     const out = {};
     for (const t of rankedIdx) {
+<<<<<<< HEAD
+      const rc = rankCount.subarray(t * 20, t * 20 + 20);
+=======
       const rc = rankCount.get(t);
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
       let avg = 0; for (let r = 0; r < 20; r++) avg += (r + 1) * rc[r];
       out[m.list[t].id] = {
         in: inCount[t] / nSims, bye: byeCount[t] / nSims,
         seeds: Array.from(rc, c => c / nSims),
         avgSeed: avg / nSims, rating: ratingSum[t] / nSims,
+<<<<<<< HEAD
+        wl: Object.fromEntries([...wl.get(t)].map(([k, v]) => {
+          const w = Math.floor(k / 1e4), l = Math.floor(k / 100) % 100, x = k % 100;
+          return [x ? `${w}-${l}-${x}` : `${w}-${l}`, v / nSims]; })),
+=======
         wl: Object.fromEntries([...wl.get(t)].map(([k, v]) => [k, v / nSims])),
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
       };
     }
     return out;
   }
 
+<<<<<<< HEAD
+  // Current rating from finished games only (no simulation) — for the table.
+  function current(m) {
+    const { N, baseW, baseT, played, opps, rankedIdx, den, pts, done } = m;
+    const out = new Float64Array(N);
+    if (m.system === 'heal') {
+      const prelim = new Float64Array(N), hs = new Float64Array(N), pi = new Float64Array(N);
+      for (let k = 0; k < done.h.length; k++) { const h = done.h[k], a = done.a[k], c = done.c[k];
+        if (c > 0) prelim[h] += pts[a] * c; if (c < 1) prelim[a] += pts[h] * (1 - c); }
+      for (let i = 0; i < N; i++) pi[i] = prelim[i] > 0 ? prelim[i] / den[i] : 1;
+      for (let k = 0; k < done.h.length; k++) { const h = done.h[k], a = done.a[k], c = done.c[k];
+        if (c > 0) hs[h] += pi[a] * c; if (c < 1) hs[a] += pi[h] * (1 - c); }
+      for (const t of rankedIdx) out[t] = hs[t] / den[t] * 10;
+    }
+    return out;
+  }
+
+  return { build, run, current, regionKey, classOf, WIN_PTS };
+=======
   return { build, run, regionKey };
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 })();
 if (typeof module !== 'undefined') module.exports = PCEngine;
 
@@ -308,7 +541,20 @@ if (typeof module !== 'undefined') module.exports = PCEngine;
 <script>
 const SB_URL = (window.MBREmbed ? MBREmbed.config.SUPABASE_URL : 'https://vtwupenqieesoktonbzg.supabase.co');
 const SB_KEY = (window.MBREmbed ? MBREmbed.config.SUPABASE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA');
+<<<<<<< HEAD
+// One calculator, every fall sport. `key` + season is the sim_config row the
+// nightly simulate_fall.py writes; a sport only shows up here once that row
+// exists, so a sport the nightly run doesn't cover yet simply has no tab.
+const SPORTS = {
+  football:     { label: 'Football',     sport_id: 'fa905ca5-f416-409b-81ac-777179ee5576', gender: null,    system: 'crabtree', rating: 'Crabtree' },
+  boys_soccer:  { label: 'Boys Soccer',  sport_id: 'ff80a695-0e78-4432-98f2-141b2b571e0e', gender: 'Boys',  system: 'heal',     rating: 'Heal points' },
+  girls_soccer: { label: 'Girls Soccer', sport_id: 'ff80a695-0e78-4432-98f2-141b2b571e0e', gender: 'Girls', system: 'heal',     rating: 'Heal points' },
+  field_hockey: { label: 'Field Hockey', sport_id: '1054869a-20d4-465f-8ca9-4bc4d2bafe1b', gender: 'Girls', system: 'heal',     rating: 'Heal points' },
+  volleyball:   { label: 'Volleyball',   sport_id: 'e26b0fcc-e661-4945-8b2d-063c37ace44f', gender: 'Girls', system: 'heal',     rating: 'Heal points' },
+};
+=======
 const SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 const SEASON   = 2027;
 const SIMS     = 10000;
 // Where shared links point. The Ghost page there must pass its query string
@@ -335,6 +581,17 @@ async function sb(path) {
 
 // ── state ────────────────────────────────────────────────────────────────
 let M, TEAMS, BY_ID, GAMES, BASE, CUR, CFG;
+<<<<<<< HEAD
+let SPORT = 'football', SP = SPORTS.football, CFG_ROWS = {}, UPDATED = null;
+const loaded = {};          // sport -> {teams, games}, so flipping tabs doesn't refetch
+// Share-card sponsor. Set it with one SQL row (no upload needed):
+//   insert into sim_config (key, value) values ('playoff_calc_sponsor',
+//     '{"name":"Acme Hardware","logo_url":"https://pub-…r2.dev/acme.png"}')
+//   on conflict (key) do update set value = excluded.value;
+// Delete the row to go back to the "Your ad here" placeholder.
+let SPONSOR = null;
+=======
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 let region = null, myTeam = '', picks = {}, view = 'region';
 let runToken = 0;
 
@@ -342,11 +599,26 @@ const shortId = id => id.replace(/-/g, '').slice(0, 8);
 
 function readShared() {
   const q = new URLSearchParams(location.search || location.hash.slice(1));
+<<<<<<< HEAD
+  return { s: q.get('s'), r: q.get('r'), t: q.get('t'), p: q.get('p') };
+=======
   return { r: q.get('r'), t: q.get('t'), p: q.get('p') };
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 }
 
 async function init() {
   try {
+<<<<<<< HEAD
+    const keys = Object.keys(SPORTS).map(k => `${k}_${SEASON}`).concat('playoff_calc_sponsor');
+    const rows = await sb(`sim_config?key=in.(${keys.join(',')})&select=key,value,updated_at`);
+    for (const r of rows) CFG_ROWS[r.key] = r;
+    SPONSOR = CFG_ROWS.playoff_calc_sponsor?.value || null;
+    const avail = Object.keys(SPORTS).filter(k => CFG_ROWS[`${k}_${SEASON}`]);
+    if (!avail.length) throw new Error('Calculator settings are missing (sim_config).');
+    const s = readShared();
+    renderSports(avail);
+    await loadSport(avail.includes(s.s) ? s.s : avail[0], s);
+=======
     const [teams, games, cfgRows] = await Promise.all([
       sb(`teams?sport_id=eq.${SPORT_ID}&active=eq.true&owner_id=is.null&select=id,school_name,team_class,team_region,logo_url`),
       sb(`games?sport_id=eq.${SPORT_ID}&season_year=eq.${SEASON}&is_tournament=eq.false&select=id,home_team_id,away_team_id,home_score,away_score,status,win_prob,game_date&order=game_date.asc`),
@@ -377,22 +649,99 @@ async function init() {
     renderRegions(regions);
     renderTeamSelect();
     await recalc();
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   } catch (e) {
     $('app').innerHTML = `<div class="state">Couldn't load the calculator. ${esc(e.message)}</div>`;
   }
 }
 
+<<<<<<< HEAD
+function renderSports(avail) {
+  $('sportRow').innerHTML = avail.length < 2 ? '' : avail.map(k =>
+    `<button class="sport-btn${k === SPORT ? ' active' : ''}" data-s="${k}">${esc(SPORTS[k].label)}</button>`).join('');
+  $('sportRow').onclick = async e => {
+    const b = e.target.closest('.sport-btn'); if (!b || b.dataset.s === SPORT) return;
+    try { await loadSport(b.dataset.s, {}); }
+    catch (err) { $('app').innerHTML = `<div class="state">Couldn't load ${esc(SPORTS[b.dataset.s].label)}. ${esc(err.message)}</div>`; }
+  };
+}
+
+async function loadSport(key, shared) {
+  SPORT = key; SP = SPORTS[key];
+  document.querySelectorAll('.sport-btn').forEach(x => x.classList.toggle('active', x.dataset.s === key));
+  $('sportLbl').textContent = SP.label;
+  picks = {}; myTeam = ''; CUR = BASE = null;
+  $('app').innerHTML = '<div class="state">Loading…</div>';
+  if (!loaded[key]) {
+    const g = SP.gender ? `&gender=eq.${SP.gender}` : '';
+    const [teams, games] = await Promise.all([
+      sb(`teams?sport_id=eq.${SP.sport_id}${g}&active=eq.true&owner_id=is.null&select=id,school_name,team_class,team_region,logo_url`),
+      sb(`games?sport_id=eq.${SP.sport_id}&season_year=eq.${SEASON}&is_tournament=eq.false&owner_id=is.null&select=id,home_team_id,away_team_id,home_score,away_score,status,win_prob,game_date,updated_at&order=game_date.asc`),
+    ]);
+    loaded[key] = { teams, games };
+  }
+  const row = CFG_ROWS[`${key}_${SEASON}`];
+  CFG = row.value;
+  // Ties in the rankings fall back to the same team order the nightly run uses.
+  const pos = new Map((CFG.order || []).map((n, i) => [n, i]));
+  TEAMS = loaded[key].teams.filter(t => t.team_class !== 'ALL' && !/^zz test/i.test(t.school_name))
+    .sort((a, b) => (pos.get(a.school_name) ?? 1e4) - (pos.get(b.school_name) ?? 1e4) || a.school_name.localeCompare(b.school_name));
+  BY_ID = new Map(TEAMS.map(t => [t.id, t]));
+  // Soccer's two genders share a sport id; keep this gender's games only.
+  GAMES = loaded[key].games.filter(g => BY_ID.has(g.home_team_id) || BY_ID.has(g.away_team_id));
+  M = PCEngine.build(TEAMS, GAMES, CFG, SP.system);
+
+  // "Updated": the newest score or schedule change we're simulating from, or
+  // the nightly settings refresh, whichever is later.
+  UPDATED = [row.updated_at, ...GAMES.map(g => g.updated_at)].filter(Boolean).sort().pop() || null;
+  $('updated').textContent = UPDATED ? 'Updated ' + fts(UPDATED) : '';
+
+  const regions = Object.keys(M.regions).sort(regionSort);
+  region = regions.includes(shared.r) ? shared.r : regions[0];
+  if (shared.t) { const t = TEAMS.find(x => shortId(x.id) === shared.t); if (t && M.idx.has(t.id) && PCEngine.regionKey(t, CFG)) { myTeam = t.id; region = PCEngine.regionKey(t, CFG); } }
+  if (shared.p) {
+    const map = new Map(M.sched.map(g => [shortId(g.id), g.id]));
+    for (const tok of shared.p.split('.')) {
+      const id = map.get(tok.slice(0, 8)); const side = tok[8];
+      if (id && (side === 'h' || side === 'a')) picks[id] = side;
+    }
+  }
+  await new Promise(r => setTimeout(r, 16));       // let "Loading…" paint
+  BASE = PCEngine.run(M, {}, SIMS);
+  renderRegions(regions);
+  renderTeamSelect();
+  await recalc();
+}
+
+// "Oct 7, 10:46 AM"
+function fts(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+// Volleyball (and football's Class C) race as a whole class: "A" reads as "Class A".
+const regionLabel = r => /^[A-Z8]$/.test(r) ? `Class ${r}` : r;
+
+=======
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 function regionSort(a, b) {
   const rank = r => { const c = r.split(' ')[0]; return ({ A: 1, B: 2, C: 3, D: 4, '8': 5 })[c[0]] ?? 9; };
   return rank(a) - rank(b) || a.localeCompare(b);
 }
 
 function renderRegions(regions) {
+<<<<<<< HEAD
+  $('regionRow').innerHTML = regions.map(r => `<button class="region-btn${r === region ? ' active' : ''}" data-r="${esc(r)}">${esc(regionLabel(r))}</button>`).join('');
+  $('regionRow').onclick = e => {
+    const b = e.target.closest('.region-btn'); if (!b) return;
+    region = b.dataset.r;
+    if (myTeam && PCEngine.regionKey(BY_ID.get(myTeam), CFG) !== region) myTeam = '';
+=======
   $('regionRow').innerHTML = regions.map(r => `<button class="region-btn${r === region ? ' active' : ''}" data-r="${esc(r)}">${esc(r)}</button>`).join('');
   $('regionRow').onclick = e => {
     const b = e.target.closest('.region-btn'); if (!b) return;
     region = b.dataset.r;
     if (myTeam && PCEngine.regionKey(BY_ID.get(myTeam)) !== region) myTeam = '';
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
     document.querySelectorAll('.region-btn').forEach(x => x.classList.toggle('active', x === b));
     renderTeamSelect(); render();
   };
@@ -408,7 +757,12 @@ function renderTeamSelect() {
 // ── records ──────────────────────────────────────────────────────────────
 function record(id) {
   const i = M.idx.get(id);
+<<<<<<< HEAD
+  // ranked teams never get out-of-state padding
+  return `${M.baseW[i]}-${M.baseL[i]}` + (M.baseT[i] ? `-${M.baseT[i]}` : '');
+=======
   return `${M.baseW[i]}-${M.baseL[i]}`;     // ranked teams never get out-of-state padding
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 }
 
 // ── recalc (debounced, chunk-free: 10k sims ≈ 0.25s) ─────────────────────
@@ -434,6 +788,10 @@ function delta(now, was, invert = false) {
 }
 
 function render() {
+<<<<<<< HEAD
+  if (!CUR || !M.regions[region]) return;      // mid sport switch
+=======
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   const nPicks = Object.keys(picks).length;
   $('clearBtn').disabled = !nPicks;
   $('shareBtn').disabled = false;
@@ -451,7 +809,11 @@ function render() {
     const t = BY_ID.get(myTeam), r = CUR[myTeam], b = BASE[myTeam];
     const best = r.seeds.reduce((bi, v, i, a) => v > a[bi] ? i : bi, 0);
     hero = `<div class="hero on">
+<<<<<<< HEAD
+      <div class="hero-team">${logo(t)}<div><div class="nm">${esc(t.school_name)}</div><div class="rec">${record(t.id)} · ${esc(regionLabel(region))}</div></div></div>
+=======
       <div class="hero-team">${logo(t)}<div><div class="nm">${esc(t.school_name)}</div><div class="rec">${record(t.id)} · ${esc(region)}</div></div></div>
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
       <div class="tiles">
         <div class="tile"><div class="k">Makes playoffs</div><div class="v ${cls(r.in, b.in)}">${pctFull(r.in)}</div><div class="d">${nPicks ? 'was ' + pctFull(b.in) : 'no picks yet'}</div></div>
         ${(() => { const ms = milestone(myTeam); return ms.text
@@ -475,9 +837,15 @@ function render() {
 
   $('app').innerHTML = `<div class="layout">
     <div class="card">
+<<<<<<< HEAD
+      <div class="card-h"><h2>${esc(regionLabel(region))} — projected</h2><span class="status" id="status">${nPicks ? nPicks + ' pick' + (nPicks > 1 ? 's' : '') : 'Current odds'}</span></div>
+      ${hero}${table}
+      <div class="note">Top ${nin} make the playoffs${nbye && nbye < nin ? `; top ${nbye} get a first-round bye` : ''}. Ranked by ${SP.rating}. Games you don't pick are simulated from our win probabilities. Arrows show the change from no picks.</div>
+=======
       <div class="card-h"><h2>${esc(region)} — projected</h2><span class="status" id="status">${nPicks ? nPicks + ' pick' + (nPicks > 1 ? 's' : '') : 'Current odds'}</span></div>
       ${hero}${table}
       <div class="note">Top ${nin} make the playoffs${nbye && nbye < nin ? `; top ${nbye} get a first-round bye` : ''}. Ranked by Crabtree. Games you don't pick are simulated from our win probabilities. Arrows show the change from no picks.</div>
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
     </div>
     <div class="card">
       <div class="card-h"><h2>Remaining games</h2>
@@ -523,7 +891,13 @@ function renderGamesOnly() { const g = $('games'); if (g) g.innerHTML = gamesHtm
 
 function gamesHtml() {
   const inRegion = new Set(M.regions[region]);
+<<<<<<< HEAD
+  // Crabtree and Heal both count opponents' results, so a game between two of
+  // your rivals' opponents moves the race too.
+  // (Crabtree: their win%. Heal: their PI.)
+=======
   // Crabtree counts opponents' records, so a game between two of your
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   // rivals' opponents moves the race too. "This race" = games involving a
   // team in the region, or an opponent of one.
   const touch = new Set(inRegion);
@@ -538,8 +912,13 @@ function gamesHtml() {
     if (view === 'region' && k === 'other') continue;
     groups[k].push(g);
   }
+<<<<<<< HEAD
+  const title = { mine: `${BY_ID.get(myTeam)?.school_name || ''} games`, region: `${regionLabel(region)} games`,
+                  ripple: `Opponents’ games (move ${SP.rating})`, other: 'Everything else' };
+=======
   const title = { mine: `${BY_ID.get(myTeam)?.school_name || ''} games`, region: `${region} games`,
                   ripple: 'Opponents’ games (move Crabtree)', other: 'Everything else' };
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   const html = Object.entries(groups).filter(([, v]) => v.length).map(([k, v]) =>
     `<div class="grp"><div class="grp-h">${esc(title[k])}</div>${v.map(gameRow).join('')}</div>`).join('');
   return html || '<div class="empty">No games left in this race — the field is set.</div>';
@@ -558,6 +937,10 @@ $('teamSel').onchange = e => { myTeam = e.target.value; render(); };
 // ── share ────────────────────────────────────────────────────────────────
 function shareUrl() {
   const q = new URLSearchParams();
+<<<<<<< HEAD
+  q.set('s', SPORT);
+=======
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   q.set('r', region);
   if (myTeam) q.set('t', shortId(myTeam));
   const p = Object.entries(picks).map(([id, s]) => shortId(id) + s).join('.');
@@ -635,7 +1018,11 @@ async function drawCard() {
   ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
   fitText(ctx, 'MAINE BASKETBALL RANKINGS', 185, 104, W - 185 - 56, 700, 62);
   ctx.fillStyle = 'rgba(255,255,255,.8)';
+<<<<<<< HEAD
+  fitText(ctx, `PLAYOFF CALCULATOR  ·  ${SP.label.toUpperCase()}  ·  ${regionLabel(region).toUpperCase()}`, 187, 148, W - 187 - 56, 600, 32);
+=======
   fitText(ctx, `PLAYOFF CALCULATOR  ·  FOOTBALL  ·  ${region.toUpperCase()}`, 187, 148, W - 187 - 56, 600, 32);
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 
   // panel
   const px = 48, pw = W - 96; let y = 222;
@@ -691,11 +1078,19 @@ async function drawCard() {
 
   // region table
   const regTeams = M.regions[region].map(i => M.list[i]).map(t => ({ t, r: CUR[t.id] })).sort((a, b) => a.r.avgSeed - b.r.avgSeed);
+<<<<<<< HEAD
+  const maxRows = Math.max(3, Math.min(regTeams.length, Math.floor((H - 200 - y - 70) / 44)));
+  const th = 70 + maxRows * 44;
+  panel(y, th);
+  ctx.font = FC(700,26); ctx.fillStyle = 'rgba(255,255,255,.65)';
+  ctx.fillText(regionLabel(region).toUpperCase(), px + 36, y + 46);
+=======
   const maxRows = Math.max(3, Math.min(regTeams.length, Math.floor((H - 150 - y - 70) / 44)));
   const th = 70 + maxRows * 44;
   panel(y, th);
   ctx.font = FC(700,26); ctx.fillStyle = 'rgba(255,255,255,.65)';
   ctx.fillText(region.toUpperCase(), px + 36, y + 46);
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
   ctx.textAlign = 'right'; ctx.fillText('PLAYOFFS', px + pw - 230, y + 46); ctx.fillText('LIKELY SEED', px + pw - 36, y + 46); ctx.textAlign = 'left';
   regTeams.slice(0, maxRows).forEach((x, i) => {
     const ry = y + 92 + i * 44;
@@ -707,11 +1102,47 @@ async function drawCard() {
     ctx.fillText(`#${best + 1}  ${pct(x.r.seeds[best])}`, px + pw - 36, ry); ctx.textAlign = 'left';
   });
 
+<<<<<<< HEAD
+  // sponsor slot, bottom right
+  const bw = 330, bh = 140, bx = W - 48 - bw, by = H - 40 - bh;
+  await drawSponsor(ctx, bx, by, bw, bh);
+
+  // footer: call to action, then the fine print (left of the sponsor slot)
+  const fw = bx - 56 - 28;
+  ctx.fillStyle = 'rgba(255,255,255,.8)';
+  fitText(ctx, 'RUN YOUR OWN SCENARIOS', 56, H - 140, fw, 600, 28);
+  fitText(ctx, `10,000 SIMULATIONS  ·  UPDATED ${(UPDATED ? fts(UPDATED) : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).toUpperCase()}`, 56, H - 102, fw, 600, 28);
+  ctx.fillStyle = '#fff';
+  fitText(ctx, 'MAINEBASKETBALLRANKINGS.COM', 56, H - 50, fw, 800, 46);
+}
+async function drawSponsor(ctx, x, y, w, h) {
+  const logo = SPONSOR?.logo_url ? await proxiedLogo(SPONSOR.logo_url) : null;
+  ctx.save();
+  if (logo) {
+    // Paid slot: "PRESENTED BY" over the sponsor's logo on a white plate
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = FC(700, 20);
+    ctx.fillText('PRESENTED BY', x, y + 16);
+    ctx.fillStyle = '#fff'; roundRect(ctx, x, y + 26, w, h - 26, 14); ctx.fill();
+    const pw = w - 32, ph = h - 26 - 24, sc = Math.min(pw / logo.width, ph / logo.height);
+    ctx.drawImage(logo, x + (w - logo.width * sc) / 2, y + 26 + (h - 26 - logo.height * sc) / 2, logo.width * sc, logo.height * sc);
+  } else {
+    // Unsold: house ad
+    ctx.fillStyle = 'rgba(12,10,8,.55)'; roundRect(ctx, x, y, w, h, 14); ctx.fill();
+    ctx.setLineDash([10, 8]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    roundRect(ctx, x + 1.5, y + 1.5, w - 3, h - 3, 14); ctx.stroke(); ctx.setLineDash([]);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+    fitText(ctx, 'YOUR AD HERE', x + w / 2, y + 68, w - 40, 800, 44);
+    ctx.fillStyle = '#f2b46d';
+    fitText(ctx, SPONSOR?.name ? SPONSOR.name.toUpperCase() : 'SPONSOR THE PLAYOFF CALCULATOR', x + w / 2, y + 108, w - 40, 700, 22);
+  }
+  ctx.restore();
+=======
   // footer: call to action, then the fine print
   ctx.fillStyle = 'rgba(255,255,255,.8)';
   fitText(ctx, `RUN YOUR OWN SCENARIOS  ·  10,000 SIMULATIONS  ·  ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}`, 56, H - 96, W - 112, 600, 28);
   ctx.fillStyle = '#fff';
   fitText(ctx, 'MAINEBASKETBALLRANKINGS.COM', 56, H - 46, W - 112, 800, 46);
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 }
 function FC(w, px) { return `${w} ${px}px "Barlow Condensed", "Arial Narrow", sans-serif`; }
 function FB(w, px) { return `${w} ${px}px "Barlow", Arial, sans-serif`; }
@@ -743,7 +1174,11 @@ function clip(ctx, s, max) { if (ctx.measureText(s).width <= max) return s; whil
 
 function cardBlob() { return new Promise(r => $('card').toBlob(r, 'image/png')); }
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1800); }
+<<<<<<< HEAD
+const fileName = () => `playoff-calculator-${SPORT.replace('_', '-')}-${(myTeam ? BY_ID.get(myTeam).school_name : region).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+=======
 const fileName = () => `playoff-calculator-${(myTeam ? BY_ID.get(myTeam).school_name : region).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 
 $('shareBtn').onclick = async () => {
   $('shareModal').classList.add('on');
@@ -754,7 +1189,11 @@ $('shareBtn').onclick = async () => {
   const canFiles = file && navigator.canShare && navigator.canShare({ files: [file] });
   $('nativeShare').style.display = canFiles ? '' : 'none';
   $('nativeShare').onclick = () => navigator.share({ files: [file], title: 'Playoff Calculator', text: shareUrl() }).catch(() => {});
+<<<<<<< HEAD
+  if (window.gtag) gtag('event', 'playoff_calc_share', { sport: SPORT, region, picks: Object.keys(picks).length });
+=======
   if (window.gtag) gtag('event', 'playoff_calc_share', { region, picks: Object.keys(picks).length });
+>>>>>>> bd0a6f58183866fb86492c02c8187e3aca804ba2
 };
 $('dlBtn').onclick = async () => {
   const blob = await cardBlob(); if (!blob) return;

@@ -1135,7 +1135,7 @@
       html += `
       <tr class="team-row ${isExp ? 'expanded' : ''}" data-team-id="${team.id}">
         <td class="td-rank">${i + 1}</td>
-        <td><div class="td-team">${logoEl}<span class="team-name-cell">${team.school_name}</span><a href="team.html?team_id=${team.id}" onclick="event.stopPropagation()" style="margin-left:8px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--green);text-decoration:none;opacity:0.7" title="Team detail">↗</a></div></td>
+        <td><div class="td-team">${logoEl}<span class="team-name-cell">${team.school_name}</span><a href="https://www.mainebasketballrankings.com/team/?id=${team.id}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="margin-left:8px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--green);text-decoration:none;opacity:0.7" title="Team detail">↗</a></div></td>
         <td class="td-num">${recStr}</td>
         ${IS_FOOTBALL ? '' : `<td class="td-num hide-mobile">${pi.toFixed(3)}</td>`}
         <td class="td-num">${heal.toFixed(IS_FOOTBALL ? 4 : 3)}</td>

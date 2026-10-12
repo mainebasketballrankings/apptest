@@ -462,6 +462,9 @@ async function load() {
     // (player_final_stats events) even when no box score was imported, so the
     // schedule's 📊 should light up for those too.
     const FB_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+    // Besides baseball/softball, the box score importer handles football,
+    // soccer and field hockey, so their finals get the "+ Stats" link too.
+    const IMPORT_EXTRA_IDS = [FB_SPORT_ID, 'ff80a695-0e78-4432-98f2-141b2b571e0e', '1054869a-20d4-465f-8ca9-4bc4d2bafe1b'];
     let liveStatGames = new Set();
     if (team.sport_id === FB_SPORT_ID) {
       const finIds = (games || []).filter(g => g.status === 'final').map(g => g.id);
@@ -877,9 +880,9 @@ async function load() {
         </td>
         <td class="sc ${won?'w':lost?'l':''}">
           <span class="rbadge ${res==='W'?'W':res==='L'?'L':''}">${res}</span> ${scoreTxt}
-          ${fin && (isSpring || team.sport_id === FB_SPORT_ID) ? ((g.stats_uploaded || liveStatGames.has(g.id))
+          ${fin && (isSpring || IMPORT_EXTRA_IDS.includes(team.sport_id)) ? ((g.stats_uploaded || liveStatGames.has(g.id))
             ? `<a class="stats-pill uploaded" href="https://www.mainebasketballrankings.com/game/?id=${g.id}" target="_blank" rel="noopener" title="View box score">📊</a>`
-            : `<a class="stats-pill pending" href="boxscore-import.html" title="Import box score stats">+ Stats</a>`
+            : `<a class="stats-pill pending" href="boxscore-import.html?team_id=${team.id}" target="_blank" rel="noopener" title="Import box score stats">+ Stats</a>`
           ) : ''}
         </td>
         <td class="dc ${df>0?'p':df<0?'n':''} hsm">${df!==null?(df>0?'+':'')+df:''}</td>

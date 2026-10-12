@@ -422,6 +422,12 @@ const TABS_BY_KIND = {
   field:    ['scoring', 'goalkeeping'],
 };
 
+// Teams store gender as 'Boys' / 'Girls'; compare without case.
+function genderLabel(t, apos = true) {
+  const g = String(t.gender || '').toLowerCase();
+  return g === 'girls' ? (apos ? "Girls' " : 'Girls ') : g === 'boys' ? (apos ? "Boys' " : 'Boys ') : '';
+}
+
 // ── STATE ─────────────────────────────────────────────
 let allTeams         = [];
 let selectedTeam     = null;
@@ -440,18 +446,26 @@ const TAB_LABELS = {
 
 // ── BOOT ──────────────────────────────────────────────
 async function init() {
-  // Load all teams, filter client-side by sport
-  const { data, error } = await sb.from('teams')
-    .select('id, school_name, gender, sport_id')
-    .order('school_name');
-
-  if (error) {
-    console.error('Teams load error:', error);
-    return;
+  // Load every canonical team. The API hands back at most 1,000 rows per
+  // request and there are more teams than that, so page through them —
+  // otherwise schools late in the alphabet (York, Yarmouth…) never appear.
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('teams')
+      .select('id, school_name, gender, sport_id')
+      .is('owner_id', null)
+      .order('school_name')
+      .range(from, from + 999);
+    if (error) { console.error('Teams load error:', error); break; }
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
   }
+  allTeams = rows.filter(t => t.school_name && !/^zz /i.test(t.school_name));
 
-  // Keep all teams — sport pill shown in dropdown, filtered in search display
-  allTeams = data || [];
+  // Opened from a team page's "+ Stats" link: start on that team.
+  const want = new URLSearchParams(location.search).get('team_id');
+  const t = want && allTeams.find(x => x.id === want);
+  if (t && IMPORT_SPORT_IDS.includes(t.sport_id)) selectTeam(t);
 }
 
 // ── SCHOOL SEARCH ─────────────────────────────────────
@@ -480,8 +494,7 @@ schoolInput.addEventListener('input', () => {
   schoolDropdown.innerHTML = schools.map(([name, teams]) => {
     const tags = teams.map(t => {
       const sport  = SPORT_LABELS[t.sport_id] || '';
-      const gender = t.gender === 'girls' ? "Girls' " : t.gender === 'boys' ? "Boys' " : '';
-      return `<span class="sport-tag">${gender}${sport}</span>`;
+      return `<span class="sport-tag">${genderLabel(t)}${sport}</span>`;
     }).join('');
     return `<div class="dropdown-item" data-school="${esc(name)}">
       <span class="school-name">${name}</span>${tags}
@@ -501,10 +514,9 @@ schoolInput.addEventListener('input', () => {
         // Show sub-picker — store teams in a closure-safe way
         schoolDropdown.innerHTML = springTeams.map((t, i) => {
           const sport  = SPORT_LABELS[t.sport_id] || t.sport_id;
-          const gender = t.gender === 'girls' ? "Girls'" : t.gender === 'boys' ? "Boys'" : '';
           return `<div class="dropdown-item" data-spring-idx="${i}">
             <span class="school-name">${school}</span>
-            <span class="sport-tag">${gender} ${sport}</span>
+            <span class="sport-tag">${genderLabel(t)}${sport}</span>
           </div>`;
         }).join('');
         schoolDropdown.querySelectorAll('.dropdown-item').forEach(sub => {
@@ -529,8 +541,7 @@ function selectTeam(team) {
   schoolInput.classList.add('selected');
 
   const sport  = SPORT_LABELS[team.sport_id] || '';
-  const gender = team.gender === 'girls' ? "Girls'" : team.gender === 'boys' ? "Boys'" : '';
-  const label  = `${team.school_name} — ${gender} ${sport}`;
+  const label  = `${team.school_name} — ${genderLabel(team)}${sport}`;
 
   const conf = document.getElementById('teamConfirmed');
   conf.style.display = '';

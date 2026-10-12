@@ -413,9 +413,14 @@ function healsCalc(games, tid, smap, regEnd, getScheduled, sportKey) {
 }
 
 async function load() {
-  const tid = qp('team_id');
+  const tid = qp('team_id') || qp('id');
   const app = document.getElementById('app');
-  if (!tid) { app.innerHTML = `<div class="error-state">No team_id specified.</div>`; return; }
+  if (!tid) {
+    // Landing on the Teams page with no team picked is normal, not an error.
+    app.innerHTML = `<div class="loading-state">Search for any team above to see its schedule, ratings and stats.</div>`;
+    setTimeout(() => { try { document.getElementById('teamSearchInput').focus({ preventScroll: true }); } catch (e) {} }, 0);
+    return;
+  }
 
   try {
     // Resolved before the snapshot query below, which has to be filtered by it —
@@ -873,7 +878,7 @@ async function load() {
         <td class="sc ${won?'w':lost?'l':''}">
           <span class="rbadge ${res==='W'?'W':res==='L'?'L':''}">${res}</span> ${scoreTxt}
           ${fin && (isSpring || team.sport_id === FB_SPORT_ID) ? ((g.stats_uploaded || liveStatGames.has(g.id))
-            ? `<a class="stats-pill uploaded" href="game.html?game_id=${g.id}" title="View box score">📊</a>`
+            ? `<a class="stats-pill uploaded" href="https://www.mainebasketballrankings.com/game/?id=${g.id}" target="_blank" rel="noopener" title="View box score">📊</a>`
             : `<a class="stats-pill pending" href="boxscore-import.html" title="Import box score stats">+ Stats</a>`
           ) : ''}
         </td>
@@ -1235,7 +1240,7 @@ async function load() {
             <span class="team-name-lg">${team.school_name}</span>
             ${rankHtml}
           </div>
-          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span>${seasonChipHtml}<span class="meta-sep">|</span><a class="gender-link" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
+          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span>${seasonChipHtml}<span class="meta-sep">|</span><a class="gender-link" target="_blank" rel="noopener" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
           <div class="team-inline-stats">
             <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}${ties ? '–' + ties : ''}</span></span>
             <span class="inline-stat"><span class="inline-lbl">POINT DIFF</span><span class="inline-val ${pointDiff >= 0 ? 'grn' : 'red'}">${diffStr}</span></span>
@@ -1274,14 +1279,17 @@ const SPORT_DISPLAY_MAP = {
   'e26b0fcc-e661-4945-8b2d-063c37ace44f': 'Volleyball',
 };
 
-let allTeamsCache = null;
 let searchTimeout = null;
+let searchSeq = 0;
 
-async function fetchAllTeams() {
-  if (allTeamsCache) return allTeamsCache;
-  const res = await sb(`teams?select=id,school_name,sport_id,gender&order=school_name.asc&limit=2000`);
-  allTeamsCache = res || [];
-  return allTeamsCache;
+// Searched on the server. The old version downloaded every team and filtered
+// here, but the API returns at most 1,000 rows, so anything late in the
+// alphabet (York, Yarmouth, Windham…) never showed up.
+async function searchTeams(q) {
+  const pat = encodeURIComponent('*' + q.replace(/[*,()]/g, ' ').trim() + '*');
+  const rows = await sb(`teams?school_name=ilike.${pat}&owner_id=is.null&active=eq.true` +
+    `&select=id,school_name,sport_id,gender&order=school_name.asc&limit=60`);
+  return (rows || []).filter(t => t.school_name && !/^zz /i.test(t.school_name));
 }
 
 const searchInput = document.getElementById('teamSearchInput');
@@ -1303,10 +1311,20 @@ document.addEventListener('click', e => {
 });
 
 async function doSearch(q) {
-  const teams = await fetchAllTeams();
+  const seq = ++searchSeq;
+  let matches = [];
+  try { matches = await searchTeams(q); } catch (e) { matches = []; }
+  if (seq !== searchSeq) return;          // a newer keystroke already searched
+  // Names that start with the query first ("York" before "Old York"), then A-Z.
   const lower = q.toLowerCase();
-  const matches = teams.filter(t => t.school_name?.toLowerCase().includes(lower)).slice(0, 20);
-  if (!matches.length) { searchResults.classList.remove('open'); return; }
+  matches.sort((a, b) => (b.school_name.toLowerCase().startsWith(lower) - a.school_name.toLowerCase().startsWith(lower))
+    || a.school_name.localeCompare(b.school_name));
+  matches = matches.slice(0, 30);
+  if (!matches.length) {
+    searchResults.innerHTML = `<div class="tsr-item" style="cursor:default"><div class="tsr-sport">No teams match “${q.replace(/[<>&"]/g, '')}”</div></div>`;
+    searchResults.classList.add('open');
+    return;
+  }
 
   searchResults.innerHTML = matches.map(t => {
     const sport = SPORT_DISPLAY_MAP[t.sport_id] || 'Sport';

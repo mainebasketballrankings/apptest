@@ -268,7 +268,7 @@
 
 <div class="page">
   <h1 class="page-title">Box Score Import</h1>
-  <p class="page-sub">Upload a PDF box score to push batting and pitching stats to player profiles. Stats accumulate — each game adds to the season totals.</p>
+  <p class="page-sub">Upload a PDF box score to add each player's game to their season stats. Basketball, baseball, softball, football, soccer and field hockey.</p>
 
   <!-- STEP 1 -->
   <div class="step active" id="step1">
@@ -398,7 +398,9 @@ const SPORT_LABELS = {
 const FOOTBALL_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
 const SOCCER_SPORT_ID = 'ff80a695-0e78-4432-98f2-141b2b571e0e';
 const FIELD_HOCKEY_SPORT_ID = '1054869a-20d4-465f-8ca9-4bc4d2bafe1b';
+const BASKETBALL_SPORT_ID = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const IMPORT_SPORT_IDS = [
+  BASKETBALL_SPORT_ID,
   'c87a4d6c-a471-47e1-b6a0-d1643d942bf0', // Baseball
   '095c9841-7261-4cb1-824e-6304792b53d0', // Softball
   FOOTBALL_SPORT_ID,
@@ -411,7 +413,12 @@ const IMPORT_SPORT_IDS = [
 // goals/cards as a chronological event list ("GOAL — First Last (assist:
 // ...)"), so parsing has to extract raw events and this file aggregates them
 // into per-player totals itself, rather than asking the AI to sum for us.
+// 'basketball' = one box-score table per team. Regular-season only: these
+// imports are kept in game_stat_imports and the team page totals them itself.
+// They never touch the players table's ppg/rpg/… columns, which hold the
+// separate Tourney Stats numbers.
 function sportKind(sportId) {
+  if (sportId === BASKETBALL_SPORT_ID) return 'basketball';
   if (sportId === FOOTBALL_SPORT_ID) return 'football';
   if (sportId === SOCCER_SPORT_ID || sportId === FIELD_HOCKEY_SPORT_ID) return 'field';
   return 'diamond';
@@ -420,6 +427,7 @@ const TABS_BY_KIND = {
   diamond:  ['batting', 'pitching'],
   football: ['passing', 'rushing', 'receiving', 'defense', 'kicking', 'puntret'],
   field:    ['scoring', 'goalkeeping'],
+  basketball: ['basketball'],
 };
 
 // Teams store gender as 'Boys' / 'Girls'; compare without case.
@@ -442,6 +450,7 @@ const TAB_LABELS = {
   passing: 'Passing', rushing: 'Rushing', receiving: 'Receiving',
   defense: 'Defense', kicking: 'Kicking', puntret: 'Punt/Return',
   scoring: 'Scoring', goalkeeping: 'Goalkeeping',
+  basketball: 'Box Score',
 };
 
 // ── BOOT ──────────────────────────────────────────────
@@ -736,6 +745,7 @@ async function extractPdfText(file) {
 async function parsePdfWithClaude(pdfText, kind) {
   const prompt = kind === 'football' ? footballPrompt(pdfText)
     : kind === 'field' ? fieldPrompt(pdfText)
+    : kind === 'basketball' ? basketballPrompt(pdfText)
     : diamondPrompt(pdfText);
 
   const resp = await fetch('https://vtwupenqieesoktonbzg.supabase.co/functions/v1/claude-proxy', {
@@ -922,6 +932,43 @@ Box score text:
 ${pdfText}`;
 }
 
+function basketballPrompt(pdfText) {
+  return `You are parsing a basketball box score. It has one player table per team. You MUST return every player from BOTH teams in the "basketball" array.
+
+Return ONLY valid JSON, no markdown, no explanation:
+
+{
+  "game": {
+    "home_team": "exact team name as shown",
+    "away_team": "exact team name as shown",
+    "home_score": number,
+    "away_score": number,
+    "date": "as shown",
+    "sport": "basketball"
+  },
+  "basketball": [
+    { "team": "exact team name as shown", "name": "First Last", "last": "Last", "number": "digits only",
+      "pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ftm": 0, "fta": 0,
+      "oreb": 0, "dreb": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0, "to": 0, "fls": 0 }
+  ]
+}
+
+CRITICAL RULES:
+- The array MUST contain players from BOTH teams.
+- Shooting columns shown as "made-attempted" (e.g. FG "5-11", 3PT "2-6", FT "3-4") must be split into the made/attempted fields.
+- fgm/fga = ALL field goals, 2s and 3s together. If the sheet lists 2-pointers and 3-pointers separately (2PT, 3PT) with no combined FG column, add them: fgm = 2PM + 3PM, fga = 2PA + 3PA.
+- tpm/tpa = 3-pointers only. ftm/fta = free throws.
+- Rebounds: oreb = offensive, dreb = defensive, reb = total. If only a total is shown, put it in reb and set oreb and dreb to 0. If only O and D are shown, reb = oreb + dreb.
+- "A"/"AST" = assists, "STL"/"ST" = steals, "BLK"/"BS" = blocks, "TO"/"TOV" = turnovers, "PF"/"F"/"FLS" = personal fouls → fls.
+- Exclude Totals/Team rows. Include every individual player listed, even those with all-zero stats or "DNP".
+- "number" = digits only, no # symbol.
+- "team" must exactly match the team name used in "home_team" or "away_team" above.
+- Ignore minutes, +/-, efficiency and percentage columns — percentages are computed from made/attempted.
+
+Box score text:
+${pdfText}`;
+}
+
 // ── PLAYER MATCHING ───────────────────────────────────
 function matchPlayer(p, roster) {
   const pool = roster || existingPlayers;
@@ -1001,9 +1048,12 @@ async function resolveTeamId(boxScoreTeamName) {
   const sportId = selectedTeam?.sport_id;
 
   // Try exact match first, preferring same sport
-  let team = allTeams.find(t =>
-    t.school_name.toLowerCase() === tn && t.sport_id === sportId
-  );
+  // Boys' and girls' soccer (and basketball) share a sport id, so match on
+  // gender as well or a girls' game can land on the boys' roster.
+  const gender = String(selectedTeam?.gender || '').toLowerCase();
+  const same = t => t.sport_id === sportId && String(t.gender || '').toLowerCase() === gender;
+  let team = allTeams.find(t => t.school_name.toLowerCase() === tn && same(t))
+          || allTeams.find(t => t.school_name.toLowerCase() === tn && t.sport_id === sportId);
   if (!team) team = allTeams.find(t => t.school_name.toLowerCase() === tn);
 
   if (!team) {
@@ -1014,7 +1064,7 @@ async function resolveTeamId(boxScoreTeamName) {
         sn.split(' ').some(w => w.length > 3 && tn.includes(w));
     });
     // Prefer same sport
-    team = candidates.find(t => t.sport_id === sportId) || candidates[0];
+    team = candidates.find(same) || candidates.find(t => t.sport_id === sportId) || candidates[0];
   }
   if (!team) return null;
 
@@ -1088,6 +1138,8 @@ const GENERIC_TAB_COLS = {
   puntret:   [['punts','Pnt'],['punt_yds','PYds'],['kr','KR'],['kr_yds','KRYds'],['pr','PR'],['pr_yds','PRYds']],
   scoring:     [['goals','G'],['assists','A'],['shots','SH'],['sog','SOG'],['fouls','FL'],['card_yellow','Y'],['card_red','R']],
   goalkeeping: [['gk_saves','SV'],['gk_ga','GA'],['gk_sog_faced','Faced']],
+  basketball:  [['pts','PTS'],['fgm','FGM'],['fga','FGA'],['tpm','3PM'],['tpa','3PA'],['ftm','FTM'],['fta','FTA'],
+                ['oreb','OR'],['dreb','DR'],['reb','REB'],['ast','AST'],['stl','STL'],['blk','BLK'],['to','TO'],['fls','PF']],
 };
 
 function renderTab(tab) {
@@ -1169,7 +1221,8 @@ function syncEdit(inp) {
     'comp','att','yds','td','int','rec','tkl','ast','sk','pd','blk',
     'fg_made','fg_att','xp_made','xp_att','punts','punt_yds','kr','kr_yds','pr','pr_yds',
     'goals','assists','shots','sog','fouls','card_yellow','card_red',
-    'gk_saves','gk_ga','gk_sog_faced'];
+    'gk_saves','gk_ga','gk_sog_faced',
+    'pts','fgm','fga','tpm','tpa','ftm','fta','oreb','dreb','reb','stl','to','fls'];
 
   if (field === 'ip_display') {
     const pts = val.split('.');
@@ -1230,7 +1283,7 @@ async function checkConflictThenPush() {
           TABS_BY_KIND[currentKind].forEach(tab => {
             (parsedData[tab] || []).forEach(p => {
               newRows++;
-              newSum += sumVals(Object.fromEntries(Object.keys(GENERIC_TAB_DB_COLS[tab]).map(k => [k, p[k] || 0])));
+              newSum += sumVals(Object.fromEntries(GENERIC_TAB_COLS[tab].map(([k]) => [k, p[k] || 0])));
             });
           });
           newTotal = { rows: newRows, total: newSum };
@@ -1317,6 +1370,29 @@ async function pushGenericTab(tab, homeInfo, awayInfo) {
       stats: JSON.stringify(delta)
     }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
 
+    pushed++;
+  }
+  return pushed;
+}
+
+// Basketball: record each player's game line only. Season numbers are added
+// up from these rows on the team page; the players table's averages belong to
+// Tourney Stats and are left alone. Undo (reversePreviousImport) just deletes
+// these rows, since nothing else was changed.
+async function pushBasketball(homeInfo, awayInfo) {
+  let pushed = 0;
+  const keys = GENERIC_TAB_COLS.basketball.map(([k]) => k);
+  for (const p of (parsedData.basketball || [])) {
+    const teamInfo = resolveTeamForRow(p, homeInfo, awayInfo);
+    if (!teamInfo) continue;
+    const pid = await ensurePlayer(p, teamInfo.teamId, teamInfo.sportId, teamInfo.roster);
+    if (!pid) continue;
+    const line = Object.fromEntries(keys.map(k => [k, +p[k] || 0]));
+    if (!line.reb && (line.oreb || line.dreb)) line.reb = line.oreb + line.dreb;
+    await sb.from('game_stat_imports').upsert({
+      game_id: currentGame.id, player_id: pid, stat_type: 'basketball',
+      stats: JSON.stringify(line)
+    }, { onConflict: 'game_id,player_id,stat_type', ignoreDuplicates: false });
     pushed++;
   }
   return pushed;
@@ -1434,7 +1510,9 @@ async function pushToSupabase(forceReplace = false) {
       // -> add delta -> write back -> record the delta for undo), so one
       // function covers all of them instead of one per tab.
       for (const tab of TABS_BY_KIND[currentKind]) {
-        pushed += await pushGenericTab(tab, homeInfo, awayInfo);
+        pushed += currentKind === 'basketball'
+          ? await pushBasketball(homeInfo, awayInfo)
+          : await pushGenericTab(tab, homeInfo, awayInfo);
       }
     }
 
@@ -1606,6 +1684,8 @@ async function handleFile(file) {
     ? 'Extracting passing, rushing, receiving, defense, kicking & return stats'
     : currentKind === 'field'
     ? 'Extracting scoring and goalkeeping stats'
+    : currentKind === 'basketball'
+    ? 'Extracting points, shooting, rebounds, assists and more'
     : 'Extracting batting and pitching stats';
   showStep('parsing');
   try {

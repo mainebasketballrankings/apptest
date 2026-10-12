@@ -734,7 +734,10 @@ async function parsePdfWithClaude(pdfText, kind) {
       'Authorization': `Bearer ${SUPABASE_ANON}` },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
-      max_tokens: 4000,
+      // A four-page football box score with both teams' offense, defense and
+      // kicking runs well past 4,000 tokens of JSON; the reply got cut off
+      // mid-object and failed as "Property name must be a string literal".
+      max_tokens: 16000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -746,7 +749,20 @@ async function parsePdfWithClaude(pdfText, kind) {
 
   const data = await resp.json();
   const raw  = data.content?.find(b => b.type === 'text')?.text || '';
-  return JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error('The box score was too long to read in one pass (the reply was cut off). Try again, or split the PDF.');
+  }
+  // Keep only the JSON object: drop code fences and any sentence before or
+  // after it ("Here is the parsed box score:").
+  let body = raw.replace(/```json\n?|```/g, '').trim();
+  const a = body.indexOf('{'), b = body.lastIndexOf('}');
+  if (a > 0 || (b >= 0 && b < body.length - 1)) body = body.slice(a, b + 1);
+  try {
+    return JSON.parse(body);
+  } catch (e) {
+    console.error('[boxscore] unparseable reply:', raw);
+    throw new Error('Couldn\u2019t read the parsed stats (' + e.message + '). Try the upload again.');
+  }
 }
 
 function diamondPrompt(pdfText) {
@@ -911,17 +927,44 @@ function matchPlayer(p, roster) {
   });
   if (m) return m;
 
-  // 2. Number alone (reliable within a team)
-  m = pool.find(ep => epNum(ep) === num);
-  if (m) return m;
+  // 2. Last name (+ first initial when several share it). Rosters go stale
+  //    on jersey numbers (a kicker listed #11 who wears #14 in the PDF), so a
+  //    name match beats a number match.
+  const lastOf = ep => ep.name?.split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') || '';
+  if (last.length > 1) {
+    const hits = pool.filter(ep => lastOf(ep) === last);
+    if (hits.length === 1) return hits[0];
+    if (hits.length > 1) {
+      const fi = (p.name || '').toLowerCase().replace(/[^a-z]/g, '').charAt(0);
+      return hits.find(ep => (ep.name || '').toLowerCase().charAt(0) === fi) || hits[0];
+    }
+    // A named player with no last-name match is a NEW player. Matching on
+    // the number alone here is what put Leavitt's QB on Greely's #15.
+    return null;
+  }
 
+  // 3. Number alone — only when the PDF row has no name to go on
+  return pool.find(ep => epNum(ep) === num) || null;
+}
 
+// True when the row's last name is on this roster (number not required).
+function nameOnRoster(p, roster) {
+  const last = (p.last || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (last.length < 2) return false;
+  return (roster || []).some(ep =>
+    (ep.name?.split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') || '') === last);
+}
 
-  // 3. Last name only (fallback)
-  return pool.find(ep => {
-    const epLast = ep.name?.split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') || '';
-    return last.length > 1 && epLast.includes(last);
-  }) || null;
+// Which DB team does a PDF team name refer to? Compares against the actual
+// school names instead of trusting the PDF's home/away labels, which don't
+// always agree with our schedule.
+function nameMatchesSchool(pdfName, teamId) {
+  const t = allTeams.find(x => x.id === teamId);
+  if (!t || !pdfName) return false;
+  const n = s => s.toLowerCase().replace(/high school|academy|regional|\bhs\b/g, '').replace(/[^a-z ]/g, '').trim();
+  const a = n(pdfName), b = n(t.school_name);
+  if (!a || !b) return false;
+  return a.includes(b) || b.includes(a) || b.split(' ').some(w => w.length > 3 && a.includes(w));
 }
 
 // Load team info directly by team_id — no fuzzy matching
@@ -1013,15 +1056,14 @@ function renderPreview(parsed) {
     rows.forEach(p => {
       totalRows++;
       teamsSeen.add(p.team);
-      const isH = parsed.game.home_team === p.team ||
-        (parsed._homeInfo && parsed.game.home_team.toLowerCase().includes((p.team||'').toLowerCase().split(' ')[0]));
-      const roster = isH ? parsed._homeInfo?.roster : parsed._awayInfo?.roster;
-      if (!matchPlayer(p, roster)) newCount++;
+      const ti = resolveTeamForRow(p, parsed._homeInfo, parsed._awayInfo);
+      if (!ti || !matchPlayer(p, ti.roster)) newCount++;
     });
   });
   document.getElementById('prevSummary').innerHTML =
     `<strong>${totalRows}</strong> rows across <strong>${teamsSeen.size}</strong> teams`
-    + (newCount ? ` · <span class="new-count">${newCount} new</span> players will be created` : ' · all matched');
+    + (newCount ? ` · <span class="new-count">${newCount} new</span> players will be created` : ' · all matched')
+    + (parsed._flipped ? ` · <span class="new-count">PDF lists home/away opposite our schedule — matched by school name</span>` : '');
 
   showStep('preview');
 }
@@ -1059,12 +1101,8 @@ function renderTab(tab) {
 
   rows.forEach((p, i) => {
     // Resolve correct team roster for this player
-    const isHomePlayer = parsedData.game.home_team === p.team ||
-      (parsedData._homeInfo && parsedData.game.home_team.toLowerCase()
-        .includes((p.team || '').toLowerCase().split(' ')[0]));
-    const roster = isHomePlayer
-      ? parsedData._homeInfo?.roster
-      : parsedData._awayInfo?.roster;
+    const ti = resolveTeamForRow(p, parsedData._homeInfo, parsedData._awayInfo);
+    const roster = ti?.roster || [];
     const match = matchPlayer(p, roster);
     const tag   = match
       ? '<span class="tag-match">Match</span>'
@@ -1160,7 +1198,7 @@ async function checkConflictThenPush() {
           // Build a summary diff to show the user
           prevTotal = existing.filter(r => r.stat_type === 'batting')
             .reduce((sum, r) => {
-              const s = JSON.parse(r.stats || '{}');
+              const s = parseStats(r.stats);
               return { ab: sum.ab + (s.ab||0), hits: sum.hits + (s.hits||0), rbi: sum.rbi + (s.rbi||0) };
             }, { ab: 0, hits: 0, rbi: 0 });
 
@@ -1175,7 +1213,7 @@ async function checkConflictThenPush() {
           // batting has AB/H/RBI — compare row count + a summed checksum of
           // every numeric field instead.
           const sumVals = obj => Object.values(obj).reduce((a, v) => a + (typeof v === 'number' ? v : 0), 0);
-          prevTotal = { rows: existing.length, total: existing.reduce((s, r) => s + sumVals(JSON.parse(r.stats || '{}')), 0) };
+          prevTotal = { rows: existing.length, total: existing.reduce((s, r) => s + sumVals(parseStats(r.stats)), 0) };
 
           let newRows = 0, newSum = 0;
           TABS_BY_KIND[currentKind].forEach(tab => {
@@ -1420,7 +1458,7 @@ async function reversePreviousImport(gameId) {
   if (error || !imports?.length) return; // table may not exist yet — safe to skip
 
   for (const imp of imports) {
-    const delta = JSON.parse(imp.stats || '{}');
+    const delta = parseStats(imp.stats);
     if (imp.stat_type === 'batting') {
       const { data: cur } = await sb.from('players')
         .select('ab,hits,hr,rbi,sb,bb,k_bat,doubles,triples,runs,games')
@@ -1492,6 +1530,22 @@ async function reversePreviousImport(gameId) {
 // each side explicitly and returns null when the answer isn't clear, so the
 // caller skips the row instead of filing it under the wrong school.
 function resolveTeamForRow(p, homeInfo, awayInfo) {
+  const side = resolveSideForRow(p, homeInfo, awayInfo);
+  if (!side) return null;
+  // PDFs sometimes file a section under the wrong team (a whole block of
+  // defenders labelled as the opponent). If the name isn't on the labelled
+  // roster but IS on the other one, trust the roster.
+  const other = side === homeInfo ? awayInfo : homeInfo;
+  if (other && !nameOnRoster(p, side.roster) && nameOnRoster(p, other.roster)) return other;
+  // Same idea for rows with no name, by jersey number.
+  if (other && !(p.last || '').trim()) {
+    const has = r => (r || []).some(ep => (ep.number || '').toString().split('/')[0].trim() === (p.number || '').toString().trim());
+    if (!has(side.roster) && has(other.roster)) return other;
+  }
+  return side;
+}
+
+function resolveSideForRow(p, homeInfo, awayInfo) {
   const rowTeam = (p.team || '').trim().toLowerCase();
   if (!rowTeam) return null;
   const home = (parsedData.game.home_team || '').trim().toLowerCase();
@@ -1552,8 +1606,15 @@ async function handleFile(file) {
     const awayId = currentGame.away_team_id || currentGame.away_team?.id;
     const homeInfo = await loadTeamInfo(homeId);
     const awayInfo = await loadTeamInfo(awayId);
-    parsed._homeInfo = homeInfo;
-    parsed._awayInfo = awayInfo;
+    // _homeInfo/_awayInfo describe the PDF's home/away sides. If the PDF
+    // lists the teams the other way round from our schedule, swap them.
+    const pdfHome = parsed.game?.home_team, pdfAway = parsed.game?.away_team;
+    const flipped =
+      (nameMatchesSchool(pdfHome, awayId) && !nameMatchesSchool(pdfHome, homeId)) ||
+      (nameMatchesSchool(pdfAway, homeId) && !nameMatchesSchool(pdfAway, awayId));
+    parsed._homeInfo = flipped ? awayInfo : homeInfo;
+    parsed._awayInfo = flipped ? homeInfo : awayInfo;
+    parsed._flipped  = flipped;
 renderPreview(parsed);
   } catch (err) {
     showStep('upload');
@@ -1562,6 +1623,11 @@ renderPreview(parsed);
 }
 
 // ── HELPERS ───────────────────────────────────────────
+function parseStats(v) {
+  if (!v) return {};
+  if (typeof v === 'object') return v;
+  try { return JSON.parse(v); } catch (e) { return {}; }
+}
 function showError(msg) {
   const b = document.getElementById('errorBox');
   b.textContent = '⚠ ' + msg;

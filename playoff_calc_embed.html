@@ -48,6 +48,7 @@
     font:700 13px 'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px}
   .btn.ghost{background:#fff;color:var(--ink);border-color:var(--border)}
   .btn:disabled{opacity:.4;cursor:default}
+  .btn.ghost.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 
   .layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
   @media (max-width:880px){.layout{grid-template-columns:1fr}}
@@ -106,6 +107,9 @@
   .pick.win{background:var(--ink);border-color:var(--ink);color:#fff}
   .pick.win .p{color:#bbb}
   .pick.lose{opacity:.4;text-decoration:line-through}
+  /* no-upsets mode fills these in; lighter than a pick you made yourself */
+  .pick.win.auto{background:#6b6b6b;border-color:#6b6b6b}
+  .pick.lose.auto{opacity:.5}
   .empty{padding:18px 14px;color:var(--lgray);font-size:13px}
   .note{font-size:12px;color:var(--lgray);padding:10px 14px;border-top:1px solid var(--border)}
 
@@ -133,6 +137,7 @@
     <select id="teamSel"><option value="">— none —</option></select>
     <span class="spacer"></span>
     <span class="updated" id="updated"></span>
+    <button class="btn ghost" id="chalkBtn" aria-pressed="false" title="Every team favored by 80% or more wins its game">No upsets</button>
     <button class="btn ghost" id="clearBtn" disabled>Clear picks</button>
     <button class="btn" id="shareBtn" disabled>Share</button>
   </div>
@@ -446,13 +451,28 @@ const loaded = {};          // sport -> {teams, games}, so flipping tabs doesn't
 // Delete the row to go back to the "Your ad here" placeholder.
 let SPONSOR = null;
 let region = null, myTeam = '', picks = {}, view = 'region';
+// "No upsets": any game left to play where one side is 80%+ to win is decided
+// for the favorite. Your own picks still win over it, so you can keep the
+// chalk everywhere except the one upset you're asking about.
+let chalk = false;
+const CHALK = 0.8;
+// Compare the rounded percent the game list shows, so every game labeled
+// 80% is in and nothing labeled 79% is.
+function chalkSide(g) { const h = Math.round(g.p * 100), c = CHALK * 100; return h >= c ? 'h' : 100 - h >= c ? 'a' : null; }
+function effPicks() {
+  if (!chalk) return picks;
+  const out = {};
+  for (const g of M.sched) { const s = chalkSide(g); if (s) out[g.id] = s; }
+  return Object.assign(out, picks);
+}
+function chalkCount() { return chalk ? M.sched.filter(g => !picks[g.id] && chalkSide(g)).length : 0; }
 let runToken = 0;
 
 const shortId = id => id.replace(/-/g, '').slice(0, 8);
 
 function readShared() {
   const q = new URLSearchParams(location.search || location.hash.slice(1));
-  return { s: q.get('s'), r: q.get('r'), t: q.get('t'), p: q.get('p') };
+  return { s: q.get('s'), r: q.get('r'), t: q.get('t'), p: q.get('p'), c: q.get('c') };
 }
 
 async function init() {
@@ -486,6 +506,8 @@ async function loadSport(key, shared) {
   document.querySelectorAll('.sport-btn').forEach(x => x.classList.toggle('active', x.dataset.s === key));
   $('sportLbl').textContent = SP.label;
   picks = {}; myTeam = ''; CUR = BASE = null;
+  if (shared.c != null) chalk = shared.c === '1';   // otherwise keep it across sport switches
+  syncChalkBtn();
   $('app').innerHTML = '<div class="state">Loading…</div>';
   if (!loaded[key]) {
     const g = SP.gender ? `&gender=eq.${SP.gender}` : '';
@@ -573,7 +595,8 @@ async function recalc() {
   const tok = ++runToken;
   if ($('status')) { $('status').classList.add('busy'); $('status').textContent = 'Simulating'; }
   await new Promise(r => setTimeout(r, 16));       // let the spinner paint
-  const res = Object.keys(picks).length ? PCEngine.run(M, picks, SIMS) : BASE;
+  const ep = effPicks();
+  const res = Object.keys(ep).length ? PCEngine.run(M, ep, SIMS) : BASE;
   if (tok !== runToken) return;
   CUR = res;
   render();
@@ -591,7 +614,11 @@ function delta(now, was, invert = false) {
 function render() {
   if (!CUR || !M.regions[region]) return;      // mid sport switch
   const nPicks = Object.keys(picks).length;
+  const nChalk = chalkCount();
+  const changed = nPicks || nChalk;            // anything different from current odds?
   $('clearBtn').disabled = !nPicks;
+  const statusTxt = [nChalk ? 'No upsets' : '', nPicks ? nPicks + ' pick' + (nPicks > 1 ? 's' : '') : '']
+    .filter(Boolean).join(' + ') || 'Current odds';
   $('shareBtn').disabled = false;
 
   const regTeams = M.regions[region].map(i => M.list[i]);
@@ -609,10 +636,10 @@ function render() {
     hero = `<div class="hero on">
       <div class="hero-team">${logo(t)}<div><div class="nm">${esc(t.school_name)}</div><div class="rec">${record(t.id)} · ${esc(regionLabel(region))}</div></div></div>
       <div class="tiles">
-        <div class="tile"><div class="k">Makes playoffs</div><div class="v ${cls(r.in, b.in)}">${pctFull(r.in)}</div><div class="d">${nPicks ? 'was ' + pctFull(b.in) : 'no picks yet'}</div></div>
+        <div class="tile"><div class="k">Makes playoffs</div><div class="v ${cls(r.in, b.in)}">${pctFull(r.in)}</div><div class="d">${changed ? 'was ' + pctFull(b.in) : 'no picks yet'}</div></div>
         ${(() => { const ms = milestone(myTeam); return ms.text
           ? `<div class="tile"><div class="k">${ms.label}</div><div class="v">${ms.text} seed</div><div class="d">${pctFull(ms.cur)} of sims</div></div>`
-          : `<div class="tile"><div class="k">${ms.label}</div><div class="v ${cls(ms.cur, ms.was)}">${pctFull(ms.cur)}</div><div class="d">${nPicks ? 'was ' + pctFull(ms.was) : '&nbsp;'}</div></div>`; })()}
+          : `<div class="tile"><div class="k">${ms.label}</div><div class="v ${cls(ms.cur, ms.was)}">${pctFull(ms.cur)}</div><div class="d">${changed ? 'was ' + pctFull(ms.was) : '&nbsp;'}</div></div>`; })()}
         <div class="tile"><div class="k">Most likely seed</div><div class="v">#${best + 1}</div><div class="d">${pctFull(r.seeds[best])} of sims</div></div>
       </div></div>`;
   }
@@ -623,17 +650,17 @@ function render() {
     ${rows.map((x, k) => `<tr class="${x.t.id === myTeam ? 'me' : ''}${k === nin - 1 && nin < rows.length ? ' cut' : ''}">
       <td class="l team"><div class="w">${logo(x.t)}<span>${esc(x.t.school_name)}</span></div></td>
       <td>${record(x.t.id)}</td>
-      <td>${pct(x.r.in)}${nPicks ? delta(x.r.in, x.b.in) : ''}</td>
-      ${showBye ? `<td>${pct(x.r.bye)}${nPicks ? delta(x.r.bye, x.b.bye) : ''}</td>` : ''}
+      <td>${pct(x.r.in)}${changed ? delta(x.r.in, x.b.in) : ''}</td>
+      ${showBye ? `<td>${pct(x.r.bye)}${changed ? delta(x.r.bye, x.b.bye) : ''}</td>` : ''}
       ${Array.from({ length: seedCols }, (_, i) => { const v = x.r.seeds[i]; return v < 0.0005 ? '<td class="dim">—</td>' : `<td${v >= 0.3 ? ' style="font-weight:700"' : ''}>${pct(v)}</td>`; }).join('')}
       <td>${x.r.avgSeed.toFixed(1)}</td></tr>`).join('')}
     </tbody></table></div>`;
 
   $('app').innerHTML = `<div class="layout">
     <div class="card">
-      <div class="card-h"><h2>${esc(regionLabel(region))} — projected</h2><span class="status" id="status">${nPicks ? nPicks + ' pick' + (nPicks > 1 ? 's' : '') : 'Current odds'}</span></div>
+      <div class="card-h"><h2>${esc(regionLabel(region))} — projected</h2><span class="status" id="status">${statusTxt}</span></div>
       ${hero}${table}
-      <div class="note">Top ${nin} make the playoffs${nbye && nbye < nin ? `; top ${nbye} get a first-round bye` : ''}. Ranked by ${SP.rating}. Games you don't pick are simulated from our win probabilities. Arrows show the change from no picks.</div>
+      <div class="note">Top ${nin} make the playoffs${nbye && nbye < nin ? `; top ${nbye} get a first-round bye` : ''}. Ranked by ${SP.rating}. Games you don't pick are simulated from our win probabilities${nChalk ? `; with No upsets on, ${nChalk} game${nChalk > 1 ? 's' : ''} with an 80%+ favorite go${nChalk > 1 ? '' : 'es'} to the favorite (shaded gray — tap to change)` : ''}. Arrows show the change from current odds.</div>
     </div>
     <div class="card">
       <div class="card-h"><h2>Remaining games</h2>
@@ -704,13 +731,20 @@ function gamesHtml() {
 }
 
 function gameRow(g) {
-  const h = M.list[g.h], a = M.list[g.a], p = picks[g.id];
-  const btn = (t, side, prob) => `<button class="pick${p === side ? ' win' : p ? ' lose' : ''}" data-g="${g.id}" data-s="${side}">
+  const h = M.list[g.h], a = M.list[g.a];
+  const auto = chalk && !picks[g.id] ? chalkSide(g) : null;
+  const p = picks[g.id] || auto, ac = auto ? ' auto' : '';
+  const btn = (t, side, prob) => `<button class="pick${p === side ? ' win' + ac : p ? ' lose' + ac : ''}" data-g="${g.id}" data-s="${side}">
       ${logo(t)}<span class="n">${esc(t.school_name)}</span><span class="p">${Math.round(prob * 100)}%</span></button>`;
   return `<div class="game"><span class="dt">${fdt(g.date)}</span>${btn(a, 'a', 1 - g.p)}<span class="at">@</span>${btn(h, 'h', g.p)}</div>`;
 }
 
 $('clearBtn').onclick = () => { picks = {}; recalc(); };
+function syncChalkBtn() { const b = $('chalkBtn'); b.classList.toggle('on', chalk); b.setAttribute('aria-pressed', chalk); }
+$('chalkBtn').onclick = () => {
+  chalk = !chalk; syncChalkBtn(); recalc();
+  if (window.gtag) gtag('event', 'playoff_calc_no_upsets', { sport: SPORT, on: chalk });
+};
 $('teamSel').onchange = e => { myTeam = e.target.value; render(); };
 
 // ── share ────────────────────────────────────────────────────────────────
@@ -721,14 +755,16 @@ function shareUrl() {
   if (myTeam) q.set('t', shortId(myTeam));
   const p = Object.entries(picks).map(([id, s]) => shortId(id) + s).join('.');
   if (p) q.set('p', p);
+  if (chalk) q.set('c', '1');
   return SHARE_BASE + '?' + q.toString();
 }
 
 function pickLines() {
-  return M.sched.filter(g => picks[g.id]).map(g => {
+  const head = chalkCount() ? [`No upsets — every 80%+ favorite wins`] : [];
+  return head.concat(M.sched.filter(g => picks[g.id]).map(g => {
     const w = M.list[picks[g.id] === 'h' ? g.h : g.a], l = M.list[picks[g.id] === 'h' ? g.a : g.h];
     return `${w.school_name} beats ${l.school_name}`;
-  });
+  }));
 }
 
 function loadImg(src) {

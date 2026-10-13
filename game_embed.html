@@ -256,6 +256,8 @@
       text-align: left; border-bottom: 1px solid var(--border);
     }
     .box .highlight { color: var(--green); font-weight: 600; }
+    .box .bb-total td { font-weight: 700; border-top: 1px solid var(--border); background: #fcfcfc; }
+    .box .bb-pct td { font-size: 11px; color: var(--lgray); padding-top: 0; }
     .box .w-tag { display: inline-block; background: var(--green); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 2px; margin-left: 3px; vertical-align: middle; font-family: 'Barlow Condensed', sans-serif; letter-spacing: .3px; }
     .box .l-tag { display: inline-block; background: var(--red); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 2px; margin-left: 3px; vertical-align: middle; font-family: 'Barlow Condensed', sans-serif; letter-spacing: .3px; }
 
@@ -365,6 +367,7 @@ const SB_URL = (window.MBREmbed ? MBREmbed.config.SUPABASE_URL : 'https://vtwupe
 const FOOTBALL_SPORT_ID     = 'fa905ca5-f416-409b-81ac-777179ee5576';
 const SOCCER_SPORT_ID       = 'ff80a695-0e78-4432-98f2-141b2b571e0e';
 const FIELD_HOCKEY_SPORT_ID = '1054869a-20d4-465f-8ca9-4bc4d2bafe1b';
+const BASKETBALL_SPORT_ID   = 'b31ab283-b28e-4ba8-9684-b1cf30cea219';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
 
 const SPORT_LABELS = {
@@ -745,6 +748,10 @@ async function init() {
   // boxscore-import.html), not baseball's batting/pitching — without this they
   // fall through to the diamond path and render "No batting data".
   const isField = g.sport_id === SOCCER_SPORT_ID || g.sport_id === FIELD_HOCKEY_SPORT_ID;
+  // Basketball is one table, filled from the live scorer's player_final_stats
+  // or, failing that, an imported box_score_json { basketball: [...] }.
+  const isBasketball = g.sport_id === BASKETBALL_SPORT_ID;
+  const isDiamond = !isFootball && !isField && !isBasketball;
 
   // Team colors — neutral defaults until primary_color is in DB
   const aColor = at.primary_color || '#2563a8'; // away = blue
@@ -876,8 +883,8 @@ async function init() {
           <button class="sec-tab" onclick="showFbTab('defense',this)">Defense</button>
           <button class="sec-tab" onclick="showFbTab('kicking',this)">Kicking</button>
         </div>` : ''}
-        ${!isFootball && !isField && !bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
-        ${!isFootball && !isField && bsj ? `<div class="section-tabs">
+        ${isDiamond && !bsj ? `<a href="boxscore-import.html" style="font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;text-transform:none;letter-spacing:0">+ Import Stats</a>` : ''}
+        ${isDiamond && bsj ? `<div class="section-tabs">
           <button class="sec-tab active" onclick="showBoxTab('batting',this)">Batting</button>
           <button class="sec-tab" onclick="showBoxTab('pitching',this)">Pitching</button>
         </div>` : ''}
@@ -888,7 +895,7 @@ async function init() {
         </div>` : ''}
       </div>
       <div class="box-wrap" id="boxContent">
-        ${isFootball ? '<div class="loading" style="padding:24px">Loading box score…</div>'
+        ${isFootball || isBasketball ? '<div class="loading" style="padding:24px">Loading box score…</div>'
           : isField ? (bsj ? renderFieldBox('scoring', bsj, ht.school_name, at.school_name) : `
           <div class="no-boxscore">
             <strong>No box score imported yet</strong>
@@ -951,6 +958,22 @@ async function init() {
     });
   }
 
+  // Basketball: live scorer first, imported PDF second, then an import link
+  if (isBasketball) {
+    loadFootballBox(g.id).then(box => {
+      if (!box) box = basketballBoxFromBsj(bsj, g.home_team_id, ht.school_name,
+                                                 g.away_team_id, at.school_name);
+      const el = document.getElementById('boxContent');
+      if (!el) return;
+      el.innerHTML = box
+        ? renderBasketballBox(box, g.home_team_id, g.away_team_id, ht.school_name, at.school_name)
+        : `<div class="no-boxscore">
+            <strong>No box score yet</strong>
+            <a href="boxscore-import.html?team_id=${g.home_team_id}" target="_blank" rel="noopener">Import stats from a PDF box score →</a>
+          </div>`;
+    });
+  }
+
   // Load season records for both teams
   loadTeamContext(g, ht, at, hSnap, aSnap, hRankLabel, aRankLabel);
   // Football renders its own box asynchronously above. This re-render exists to
@@ -958,7 +981,7 @@ async function init() {
   // raced that and overwrote the table with renderBatting() — which, on a
   // football box_score_json that has no `batting` key, printed "No batting
   // data" over a perfectly good football box score.
-  if (bsj && !isFootball) loadBoxScoreRosters(g).then(() => {
+  if (bsj && !isFootball && !isBasketball) loadBoxScoreRosters(g).then(() => {
     // Re-render box score with full names, staying on whichever tab is open
     // and using the renderer this sport actually uses.
     if (isField) {
@@ -1128,6 +1151,88 @@ function showFbTab(cat, btn) {
   if (btn) btn.classList.add('active');
   document.getElementById('boxContent').innerHTML =
     renderFootballBox(cat, window._fbHomeId, window._fbAwayId, window._htName, window._atName);
+}
+
+// ══════════════════════════════════════════════════════
+// BASKETBALL BOX SCORE
+// Two sources, one shape. The live scorer writes player_final_stats events
+// (read by loadFootballBox, which is sport-agnostic) keyed by team_id with
+// `num`; boxscore-import.html writes box_score_json.basketball rows that name
+// their team by school and use `number`. Both carry pts/fgm/fga/tpm/tpa/
+// ftm/fta/oreb/dreb/reb/ast/stl/blk/to/fls.
+// ══════════════════════════════════════════════════════
+function basketballBoxFromBsj(bsj, homeId, homeName, awayId, awayName) {
+  const rows = bsj && Array.isArray(bsj.basketball) ? bsj.basketball : [];
+  if (!rows.length) return null;
+  const byTeam = {};
+  rows.forEach(r => {
+    // check the longer school name first so "South Portland" doesn't land on "Portland"
+    const order = (homeName || '').length >= (awayName || '').length
+      ? [[homeId, homeName], [awayId, awayName]] : [[awayId, awayName], [homeId, homeName]];
+    const hit = order.find(([, nm]) => teamIs(r.team, nm));
+    if (!hit) return;
+    (byTeam[hit[0]] = byTeam[hit[0]] || []).push(r);
+  });
+  return Object.keys(byTeam).length ? byTeam : null;
+}
+
+function renderBasketballBox(box, homeId, awayId, homeName, awayName) {
+  const n = v => { const x = Number(v); return isNaN(x) ? 0 : x; };
+  const reb = p => (p.reb != null && p.reb !== '') ? n(p.reb) : n(p.oreb) + n(p.dreb);
+  const all = [...(box[awayId] || []), ...(box[homeId] || [])];
+  const showMin = all.some(p => n(p.mins) > 0);
+  const cols = [
+    ...(showMin ? [['MIN', p => Math.round(n(p.mins))]] : []),
+    ['PTS', p => n(p.pts), p => n(p.pts) >= 10],
+    ['FG',  p => `${n(p.fgm)}-${n(p.fga)}`],
+    ['3PT', p => `${n(p.tpm)}-${n(p.tpa)}`],
+    ['FT',  p => `${n(p.ftm)}-${n(p.fta)}`],
+    ['REB', p => reb(p), p => reb(p) >= 10],
+    ['AST', p => n(p.ast), p => n(p.ast) >= 5],
+    ['STL', p => n(p.stl)],
+    ['BLK', p => n(p.blk)],
+    ['TO',  p => n(p.to)],
+    ['PF',  p => n(p.fls)],
+  ];
+  const pct = (m, a) => a > 0 ? Math.round(m / a * 100) + '%' : '—';
+
+  function teamRows(list) {
+    if (!list || !list.length) return '';
+    const players = list.slice().sort((a, b) =>
+      (b.starter ? 1 : 0) - (a.starter ? 1 : 0) || n(b.pts) - n(a.pts));
+    const body = players.map(p => {
+      const num = (p.number != null && p.number !== '') ? p.number : (p.num ?? '');
+      const name = p.name || p.last || '';
+      return `<tr>
+        <td class="left player-name">${esc2(name)}${num !== '' ? `<span class="pos-tag">#${esc2(num)}</span>` : ''}</td>
+        ${cols.map(([, get, hot]) => `<td class="${hot && hot(p) ? 'highlight' : ''}">${get(p)}</td>`).join('')}
+      </tr>`;
+    }).join('');
+    const t = {};
+    ['mins','pts','fgm','fga','tpm','tpa','ftm','fta','ast','stl','blk','to','fls']
+      .forEach(k => t[k] = players.reduce((s, p) => s + n(p[k]), 0));
+    t.reb = players.reduce((s, p) => s + reb(p), 0);
+    const totals = `<tr class="bb-total">
+        <td class="left">Team</td>
+        ${cols.map(([, get]) => `<td>${get(t)}</td>`).join('')}
+      </tr>
+      <tr class="bb-pct">
+        <td class="left"></td>
+        ${cols.map(([h]) => `<td>${h === 'FG' ? pct(t.fgm, t.fga) : h === '3PT' ? pct(t.tpm, t.tpa) : h === 'FT' ? pct(t.ftm, t.fta) : ''}</td>`).join('')}
+      </tr>`;
+    return body + totals;
+  }
+
+  const away = teamRows(box[awayId]), home = teamRows(box[homeId]);
+  if (!away && !home) return `<div class="no-boxscore"><strong>No player stats</strong></div>`;
+  const span = cols.length + 1;
+  return `<table class="box" id="basketballTable">
+    <thead><tr><th class="left">Player</th>${cols.map(([h]) => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>
+      ${away ? `<tr class="team-divider"><td colspan="${span}">${esc2(awayName)} (Away)</td></tr>${away}` : ''}
+      ${home ? `<tr class="team-divider"><td colspan="${span}">${esc2(homeName)} (Home)</td></tr>${home}` : ''}
+    </tbody>
+  </table>`;
 }
 
 // minimal escaper (game.html has esc() in some builds; keep this self-contained)

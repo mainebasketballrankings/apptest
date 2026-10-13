@@ -412,10 +412,91 @@ function healsCalc(games, tid, smap, regEnd, getScheduled, sportKey) {
   return { pi, heals: healSum * 10, played, denom, details };
 }
 
+// ── Basketball regular-season stats ─────────────────────────────────────────
+// Two sources, merged per player, regular-season finals only:
+//   1. box score imports (game_stat_imports, stat_type 'basketball')
+//   2. live-scored games (ScoreKeepers' player_final_stats events), for games
+//      with no import, so a game entered both ways counts once.
+// Tourney Stats live in the players table's ppg/rpg/… columns and are shown
+// separately in the roster table.
+async function bballSeasonHtml(tid, games, players) {
+  const finals = (games || []).filter(g => g.status === 'final' && !g.is_tournament).map(g => g.id);
+  if (!finals.length) return '';
+  const ids  = finals.join(',');
+  const pids = players.map(p => p.id).filter(Boolean);
+  const [imps, evts] = await Promise.all([
+    pids.length ? sb(`game_stat_imports?stat_type=eq.basketball&game_id=in.(${ids})&player_id=in.(${pids.join(',')})&select=game_id,player_id,stats&limit=5000`) : [],
+    sb(`game_events?team_id=eq.${tid}&event_type=eq.player_final_stats&game_id=in.(${ids})&select=game_id,notes,created_at&order=created_at.desc&limit=3000`),
+  ]);
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+  const firstNum = s => String(s == null ? '' : s).split('/')[0].trim();
+  const KEYS = ['pts','fgm','fga','tpm','tpa','ftm','fta','reb','ast','stl','blk','to'];
+  const rows = new Map();               // player key -> {number, name, gp, ...}
+  const rowFor = (key, number, name) => {
+    if (!rows.has(key)) rows.set(key, Object.assign({ number, name, gp: 0 }, Object.fromEntries(KEYS.map(k => [k, 0]))));
+    return rows.get(key);
+  };
+  const add = (r, d) => { r.gp++; KEYS.forEach(k => { r[k] += +d[k] || 0; }); };
+  const byId = new Map(players.map(p => [p.id, p]));
+
+  const imported = new Set();
+  for (const i of (imps || [])) {
+    const p = byId.get(i.player_id); if (!p) continue;
+    let d = i.stats; try { if (typeof d === 'string') d = JSON.parse(d); } catch (e) { continue; }
+    imported.add(i.game_id);
+    add(rowFor(p.id, p.number, p.name), d || {});
+  }
+  const seen = new Set();               // game|player — newest wins if End Game was pressed twice
+  for (const e of (evts || [])) {
+    if (imported.has(e.game_id)) continue;
+    let d; try { d = JSON.parse(e.notes || '{}'); } catch (x) { continue; }
+    if (!d.name || d.entered === false) continue;
+    const k = e.game_id + '|' + norm(d.name);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    // Same player as a roster row when the name (or a unique number) matches.
+    let p = players.find(x => norm(x.name) === norm(d.name));
+    if (!p && firstNum(d.num)) {
+      const hits = players.filter(x => firstNum(x.number) === firstNum(d.num));
+      if (hits.length === 1) p = hits[0];
+    }
+    add(rowFor(p ? p.id : 'n:' + norm(d.name), p ? p.number : d.num, p ? p.name : d.name), d);
+  }
+  if (!rows.size) return '';
+
+  const pg  = (v, n) => n ? (v / n).toFixed(1) : '—';
+  const pct = (m, a) => a ? (m / a * 100).toFixed(1) : '—';
+  const list = [...rows.values()].sort((a, b) => (b.pts / b.gp) - (a.pts / a.gp));
+  const body = list.map(r => `<tr>
+      <td class="rt-num">${r.number != null && r.number !== '' ? parseInt(r.number) || r.number : '—'}</td>
+      <td class="rt-name">${r.name || ''}</td><td class="rt-stat-gap"></td>
+      <td class="rt-stat">${r.gp}</td><td class="rt-stat">${r.pts}</td>
+      <td class="rt-stat">${pg(r.pts, r.gp)}</td><td class="rt-stat">${pg(r.reb, r.gp)}</td><td class="rt-stat">${pg(r.ast, r.gp)}</td>
+      <td class="rt-stat">${pg(r.stl, r.gp)}</td><td class="rt-stat">${pg(r.blk, r.gp)}</td>
+      <td class="rt-stat">${pct(r.fgm, r.fga)}</td><td class="rt-stat">${pct(r.tpm, r.tpa)}</td><td class="rt-stat">${pct(r.ftm, r.fta)}</td>
+    </tr>`).join('');
+  return `
+    <div class="roster-section">
+      <div class="section-header"><span>Regular Season Stats</span></div>
+      <div class="roster-wrap">
+        <table class="rt">
+          <thead><tr><th>#</th><th style="position:sticky;left:0;background:var(--bg);z-index:3">Name</th><th class="rt-stat-gap-th"></th>
+            <th>GP</th><th>PTS</th><th>PPG</th><th>RPG</th><th>APG</th><th>SPG</th><th>BPG</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 async function load() {
-  const tid = qp('team_id');
+  const tid = qp('team_id') || qp('id');
   const app = document.getElementById('app');
-  if (!tid) { app.innerHTML = `<div class="error-state">No team_id specified.</div>`; return; }
+  if (!tid) {
+    // Landing on the Teams page with no team picked is normal, not an error.
+    app.innerHTML = `<div class="loading-state">Search for any team above to see its schedule, ratings and stats.</div>`;
+    setTimeout(() => { try { document.getElementById('teamSearchInput').focus({ preventScroll: true }); } catch (e) {} }, 0);
+    return;
+  }
 
   try {
     // Resolved before the snapshot query below, which has to be filtered by it —
@@ -457,6 +538,10 @@ async function load() {
     // (player_final_stats events) even when no box score was imported, so the
     // schedule's 📊 should light up for those too.
     const FB_SPORT_ID = 'fa905ca5-f416-409b-81ac-777179ee5576';
+    // Besides baseball/softball, the box score importer handles football,
+    // soccer, field hockey and basketball, so their finals get "+ Stats" too.
+    const IMPORT_EXTRA_IDS = [FB_SPORT_ID, 'ff80a695-0e78-4432-98f2-141b2b571e0e', '1054869a-20d4-465f-8ca9-4bc4d2bafe1b',
+                              'b31ab283-b28e-4ba8-9684-b1cf30cea219'];
     let liveStatGames = new Set();
     if (team.sport_id === FB_SPORT_ID) {
       const finIds = (games || []).filter(g => g.status === 'final').map(g => g.id);
@@ -872,9 +957,9 @@ async function load() {
         </td>
         <td class="sc ${won?'w':lost?'l':''}">
           <span class="rbadge ${res==='W'?'W':res==='L'?'L':''}">${res}</span> ${scoreTxt}
-          ${fin && (isSpring || team.sport_id === FB_SPORT_ID) ? ((g.stats_uploaded || liveStatGames.has(g.id))
-            ? `<a class="stats-pill uploaded" href="game.html?game_id=${g.id}" title="View box score">📊</a>`
-            : `<a class="stats-pill pending" href="boxscore-import.html" title="Import box score stats">+ Stats</a>`
+          ${fin && (isSpring || IMPORT_EXTRA_IDS.includes(team.sport_id)) ? ((g.stats_uploaded || liveStatGames.has(g.id))
+            ? `<a class="stats-pill uploaded" href="https://www.mainebasketballrankings.com/game/?id=${g.id}" target="_blank" rel="noopener" title="View box score">📊</a>`
+            : `<a class="stats-pill pending" href="boxscore-import.html?team_id=${team.id}" target="_blank" rel="noopener" title="Import box score stats">+ Stats</a>`
           ) : ''}
         </td>
         <td class="dc ${df>0?'p':df<0?'n':''} hsm">${df!==null?(df>0?'+':'')+df:''}</td>
@@ -1129,7 +1214,7 @@ async function load() {
           const headerRow = headCells.join('');
           rosterHtml = `
             <div class="roster-section">
-              <div class="section-header"><span>Roster</span><a class="submit-roster-link" href="roster-submit.html">Submit Roster</a></div>
+              <div class="section-header"><span>Roster &middot; Tournament Stats</span><a class="submit-roster-link" href="roster-submit.html">Submit Roster</a></div>
               <div class="roster-wrap">
                 <table class="rt">
                   <thead><tr>${headerRow}</tr></thead>
@@ -1203,6 +1288,12 @@ async function load() {
             </div>`;
         }
       }
+      // Basketball regular season: added up from box score imports and
+      // live-scored games. The roster table's PPG/RPG/… are Tourney Stats.
+      if (sport === 'basketball') {
+        try { rosterHtml = (await bballSeasonHtml(tid, games, players || [])) + rosterHtml; }
+        catch (x) { console.warn('basketball season stats', x); }
+      }
     } catch(e) {
       console.warn('roster fetch error', e);
       rosterHtml = `<div class="section-wrap"><div class="section-header">Roster</div><div style="padding:16px;color:var(--gray);font-size:14px;">Roster unavailable — try refreshing.</div></div>`;
@@ -1235,7 +1326,7 @@ async function load() {
             <span class="team-name-lg">${team.school_name}</span>
             ${rankHtml}
           </div>
-          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span>${seasonChipHtml}<span class="meta-sep">|</span><a class="gender-link" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
+          <div class="team-meta">${genderHtml}<span class="meta-sep">|</span><strong>${classReg}</strong><span class="meta-sep">|</span>${SPORT_NAME[sport] || ''}<span class="meta-sep">|</span>${seasonChipHtml}<span class="meta-sep">|</span><a class="gender-link" target="_blank" rel="noopener" href="school.html?school=${team.school_name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}">All ${team.school_name} Sports ↗</a></div>
           <div class="team-inline-stats">
             <span class="inline-stat"><span class="inline-lbl">RECORD</span><span class="inline-val grn">${wins}–${losses}${ties ? '–' + ties : ''}</span></span>
             <span class="inline-stat"><span class="inline-lbl">POINT DIFF</span><span class="inline-val ${pointDiff >= 0 ? 'grn' : 'red'}">${diffStr}</span></span>
@@ -1274,14 +1365,17 @@ const SPORT_DISPLAY_MAP = {
   'e26b0fcc-e661-4945-8b2d-063c37ace44f': 'Volleyball',
 };
 
-let allTeamsCache = null;
 let searchTimeout = null;
+let searchSeq = 0;
 
-async function fetchAllTeams() {
-  if (allTeamsCache) return allTeamsCache;
-  const res = await sb(`teams?select=id,school_name,sport_id,gender&order=school_name.asc&limit=2000`);
-  allTeamsCache = res || [];
-  return allTeamsCache;
+// Searched on the server. The old version downloaded every team and filtered
+// here, but the API returns at most 1,000 rows, so anything late in the
+// alphabet (York, Yarmouth, Windham…) never showed up.
+async function searchTeams(q) {
+  const pat = encodeURIComponent('*' + q.replace(/[*,()]/g, ' ').trim() + '*');
+  const rows = await sb(`teams?school_name=ilike.${pat}&owner_id=is.null&active=eq.true` +
+    `&select=id,school_name,sport_id,gender&order=school_name.asc&limit=60`);
+  return (rows || []).filter(t => t.school_name && !/^zz /i.test(t.school_name));
 }
 
 const searchInput = document.getElementById('teamSearchInput');
@@ -1303,10 +1397,20 @@ document.addEventListener('click', e => {
 });
 
 async function doSearch(q) {
-  const teams = await fetchAllTeams();
+  const seq = ++searchSeq;
+  let matches = [];
+  try { matches = await searchTeams(q); } catch (e) { matches = []; }
+  if (seq !== searchSeq) return;          // a newer keystroke already searched
+  // Names that start with the query first ("York" before "Old York"), then A-Z.
   const lower = q.toLowerCase();
-  const matches = teams.filter(t => t.school_name?.toLowerCase().includes(lower)).slice(0, 20);
-  if (!matches.length) { searchResults.classList.remove('open'); return; }
+  matches.sort((a, b) => (b.school_name.toLowerCase().startsWith(lower) - a.school_name.toLowerCase().startsWith(lower))
+    || a.school_name.localeCompare(b.school_name));
+  matches = matches.slice(0, 30);
+  if (!matches.length) {
+    searchResults.innerHTML = `<div class="tsr-item" style="cursor:default"><div class="tsr-sport">No teams match “${q.replace(/[<>&"]/g, '')}”</div></div>`;
+    searchResults.classList.add('open');
+    return;
+  }
 
   searchResults.innerHTML = matches.map(t => {
     const sport = SPORT_DISPLAY_MAP[t.sport_id] || 'Sport';

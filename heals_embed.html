@@ -726,6 +726,8 @@
       SPORT_IDS[activeSport], season,
       activeSport === 'football'
         ? (activeRegion?.split('|')[0] || activeRegion) : null);
+    // Minimum divisor (soccer dropped it from 12 to 8 for 2026-27).
+    const minDenom = await getMinDenom(SPORT_IDS[activeSport], season);
 
     // Game select — basketball uses team_classifications for oppClass, others use team_class
     const gameSelect = activeSport === 'basketball'
@@ -826,7 +828,7 @@
 
     const getScheduled = (tid) => {
       const count = schedCountMap[tid] || 0;
-      return Math.max(count, 12);
+      return Math.max(count, minDenom);
     };
 
     // Hide teams that aren't actually playing this season. A team with zero
@@ -871,7 +873,7 @@
     if (cancelled()) return;
 
     // ── Step 1: Calculate PI for ALL teams in the sport ──────────
-    // PI = sum of win point values / max(scheduled, 12); 0 wins -> 1.0
+    // PI = sum of win point values / max(scheduled, minDenom); 0 wins -> 1.0
     const piMap = {}; // team_id -> calculated PI
 
     // Pre-index games by team_id to avoid O(n*m) scans in calcPI
@@ -903,7 +905,7 @@
         }
       });
       const snap = snapMap[tid];
-      const denom = Math.max(getScheduled(tid), 12);
+      const denom = getScheduled(tid);
       const pi = (wins === 0 && sumWinPts === 0) ? 1.0 : sumWinPts / denom;
       piMap[tid] = pi;
       return pi;
@@ -940,7 +942,7 @@
       const losses = gameDetails.filter(d => !d.unplayed && !d.won && !d.tied).length;
       const played = wins + losses + ties;
       const snapInfo = snapMap[team.id];
-      const denom  = Math.max(getScheduled(team.id), 12);
+      const denom  = getScheduled(team.id);
 
       // PI = already calculated in piMap (includes ties)
       const pi = piMap[team.id] ?? 1.0;
@@ -980,22 +982,32 @@
 
   // Regular season end date. Class-specific rows win over the '*' catch-all,
   // which is how football's Class A gets its extra week.
-  const _cutoffCache = {};
-  async function getSeasonCutoff(sportId, season, cls) {
-    const key = `${sportId}|${season}|${cls || '*'}`;
-    if (key in _cutoffCache) return _cutoffCache[key];
-    let out = null;
+  // One fetch per sport+season serves both the cutoff date and the minimum
+  // Heal Points divisor, which live on the same rows.
+  const _cutoffRowsCache = {};
+  async function getCutoffRows(sportId, season) {
+    const key = `${sportId}|${season}`;
+    if (key in _cutoffRowsCache) return _cutoffRowsCache[key];
+    let rows = [];
     try {
       const { data } = await sb.from('season_cutoffs')
-        .select('class_name, cutoff_date')
+        .select('class_name, cutoff_date, min_denom')
         .eq('sport_id', sportId).eq('season_year', season);
-      const rows = data || [];
-      const hit = rows.find(r => cls && r.class_name === cls)
-               || rows.find(r => r.class_name === '*');
-      out = hit ? hit.cutoff_date : null;
+      rows = data || [];
     } catch (e) { console.warn('[cutoff] lookup failed', e); }
-    _cutoffCache[key] = out;
-    return out;
+    _cutoffRowsCache[key] = rows;
+    return rows;
+  }
+  async function getSeasonCutoff(sportId, season, cls) {
+    const rows = await getCutoffRows(sportId, season);
+    const hit = rows.find(r => cls && r.class_name === cls)
+             || rows.find(r => r.class_name === '*');
+    return hit ? hit.cutoff_date : null;
+  }
+  // Heal Points divisor is max(games scheduled, this). NULL/missing = 12.
+  async function getMinDenom(sportId, season) {
+    const star = (await getCutoffRows(sportId, season)).find(r => r.class_name === '*');
+    return star && star.min_denom ? +star.min_denom : 12;
   }
 
   async function loadCrabtree(myToken) {

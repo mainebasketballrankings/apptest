@@ -173,9 +173,10 @@
 //     record plus coin flips for the rest of their season.
 //
 //   Heal points (soccer, field hockey, volleyball)
-//     PI   = win points earned (by the beaten team's class) / max(scheduled, 12)
+//     PI   = win points earned (by the beaten team's class) / max(scheduled, min)
 //            — a team with no wins gets PI 1
-//     Heal = sum of beaten opponents' PI / max(scheduled, 12) * 10
+//     Heal = sum of beaten opponents' PI / max(scheduled, min) * 10
+//            min = cfg.min_denom (soccer 8 from 2026-27), else 12
 //     A tie is half a win: half the points, half the opponent's PI. Same maths
 //     as the site's Heal page and mbr_compute_heals().
 //
@@ -237,11 +238,12 @@ const PCEngine = (() => {
 
     // Heal's denominator is each team's own schedule length (min 12),
     // counting every game on it — including ones against unclassed teams.
-    const den = new Float64Array(N).fill(12);
+    const minDen = +(cfg && cfg.min_denom) || 12;
+    const den = new Float64Array(N).fill(minDen);
     if (heal) {
       const cnt = new Map();
       for (const g of games) for (const id of [g.home_team_id, g.away_team_id]) cnt.set(id, (cnt.get(id) || 0) + 1);
-      for (let i = 0; i < N; i++) den[i] = Math.max(cnt.get(list[i].id) || 0, 12);
+      for (let i = 0; i < N; i++) den[i] = Math.max(cnt.get(list[i].id) || 0, minDen);
     }
     const pts = new Float64Array(N);
     for (let i = 0; i < N; i++) pts[i] = WIN_PTS[classOf(regionKey(list[i], cfg))] ?? 36;

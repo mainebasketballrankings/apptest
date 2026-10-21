@@ -282,6 +282,14 @@ function mbrGoToSeason(year) {
   window.location.search = q.toString();
 }
 
+// Minimum Heal Points divisor: max(games scheduled, minDenom). Lives on the
+// season's '*' row in season_cutoffs (soccer dropped it to 8 for 2026-27);
+// a missing value means the long-standing 12.
+function resolveMinDenom(cutoffRows) {
+  const star = (cutoffRows || []).find(r => r.class_name === '*');
+  return star && star.min_denom ? +star.min_denom : 12;
+}
+
 function resolveRegEnd(cutoffRows, className, seasonYear) {
   const rows = cutoffRows || [];
   const exact = className && rows.find(r => r.class_name === className);
@@ -529,7 +537,7 @@ async function load() {
         ? sb(`rankings_snapshots?snapshot_date=eq.${latestSnapDate}&season_year=eq.${seasonYear}&select=team_id,heal_points,rank_overall,rank_class,sos,avg_pf,avg_pa,pct_perfect&limit=500`)
         : Promise.resolve([]),
       sb(`teams?sport_id=eq.${team.sport_id}&gender=eq.${team.gender}&select=id&limit=500`),
-      sb(`season_cutoffs?sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=class_name,cutoff_date`),
+      sb(`season_cutoffs?sport_id=eq.${team.sport_id}&season_year=eq.${seasonYear}&select=class_name,cutoff_date,min_denom`),
       sb(`games?or=(home_team_id.eq.${tid},away_team_id.eq.${tid})&sport_id=eq.${team.sport_id}&select=season_year&limit=2000`)
     ]);
     const genderTeamIds = new Set((genderTeams || []).map(t => t.id));
@@ -649,7 +657,8 @@ async function load() {
       schedCountMap[g.home_team_id] = (schedCountMap[g.home_team_id] || 0) + 1;
       schedCountMap[g.away_team_id] = (schedCountMap[g.away_team_id] || 0) + 1;
     }
-    const getScheduled = (id) => Math.max(schedCountMap[id] || 0, 12);
+    const minDenom = resolveMinDenom(cutoffRows);
+    const getScheduled = (id) => Math.max(schedCountMap[id] || 0, minDenom);
 
     // Collect all unique team IDs from gender-filtered final games for class lookup
     const allSportTeamIds = [...new Set(genderFinalGames.flatMap(g => [g.home_team_id, g.away_team_id]))];

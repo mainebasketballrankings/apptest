@@ -1134,7 +1134,7 @@
   async function fetchSportGames(ds, sport, season) {
     const { data, error } = await sb.from('games').select(`
       id, game_date, game_time, location, status, new_date, stream_url, stax_index, event,
-      is_neutral_site, is_tournament, is_summer,
+      is_neutral_site, is_tournament, is_summer, home_seed, away_seed,
       home_score, away_score, home_score_live, away_score_live, game_clock, notes, quarter_scores,
       home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, team_class,
         team_classifications ( classes ( name ) ) ),
@@ -2214,8 +2214,10 @@
 
     const hRnk = rankMap[home.id];
     const aRnk = rankMap[away.id];
-    const hSeed = g.is_tournament ? seedMap[home.id] : null;
-    const aSeed = g.is_tournament ? seedMap[away.id] : null;
+    // Playoff games show the bracket seed (stored on the game by push_fall.py
+    // from the workbook's bracket code) instead of the statewide rank.
+    const hSeed = g.is_tournament ? (g.home_seed || seedMap[home.id]) : null;
+    const aSeed = g.is_tournament ? (g.away_seed || seedMap[away.id]) : null;
     const hR   = hSeed ? `<span class="rnk">#${hSeed} </span>` : (hRnk ? `<span class="rnk">#${hRnk} </span>` : '');
     const aR   = aSeed ? `<span class="rnk">#${aSeed} </span>` : (aRnk ? `<span class="rnk">#${aRnk} </span>` : '');
 

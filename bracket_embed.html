@@ -88,7 +88,7 @@
   .tl.win .sc { background: #fff; color: var(--ink); }
   .tl.lose { opacity: .45; }
   .meta {
-    height: 18px; display: flex; align-items: center; justify-content: center; gap: 5px;
+    height: 18px; display: flex; align-items: center; justify-content: center; justify-content: safe center; gap: 5px; text-overflow: ellipsis;
     font: 500 11.5px 'Barlow Condensed', sans-serif; color: var(--gray); letter-spacing: .2px;
     border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
     white-space: nowrap; overflow: hidden; padding: 0 6px;
@@ -273,7 +273,16 @@ async function loadData(force) {
   const tgames = (await rest(`games?sport_id=eq.${S.id}&season_year=eq.${SEASON}&is_tournament=eq.true&owner_id=is.null&select=${TGAME_SELECT}`))
     .filter(g => byId[g.home_team_id] && byId[g.away_team_id]);
 
-  const data = { teams, byId, snap, tgames, reg: null, loadedAt: new Date() };
+  // Bracket games that are scheduled (date / site set in the workbook) before
+  // the teams are known — the Gold Ball, mostly. Shown in the empty boxes.
+  let slots = {};
+  try {
+    const rows = await rest(`tournament_slots?sport_id=eq.${S.id}&gender=eq.${gender}&season_year=eq.${SEASON}` +
+      `&select=team_class,team_region,round,slot,game_date,game_time,location,is_neutral_site`);
+    rows.forEach(r => { slots[[r.team_class, r.team_region || '', r.round, r.slot || ''].join('|')] = r; });
+  } catch (e) { console.warn('[bracket] slots', e); }
+
+  const data = { teams, byId, snap, tgames, slots, reg: null, loadedAt: new Date() };
   cache[key] = data;
   loadRegular(data);                         // head-to-head, in the background
   return data;
@@ -411,6 +420,23 @@ function teamLine(tid, seedOf, data, res, g) {
     `<span class="sc">${score}</span></div>`;
 }
 const roundName = n => n.isTitle ? 'State Final' : ROUND_LABEL[n.round];
+// Workbook slot for a box: 'ANorthPlayin512' -> A|North|play_in|512, 'BGoldBall' -> B||gold_ball|
+const QF_SLOT = ['18', '45', '27', '36'], SF_SLOT = ['1458', '2367'];
+function slotFor(n, data) {
+  if (!data.slots || !n || !n.key) return null;
+  const [reg, part] = n.key.split('|');
+  const [c, r = ''] = reg.split(' ');
+  if (part === 'gb') return data.slots[[c, '', 'gold_ball', ''].join('|')] || null;
+  const m = /^(pi|qf|sf|rf)(\d*)$/.exec(part || '');
+  if (!m) return null;
+  const i = +m[2];
+  const slot = m[1] === 'pi' ? PAIRS[i].join('') : m[1] === 'qf' ? QF_SLOT[i] : m[1] === 'sf' ? SF_SLOT[i] : '';
+  const round = { pi: 'play_in', qf: 'quarters', sf: 'semis', rf: 'regional' }[m[1]];
+  const hit = data.slots[[c, r, round, slot].join('|')];
+  // Volleyball's one bracket: its title game may be coded as a Gold Ball or a final
+  if (!hit && n.isTitle) return data.slots[[c, r, 'gold_ball', ''].join('|')] || null;
+  return hit || null;
+}
 function metaLine(n, res, data) {
   const g = res.g;
   if (g && g.status === 'active') return `<div class="meta"><span class="live">LIVE</span></div>`;
@@ -420,6 +446,11 @@ function metaLine(n, res, data) {
   }
   if (g && g.status === 'postponed') return `<div class="meta">Postponed</div>`;
   if (g) return `<div class="meta" title="${esc(site(g, data))}">${esc(fmtWhen(g))}${site(g, data) ? ' · ' + esc(site(g, data)) : ''}</div>`;
+  const sl = slotFor(n, data);
+  if (sl && (sl.game_date || sl.location)) {
+    const where = sl.location || (sl.is_neutral_site ? 'Neutral site' : '');
+    return `<div class="meta" title="${esc(where)}">${esc(fmtWhen(sl))}${where ? ' · ' + esc(where) : ''}</div>`;
+  }
   return `<div class="meta" style="color:#b5b5b5">${roundName(n)}</div>`;
 }
 

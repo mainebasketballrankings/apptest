@@ -18,6 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="mbr-embed.js"></script>
+<script src="mbr-colors.js?v=1"></script>
   <style>
     :root {
       --green:   #2d6a4f;
@@ -70,7 +71,7 @@
 
     /* ── Win prob bar ── */
     .win-prob { padding: 0 20px 18px; }
-    .win-prob-bar { height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 5px; display: flex; }
+    .win-prob-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 5px; display: flex; }
     .win-prob-fill-home { background: var(--green2); transition: width 0.6s ease; }
     .win-prob-fill-away { background: #bbb; transition: width 0.6s ease; }
     .win-prob-labels { display: flex; justify-content: space-between; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--lgray); }
@@ -345,13 +346,20 @@ async function loadMatchup() {
   const hRest = restDays(hLastDate);
   const aRest = restDays(aLastDate);
 
+  // Team colours for the win bar (schools table via mbr-colors.js). Same-colour
+  // matchups switch home to its alt colour, or white with a stroke.
+  let pal = null;
+  if (window.MBRColors) {
+    try { pal = await MBRColors.matchup(home.school_name, away.school_name); } catch (e) { pal = null; }
+  }
+
   if (myVersion !== _loadVersion) return; // final check before writing to DOM
 
   el.innerHTML = buildMatchup({
     game, home, away, hSnap, aSnap,
     homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName,
     pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
-    hRest, aRest, sportName,
+    hRest, aRest, sportName, pal,
     scoreLabels: SPORT_SCORE_LABELS[sportName] || ['Pts Scored', 'Pts Allowed'],
   });
 }
@@ -392,7 +400,7 @@ function betterCls(hv, av, hiGood=true) {
 function buildMatchup({ game, home, away, hSnap, aSnap,
   homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName,
   pfRanks, paRanks, difRanks, sosRanks, pctRanks, t25Ranks, t50Ranks,
-  hRest, aRest, scoreLabels, sportName }) {
+  hRest, aRest, scoreLabels, sportName, pal }) {
 
   const isFinal = game.status==='final', isLive = game.status==='active';
   const crossCls = homeCls !== awayCls;
@@ -409,14 +417,19 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
   if (game.win_prob != null) {
     const hp = Math.round(game.win_prob * 100);
     const ap = 100 - hp;
+    // Without colours (lookup failed) the bar keeps its old green / gray look.
+    const aStyle = pal ? `background:${pal.away.fill}` : '';
+    const hStyle = pal ? `background:${pal.home.fill}` + (pal.home.stroke ? `;box-shadow:inset 0 0 0 1.5px ${pal.home.stroke}` : '') : '';
+    const aTxt = pal ? ` style="color:${pal.away.text}"` : '';
+    const hTxt = pal ? ` style="color:${pal.home.text}"` : '';
     winProbHTML = `<div class="win-prob">
       <div class="win-prob-bar">
-        <div class="win-prob-fill-away" style="width:${ap}%"></div>
-        <div class="win-prob-fill-home" style="width:${hp}%"></div>
+        <div class="win-prob-fill-away" style="width:${ap}%;${aStyle}"></div>
+        <div class="win-prob-fill-home" style="width:${hp}%;${hStyle}"></div>
       </div>
       <div class="win-prob-labels">
-        <span>${away.school_name} <span class="pct">${ap}%</span></span>
-        <span><span class="pct">${hp}%</span> ${home.school_name}</span>
+        <span>${away.school_name} <span class="pct"${aTxt}>${ap}%</span></span>
+        <span><span class="pct"${hTxt}>${hp}%</span> ${home.school_name}</span>
       </div>
     </div>`;
   }

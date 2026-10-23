@@ -9,11 +9,11 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/d-boys-south-football.html</loc>
+    <loc>https://app.mainebasketballrankings.com/rankings/d-boys-north-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/8large-boys-north-football.html</loc>
+    <loc>https://app.mainebasketballrankings.com/rankings/d-boys-south-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -21,11 +21,11 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/d-boys-north-football.html</loc>
+    <loc>https://app.mainebasketballrankings.com/rankings/b-boys-north-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/b-boys-north-football.html</loc>
+    <loc>https://app.mainebasketballrankings.com/rankings/8large-boys-north-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -49,10 +49,6 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/a-boys-north-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
     <loc>https://app.mainebasketballrankings.com/rankings/8-girls-north-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
@@ -69,15 +65,15 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/a-girls-south-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/c-girls-north-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/rankings/a-boys-north-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/rankings/b-boys-north-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/rankings/c-girls-north-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -86,6 +82,10 @@
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/rankings/8-girls-south-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/rankings/a-girls-south-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -101,19 +101,19 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/b-girls-north-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/rankings/d-boys-south-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
     <loc>https://app.mainebasketballrankings.com/rankings/a-boys-south-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/rankings/b-boys-south-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/rankings/b-girls-north-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/rankings/d-boys-south-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -205,6 +205,34 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
+    <loc>https://app.mainebasketballrankings.com/teams/winslow-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/john-bapst-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/madison-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/mci-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/mattanawcook-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/oak-hill-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/belfast-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
     <loc>https://app.mainebasketballrankings.com/teams/winthrop-boys-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
@@ -233,26 +261,6 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/old-town-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mdi-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/ellsworth-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/waterville-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/houlton-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
     <loc>https://app.mainebasketballrankings.com/teams/stearns-boys-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
@@ -270,34 +278,6 @@
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/teams/dexter-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/winslow-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/john-bapst-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/madison-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mci-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mattanawcook-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/oak-hill-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/belfast-boys-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -330,6 +310,26 @@
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/teams/brunswick-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/old-town-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/mdi-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/ellsworth-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/waterville-boys-football.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/houlton-boys-football.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -466,50 +466,6 @@
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/teams/sanford-boys-football.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/brunswick-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/lewiston-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/camden-hills-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/edward-little-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mount-blue-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/hampden-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/messalonskee-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/bangor-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mt-ararat-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/brewer-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/oxford-hills-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -733,107 +689,47 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/scarborough-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/brunswick-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/windham-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/lewiston-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/kennebunk-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/camden-hills-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/south-portland-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/edward-little-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/bonny-eagle-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/mount-blue-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/cheverus-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/hampden-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/marshwood-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/messalonskee-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/westbrook-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/bangor-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/gorham-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/mt-ararat-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/falmouth-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/brewer-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
-    <loc>https://app.mainebasketballrankings.com/teams/deering-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/thornton-academy-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/portland-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/sanford-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/noble-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/massabesic-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/biddeford-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/fort-kent-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/orono-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/winslow-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mattanawcook-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/houlton-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/central-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/bucksport-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mci-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mount-view-girls-soccer.html</loc>
+    <loc>https://app.mainebasketballrankings.com/teams/oxford-hills-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -906,6 +802,42 @@
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/teams/old-town-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/fort-kent-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/orono-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/winslow-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/mattanawcook-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/houlton-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/central-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/bucksport-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/mci-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/mount-view-girls-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -1017,6 +949,74 @@
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
+    <loc>https://app.mainebasketballrankings.com/teams/scarborough-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/windham-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/kennebunk-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/south-portland-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/bonny-eagle-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/cheverus-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/marshwood-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/westbrook-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/gorham-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/falmouth-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/deering-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/thornton-academy-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/portland-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/sanford-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/noble-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/massabesic-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/biddeford-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
     <loc>https://app.mainebasketballrankings.com/teams/madawaska-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
@@ -1102,114 +1102,6 @@
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/teams/mssm-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/john-bapst-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/presque-isle-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/hermon-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/gardiner-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/skowhegan-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/belfast-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/cony-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/erskine-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/medomak-valley-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/mdi-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/old-town-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/ellsworth-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/oceanside-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/foxcroft-academy-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/caribou-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/waterville-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/lawrence-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/nokomis-girls-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/monmouth-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/narraguagus-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/buckfield-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/bangor-christian-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/richmond-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/woodland-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/penobscot-christian-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/machias-boys-soccer.html</loc>
-    <lastmod>2026-10-23</lastmod>
-  </url>
-  <url>
-    <loc>https://app.mainebasketballrankings.com/teams/jonesport-beals-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>
@@ -1326,6 +1218,114 @@
   </url>
   <url>
     <loc>https://app.mainebasketballrankings.com/teams/gray-new-gloucester-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/john-bapst-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/presque-isle-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/hermon-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/gardiner-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/skowhegan-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/belfast-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/cony-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/erskine-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/medomak-valley-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/mdi-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/old-town-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/ellsworth-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/oceanside-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/foxcroft-academy-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/caribou-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/waterville-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/lawrence-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/nokomis-girls-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/monmouth-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/narraguagus-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/buckfield-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/bangor-christian-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/richmond-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/woodland-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/penobscot-christian-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/machias-boys-soccer.html</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://app.mainebasketballrankings.com/teams/jonesport-beals-boys-soccer.html</loc>
     <lastmod>2026-10-23</lastmod>
   </url>
   <url>

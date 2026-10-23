@@ -23,8 +23,11 @@
 
   // Used when a school has no row (out-of-state opponents, a new school).
   const DEFAULT = { away: '#2563a8', home: '#c17f24' };
-  // How far apart two colours must be (RGB distance) to read as different.
-  const CLASH = 80;
+  // How far apart two colours must be to read as different, measured as
+  // CIEDE2000 (how different they look to a person, not how far apart the RGB
+  // numbers are). Red vs orange (Cony / Gardiner) is ~14, navy vs black ~24,
+  // maroon vs navy ~36. Under 25 the home team switches colours.
+  const CLASH = 25;
 
   const cache = {};   // school_name -> { display, alt } | null
 
@@ -34,10 +37,38 @@
     const n = parseInt(m[1], 16);
     return [n >> 16 & 255, n >> 8 & 255, n & 255];
   }
+  function lab(h) {
+    const c = rgb(h).map(v => { v /= 255; return v > 0.04045 ? Math.pow((v + 0.055) / 1.055, 2.4) : v / 12.92; });
+    const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+    const X = f((c[0] * 0.4124 + c[1] * 0.3576 + c[2] * 0.1805) / 0.95047);
+    const Y = f(c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722);
+    const Z = f((c[0] * 0.0193 + c[1] * 0.1192 + c[2] * 0.9505) / 1.08883);
+    return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)];
+  }
+  // CIEDE2000 colour difference
   function distance(a, b) {
-    const x = rgb(a), y = rgb(b);
-    if (!x || !y) return Infinity;
-    return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+    if (!rgb(a) || !rgb(b)) return Infinity;
+    const [L1, a1, b1] = lab(a), [L2, a2, b2] = lab(b);
+    const rad = Math.PI / 180, deg = 180 / Math.PI, p7 = x => Math.pow(x, 7);
+    const Cb = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2;
+    const G = 0.5 * (1 - Math.sqrt(p7(Cb) / (p7(Cb) + p7(25))));
+    const a1p = a1 * (1 + G), a2p = a2 * (1 + G);
+    const C1 = Math.hypot(a1p, b1), C2 = Math.hypot(a2p, b2);
+    const h1 = (Math.atan2(b1, a1p) * deg + 360) % 360, h2 = (Math.atan2(b2, a2p) * deg + 360) % 360;
+    let dh = 0;
+    if (C1 * C2) dh = Math.abs(h2 - h1) <= 180 ? h2 - h1 : h2 > h1 ? h2 - h1 - 360 : h2 - h1 + 360;
+    const dL = L2 - L1, dC = C2 - C1, dH = 2 * Math.sqrt(C1 * C2) * Math.sin(dh / 2 * rad);
+    const Lb = (L1 + L2) / 2, Cbp = (C1 + C2) / 2;
+    let hb = h1 + h2;
+    if (C1 * C2) hb = Math.abs(h1 - h2) <= 180 ? hb / 2 : hb < 360 ? (hb + 360) / 2 : (hb - 360) / 2;
+    const T = 1 - 0.17 * Math.cos((hb - 30) * rad) + 0.24 * Math.cos(2 * hb * rad)
+              + 0.32 * Math.cos((3 * hb + 6) * rad) - 0.20 * Math.cos((4 * hb - 63) * rad);
+    const RC = 2 * Math.sqrt(p7(Cbp) / (p7(Cbp) + p7(25)));
+    const RT = -Math.sin(2 * 30 * Math.exp(-Math.pow((hb - 275) / 25, 2)) * rad) * RC;
+    const SL = 1 + 0.015 * Math.pow(Lb - 50, 2) / Math.sqrt(20 + Math.pow(Lb - 50, 2));
+    const SC = 1 + 0.045 * Cbp, SH = 1 + 0.015 * Cbp * T;
+    const x = dL / SL, y = dC / SC, z = dH / SH;
+    return Math.sqrt(x * x + y * y + z * z + RT * y * z);
   }
   function isWhiteish(h) {
     const c = rgb(h);
@@ -92,5 +123,5 @@
     return { home, away };
   }
 
-  window.MBRColors = { load, matchup, DEFAULT };
+  window.MBRColors = { load, matchup, distance, DEFAULT };
 })();

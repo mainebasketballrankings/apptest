@@ -100,6 +100,14 @@
     }
     .game-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
     .card-teams { cursor: pointer; }
+    .game-card.has-event { flex-wrap: wrap; row-gap: 4px; }
+    .card-event {
+      width: 100%;
+      font-family: 'Barlow', sans-serif;
+      font-weight: 700; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.4px;
+      color: var(--green);
+    }
     .game-card.is-final { opacity: 0.72; }
     .game-card.is-final:hover { opacity: 1; }
 
@@ -337,8 +345,13 @@ function gameCard(g, snaps) {
 
   const hSnap = snaps.find(s => s.team_id === home.id);
   const aSnap = snaps.find(s => s.team_id === away.id);
-  const hSeed = g.is_tournament && hSnap?.tournament_odds?.seed < 99 ? hSnap.tournament_odds.seed : null;
-  const aSeed = g.is_tournament && aSnap?.tournament_odds?.seed < 99 ? aSnap.tournament_odds.seed : null;
+  // Playoff seeds: the game's own seed first (set by the push from the bracket
+  // code), the seed stored with the bracket odds as a fallback.
+  const oddsSeed = s => s?.tournament_odds?.seed < 99 ? s.tournament_odds.seed : null;
+  const hSeed = g.is_tournament ? (g.home_seed || oddsSeed(hSnap)) : null;
+  const aSeed = g.is_tournament ? (g.away_seed || oddsSeed(aSnap)) : null;
+  // "B North · Quarterfinal" on playoff games
+  const eventLabel = g.is_tournament && g.event ? g.event : '';
   const hRnk = hSeed ? `#${hSeed}` : rankEl(snaps, home.id);
   const aRnk = aSeed ? `#${aSeed}` : rankEl(snaps, away.id);
 
@@ -363,7 +376,8 @@ function gameCard(g, snaps) {
     </div>`;
 
   return `
-    <div class="game-card ${isFinal ? 'is-final' : ''}" data-game-id="${g.id}">
+    <div class="game-card ${isFinal ? 'is-final' : ''} ${eventLabel ? 'has-event' : ''}" data-game-id="${g.id}">
+      ${eventLabel ? `<div class="card-event">${eventLabel}</div>` : ''}
       <div class="card-teams">
         <div class="team-block">
           ${aRnk ? `<span class="team-rank">${aRnk}</span>` : ''}
@@ -401,7 +415,7 @@ const ds = toISO(currentDate);
   const { data: games, error } = await sb
     .from('games')
     .select(`
-      id, status, stax_index, pick_team, spread, is_tournament, event,
+      id, status, stax_index, pick_team, spread, is_tournament, event, home_seed, away_seed,
       home_score, away_score,
       home_team:home_team_id ( id, school_name, logo_url, sport_id, gender ),
       away_team:away_team_id ( id, school_name, logo_url )

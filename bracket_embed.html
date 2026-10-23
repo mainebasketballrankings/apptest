@@ -1,0 +1,728 @@
+<!--
+  GHOST EMBED — paste this HTML card into the Ghost page:
+
+  <iframe src="https://app.mainebasketballrankings.com/bracket_embed.html"
+    width="100%" height="900" frameborder="0" scrolling="no"
+    style="border:none;display:block;"></iframe>
+
+  Deep links: bracket_embed.html?sport=soccer&gender=Boys&class=A
+  (sport = soccer | fieldhockey | volleyball)
+
+  Free page: seeds, results, schedule and season stats only — no odds,
+  spreads, picks or Heal Points.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Playoff Brackets — Maine Basketball Rankings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="mbr-embed.js"></script>
+<style>
+  :root {
+    --green: #1a7a4a; --green2: #22a863; --red: #c0392b;
+    --ink: #111; --gray: #555; --lgray: #8a8a8a; --border: #e2e2e2;
+    --bg: #fff; --panel: #f6f6f6; --line: #b9b9b9;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--ink); }
+  .page { max-width: 1480px; margin: 0 auto; padding: 16px 16px 32px; }
+  .page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; }
+  .page-sub { font-size: 15px; color: var(--lgray); margin: 2px 0 18px; }
+  .page-sub .live-note { color: var(--red); font-weight: 600; }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tab {
+    font: 600 13px 'Barlow', sans-serif; padding: 6px 14px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: #fff; color: var(--gray); cursor: pointer;
+  }
+  .tab:hover { border-color: #bbb; color: var(--ink); }
+  .tab.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .tabs.under { gap: 0; border-bottom: 2px solid var(--border); flex-wrap: nowrap; }
+  .tabs.under .tab { border: none; border-radius: 0; background: none; padding: 9px 20px; margin-bottom: -2px;
+    border-bottom: 3px solid transparent; color: var(--lgray); }
+  .tabs.under .tab.on { color: var(--green); border-bottom-color: var(--green); }
+  .tabs.cls .tab { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; letter-spacing: .5px;
+    border-radius: 7px; min-width: 44px; }
+
+  .bracket-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+  .scroll-hint { display: none; font-size: 12px; color: var(--lgray); margin: -4px 0 6px; }
+  .bracket { position: relative; margin: 6px 0 0; }
+  .bracket svg.lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .col-head {
+    position: absolute; top: 0; font: 700 13px 'Barlow Condensed', sans-serif; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--gray); text-align: center;
+  }
+  .region-head {
+    position: absolute; font: 800 18px 'Barlow Condensed', sans-serif; letter-spacing: .5px; text-transform: uppercase;
+  }
+
+  .game {
+    position: absolute; background: #fff; border: 1.5px solid var(--ink); border-radius: 3px;
+    cursor: default; transition: box-shadow .12s;
+  }
+  .game.has-pop { cursor: pointer; }
+  .game.has-pop:hover, .game.open { box-shadow: 0 3px 14px rgba(0,0,0,.18); }
+  .game.title { border-width: 2px; }
+  .tl { display: flex; align-items: stretch; height: 26px; }
+  .tl .sd {
+    width: 26px; flex: 0 0 26px; background: var(--ink); color: #fff;
+    font: 700 14px 'Barlow Condensed', sans-serif; display: flex; align-items: center; justify-content: center;
+  }
+  .tl .nm {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 7px;
+    font: 700 14px 'Barlow Condensed', sans-serif; letter-spacing: .3px; text-transform: uppercase;
+    white-space: nowrap; overflow: hidden;
+  }
+  .tl .nm span { overflow: hidden; text-overflow: ellipsis; }
+  .tl .nm img { width: 18px; height: 18px; object-fit: contain; flex: 0 0 18px;
+    background: #fff; border-radius: 50%; padding: 1px; }
+  .tl .nm.tbd { background: var(--panel) !important; color: #b5b5b5 !important; font-weight: 600; }
+  .tl .sc {
+    width: 30px; flex: 0 0 30px; background: var(--panel); border-left: 1px solid var(--border);
+    font: 700 15px 'Barlow Condensed', sans-serif; display: flex; align-items: center; justify-content: center;
+  }
+  .tl.win .sc { background: #fff; color: var(--ink); }
+  .tl.lose { opacity: .45; }
+  .meta {
+    height: 18px; display: flex; align-items: center; justify-content: center; gap: 5px;
+    font: 500 11.5px 'Barlow Condensed', sans-serif; color: var(--gray); letter-spacing: .2px;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    white-space: nowrap; overflow: hidden; padding: 0 6px;
+  }
+  .meta .live { color: var(--red); font-weight: 700; }
+  .meta .live::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red); margin-right: 4px; vertical-align: 1px; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .meta .fin { font-weight: 700; color: var(--ink); }
+  .title-tag {
+    position: absolute; font: 800 15px 'Barlow Condensed', sans-serif; letter-spacing: .6px;
+    text-transform: uppercase; background: #f3e04a; color: var(--ink); border: 2px solid var(--ink);
+    text-align: center; padding: 6px 4px;
+  }
+
+  /* hover / tap card */
+  .pop {
+    position: fixed; z-index: 50; width: 360px; max-width: calc(100vw - 16px); background: #fff;
+    border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 34px rgba(0,0,0,.18);
+    padding: 14px 16px 12px; display: none;
+  }
+  .pop.on { display: block; }
+  .pop-close { position: absolute; top: 8px; right: 10px; border: none; background: none; font-size: 18px;
+    color: var(--lgray); cursor: pointer; width: 32px; height: 32px; }
+  .pop-round { font: 700 12px 'Barlow Condensed', sans-serif; letter-spacing: 1px; text-transform: uppercase; color: var(--green); }
+  .pop-when { font-size: 12px; color: var(--lgray); margin-top: 1px; }
+  .pop-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; margin: 12px 0 10px; }
+  .pop-team { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; min-width: 0; }
+  .pop-team img { width: 40px; height: 40px; object-fit: contain; }
+  .pop-team .pn { font: 700 16px 'Barlow Condensed', sans-serif; line-height: 1.1; }
+  .pop-team .pn b { color: var(--lgray); font-weight: 700; margin-right: 2px; }
+  .pop-team .pr { font-size: 12px; color: var(--lgray); }
+  .pop-vs { font: 700 13px 'Barlow Condensed', sans-serif; color: var(--lgray); }
+  .pop-score { font: 800 26px 'Barlow Condensed', sans-serif; }
+  .cmp { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cmp td { padding: 4px 0; border-top: 1px solid #f0f0f0; }
+  .cmp td.v { width: 30%; font: 600 15px 'Barlow Condensed', sans-serif; }
+  .cmp td.v.l { text-align: left; } .cmp td.v.r { text-align: right; }
+  .cmp td.v.best { color: var(--green); font-weight: 800; }
+  .cmp td.k { text-align: center; color: var(--gray); font-size: 12px; }
+  .h2h-head { font: 700 12px 'Barlow Condensed', sans-serif; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--gray); margin: 12px 0 4px; }
+  .h2h { font-size: 13px; line-height: 1.55; }
+  .h2h .d { color: var(--lgray); display: inline-block; min-width: 52px; }
+  .h2h .none { color: var(--lgray); }
+  .pop-link { display: inline-block; margin-top: 10px; font: 700 13px 'Barlow Condensed', sans-serif;
+    color: var(--green); text-decoration: none; letter-spacing: .3px; }
+  .pop-link:hover { text-decoration: underline; }
+
+  .state { padding: 60px 16px; text-align: center; color: var(--lgray); }
+  .spinner { width: 26px; height: 26px; border: 3px solid var(--border); border-top-color: var(--green2);
+    border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .updated { font-size: 12px; color: var(--lgray); margin-top: 10px; text-align: right; }
+
+  @media (max-width: 760px) {
+    .page { padding: 12px 10px 24px; }
+    .scroll-hint { display: block; }
+    .pop { left: 8px !important; right: 8px; width: auto; top: auto !important; bottom: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-title">Playoff Brackets</div>
+  <div class="page-sub">Updates as scores come in. Hover over a game — or tap it — for the matchup.</div>
+
+  <div class="tabs" id="sportTabs"></div>
+  <div class="tabs under" id="genderTabs"></div>
+  <div class="tabs cls" id="classTabs" style="margin-top:12px"></div>
+  <div class="scroll-hint">Scroll sideways to see the whole bracket →</div>
+  <div class="bracket-scroll"><div class="bracket" id="bracket"><div class="state"><div class="spinner"></div>Loading…</div></div></div>
+  <div class="updated" id="updated"></div>
+</div>
+<div class="pop" id="pop" role="dialog" aria-live="polite"></div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+const SB_URL = (window.MBREmbed && MBREmbed.config && MBREmbed.config.SUPABASE_URL) || 'https://vtwupenqieesoktonbzg.supabase.co';
+const SB_KEY = (window.MBREmbed && MBREmbed.config && MBREmbed.config.SUPABASE_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+const SITE = 'https://www.mainebasketballrankings.com';
+
+// Fall Heal Points sports. Volleyball classes are single statewide brackets
+// (its workbook codes say "North", but there is no South).
+const SPORTS = {
+  soccer:      { label: 'Soccer',       id: 'ff80a695-0e78-4432-98f2-141b2b571e0e', genders: ['Boys', 'Girls'], regions: true,  score: ['Goals for/gm', 'Goals against/gm'] },
+  fieldhockey: { label: 'Field Hockey', id: '1054869a-20d4-465f-8ca9-4bc4d2bafe1b', genders: ['Girls'],         regions: true,  score: ['Goals for/gm', 'Goals against/gm'] },
+  volleyball:  { label: 'Volleyball',   id: 'e26b0fcc-e661-4945-8b2d-063c37ace44f', genders: ['Girls'],         regions: false, score: ['Sets won/m', 'Sets lost/m'] },
+};
+const CLASS_ORDER = ['A', 'B', 'C', 'D', 'S', '8'];
+const ROUND_NO = { play_in: 1, quarters: 2, semis: 3, regional: 4, gold_ball: 5 };
+const ROUND_LABEL = { play_in: 'Play-In', quarters: 'Quarterfinal', semis: 'Semifinal', regional: 'Regional Final', gold_ball: 'Gold Ball' };
+// 16-slot bracket in quarter order — the same pairing as the workbook codes.
+const PAIRS = [[1, 16], [8, 9], [4, 13], [5, 12], [2, 15], [7, 10], [3, 14], [6, 11]];
+
+const now = new Date();
+const SEASON = now.getMonth() + 1 >= 8 ? now.getFullYear() + 1 : now.getFullYear();
+
+// Layout (px)
+const W = 196, G = 30, ROW = 82, REGION_H = 26, HEAD = 26 + 34, BOX_H = 26 + 18 + 26 + 3;
+
+// ── State ──────────────────────────────────────────────────────────────────
+const qs = new URLSearchParams(location.search);
+let sport = SPORTS[qs.get('sport')] ? qs.get('sport') : 'soccer';
+let gender = qs.get('gender') || SPORTS[sport].genders[0];
+if (!SPORTS[sport].genders.includes(gender)) gender = SPORTS[sport].genders[0];
+let cls = qs.get('class') || null;
+const cache = {};          // `${sport}|${gender}` -> data
+let schools = null;        // school_name -> { display, alt }
+let nodesById = {};        // rendered game key -> node
+let popKey = null;
+
+// ── Data ───────────────────────────────────────────────────────────────────
+async function rest(path) {
+  const out = [];
+  for (let off = 0; ; off += 1000) {
+    const r = await fetch(`${SB_URL}/rest/v1/${path}${path.includes('?') ? '&' : '?'}limit=1000&offset=${off}`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const rows = await r.json();
+    out.push(...rows);
+    if (rows.length < 1000) return out;
+  }
+}
+const inList = ids => `(${ids.join(',')})`;
+
+function roundOf(event) {
+  const e = (event || '').toLowerCase();
+  if (e.includes('play-in')) return 'play_in';
+  if (e.includes('quarter')) return 'quarters';
+  if (e.includes('semi')) return 'semis';
+  if (e.includes('regional')) return 'regional';
+  if (e.includes('gold')) return 'gold_ball';
+  return null;
+}
+
+async function loadSchools() {
+  if (schools) return schools;
+  schools = {};
+  try {
+    (await rest('schools?select=school_name,display_color,alt_color'))
+      .forEach(s => { schools[s.school_name] = { display: s.display_color, alt: s.alt_color }; });
+  } catch (e) { console.warn('[bracket] schools', e); }
+  return schools;
+}
+
+const TGAME_SELECT = 'id,home_team_id,away_team_id,home_score,away_score,home_score_live,away_score_live,status,game_date,game_time,location,event,home_seed,away_seed,is_neutral_site';
+
+async function loadData(force) {
+  const key = `${sport}|${gender}`;
+  if (cache[key] && !force) return cache[key];
+  const S = SPORTS[sport];
+  const teams = await rest(`teams?sport_id=eq.${S.id}&gender=eq.${gender}&owner_id=is.null&select=id,school_name,logo_url,team_class,team_region`);
+  const byId = Object.fromEntries(teams.map(t => [t.id, t]));
+  const ids = teams.map(t => t.id);
+
+  // Latest snapshot per team: seed (stored with the bracket odds) + season stats.
+  const snap = {};
+  if (ids.length) {
+    const top = await rest(`rankings_snapshots?season_year=eq.${SEASON}&team_id=in.${inList(ids.slice(0, 60))}&order=snapshot_date.desc&select=snapshot_date&limit=1`);
+    const latest = top[0] && top[0].snapshot_date;
+    if (latest) {
+      const since = new Date(new Date(latest + 'T12:00:00') - 10 * 864e5).toISOString().slice(0, 10);
+      for (let i = 0; i < ids.length; i += 80) {
+        const rows = await rest(`rankings_snapshots?season_year=eq.${SEASON}&team_id=in.${inList(ids.slice(i, i + 80))}` +
+          `&snapshot_date=gte.${since}&order=snapshot_date.desc` +
+          `&select=team_id,snapshot_date,tournament_odds,wins,losses,ties,avg_pf,avg_pa,sos,pct_perfect,vs_top_25,vs_top_50`);
+        rows.forEach(r => { if (!snap[r.team_id]) snap[r.team_id] = r; });
+      }
+    }
+  }
+  const tgames = (await rest(`games?sport_id=eq.${S.id}&season_year=eq.${SEASON}&is_tournament=eq.true&owner_id=is.null&select=${TGAME_SELECT}`))
+    .filter(g => byId[g.home_team_id] && byId[g.away_team_id]);
+
+  const data = { teams, byId, snap, tgames, reg: null, loadedAt: new Date() };
+  cache[key] = data;
+  loadRegular(data);                         // head-to-head, in the background
+  return data;
+}
+
+async function loadRegular(data) {
+  const S = SPORTS[sport];
+  try {
+    const rows = await rest(`games?sport_id=eq.${S.id}&season_year=eq.${SEASON}&is_tournament=eq.false&status=eq.final&owner_id=is.null` +
+      `&select=id,home_team_id,away_team_id,home_score,away_score,game_date,is_neutral_site&order=game_date.asc`);
+    data.reg = rows.filter(g => data.byId[g.home_team_id] && data.byId[g.away_team_id]);
+  } catch (e) { console.warn('[bracket] regular season', e); data.reg = []; }
+  if (popKey) openPop(popKey, true);         // fill in the card if it's waiting
+}
+
+// ── Model ──────────────────────────────────────────────────────────────────
+function regionKey(t) {
+  if (!t || !t.team_class) return null;
+  return SPORTS[sport].regions && t.team_region ? `${t.team_class} ${t.team_region}` : t.team_class;
+}
+
+function buildSeeds(data) {
+  const seeds = {};            // region -> { seed: teamId }
+  const seedOf = {};           // teamId -> seed
+  const put = (tid, s) => {
+    const r = regionKey(data.byId[tid]);
+    if (!r || !s || s >= 99) return;
+    (seeds[r] = seeds[r] || {})[s] = tid;
+    seedOf[tid] = s;
+  };
+  Object.values(data.snap).forEach(r => put(r.team_id, +(r.tournament_odds && r.tournament_odds.seed)));
+  data.tgames.forEach(g => { put(g.home_team_id, g.home_seed); put(g.away_team_id, g.away_seed); });   // the bracket wins
+  return { seeds, seedOf };
+}
+
+const leaf = (team, seed) => team ? { kind: 'leaf', team, seed } : null;
+function game(a, b, round, region, key, y) {
+  if (!a && !b) return null;
+  if (!a) return b;
+  if (!b) return a;
+  return { kind: 'game', a, b, round, region, key, y };
+}
+function buildRegion(region, sd) {
+  const L = s => leaf(sd[s], s);
+  const pi = PAIRS.map((p, i) => game(L(p[0]), L(p[1]), 'play_in', region, `${region}|pi${i}`, i + 0.5));
+  const qf = [0, 1, 2, 3].map(i => game(pi[2 * i], pi[2 * i + 1], 'quarters', region, `${region}|qf${i}`, 2 * i + 1));
+  const sf = [0, 1].map(i => game(qf[2 * i], qf[2 * i + 1], 'semis', region, `${region}|sf${i}`, 4 * i + 2));
+  const rf = game(sf[0], sf[1], 'regional', region, `${region}|rf`, 4);
+  return { pi, qf, sf, rf };
+}
+
+// Resolve teams, the matching game in the database, and the winner of every node.
+function resolveAll(root, data) {
+  const pair = (a, b) => [a, b].sort().join('|');
+  const byPair = {};
+  data.tgames.forEach(g => { (byPair[pair(g.home_team_id, g.away_team_id)] = byPair[pair(g.home_team_id, g.away_team_id)] || []).push(g); });
+  const reached = {};          // teamId -> highest round number they appear in
+  data.tgames.forEach(g => {
+    const n = ROUND_NO[roundOf(g.event)] || 0;
+    [g.home_team_id, g.away_team_id].forEach(t => { reached[t] = Math.max(reached[t] || 0, n); });
+  });
+
+  const winner = n => !n ? null : n.kind === 'leaf' ? n.team : resolve(n).win;
+  function resolve(n) {
+    if (n._r) return n._r;
+    const A = winner(n.a), B = winner(n.b);
+    let g = null, win = null;
+    if (A && B) {
+      const list = byPair[pair(A, B)] || [];
+      g = list.find(x => roundOf(x.event) === n.round) || list[0] || null;
+      if (g && g.status === 'final' && g.home_score != null && g.away_score != null && g.home_score !== g.away_score) {
+        win = g.home_score > g.away_score ? g.home_team_id : g.away_team_id;
+      } else {
+        // A tie decided on penalties / strokes, or a score not entered yet:
+        // whoever turns up in a later round went through.
+        const r = ROUND_NO[n.round];
+        if ((reached[A] || 0) > r && !((reached[B] || 0) > r)) win = A;
+        else if ((reached[B] || 0) > r && !((reached[A] || 0) > r)) win = B;
+      }
+    }
+    return (n._r = { A, B, g, win });
+  }
+  (function walk(n) { if (n && n.kind === 'game') { walk(n.a); walk(n.b); resolve(n); } })(root);
+}
+
+// ── Colours ────────────────────────────────────────────────────────────────
+function rgb(h) { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function dist(a, b) { const x = rgb(a), y = rgb(b); return x && y ? Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) : 0; }
+function bright(h) { const c = rgb(h); return c ? 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2] : 0; }
+function teamColors(t) {
+  const s = schools && schools[t.school_name];
+  const fill = (s && s.display) || '#555555';
+  let text = bright(fill) > 170 ? '#111111' : '#ffffff';
+  // A second school colour as the lettering when it reads well (gold on maroon)
+  if (s && s.alt && Math.min(...rgb(s.alt)) < 230 && dist(s.alt, fill) > 150 && Math.abs(bright(s.alt) - bright(fill)) > 90) text = s.alt;
+  return { fill, text };
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function fmtWhen(g) {
+  if (!g) return '';
+  const d = g.game_date ? new Date(g.game_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }) : '';
+  let t = '';
+  if (g.game_time) { const [h, m] = g.game_time.split(':'); const hh = +h % 12 || 12; t = `${hh}:${m}${+h < 12 ? 'am' : 'pm'}`; }
+  return [d, t].filter(Boolean).join(' ');
+}
+function site(g, data) {
+  if (!g) return '';
+  if (g.location) return g.location;
+  const h = data.byId[g.home_team_id];
+  return g.is_neutral_site ? 'Neutral site' : h ? `@ ${h.school_name}` : '';
+}
+function liveScore(g, side) {
+  const v = side === 'h' ? (g.home_score_live != null ? g.home_score_live : g.home_score) : (g.away_score_live != null ? g.away_score_live : g.away_score);
+  return v == null ? '' : v;
+}
+
+function teamLine(tid, seedOf, data, res, g) {
+  if (!tid) return `<div class="tl"><span class="sd" style="background:#d6d6d6"></span><span class="nm tbd"><span>TBD</span></span><span class="sc"></span></div>`;
+  const t = data.byId[tid];
+  const c = teamColors(t);
+  let score = '';
+  if (g && (g.status === 'final' || g.status === 'active')) score = g.home_team_id === tid ? liveScore(g, 'h') : liveScore(g, 'a');
+  const state = res.win ? (res.win === tid ? 'win' : 'lose') : '';
+  const logo = t.logo_url ? `<img src="${esc(t.logo_url)}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  return `<div class="tl ${state}"><span class="sd">${seedOf[tid] || ''}</span>` +
+    `<span class="nm" style="background:${c.fill};color:${c.text}">${logo}<span>${esc(t.school_name)}</span></span>` +
+    `<span class="sc">${score}</span></div>`;
+}
+const roundName = n => n.isTitle ? 'State Final' : ROUND_LABEL[n.round];
+function metaLine(n, res, data) {
+  const g = res.g;
+  if (g && g.status === 'active') return `<div class="meta"><span class="live">LIVE</span></div>`;
+  if (g && g.status === 'final') {
+    const tie = g.home_score != null && g.home_score === g.away_score;
+    return `<div class="meta"><span class="fin">Final${tie ? (sport === 'fieldhockey' ? ' · strokes' : ' · PKs') : ''}</span></div>`;
+  }
+  if (g && g.status === 'postponed') return `<div class="meta">Postponed</div>`;
+  if (g) return `<div class="meta" title="${esc(site(g, data))}">${esc(fmtWhen(g))}${site(g, data) ? ' · ' + esc(site(g, data)) : ''}</div>`;
+  return `<div class="meta" style="color:#b5b5b5">${roundName(n)}</div>`;
+}
+
+function render() {
+  const data = cache[`${sport}|${gender}`];
+  const el = document.getElementById('bracket');
+  closePop();
+  if (!data) return;
+  const { seeds, seedOf } = buildSeeds(data);
+  const classes = [...new Set(Object.keys(seeds).map(r => r.split(' ')[0]))]
+    .sort((a, b) => CLASS_ORDER.indexOf(a) - CLASS_ORDER.indexOf(b));
+  renderClassTabs(classes);
+  if (!classes.length) {
+    el.style.width = ''; el.style.height = '';
+    el.innerHTML = `<div class="state">Brackets appear here once the regular season ends and the seeds are set.</div>`;
+    return;
+  }
+  if (!classes.includes(cls)) cls = classes[0];
+  syncUrl();
+
+  const regs = Object.keys(seeds).filter(r => r.split(' ')[0] === cls).sort();
+  const trees = regs.map(r => ({ region: r, ...buildRegion(r, seeds[r]) }));
+  const twoRegions = trees.length === 2;
+  const isPI = n => n && n.kind === 'game' && n.round === 'play_in';
+  // Which play-in slots feed each side (left = North / top half, right = South / bottom half)
+  const piL = twoRegions ? trees[0].pi : trees[0].pi.slice(0, 4);
+  const piR = twoRegions ? trees[1].pi : trees[0].pi.slice(4);
+
+  // Columns per side, outermost first — a side only gets a Play-In column if it has play-ins
+  const sideCols = twoRegions ? ['play_in', 'quarters', 'semis', 'regional'] : ['play_in', 'quarters', 'semis'];
+  const colsL = piL.some(isPI) ? sideCols : sideCols.slice(1);
+  const colsR = piR.some(isPI) ? sideCols : sideCols.slice(1);
+  const rows = twoRegions ? 8 : 4;
+  const centerX = colsL.length * (W + G);
+  const totalW = centerX + W + colsR.length * (W + G);
+  // Rows are spaced for play-in games; without any, tighten them up.
+  const rowH = colsL.includes('play_in') || colsR.includes('play_in') ? ROW : 62;
+  let totalH = HEAD + rows * rowH + 10;
+
+  const placed = [];                         // { node, x, y, side }
+  const yPx = r => HEAD + r * rowH - BOX_H / 2;
+  function place(n, side, shift) {
+    if (!n || n.kind !== 'game') return;
+    const x = side === 'L' ? colsL.indexOf(n.round) * (W + G)
+                           : centerX + (W + G) * (colsR.length - colsR.indexOf(n.round));
+    placed.push({ node: n, x, y: yPx(n.y - shift), side });
+    place(n.a, side, shift); place(n.b, side, shift);
+  }
+
+  let center, centerKids;
+  if (twoRegions) {
+    const [N, Sx] = trees;
+    place(N.rf, 'L', 0); place(Sx.rf, 'R', 0);
+    center = N.rf && Sx.rf ? game(N.rf, Sx.rf, 'gold_ball', cls, `${cls}|gb`, rows / 2) : null;
+    centerKids = [N.rf, Sx.rf];
+  } else {
+    const T = trees[0];
+    place(T.sf[0], 'L', 0); place(T.sf[1], 'R', 4);
+    center = T.rf && T.rf.kind === 'game' ? T.rf : null;
+    if (center) { center = Object.assign(center, { y: rows / 2, isTitle: true }); }   // one bracket: its final is the title game
+    centerKids = center ? [center.a, center.b] : [];
+  }
+  if (center && center.kind === 'game') {
+    if (!twoRegions) placed.forEach(p => { if (p.node === center) p.skip = true; });
+    placed.push({ node: center, x: centerX, y: yPx(center.y), side: 'C', title: true });
+  }
+
+  // Pull everything up under the column headers (the title banner sits above the centre box).
+  const TAG_H = 44;
+  const top = Math.min(...placed.map(p => p.y - (p.title ? TAG_H : 0)));
+  const lift = Math.max(0, top - (HEAD + 8));
+  placed.forEach(p => { p.y -= lift; });
+  totalH -= lift;
+
+  const root = center || (trees[0] && trees[0].rf);
+  resolveAll(root, data);
+  trees.forEach(t => resolveAll(t.rf, data));
+
+  // connectors
+  const pos = new Map(placed.filter(p => !p.skip).map(p => [p.node, p]));
+  let lines = '';
+  pos.forEach(p => {
+    [p.node.a, p.node.b].forEach(ch => {
+      const c = pos.get(ch);
+      if (!c) return;
+      const cy = c.y + BOX_H / 2, py = p.y + BOX_H / 2;
+      const fromLeft = c.x < p.x;
+      const x1 = fromLeft ? c.x + W : c.x, x2 = fromLeft ? p.x : p.x + W;
+      const mx = (x1 + x2) / 2;
+      lines += `<path d="M${x1} ${cy} H${mx} V${py} H${x2}" fill="none" stroke="#9a9a9a" stroke-width="1.5"/>`;
+    });
+  });
+
+  // headers
+  let heads = '';
+  const LBL = { play_in: 'Play-In', quarters: 'Quarterfinals', semis: 'Semifinals', regional: 'Regional Final' };
+  colsL.forEach((r, i) => { heads += `<div class="col-head" style="left:${i * (W + G)}px;width:${W}px;top:${REGION_H}px">${LBL[r]}</div>`; });
+  colsR.forEach((r, i) => { heads += `<div class="col-head" style="left:${centerX + (W + G) * (colsR.length - i)}px;width:${W}px;top:${REGION_H}px">${LBL[r]}</div>`; });
+  heads += `<div class="col-head" style="left:${centerX}px;width:${W}px;top:${REGION_H}px">${twoRegions ? 'Gold Ball' : 'Final'}</div>`;
+  if (twoRegions) {
+    heads += `<div class="region-head" style="left:0;top:0">${esc(trees[0].region)}</div>`;
+    heads += `<div class="region-head" style="right:0;top:0;text-align:right">${esc(trees[1].region)}</div>`;
+  }
+
+  // boxes
+  nodesById = {};
+  let boxes = '';
+  pos.forEach(p => {
+    const n = p.node, r = n._r || { A: null, B: null, g: null, win: null };
+    nodesById[n.key] = n;
+    const pop = r.A && r.B;
+    boxes += `<div class="game${pop ? ' has-pop' : ''}${p.title ? ' title' : ''}" data-key="${esc(n.key)}" ` +
+      `style="left:${p.x}px;top:${p.y}px;width:${W}px"${pop ? ' tabindex="0"' : ''}>` +
+      teamLine(r.A, seedOf, data, r, r.g) + metaLine(n, r, data) + teamLine(r.B, seedOf, data, r, r.g) + `</div>`;
+  });
+  if (center) {
+    const tag = twoRegions ? `Class ${cls} State Championship` : `Class ${cls} Championship`;
+    boxes += `<div class="title-tag" style="left:${centerX}px;width:${W}px;top:${(placed.find(p => p.title) || { y: yPx(center.y) }).y - TAG_H}px">${esc(tag)}</div>`;
+  }
+
+  el.style.width = totalW + 'px';
+  el.style.height = totalH + 'px';
+  el.innerHTML = `<svg class="lines" width="${totalW}" height="${totalH}">${lines}</svg>${heads}${boxes}`;
+  fitBracket();
+  el.querySelectorAll('.game.has-pop').forEach(b => {
+    b.addEventListener('mouseenter', () => { if (matchMedia('(hover: hover)').matches) openPop(b.dataset.key); });
+    b.addEventListener('mouseleave', () => { if (matchMedia('(hover: hover)').matches) schedulePopClose(); });
+    b.addEventListener('click', e => { e.stopPropagation(); openPop(b.dataset.key); });
+    b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPop(b.dataset.key); } });
+  });
+
+  const live = data.tgames.some(g => g.status === 'active');
+  document.getElementById('updated').innerHTML =
+    `${live ? '<span style="color:var(--red);font-weight:600">● Games in progress</span> · ' : ''}Updated ${data.loadedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+  window.dispatchEvent(new Event('resize'));
+}
+
+// Shrink the bracket to the page width when it's only a little too wide;
+// anything that would need more than ~30% shrinking scrolls sideways instead
+// (phones), so team names stay readable.
+function fitBracket() {
+  const el = document.getElementById('bracket');
+  const wrap = el.parentElement;
+  const w = parseFloat(el.style.width), h = parseFloat(el.style.height);
+  el.style.transform = ''; wrap.style.height = '';
+  if (!w || !h) return;
+  const scale = wrap.clientWidth / w;
+  if (scale < 1 && scale >= 0.7) {
+    el.style.transformOrigin = 'top left';
+    el.style.transform = `scale(${scale})`;
+    wrap.style.height = Math.ceil(h * scale) + 8 + 'px';
+    wrap.style.overflowX = 'hidden';
+  } else {
+    wrap.style.overflowX = 'auto';
+  }
+}
+let fitTimer = null;
+window.addEventListener('resize', () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitBracket, 100); });
+
+// ── Matchup card ───────────────────────────────────────────────────────────
+let popCloseTimer = null;
+const pop = document.getElementById('pop');
+pop.addEventListener('mouseenter', () => clearTimeout(popCloseTimer));
+pop.addEventListener('mouseleave', () => { if (matchMedia('(hover: hover)').matches) schedulePopClose(); });
+pop.addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click', () => closePop());
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
+function schedulePopClose() { clearTimeout(popCloseTimer); popCloseTimer = setTimeout(closePop, 220); }
+function closePop() {
+  clearTimeout(popCloseTimer);
+  pop.classList.remove('on');
+  document.querySelectorAll('.game.open').forEach(b => b.classList.remove('open'));
+  popKey = null;
+}
+
+function openPop(key, refreshOnly) {
+  clearTimeout(popCloseTimer);
+  const n = nodesById[key];
+  const data = cache[`${sport}|${gender}`];
+  if (!n || !data || !n._r || !n._r.A || !n._r.B) return;
+  if (refreshOnly && popKey !== key) return;
+  const { seedOf } = buildSeeds(data);
+  const r = n._r, A = data.byId[r.A], B = data.byId[r.B];
+  const sa = data.snap[r.A] || {}, sb = data.snap[r.B] || {};
+  const g = r.g;
+  const S = SPORTS[sport];
+
+  const rec = s => s.wins == null ? '—' : `${s.wins}-${s.losses || 0}${s.ties ? '-' + s.ties : ''}`;
+  const num = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toFixed(d);
+  const pct = v => v == null || isNaN(v) ? '—' : (Number(v) * 100).toFixed(1) + '%';
+  const diff = s => s.avg_pf == null || s.avg_pa == null ? null : s.avg_pf - s.avg_pa;
+  const row = (k, a, b, va, vb, higher) => {
+    let ca = '', cb = '';
+    if (va != null && vb != null && !isNaN(va) && !isNaN(vb) && va !== vb) {
+      const aBetter = higher ? va > vb : va < vb;
+      ca = aBetter ? ' best' : ''; cb = aBetter ? '' : ' best';
+    }
+    return `<tr><td class="v l${ca}">${a}</td><td class="k">${k}</td><td class="v r${cb}">${b}</td></tr>`;
+  };
+  const winPct = s => s.wins == null ? null : (s.wins + (s.ties || 0) / 2) / Math.max(1, s.wins + (s.losses || 0) + (s.ties || 0));
+  const dA = diff(sa), dB = diff(sb);
+  const sgn = v => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2);
+
+  // head-to-head
+  let h2h;
+  if (!data.reg) h2h = `<div class="h2h none">Loading…</div>`;
+  else {
+    const meets = data.reg.filter(x => (x.home_team_id === r.A && x.away_team_id === r.B) || (x.home_team_id === r.B && x.away_team_id === r.A));
+    h2h = meets.length ? meets.map(x => {
+      const h = data.byId[x.home_team_id], a = data.byId[x.away_team_id];
+      const d = new Date(x.game_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const hw = x.home_score > x.away_score, aw = x.away_score > x.home_score;
+      return `<div><span class="d">${d}</span>${hw ? '<b>' : ''}${esc(h.school_name)} ${x.home_score}${hw ? '</b>' : ''}, ` +
+        `${aw ? '<b>' : ''}${esc(a.school_name)} ${x.away_score}${aw ? '</b>' : ''}${x.is_neutral_site ? ' <span class="d">(neutral)</span>' : ''}</div>`;
+    }).join('') : `<div class="h2h none">Didn't meet in the regular season.</div>`;
+  }
+
+  const when = g ? [fmtWhen(g), site(g, data)].filter(Boolean).join(' · ') : 'Not scheduled yet';
+  const showScore = g && (g.status === 'final' || g.status === 'active');
+  const sc = tid => g.home_team_id === tid ? liveScore(g, 'h') : liveScore(g, 'a');
+  const team = (t, s) => `<div class="pop-team">${t.logo_url ? `<img src="${esc(t.logo_url)}" alt="" onerror="this.remove()">` : ''}` +
+    `<div class="pn"><b>#${seedOf[t.id] || '–'}</b>${esc(t.school_name)}</div><div class="pr">${rec(s)}</div></div>`;
+
+  pop.innerHTML = `<button class="pop-close" aria-label="Close">×</button>
+    <div class="pop-round">${roundName(n)}${n.round === 'gold_ball' || n.isTitle ? ` · Class ${esc(cls)}` : ` · ${esc(n.region)}`}</div>
+    <div class="pop-when">${g && g.status === 'active' ? '<span style="color:var(--red);font-weight:700">LIVE</span> · ' : g && g.status === 'final' ? 'Final · ' : ''}${esc(when)}</div>
+    <div class="pop-teams">${team(A, sa)}<div class="pop-vs">${showScore ? `<span class="pop-score">${sc(r.A)}–${sc(r.B)}</span>` : 'vs'}</div>${team(B, sb)}</div>
+    <table class="cmp">
+      ${row('Win %', winPct(sa) == null ? '—' : pct(winPct(sa)), winPct(sb) == null ? '—' : pct(winPct(sb)), winPct(sa), winPct(sb), true)}
+      ${row(S.score[0], num(sa.avg_pf), num(sb.avg_pf), sa.avg_pf, sb.avg_pf, true)}
+      ${row(S.score[1], num(sa.avg_pa), num(sb.avg_pa), sa.avg_pa, sb.avg_pa, false)}
+      ${row('Margin/gm', sgn(dA), sgn(dB), dA, dB, true)}
+      ${row('Strength of schedule', num(sa.sos), num(sb.sos), sa.sos, sb.sos, true)}
+      ${row('%Perfect', pct(sa.pct_perfect), pct(sb.pct_perfect), sa.pct_perfect, sb.pct_perfect, true)}
+      ${row('% vs Top 25', pct(sa.vs_top_25), pct(sb.vs_top_25), sa.vs_top_25, sb.vs_top_25, true)}
+      ${row('% vs Top 50', pct(sa.vs_top_50), pct(sb.vs_top_50), sa.vs_top_50, sb.vs_top_50, true)}
+    </table>
+    <div class="h2h-head">Head-to-head this season</div>
+    <div class="h2h">${h2h}</div>
+    ${g ? `<a class="pop-link" href="${SITE}/matchup/?id=${g.id}" target="_blank" rel="noopener">Full matchup →</a>` : ''}`;
+  pop.querySelector('.pop-close').addEventListener('click', closePop);
+
+  document.querySelectorAll('.game.open').forEach(b => b.classList.remove('open'));
+  const box = document.querySelector(`.game[data-key="${CSS.escape(key)}"]`);
+  if (box) box.classList.add('open');
+  popKey = key;
+  pop.classList.add('on');
+  if (box && window.innerWidth > 760) {
+    const b = box.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = b.right + 10;
+    if (left + pw > window.innerWidth - 8) left = b.left - pw - 10;
+    if (left < 8) left = Math.max(8, Math.min(window.innerWidth - pw - 8, b.left));
+    let top = b.top + b.height / 2 - ph / 2;
+    top = Math.max(8, Math.min(window.innerHeight - ph - 8, top));
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function renderTabs() {
+  document.getElementById('sportTabs').innerHTML = Object.entries(SPORTS)
+    .map(([k, s]) => `<button class="tab${k === sport ? ' on' : ''}" data-s="${k}">${s.label}</button>`).join('');
+  const gs = SPORTS[sport].genders;
+  const gt = document.getElementById('genderTabs');
+  gt.style.display = gs.length > 1 ? '' : 'none';
+  gt.innerHTML = gs.map(g => `<button class="tab${g === gender ? ' on' : ''}" data-g="${g}">${g}</button>`).join('');
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { sport = b.dataset.s; gender = SPORTS[sport].genders[0]; cls = null; go(); });
+  document.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { gender = b.dataset.g; cls = null; go(); });
+}
+function renderClassTabs(classes) {
+  const el = document.getElementById('classTabs');
+  el.innerHTML = classes.map(c => `<button class="tab${c === cls || (!cls && c === classes[0]) ? ' on' : ''}" data-c="${c}">${c === '8' ? '8-Man' : 'Class ' + c}</button>`).join('');
+  el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { cls = b.dataset.c; render(); });
+}
+function syncUrl() {
+  const p = new URLSearchParams({ sport, gender, class: cls || '' });
+  try { history.replaceState(null, '', `${location.pathname}?${p}`); } catch (e) {}
+}
+
+async function go() {
+  renderTabs();
+  const el = document.getElementById('bracket');
+  el.style.width = ''; el.style.height = '';
+  el.innerHTML = `<div class="state"><div class="spinner"></div>Loading…</div>`;
+  try {
+    await Promise.all([loadSchools(), loadData()]);
+    render();
+  } catch (e) {
+    console.error(e);
+    el.innerHTML = `<div class="state">Couldn't load the bracket. Check your connection and refresh.</div>`;
+  }
+}
+
+// ── Live updates: re-read playoff games every minute while the tab is visible
+setInterval(async () => {
+  if (document.hidden) return;
+  const data = cache[`${sport}|${gender}`];
+  if (!data) return;
+  try {
+    const fresh = (await rest(`games?sport_id=eq.${SPORTS[sport].id}&season_year=eq.${SEASON}&is_tournament=eq.true&owner_id=is.null&select=${TGAME_SELECT}`))
+      .filter(g => data.byId[g.home_team_id] && data.byId[g.away_team_id]);
+    if (JSON.stringify(fresh) === JSON.stringify(data.tgames)) return;
+    data.tgames = fresh;
+    data.loadedAt = new Date();
+    const keep = popKey;
+    render();
+    if (keep && nodesById[keep]) openPop(keep);
+  } catch (e) { console.warn('[bracket] refresh', e); }
+}, 60000);
+
+// iframe height
+(function () {
+  if (window.MBREmbed && MBREmbed.initResize) { MBREmbed.initResize(); return; }
+  const send = () => window.parent.postMessage({ type: 'mbr-embed-resize', height: document.documentElement.scrollHeight }, '*');
+  window.addEventListener('load', send); window.addEventListener('resize', send);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(send).observe(document.body);
+})();
+
+go();
+</script>
+</body>
+</html>

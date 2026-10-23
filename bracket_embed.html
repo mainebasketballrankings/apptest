@@ -377,8 +377,14 @@ function site(g, data) {
   const h = data.byId[g.home_team_id];
   return g.is_neutral_site ? 'Neutral site' : h ? `@ ${h.school_name}` : '';
 }
+// The scorer app's live columns are only meaningful while a game is in
+// progress — after the final they can hold a stale mid-game score (South
+// Portland–Marshwood showed 0-1 instead of the 3-1 final).
 function liveScore(g, side) {
-  const v = side === 'h' ? (g.home_score_live != null ? g.home_score_live : g.home_score) : (g.away_score_live != null ? g.away_score_live : g.away_score);
+  const live = g.status === 'active';
+  const v = side === 'h'
+    ? (live && g.home_score_live != null ? g.home_score_live : g.home_score)
+    : (live && g.away_score_live != null ? g.away_score_live : g.away_score);
   return v == null ? '' : v;
 }
 
@@ -603,7 +609,6 @@ function openPop(key, refreshOnly) {
     }
     return `<tr><td class="v l${ca}">${a}</td><td class="k">${k}</td><td class="v r${cb}">${b}</td></tr>`;
   };
-  const winPct = s => s.wins == null ? null : (s.wins + (s.ties || 0) / 2) / Math.max(1, s.wins + (s.losses || 0) + (s.ties || 0));
   const dA = diff(sa), dB = diff(sb);
   const sgn = v => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2);
 
@@ -632,7 +637,6 @@ function openPop(key, refreshOnly) {
     <div class="pop-when">${g && g.status === 'active' ? '<span style="color:var(--red);font-weight:700">LIVE</span> · ' : g && g.status === 'final' ? 'Final · ' : ''}${esc(when)}</div>
     <div class="pop-teams">${team(A, sa)}<div class="pop-vs">${showScore ? `<span class="pop-score">${sc(r.A)}–${sc(r.B)}</span>` : 'vs'}</div>${team(B, sb)}</div>
     <table class="cmp">
-      ${row('Win %', winPct(sa) == null ? '—' : pct(winPct(sa)), winPct(sb) == null ? '—' : pct(winPct(sb)), winPct(sa), winPct(sb), true)}
       ${row(S.score[0], num(sa.avg_pf), num(sb.avg_pf), sa.avg_pf, sb.avg_pf, true)}
       ${row(S.score[1], num(sa.avg_pa), num(sb.avg_pa), sa.avg_pa, sb.avg_pa, false)}
       ${row('Margin/gm', sgn(dA), sgn(dB), dA, dB, true)}

@@ -16,6 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="mbr-embed.js"></script>
+<script src="mbr-colors.js?v=1"></script>
   <style>
     :root {
       --green:  #1a7a4a;
@@ -753,9 +754,18 @@ async function init() {
   const isBasketball = g.sport_id === BASKETBALL_SPORT_ID;
   const isDiamond = !isFootball && !isField && !isBasketball;
 
-  // Team colors — neutral defaults until primary_color is in DB
-  const aColor = at.primary_color || '#2563a8'; // away = blue
-  const hColor = ht.primary_color || '#c17f24'; // home = amber
+  // Team colors from the schools table (mbr-colors.js). When both schools
+  // share a colour, home is drawn white with a stroke in its own colour.
+  // Blue / amber are the fallbacks for a school with no colours on file.
+  const pal = window.MBRColors
+    ? await MBRColors.matchup(ht.school_name, at.school_name)
+    : { home: { fill: '#c17f24', text: '#c17f24', stroke: null },
+        away: { fill: '#2563a8', text: '#2563a8', stroke: null } };
+  const aColor = pal.away.text;                 // label / percentage colour
+  const hColor = pal.home.text;
+  const aFill  = pal.away.fill;                 // bar colours
+  const hFill  = pal.home.fill;
+  const hTrack = `background:${hFill}` + (pal.home.stroke ? `;box-shadow:inset 0 0 0 1.5px ${pal.home.stroke}` : '');
 
   // Pre-compute upset/favorite for template use
   const favHome    = wp != null && wp >= 0.5;
@@ -828,8 +838,8 @@ async function init() {
               <span style="color:var(--lgray);font-size:11px">Pre-game prediction</span>
               <span><span class="prob-pct" style="color:${hColor}">${pct(wp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track" style="margin-bottom:${isFinal?'12px':'0'};background:${hColor}">
-              <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:${aColor}"></div>
+            <div class="prob-bar-track" style="margin-bottom:${isFinal?'12px':'0'};${hTrack}">
+              <div class="prob-bar-fill" style="width:${((1-wp)*100).toFixed(1)}%;background:${aFill}"></div>
             </div>
           ` : ''}
           ${isFinal && awp != null ? `
@@ -838,8 +848,8 @@ async function init() {
               <span style="color:var(--lgray);font-size:11px">Actual Win%${isUpset ? ' &nbsp;·&nbsp; <strong style="color:var(--orange)">⚡ Upset</strong>' : ''}</span>
               <span><span class="prob-pct" style="color:${hColor};${hWon?'font-weight:800':''}">${pct(awp)}</span> <span class="team-lbl">${ht.school_name}</span></span>
             </div>
-            <div class="prob-bar-track" style="background:${hColor}">
-              <div class="prob-bar-fill" style="width:${((1-awp)*100).toFixed(1)}%;background:${aColor}"></div>
+            <div class="prob-bar-track" style="${hTrack}">
+              <div class="prob-bar-fill" style="width:${((1-awp)*100).toFixed(1)}%;background:${aFill}"></div>
             </div>
           ` : ''}
         </div>

@@ -187,8 +187,17 @@ const SPORTS = {
   soccer:      { label: 'Soccer',       id: 'ff80a695-0e78-4432-98f2-141b2b571e0e', genders: ['Boys', 'Girls'], regions: true,  score: ['Goals for/gm', 'Goals against/gm'] },
   fieldhockey: { label: 'Field Hockey', id: '1054869a-20d4-465f-8ca9-4bc4d2bafe1b', genders: ['Girls'],         regions: true,  score: ['Goals for/gm', 'Goals against/gm'] },
   volleyball:  { label: 'Volleyball',   id: 'e26b0fcc-e661-4945-8b2d-063c37ace44f', genders: ['Girls'],         regions: false, score: ['Sets won/m', 'Sets lost/m'] },
+  // Football seeds by Crabtree. Brackets are 6 teams (B, D: 1-2 byes), 4 teams
+  // (A, 8-man) or one 8-team bracket (C). A class only appears once every seed
+  // in it is locked, so a class with a week left stays hidden on its own.
+  football:    { label: 'Football',     id: 'fa905ca5-f416-409b-81ac-777179ee5576', genders: ['Boys'],          regions: true,  score: ['Points for/gm', 'Points against/gm'], noTies: true },
 };
-const CLASS_ORDER = ['A', 'B', 'C', 'D', 'S', '8'];
+const CLASS_ORDER = ['A', 'B', 'C', 'D', 'S', '8', '8Large', '8Small'];
+const CLASS_NAME = { '8': '8-Man', '8Large': '8-Man Large', '8Small': '8-Man Small' };
+const clsName = c => CLASS_NAME[c] || `Class ${c}`;
+const regionName = reg => { const [c, ...r] = String(reg || '').split(' '); return [CLASS_NAME[c] || c, ...r].join(' '); };
+// Workbook codes shorten the 8-man classes (8LargeNorthSemis14 -> 8L)
+const SLOT_CLASS = { '8Large': '8L', '8Small': '8S' };
 const ROUND_NO = { play_in: 1, quarters: 2, semis: 3, regional: 4, gold_ball: 5 };
 const ROUND_LABEL = { play_in: 'Play-In', quarters: 'Quarterfinal', semis: 'Semifinal', regional: 'Regional Final', gold_ball: 'Gold Ball' };
 // 16-slot bracket in quarter order — the same pairing as the workbook codes.
@@ -313,9 +322,22 @@ function buildSeeds(data) {
     (seeds[r] = seeds[r] || {})[s] = tid;
     seedOf[tid] = s;
   };
-  Object.values(data.snap).forEach(r => put(r.team_id, +(r.tournament_odds && r.tournament_odds.seed)));
+  // ready[region] = false while any seed there is still in doubt (football's
+  // season odds carry s1..sN chances instead of a seed until the last week is played).
+  const ready = {};
+  Object.values(data.snap).forEach(r => {
+    const o = r.tournament_odds || {};
+    const reg = regionKey(data.byId[r.team_id]);
+    if (!reg) return;
+    if (!(reg in ready)) ready[reg] = true;
+    if (o.seed != null) { put(r.team_id, +o.seed); return; }
+    if (o.playoff == null || +o.playoff === 0) return;          // out (or no odds at all)
+    const k = Object.keys(o).find(k => /^s\d+$/.test(k) && +o[k] >= 0.999);
+    if (+o.playoff >= 0.999 && k) put(r.team_id, +k.slice(1));
+    else ready[reg] = false;
+  });
   data.tgames.forEach(g => { put(g.home_team_id, g.home_seed); put(g.away_team_id, g.away_seed); });   // the bracket wins
-  return { seeds, seedOf };
+  return { seeds, seedOf, ready };
 }
 
 const leaf = (team, seed) => team ? { kind: 'leaf', team, seed } : null;
@@ -425,14 +447,22 @@ const QF_SLOT = ['18', '45', '27', '36'], SF_SLOT = ['1458', '2367'];
 function slotFor(n, data) {
   if (!data.slots || !n || !n.key) return null;
   const [reg, part] = n.key.split('|');
-  const [c, r = ''] = reg.split(' ');
+  const [c0, r = ''] = reg.split(' ');
+  const c = SLOT_CLASS[c0] || c0;
   if (part === 'gb') return data.slots[[c, '', 'gold_ball', ''].join('|')] || null;
   const m = /^(pi|qf|sf|rf)(\d*)$/.exec(part || '');
   if (!m) return null;
   const i = +m[2];
   const slot = m[1] === 'pi' ? PAIRS[i].join('') : m[1] === 'qf' ? QF_SLOT[i] : m[1] === 'sf' ? SF_SLOT[i] : '';
   const round = { pi: 'play_in', qf: 'quarters', sf: 'semis', rf: 'regional' }[m[1]];
-  const hit = data.slots[[c, r, round, slot].join('|')];
+  let hit = data.slots[[c, r, round, slot].join('|')];
+  // Smaller brackets code their games with fewer seeds (BNorthSemis145,
+  // 8LargeNorthSemis14): fall back to the slot led by the same top seed.
+  if (!hit && (m[1] === 'qf' || m[1] === 'sf')) {
+    const lead = slot[0];
+    hit = Object.values(data.slots).find(x => x.team_class === c && (x.team_region || '') === r &&
+      x.round === round && (x.slot || '')[0] === lead) || null;
+  }
   // Volleyball's one bracket: its title game may be coded as a Gold Ball or a final
   if (!hit && n.isTitle) return data.slots[[c, r, 'gold_ball', ''].join('|')] || null;
   return hit || null;
@@ -442,7 +472,7 @@ function metaLine(n, res, data) {
   if (g && g.status === 'active') return `<div class="meta"><span class="live">LIVE</span></div>`;
   if (g && g.status === 'final') {
     const tie = g.home_score != null && g.home_score === g.away_score;
-    return `<div class="meta"><span class="fin">Final${tie ? (sport === 'fieldhockey' ? ' · strokes' : ' · PKs') : ''}</span></div>`;
+    return `<div class="meta"><span class="fin">Final${tie && !SPORTS[sport].noTies ? (sport === 'fieldhockey' ? ' · strokes' : ' · PKs') : ''}</span></div>`;
   }
   if (g && g.status === 'postponed') return `<div class="meta">Postponed</div>`;
   if (g) return `<div class="meta" title="${esc(site(g, data))}">${esc(fmtWhen(g))}${site(g, data) ? ' · ' + esc(site(g, data)) : ''}</div>`;
@@ -459,9 +489,11 @@ function render() {
   const el = document.getElementById('bracket');
   closePop();
   if (!data) return;
-  const { seeds, seedOf } = buildSeeds(data);
-  const classes = [...new Set(Object.keys(seeds).map(r => r.split(' ')[0]))]
+  const { seeds, seedOf, ready } = buildSeeds(data);
+  const classReady = c => Object.keys(ready).every(r => r.split(' ')[0] !== c || ready[r]);
+  const classes = [...new Set(Object.keys(seeds).map(r => r.split(' ')[0]))].filter(classReady)
     .sort((a, b) => CLASS_ORDER.indexOf(a) - CLASS_ORDER.indexOf(b));
+  if (classes.length && !classes.includes(cls)) cls = classes[0];
   renderClassTabs(classes);
   if (!classes.length) {
     el.style.width = ''; el.style.height = '';
@@ -474,20 +506,20 @@ function render() {
   const regs = Object.keys(seeds).filter(r => r.split(' ')[0] === cls).sort();
   const trees = regs.map(r => ({ region: r, ...buildRegion(r, seeds[r]) }));
   const twoRegions = trees.length === 2;
-  const isPI = n => n && n.kind === 'game' && n.round === 'play_in';
-  // Which play-in slots feed each side (left = North / top half, right = South / bottom half)
-  const piL = twoRegions ? trees[0].pi : trees[0].pi.slice(0, 4);
-  const piR = twoRegions ? trees[1].pi : trees[0].pi.slice(4);
-
-  // Columns per side, outermost first — a side only gets a Play-In column if it has play-ins
+  // Columns per side, outermost first — only rounds that actually have a game on
+  // that side (a 6-team football region starts at the quarters, a 4-team one at the semis)
+  const roundsUnder = n => { const s = new Set(); (function walk(x) { if (x && x.kind === 'game') { s.add(x.round); walk(x.a); walk(x.b); } })(n); return s; };
+  const sideL = roundsUnder(twoRegions ? trees[0].rf : trees[0].sf[0]);
+  const sideR = roundsUnder(twoRegions ? trees[1].rf : trees[0].sf[1]);
   const sideCols = twoRegions ? ['play_in', 'quarters', 'semis', 'regional'] : ['play_in', 'quarters', 'semis'];
-  const colsL = piL.some(isPI) ? sideCols : sideCols.slice(1);
-  const colsR = piR.some(isPI) ? sideCols : sideCols.slice(1);
+  const colsL = sideCols.filter(r => sideL.has(r));
+  const colsR = sideCols.filter(r => sideR.has(r));
   const rows = twoRegions ? 8 : 4;
   const centerX = colsL.length * (W + G);
   const totalW = centerX + W + colsR.length * (W + G);
   // Rows are spaced for play-in games; without any, tighten them up.
-  const rowH = colsL.includes('play_in') || colsR.includes('play_in') ? ROW : 62;
+  const has = r => colsL.includes(r) || colsR.includes(r);
+  const rowH = has('play_in') ? ROW : has('quarters') ? 62 : 46;
   let totalH = HEAD + rows * rowH + 10;
 
   const placed = [];                         // { node, x, y, side }
@@ -551,8 +583,8 @@ function render() {
   colsR.forEach((r, i) => { heads += `<div class="col-head" style="left:${centerX + (W + G) * (colsR.length - i)}px;width:${W}px;top:${REGION_H}px">${LBL[r]}</div>`; });
   heads += `<div class="col-head" style="left:${centerX}px;width:${W}px;top:${REGION_H}px">${twoRegions ? 'Gold Ball' : 'Final'}</div>`;
   if (twoRegions) {
-    heads += `<div class="region-head" style="left:0;top:0">${esc(trees[0].region)}</div>`;
-    heads += `<div class="region-head" style="right:0;top:0;text-align:right">${esc(trees[1].region)}</div>`;
+    heads += `<div class="region-head" style="left:0;top:0">${esc(regionName(trees[0].region))}</div>`;
+    heads += `<div class="region-head" style="right:0;top:0;text-align:right">${esc(regionName(trees[1].region))}</div>`;
   }
 
   // boxes
@@ -567,7 +599,7 @@ function render() {
       teamLine(r.A, seedOf, data, r, r.g) + metaLine(n, r, data) + teamLine(r.B, seedOf, data, r, r.g) + `</div>`;
   });
   if (center) {
-    const tag = twoRegions ? `Class ${cls} State Championship` : `Class ${cls} Championship`;
+    const tag = twoRegions ? `${clsName(cls)} State Championship` : `${clsName(cls)} Championship`;
     boxes += `<div class="title-tag" style="left:${centerX}px;width:${W}px;top:${(placed.find(p => p.title) || { y: yPx(center.y) }).y - TAG_H}px">${esc(tag)}</div>`;
   }
 
@@ -676,7 +708,7 @@ function openPop(key, refreshOnly) {
     `<div class="pn"><b>#${seedOf[t.id] || '–'}</b>${esc(t.school_name)}</div><div class="pr">${rec(s)}</div></a>`;
 
   pop.innerHTML = `<button class="pop-close" aria-label="Close">×</button>
-    <div class="pop-round">${roundName(n)}${n.round === 'gold_ball' || n.isTitle ? ` · Class ${esc(cls)}` : ` · ${esc(n.region)}`}</div>
+    <div class="pop-round">${roundName(n)}${n.round === 'gold_ball' || n.isTitle ? ` · ${esc(clsName(cls))}` : ` · ${esc(regionName(n.region))}`}</div>
     <div class="pop-when">${g && g.status === 'active' ? '<span style="color:var(--red);font-weight:700">LIVE</span> · ' : g && g.status === 'final' ? 'Final · ' : ''}${esc(when)}</div>
     <div class="pop-teams">${team(A, sa)}<div class="pop-vs">${showScore ? `<span class="pop-score">${sc(r.A)}–${sc(r.B)}</span>` : 'vs'}</div>${team(B, sb)}</div>
     <table class="cmp">
@@ -724,7 +756,7 @@ function renderTabs() {
 }
 function renderClassTabs(classes) {
   const el = document.getElementById('classTabs');
-  el.innerHTML = classes.map(c => `<button class="tab${c === cls || (!cls && c === classes[0]) ? ' on' : ''}" data-c="${c}">${c === '8' ? '8-Man' : 'Class ' + c}</button>`).join('');
+  el.innerHTML = classes.map(c => `<button class="tab${c === cls || (!cls && c === classes[0]) ? ' on' : ''}" data-c="${c}">${clsName(c)}</button>`).join('');
   el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { cls = b.dataset.c; render(); });
 }
 function syncUrl() {

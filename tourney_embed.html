@@ -550,8 +550,9 @@ async function loadData() {
     }
   }
 
-  // Detect tournament mode: new format has play_in key, old has bye/playoff
-  const isTourneyMode = snaps.some(s => s.tournament_odds?.play_in !== undefined);
+  // Tournament vs season format is decided per TEAM, not per sport: football
+  // moves to bracket odds class by class, so on a given night B/D/8-man carry
+  // play_in/quarters/... while A and C still carry bye/playoff/s1..s16.
 
   allSnaps = teams
     .filter(t => snapMap[t.id]?.tournament_odds)
@@ -567,7 +568,7 @@ async function loadData() {
         region = (tr && tc && !tr.includes(tc)) ? `${tc} ${tr}` : (tr || tc);
       }
 
-      if (isTourneyMode) {
+      if (odds.play_in !== undefined) {
         // New format: play_in/quarters/semis/regional/gold_ball
         return {
           team_id:   t.id,
@@ -662,7 +663,9 @@ function renderRegionTabs() {
 }
 
 function renderTable() {
-  const isTourney = allSnaps.length ? ('play_in' in allSnaps[0]) : false;
+  // Per region: a region whose bracket is set shows round odds; one still in
+  // its regular season shows Bye% / In% / seed odds.
+  const isTourney = allSnaps.some(s => s.region === activeRegion && 'play_in' in s);
 
   if (isTourney) {
     renderTableTourney();

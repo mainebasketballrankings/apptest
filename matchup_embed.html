@@ -603,7 +603,7 @@ function esc(s) {
 
 async function fetchSchedule(teamId, season) {
   const { data } = await _sb.from('games')
-    .select(`id, game_date, game_time, status, home_score, away_score, is_tournament, is_summer, event, owner_id,
+    .select(`id, game_date, game_time, status, home_score, away_score, is_tournament, is_summer, event, owner_id, stats_uploaded,
              home_team_id, away_team_id,
              home_team:home_team_id(school_name), away_team:away_team_id(school_name)`)
     .eq('season_year', season)
@@ -620,6 +620,71 @@ async function fetchRoster(teamId, season) {
   return (data || []).sort((a, b) => num(a) - num(b) || String(a.name || a.last_name || '').localeCompare(String(b.name || b.last_name || '')));
 }
 
+// ── App-scored games ──
+// The players table only holds totals from PDF box-score imports. Games scored
+// live in the app leave a per-player stat line instead (a player_final_stats
+// event written at the final whistle). Add those in for every final game that
+// wasn't also PDF-imported (games.stats_uploaded), so nothing counts twice.
+const APP_STAT_MAP = {
+  Football: { pa:'pass_att', pc:'pass_comp', pyd:'pass_yds', ptd:'pass_td', pint:'pass_int',
+              ra:'rush_att', ryd:'rush_yds', rtd:'rush_td', rec:'rec', recyd:'rec_yds', rectd:'rec_td',
+              tkl:'tkl', ast:'tkl_ast', sack:'sk', dint:'def_int', pd:'pd', blk:'blk_def',
+              fgm:'fg_made', fga:'fg_att', xpm:'xp_made', xpa:'xp_att', punts:'punts', puntyd:'punt_yds',
+              kret:'kr', kretyd:'kr_yds', pret:'pr', pretyd:'pr_yds' },
+  // soccer / field hockey / lacrosse share the field scorer's keys
+  _field:   { g:'goals', a:'ast', sh:'shots', sog:'sog', sv:'gk_saves', ga:'gk_ga', faced:'gk_sog_faced',
+              fl:'fouls', yc:'card_yellow', rc:'card_red' },
+};
+function appStatMap(sport) {
+  if (sport === 'Football') return APP_STAT_MAP.Football;
+  if (['Soccer', 'Field Hockey', 'Lacrosse'].includes(sport)) return APP_STAT_MAP._field;
+  return null;
+}
+
+async function fetchAppStats(teamId, schedule) {
+  const ids = schedule.filter(g => g.status === 'final' && !g.stats_uploaded).map(g => g.id);
+  if (!ids.length) return { lines: [], games: 0 };
+  const { data } = await _sb.from('game_events')
+    .select('game_id, player_num, player_name, notes, created_at')
+    .eq('event_type', 'player_final_stats').eq('team_id', teamId).in('game_id', ids)
+    .order('created_at', { ascending: true }).limit(1000);
+  // A game ended twice (re-scored) leaves two sets — keep the last line per player per game.
+  const last = {};
+  for (const e of data || []) {
+    let s; try { s = JSON.parse(e.notes || '{}'); } catch (_) { continue; }
+    const num = String(s.number ?? s.num ?? e.player_num ?? '').trim();
+    const name = String(s.name || e.player_name || '').replace(/\*/g, '').trim();
+    last[`${e.game_id}|${num}|${name.toLowerCase()}`] = { game_id: e.game_id, num, name, s };
+  }
+  const lines = Object.values(last);
+  return { lines, games: new Set(lines.map(l => l.game_id)).size };
+}
+
+function mergeAppStats(roster, lines, sport) {
+  const map = appStatMap(sport);
+  if (!map || !lines.length) return roster;
+  const out = roster.map(p => Object.assign({}, p));
+  const nm = p => String(p.name || [p.first_name, p.last_name].filter(Boolean).join(' ')).toLowerCase().replace(/[^a-z ]/g, '').trim();
+  const lastName = s => s.split(' ').pop();
+  for (const ln of lines) {
+    const lname = ln.name.toLowerCase().replace(/[^a-z ]/g, '').trim();
+    const sameNum = out.filter(p => String(p.number ?? '').trim() === ln.num);
+    // Number first (two players can share one, so break ties on last name), then name alone.
+    let p = sameNum.length === 1 ? sameNum[0]
+          : sameNum.find(q => lastName(nm(q)) === lastName(lname))
+          || out.find(q => nm(q) === lname)
+          || (lname && out.find(q => lastName(nm(q)) === lastName(lname) && nm(q)[0] === lname[0]));
+    if (!p) { p = { number: ln.num, name: ln.name, _appOnly: true }; out.push(p); }
+    for (const [k, col] of Object.entries(map)) {
+      const v = Number(ln.s[k]);
+      if (v) p[col] = (Number(p[col]) || 0) + v;
+    }
+    if (p.gk_sog_faced) p.gk_svpct = p.gk_saves / p.gk_sog_faced;
+  }
+  const num = p => { const n = parseInt(p.number, 10); return isNaN(n) ? 999 : n; };
+  return out.sort((a, b) => num(a) - num(b));
+}
+
 // A few season numbers per player, only the ones that aren't zero.
 function keyStats(p, sport) {
   const bits = [];
@@ -632,7 +697,8 @@ function keyStats(p, sport) {
     if (n(p.tkl) || n(p.tkl_ast)) bits.push(`Tkl ${(p.tkl || 0) + (p.tkl_ast || 0)}`);
     if (n(p.sk)) bits.push(`Sk ${p.sk}`);
     if (n(p.def_int)) bits.push(`INT ${p.def_int}`);
-    if (n(p.fg_made)) bits.push(`FG ${p.fg_made}/${p.fg_att ?? '?'}`);
+    if (n(p.fg_made) || n(p.fg_att)) bits.push(`FG ${p.fg_made || 0}/${p.fg_att ?? '?'}`);
+    if (n(p.xp_made) || n(p.xp_att)) bits.push(`XP ${p.xp_made || 0}/${p.xp_att ?? '?'}`);
   } else if (sport === 'Basketball') {
     if (n(p.ppg)) bits.push(`${f1(p.ppg)} ppg`);
     if (n(p.rpg)) bits.push(`${f1(p.rpg)} rpg`);
@@ -774,12 +840,16 @@ function buildPacketHTML(mx, sched, rosters) {
   </section>`;
 
   // ── Roster pages ──
-  const rosterPage = (team, list) => {
+  const rosterPage = (team, list, meta) => {
     if (!list.length) return '';
+    const src = meta && (meta.pdf || meta.app)
+      ? `<div class="note">Season stats: ${[meta.pdf ? `${meta.pdf} game${meta.pdf > 1 ? 's' : ''} from box-score imports` : '',
+                                            meta.app ? `${meta.app} game${meta.app > 1 ? 's' : ''} scored in the app` : '']
+          .filter(Boolean).join(' + ')}${list.some(p => p._appOnly) ? ' · † = in the app’s game roster but not this roster' : ''}</div>` : '';
     const has = k => list.some(p => p[k] != null && String(p[k]).trim() !== '');
     const cols = [
       ['#', p => esc(p.number ?? '')],
-      ['Name', p => esc(p.name || [p.first_name, p.last_name].filter(Boolean).join(' '))],
+      ['Name', p => esc(p.name || [p.first_name, p.last_name].filter(Boolean).join(' ')) + (p._appOnly ? ' †' : '')],
       ...(has('position') ? [['Pos', p => esc(p.position ?? '')]] : []),
       ...(has('grade') ? [['Gr', p => esc(p.grade ?? '')]] : []),
       ...(has('height') ? [['Ht', p => esc(p.height ?? '')]] : []),
@@ -790,6 +860,7 @@ function buildPacketHTML(mx, sched, rosters) {
     return `
     <section class="pg">
       <h1 class="sm">${esc(team.school_name)} roster <span>${list.length} players</span></h1>
+      ${src}
       <table class="ros"><thead><tr>${cols.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead>
       <tbody>${list.map(p => `<tr>${cols.map(c => `<td>${c[1](p)}</td>`).join('')}</tr>`).join('')}</tbody></table>
     </section>`;
@@ -853,7 +924,7 @@ function buildPacketHTML(mx, sched, rosters) {
     }
   </style></head><body>
   <div class="bar"><button onclick="window.print()">Print</button><span>Game packet · ${esc(away.school_name)} at ${esc(home.school_name)}</span></div>
-  ${page1}${page2}${rosterPage(away, rosters.away)}${rosterPage(home, rosters.home)}
+  ${page1}${page2}${rosterPage(away, rosters.away, rosters.meta && rosters.meta.away)}${rosterPage(home, rosters.home, rosters.meta && rosters.meta.home)}
   ${rosterNote ? `<section class="pg" style="break-before:auto;page-break-before:auto">${rosterNote}</section>` : ''}
   <div class="foot">mainebasketballrankings.com · printed ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
   </body></html>`;
@@ -872,7 +943,15 @@ async function printPacket() {
       fetchSchedule(mx.home.id, mx.game.season_year), fetchSchedule(mx.away.id, mx.game.season_year),
       fetchRoster(mx.home.id, mx.game.season_year),   fetchRoster(mx.away.id, mx.game.season_year),
     ]);
-    const html = buildPacketHTML(mx, { home: sh, away: sa }, { home: rh, away: ra });
+    // Fold in games scored live in the app (not PDF-imported).
+    const [ah, aa] = await Promise.all([fetchAppStats(mx.home.id, sh), fetchAppStats(mx.away.id, sa)]);
+    const imported = list => list.filter(g => g.status === 'final' && g.stats_uploaded).length;
+    const rosters = {
+      home: mergeAppStats(rh, ah.lines, mx.sportName),
+      away: mergeAppStats(ra, aa.lines, mx.sportName),
+      meta: { home: { pdf: imported(sh), app: ah.games }, away: { pdf: imported(sa), app: aa.games } },
+    };
+    const html = buildPacketHTML(mx, { home: sh, away: sa }, rosters);
     if (w) {
       w.document.open(); w.document.write(html); w.document.close();
       // Give the fonts a moment so the first print isn't in a fallback face.

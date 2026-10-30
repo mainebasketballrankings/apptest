@@ -134,6 +134,12 @@
     .game-switcher select:focus { border-color: var(--green2); }
     .watermark { text-align: center; padding: 20px 0 0; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--lgray); }
 
+    /* ── Print packet button ── */
+    .print-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+    .print-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--black); cursor: pointer; }
+    .print-btn:hover { border-color: var(--green2); color: var(--green); }
+    .print-btn:disabled { opacity: .5; cursor: wait; }
+
     @media (max-width: 580px) {
       .cmp-row { grid-template-columns: 1fr 120px 1fr; }
       .cmp-val { font-size: 14px; }
@@ -355,6 +361,14 @@ async function loadMatchup() {
 
   if (myVersion !== _loadVersion) return; // final check before writing to DOM
 
+  // Everything the print packet needs, so the button doesn't re-fetch it.
+  window._mx = {
+    game, home, away, hSnap, aSnap, latestMap, sportName,
+    homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName, hRest, aRest,
+    ranks: { pf: pfRanks, pa: paRanks, dif: difRanks, sos: sosRanks, pct: pctRanks, t25: t25Ranks, t50: t50Ranks },
+    scoreLabels: SPORT_SCORE_LABELS[sportName] || ['Pts Scored', 'Pts Allowed'],
+  };
+
   el.innerHTML = buildMatchup({
     game, home, away, hSnap, aSnap,
     homeCls, awayCls, homeReg, awayReg, homeRegName, awayRegName,
@@ -514,6 +528,9 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
   }
 
   return `
+  <div class="print-row">
+    <button class="print-btn" id="printBtn" onclick="printPacket()">🖨 Print game packet</button>
+  </div>
   <div class="hero">
     <div class="hero-meta">
       <span>${statusLabel}</span>
@@ -574,6 +591,310 @@ function buildMatchup({ game, home, away, hSnap, aSnap,
 
   <div class="watermark">mainebasketballrankings.com</div>`;
 }
+// ── Print packet ──────────────────────────────────────────────────────────────
+// "I'm leaving for this game in 20 minutes": page 1 the matchup, page 2 both
+// schedules side by side, then a roster page per team (when one is loaded).
+// Opens in its own window so it prints cleanly from inside the Ghost iframe
+// and can be read on a phone too.
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+async function fetchSchedule(teamId, season) {
+  const { data } = await _sb.from('games')
+    .select(`id, game_date, game_time, status, home_score, away_score, is_tournament, is_summer, event, owner_id,
+             home_team_id, away_team_id,
+             home_team:home_team_id(school_name), away_team:away_team_id(school_name)`)
+    .eq('season_year', season)
+    .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+    .order('game_date', { ascending: true })
+    .limit(60);
+  return (data || []).filter(g => !g.is_summer && !g.owner_id && g.status !== 'cancelled');
+}
+
+async function fetchRoster(teamId, season) {
+  const { data } = await _sb.from('players').select('*')
+    .eq('team_id', teamId).eq('season_year', season).limit(200);
+  const num = p => { const n = parseInt(p.number, 10); return isNaN(n) ? 999 : n; };
+  return (data || []).sort((a, b) => num(a) - num(b) || String(a.name || a.last_name || '').localeCompare(String(b.name || b.last_name || '')));
+}
+
+// A few season numbers per player, only the ones that aren't zero.
+function keyStats(p, sport) {
+  const bits = [];
+  const n = v => v != null && Number(v) !== 0;
+  const f1 = v => Number(v).toFixed(1);
+  if (sport === 'Football') {
+    if (n(p.pass_yds)) bits.push(`Pass ${p.pass_comp ?? '?'}/${p.pass_att ?? '?'} ${p.pass_yds}y ${p.pass_td || 0}TD`);
+    if (n(p.rush_yds) || n(p.rush_att)) bits.push(`Rush ${p.rush_att ?? '?'}-${p.rush_yds ?? 0} ${p.rush_td || 0}TD`);
+    if (n(p.rec)) bits.push(`Rec ${p.rec}-${p.rec_yds ?? 0} ${p.rec_td || 0}TD`);
+    if (n(p.tkl) || n(p.tkl_ast)) bits.push(`Tkl ${(p.tkl || 0) + (p.tkl_ast || 0)}`);
+    if (n(p.sk)) bits.push(`Sk ${p.sk}`);
+    if (n(p.def_int)) bits.push(`INT ${p.def_int}`);
+    if (n(p.fg_made)) bits.push(`FG ${p.fg_made}/${p.fg_att ?? '?'}`);
+  } else if (sport === 'Basketball') {
+    if (n(p.ppg)) bits.push(`${f1(p.ppg)} ppg`);
+    if (n(p.rpg)) bits.push(`${f1(p.rpg)} rpg`);
+    if (n(p.apg)) bits.push(`${f1(p.apg)} apg`);
+    if (n(p.tpm)) bits.push(`${p.tpm} 3PM`);
+  } else if (sport === 'Baseball' || sport === 'Softball') {
+    if (n(p.ab)) bits.push(`${Number(p.ba || 0).toFixed(3).replace(/^0/, '')} BA`);
+    if (n(p.hr)) bits.push(`${p.hr} HR`);
+    if (n(p.rbi)) bits.push(`${p.rbi} RBI`);
+    if (n(p.sb)) bits.push(`${p.sb} SB`);
+    if (n(p.ip_outs)) bits.push(`${Math.floor(p.ip_outs / 3)}.${p.ip_outs % 3} IP ${p.era != null ? Number(p.era).toFixed(2) + ' ERA ' : ''}${p.k || 0} K`);
+  } else {
+    if (n(p.goals)) bits.push(`${p.goals} G`);
+    if (n(p.ast)) bits.push(`${p.ast} A`);
+    if (n(p.sog)) bits.push(`${p.sog} SOG`);
+    if (n(p.gk_saves)) bits.push(`${p.gk_saves} Sv${p.gk_svpct != null ? ' (' + (Number(p.gk_svpct) <= 1 ? (p.gk_svpct * 100).toFixed(0) : Number(p.gk_svpct).toFixed(0)) + '%)' : ''}`);
+  }
+  return bits.join(' · ');
+}
+
+function rankTxt(r, teamId, isHome, cls, reg) {
+  const s = r.state[teamId], c = isHome ? r.hCls[teamId] : r.aCls[teamId], g = isHome ? r.hReg[teamId] : r.aReg[teamId];
+  const parts = [];
+  if (s) parts.push(`#${s}`);
+  if (c && cls) parts.push(`#${c} ${cls}`);
+  if (g && reg) parts.push(`#${g} ${cls ? cls + ' ' : ''}${reg}`);
+  return parts.join(' · ');
+}
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+function buildPacketHTML(mx, sched, rosters) {
+  const { game, home, away, hSnap, aSnap, latestMap, sportName, ranks, scoreLabels } = mx;
+  const d = game.game_date ? new Date(game.game_date + 'T12:00:00') : null;
+  const dateLong = d ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
+  const dateShort = ds => new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+  const where = game.location || (game.is_neutral_site ? 'Neutral site' : home.school_name);
+  const clsLine = mx.homeCls === mx.awayCls ? `Class ${mx.homeCls || '?'}` : 'Cross-class';
+  const rec = s => s.wins != null ? `${s.wins}-${s.losses ?? 0}` : '—';
+
+  // ── Page 1: matchup ──
+  const row = (label, aVal, hVal, aRank = '', hRank = '') =>
+    `<tr><td class="a">${aVal}${aRank ? `<div class="rk">${aRank}</div>` : ''}</td><th>${label}</th><td class="h">${hVal}${hRank ? `<div class="rk">${hRank}</div>` : ''}</td></tr>`;
+  const statRow = (label, key, field, fmtFn) => row(label,
+    fmtFn(aSnap[field]), fmtFn(hSnap[field]),
+    rankTxt(ranks[key], away.id, false, mx.awayCls, mx.awayRegName),
+    rankTxt(ranks[key], home.id, true, mx.homeCls, mx.homeRegName));
+  const diff = s => (s.avg_pf != null && s.avg_pa != null) ? fmtDiff(s.avg_pf, s.avg_pa) : '—';
+
+  let probLine = '';
+  if (game.win_prob != null) {
+    const hp = Math.round(game.win_prob * 100);
+    probLine = `<div class="prob"><b>${esc(away.school_name)} ${100 - hp}%</b> · win probability · <b>${hp}% ${esc(home.school_name)}</b></div>`;
+  }
+  let pickLine = '';
+  if (game.pick_team && game.spread != null) {
+    pickLine = `<div class="pick">Model pick: <b>${esc(game.pick_team)}</b> by ${Math.abs(game.spread).toFixed(1)}`
+      + (game.stax_index ? ` · STAX ${Number(game.stax_index).toFixed(1)}` : '') + `</div>`;
+  }
+
+  // Earlier meetings this season, from the home team's schedule.
+  const meetings = sched.home.filter(g => g.id !== game.id && g.status === 'final' &&
+    (g.home_team_id === away.id || g.away_team_id === away.id));
+  const meetHTML = meetings.length ? `<h3>Earlier meetings</h3><ul class="meet">${meetings.map(g =>
+    `<li>${dateShort(g.game_date)}: ${esc(g.away_team?.school_name)} ${g.away_score}, ${esc(g.home_team?.school_name)} ${g.home_score}</li>`).join('')}</ul>` : '';
+
+  const page1 = `
+  <section class="pg">
+    <div class="top">${esc(sportName)} · ${esc(home.gender || '')} · ${esc(clsLine)}${game.event ? ' · ' + esc(game.event) : ''}</div>
+    <h1>${esc(away.school_name)} <span>at</span> ${esc(home.school_name)}</h1>
+    <div class="when">${esc(dateLong)}${game.game_time ? ' · ' + fmtTime(game.game_time) : ''} · ${esc(where)}</div>
+    <div class="teams">
+      <div><div class="tn">${esc(away.school_name)}</div><div class="tr">${rec(aSnap)}${aSnap.rank_overall ? ' · #' + aSnap.rank_overall + ' state' : ''}</div>
+        <div class="tc">${esc([mx.awayCls, mx.awayRegName].filter(Boolean).join(' '))}</div></div>
+      <div class="vs">at</div>
+      <div><div class="tn">${esc(home.school_name)}</div><div class="tr">${rec(hSnap)}${hSnap.rank_overall ? ' · #' + hSnap.rank_overall + ' state' : ''}</div>
+        <div class="tc">${esc([mx.homeCls, mx.homeRegName].filter(Boolean).join(' '))}</div></div>
+    </div>
+    ${probLine}${pickLine}
+    <table class="cmp">
+      <thead><tr><td class="a">${esc(away.school_name)}</td><th></th><td class="h">${esc(home.school_name)}</td></tr></thead>
+      <tbody>
+        ${statRow(scoreLabels[0], 'pf', 'avg_pf', v => fmt(v))}
+        ${statRow(scoreLabels[1], 'pa', 'avg_pa', v => fmt(v))}
+        ${row('Avg margin', diff(aSnap), diff(hSnap),
+              rankTxt(ranks.dif, away.id, false, mx.awayCls, mx.awayRegName), rankTxt(ranks.dif, home.id, true, mx.homeCls, mx.homeRegName))}
+        ${statRow('SOS', 'sos', 'sos', v => fmt(v, 2))}
+        ${statRow('%Perfect', 'pct', 'pct_perfect', fmtPct)}
+        ${statRow('% vs Top 25', 't25', 'vs_top_25', fmtPct)}
+        ${statRow('% vs Top 50', 't50', 'vs_top_50', fmtPct)}
+        ${row('ATS', esc(aSnap.ats_record || '—'), esc(hSnap.ats_record || '—'))}
+        ${(mx.aRest != null || mx.hRest != null) ? row('Rest days', mx.aRest != null ? mx.aRest + 'd' : '—', mx.hRest != null ? mx.hRest + 'd' : '—') : ''}
+      </tbody>
+    </table>
+    ${meetHTML}
+  </section>`;
+
+  // ── Page 2: schedules side by side ──
+  const oppIds = list => new Set(list.map(g => g.home_team_id === list.self ? g.away_team_id : g.home_team_id));
+  sched.home.self = home.id; sched.away.self = away.id;
+  const hOpp = oppIds(sched.home), aOpp = oppIds(sched.away);
+  const common = new Set([...hOpp].filter(id => aOpp.has(id) && id !== home.id && id !== away.id));
+
+  const schedTable = (list, team) => {
+    let w = 0, l = 0, t = 0;
+    const rows = list.map(g => {
+      const isHome = g.home_team_id === team.id;
+      const oppId = isHome ? g.away_team_id : g.home_team_id;
+      const opp = isHome ? g.away_team?.school_name : g.home_team?.school_name;
+      const os = latestMap[oppId];
+      const oppRec = os && os.wins != null ? ` <span class="orec">(${os.wins}-${os.losses ?? 0})</span>` : '';
+      let res = '';
+      if (g.status === 'final' && g.home_score != null && g.away_score != null) {
+        const us = isHome ? g.home_score : g.away_score, them = isHome ? g.away_score : g.home_score;
+        const r = us > them ? 'W' : us < them ? 'L' : 'T';
+        if (r === 'W') w++; else if (r === 'L') l++; else t++;
+        res = `<b class="r${r}">${r}</b> ${us}-${them}`;
+      } else {
+        res = `<span class="up">${g.game_time ? fmtTime(g.game_time) : ''}</span>`;
+      }
+      const cls = [g.id === game.id ? 'this' : '', g.is_tournament ? 'po' : ''].join(' ').trim();
+      return `<tr class="${cls}"><td>${dateShort(g.game_date)}</td>
+        <td>${isHome ? 'vs' : '@'} ${esc(opp || '?')}${oppRec}${common.has(oppId) ? ' <span class="cm">◆</span>' : ''}</td>
+        <td class="res">${res}</td></tr>`;
+    }).join('');
+    return `<div class="sch"><h2>${esc(team.school_name)} <span>${w}-${l}${t ? '-' + t : ''}</span></h2>
+      <table><tbody>${rows || '<tr><td colspan="3">No games found.</td></tr>'}</tbody></table></div>`;
+  };
+
+  const page2 = `
+  <section class="pg">
+    <h1 class="sm">Schedules</h1>
+    <div class="note">◆ = common opponent · shaded row = this game · (record) = opponent's current record</div>
+    <div class="two">${schedTable(sched.away, away)}${schedTable(sched.home, home)}</div>
+  </section>`;
+
+  // ── Roster pages ──
+  const rosterPage = (team, list) => {
+    if (!list.length) return '';
+    const has = k => list.some(p => p[k] != null && String(p[k]).trim() !== '');
+    const cols = [
+      ['#', p => esc(p.number ?? '')],
+      ['Name', p => esc(p.name || [p.first_name, p.last_name].filter(Boolean).join(' '))],
+      ...(has('position') ? [['Pos', p => esc(p.position ?? '')]] : []),
+      ...(has('grade') ? [['Gr', p => esc(p.grade ?? '')]] : []),
+      ...(has('height') ? [['Ht', p => esc(p.height ?? '')]] : []),
+      ...(has('pronunciation') ? [['Say', p => esc(p.pronunciation ?? '')]] : []),
+      // Only when box scores have been imported for this team.
+      ...(list.some(p => keyStats(p, sportName)) ? [['Season', p => esc(keyStats(p, sportName))]] : []),
+    ];
+    return `
+    <section class="pg">
+      <h1 class="sm">${esc(team.school_name)} roster <span>${list.length} players</span></h1>
+      <table class="ros"><thead><tr>${cols.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead>
+      <tbody>${list.map(p => `<tr>${cols.map(c => `<td>${c[1](p)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    </section>`;
+  };
+  const noRoster = [away, home].filter((t, i) => !(i ? rosters.home : rosters.away).length).map(t => esc(t.school_name));
+  const rosterNote = noRoster.length ? `<div class="note">No roster loaded for ${noRoster.join(' or ')}.</div>` : '';
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${esc(away.school_name)} at ${esc(home.school_name)} — game packet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: letter; margin: 0.45in; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow', Arial, sans-serif; color: #111; font-size: 11px; background: #fff; }
+    .bar { position: sticky; top: 0; background: #111; color: #fff; padding: 10px 16px; display: flex; gap: 12px; align-items: center; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; }
+    .bar button { background: #ee6730; color: #fff; border: 0; border-radius: 6px; padding: 7px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+    .pg { max-width: 7.6in; margin: 0 auto; padding: 18px 0; }
+    .pg + .pg { break-before: page; page-break-before: always; }
+    h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; line-height: 1.05; }
+    h1 span { font-weight: 600; color: #888; font-size: .7em; }
+    h1.sm { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; border-bottom: 2px solid #111; padding-bottom: 2px; margin-bottom: 4px; }
+    h2 span { float: right; }
+    h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; margin: 14px 0 4px; }
+    .top { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 1px; color: #666; font-size: 11px; margin-bottom: 4px; }
+    .when { font-size: 13px; margin: 4px 0 14px; }
+    .teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; border: 1.5px solid #111; padding: 10px 14px; margin-bottom: 10px; }
+    .teams > div:last-child { text-align: right; }
+    .tn { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; }
+    .tr { font-size: 13px; font-weight: 600; } .tc { color: #666; }
+    .vs { align-self: center; color: #888; font-family: 'Barlow Condensed', sans-serif; }
+    .prob, .pick { font-size: 12px; margin: 4px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    .cmp { margin-top: 10px; font-size: 13px; }
+    .cmp th { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; color: #666; font-size: 11px; width: 26%; }
+    .cmp td, .cmp th { padding: 5px 6px; border-bottom: 1px solid #ddd; }
+    .cmp thead td { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; border-bottom: 2px solid #111; }
+    .cmp .a { text-align: left; } .cmp .h { text-align: right; }
+    .cmp tbody td { font-weight: 700; }
+    .rk { font-weight: 400; color: #777; font-size: 10px; }
+    .meet { padding-left: 16px; font-size: 12px; }
+    .note { color: #666; font-size: 10px; margin-bottom: 8px; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .sch td { padding: 3px 4px; border-bottom: 1px solid #e5e5e5; vertical-align: top; }
+    .sch td:first-child { width: 34px; color: #666; }
+    .sch .res { text-align: right; white-space: nowrap; }
+    .sch tr.this td { background: #e8e8e8; font-weight: 700; }
+    .sch tr.po td:first-child { font-weight: 700; color: #111; }
+    .orec { color: #888; font-size: 10px; } .cm { font-size: 9px; }
+    .rL { color: #b00; } .up { color: #888; }
+    .ros th { text-align: left; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 10px; border-bottom: 2px solid #111; padding: 3px 4px; }
+    .ros td { padding: 3px 4px; border-bottom: 1px solid #e5e5e5; }
+    .ros td:first-child { font-weight: 700; width: 30px; }
+    .ros tr:nth-child(even) td { background: #f6f6f6; }
+    .foot { text-align: center; color: #999; font-size: 9px; margin-top: 14px; }
+    @media print {
+      .bar { display: none; }
+      .pg { padding: 0; max-width: none; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style></head><body>
+  <div class="bar"><button onclick="window.print()">Print</button><span>Game packet · ${esc(away.school_name)} at ${esc(home.school_name)}</span></div>
+  ${page1}${page2}${rosterPage(away, rosters.away)}${rosterPage(home, rosters.home)}
+  ${rosterNote ? `<section class="pg" style="break-before:auto;page-break-before:auto">${rosterNote}</section>` : ''}
+  <div class="foot">mainebasketballrankings.com · printed ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+  </body></html>`;
+}
+
+async function printPacket() {
+  const mx = window._mx;
+  if (!mx) return;
+  const btn = document.getElementById('printBtn');
+  // Open the window inside the click so popup blockers allow it, then fill it.
+  const w = window.open('', '_blank');
+  if (w) w.document.write('<p style="font-family:sans-serif;padding:24px">Building game packet…</p>');
+  if (btn) { btn.disabled = true; btn.textContent = 'Building packet…'; }
+  try {
+    const [sh, sa, rh, ra] = await Promise.all([
+      fetchSchedule(mx.home.id, mx.game.season_year), fetchSchedule(mx.away.id, mx.game.season_year),
+      fetchRoster(mx.home.id, mx.game.season_year),   fetchRoster(mx.away.id, mx.game.season_year),
+    ]);
+    const html = buildPacketHTML(mx, { home: sh, away: sa }, { home: rh, away: ra });
+    if (w) {
+      w.document.open(); w.document.write(html); w.document.close();
+      // Give the fonts a moment so the first print isn't in a fallback face.
+      const go = () => { try { w.focus(); w.print(); } catch (e) {} };
+      if (w.document.fonts && w.document.fonts.ready) w.document.fonts.ready.then(() => setTimeout(go, 150));
+      else setTimeout(go, 600);
+    } else {
+      // Popup blocked: hand the packet over as a file instead.
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `game-packet-${mx.game.game_date || 'game'}.html`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  } catch (e) {
+    console.warn('print packet failed', e);
+    if (w) w.document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Couldn’t build the packet — try again.</p>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🖨 Print game packet'; }
+  }
+}
+
 // ── Game switcher ─────────────────────────────────────────────────────────────
 
 async function loadTodaysGames(currentGameId, gameDate) {

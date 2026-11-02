@@ -1,0 +1,124 @@
+<!--
+  GHOST EMBED — paste this HTML card into your Ghost page:
+
+  <iframe src="https://app.mainebasketballrankings.com/preseason_poll_results_embed.html"
+    width="100%" height="900" frameborder="0" scrolling="no"
+    style="border:none;display:block;"></iframe>
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preseason Poll Results — Maine Basketball Rankings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
+  <script src="mbr-embed.js"></script>
+  <style>
+    :root { --green: #2d6a4f; --green2: #40916c; --greenlt: #d8f3dc; --orange: #ee6730; --black: #1a1a1a;
+            --gray: #666; --lgray: #999; --border: #e5e5e5; --paper: #fafafa; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow', sans-serif; background: #fff; color: var(--black); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 40px; }
+    h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; }
+    .sub { color: var(--gray); font-size: 14px; margin: 2px 0 14px; }
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .tab { padding: 6px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: #fff;
+           font: 600 14px 'Barlow', sans-serif; color: var(--gray); cursor: pointer; }
+    .tab.active { background: var(--black); border-color: var(--black); color: #fff; }
+    .total { margin-left: auto; font: 700 12px 'Barlow Condensed', sans-serif; letter-spacing: 1px; text-transform: uppercase; color: var(--lgray); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+    .card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; break-inside: avoid; }
+    .card-h { display: flex; justify-content: space-between; padding: 9px 14px; background: var(--paper); border-bottom: 1px solid var(--border);
+              font: 700 13px 'Barlow Condensed', sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+    .card-h span { color: var(--lgray); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { font: 700 10px 'Barlow Condensed', sans-serif; letter-spacing: 1px; text-transform: uppercase; color: var(--lgray);
+         padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+    th.l, td.l { text-align: left; }
+    td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; text-align: right; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; }
+    tr:last-child td { border-bottom: none; }
+    td.rk { color: var(--lgray); width: 26px; }
+    td.l { font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 13px; }
+    td.l .fp { color: var(--lgray); font-weight: 500; font-size: 11px; }
+    td.pts { font-weight: 700; }
+    .none { padding: 18px; color: var(--lgray); font-size: 13px; text-align: center; }
+    .state { padding: 60px; text-align: center; color: var(--lgray); }
+    @media print { .bar .tab:not(.active), .print { display: none; } .grid { grid-template-columns: 1fr 1fr; } }
+    .print { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px;
+             font: 700 12px 'Barlow Condensed', sans-serif; letter-spacing: .5px; text-transform: uppercase; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Preseason Poll Results · 2026-27</h1>
+  <p class="sub">Points: in an N-team region, 1st place on a ballot earns N points, 2nd earns N−1, down to 1 for last.
+    (1) = first-place votes. Avg = average predicted finish.</p>
+  <div class="bar">
+    <button class="tab active" data-g="Boys">Boys</button>
+    <button class="tab" data-g="Girls">Girls</button>
+    <button class="print" onclick="window.print()">Print</button>
+    <span class="total" id="total"></span>
+  </div>
+  <div id="main"><div class="state">Loading…</div></div>
+</div>
+<script>
+const SB_URL = (window.MBREmbed ? MBREmbed.config.SUPABASE_URL : 'https://vtwupenqieesoktonbzg.supabase.co');
+const SB_KEY = (window.MBREmbed ? MBREmbed.config.SUPABASE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA');
+const SEASON = 2027;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+async function load(g) {
+  const main = document.getElementById('main');
+  main.innerHTML = '<div class="state">Loading…</div>';
+  let rows;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/mbr_preseason_poll_results`, {
+      method: 'POST',
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_season: SEASON, p_gender: g }),
+    });
+    rows = await r.json();
+    if (!Array.isArray(rows)) throw new Error('bad response');
+  } catch (e) { main.innerHTML = '<div class="state">Couldn’t load results — refresh to try again.</div>'; return; }
+
+  const regions = new Map();
+  rows.forEach(t => {
+    const k = `${t.class_name}${t.region_name ? ' ' + t.region_name : ''}`;
+    if (!regions.has(k)) regions.set(k, []);
+    regions.get(k).push(t);
+  });
+  let ballots = 0;
+  main.innerHTML = `<div class="grid">${[...regions.entries()].map(([name, teams]) => {
+    const n = teams[0].ballots; ballots += Number(n);
+    // Already ordered by points, then average finish, then name.
+    const body = n
+      ? `<table><thead><tr><th class="l" colspan="2">Team</th><th>Pts</th><th>Avg</th></tr></thead><tbody>${
+          teams.map((t, i) => `<tr><td class="rk">${i + 1}</td>
+            <td class="l">${esc(t.school_name)}${t.first_place > 0 ? ` <span class="fp">(${t.first_place})</span>` : ''}</td>
+            <td class="pts">${t.points}</td><td>${t.avg_rank != null ? Number(t.avg_rank).toFixed(1) : '—'}</td></tr>`).join('')
+        }</tbody></table>`
+      : `<div class="none">No ballots yet · ${teams.length} teams</div>`;
+    return `<div class="card"><div class="card-h">${esc(name)}<span>${n} ballot${n == 1 ? '' : 's'}</span></div>${body}</div>`;
+  }).join('')}</div>`;
+  document.getElementById('total').textContent = `${ballots} region ballot${ballots === 1 ? '' : 's'} · updated ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+document.querySelector('.bar').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b));
+  load(b.dataset.g);
+});
+load('Boys');
+</script>
+<script>
+(function(){
+  if (window.MBREmbed && MBREmbed.initResize) { MBREmbed.initResize(); return; }
+  function sendHeight(){ window.parent.postMessage({ type:"mbr-embed-resize", height: document.documentElement.scrollHeight }, "*"); }
+  window.addEventListener("load", sendHeight);
+  if (typeof ResizeObserver === "function") new ResizeObserver(sendHeight).observe(document.body);
+})();
+</script>
+</body>
+</html>

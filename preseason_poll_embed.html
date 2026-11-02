@@ -59,9 +59,14 @@
     .slot:last-child { border-bottom: none; }
     .slot .n { width: 24px; font: 700 15px 'Barlow Condensed', sans-serif; color: var(--lgray); text-align: right; flex-shrink: 0; }
     .slot .pts { margin-left: auto; font: 600 11px 'Barlow Condensed', sans-serif; color: var(--lgray); }
-    .slot.filled { cursor: pointer; }
-    .slot.filled:hover { background: #fff5f0; }
-    .slot.filled:hover .pts::before { content: 'remove · '; color: var(--orange); }
+    .slot.filled { cursor: grab; background: #fff; position: relative; user-select: none; -webkit-user-select: none; }
+    .slot.filled:hover { background: #f6fbf8; }
+    .slot.dragging { z-index: 5; cursor: grabbing; background: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.18); border-radius: 6px; }
+    .slot.shifting { transition: transform .12s ease; }
+    .grip { color: #c4c4c4; font-size: 15px; line-height: 1; padding: 6px 2px; touch-action: none; cursor: grab; flex-shrink: 0; }
+    .slot.filled:hover .grip { color: var(--green2); }
+    .x { background: none; border: none; color: #bbb; font-size: 17px; line-height: 1; padding: 4px 6px; cursor: pointer; margin-left: 6px; }
+    .x:hover { color: var(--orange); }
     .slot .name { font-weight: 600; font-size: 14px; }
     .slot .placeholder { color: #ccc; font-size: 13px; }
     .slot.next .placeholder { color: var(--green2); font-weight: 600; }
@@ -89,7 +94,8 @@
 <div class="wrap">
   <h1>Preseason Poll · 2026-27 Basketball</h1>
   <p class="sub">Pick a region and tap the teams in the order you think they’ll finish — first tap is 1st place.
-    Tap a team in your order to take it back out. Do as many regions as you like; you can change a ballot any time before the poll closes.</p>
+    Change your mind? Drag a team up or down your list (use the ⠿ handle on a phone), or × to take it out.
+    Do as many regions as you like; you can change a ballot any time before the poll closes.</p>
 
   <div class="tabs" id="genderTabs">
     <button class="tab active" data-g="Boys">Boys</button>
@@ -203,9 +209,11 @@ function render() {
   const slots = Array.from({ length: n }, (_, i) => {
     const id = picked[i];
     const pts = n - i;
-    if (id) return `<li class="slot filled" data-remove="${i}" title="Remove">
+    if (id) return `<li class="slot filled" data-i="${i}">
+        <span class="grip" aria-hidden="true">⠿</span>
         <span class="n">${i + 1}</span>${logo(byId[id])}<span class="name">${esc(byId[id].school_name)}</span>
-        <span class="pts">${pts} pt${pts > 1 ? 's' : ''}</span></li>`;
+        <span class="pts">${pts} pt${pts > 1 ? 's' : ''}</span>
+        <button class="x" data-remove="${i}" title="Remove" aria-label="Remove ${esc(byId[id].school_name)}">×</button></li>`;
     return `<li class="slot${i === picked.length ? ' next' : ''}"><span class="n">${i + 1}</span>
         <span class="placeholder">${i === picked.length ? '← tap a team' : '—'}</span><span class="pts">${pts} pt${pts > 1 ? 's' : ''}</span></li>`;
   }).join('');
@@ -258,6 +266,56 @@ document.getElementById('main').addEventListener('click', async e => {
     }
   }
 });
+
+// ── Drag to reorder placed teams ──
+// Pointer events, so it works the same with a mouse, a finger or a pen. With a
+// mouse the whole row drags; on touch only the ⠿ handle does, so swiping the
+// list still scrolls the page. Other rows slide out of the way while you drag,
+// and the order is committed when you let go.
+let drag = null;
+const main = document.getElementById('main');
+main.addEventListener('pointerdown', e => {
+  const row = e.target.closest('.slot.filled');
+  if (!row || e.target.closest('.x') || e.button > 0) return;
+  if (e.pointerType !== 'mouse' && !e.target.closest('.grip')) return;
+  const rows = [...main.querySelectorAll('.slot.filled')];
+  drag = { row, rows, from: +row.dataset.i, to: +row.dataset.i, y0: e.clientY, h: row.offsetHeight, moved: false, id: e.pointerId };
+  try { row.setPointerCapture(e.pointerId); } catch (_) {}
+  e.preventDefault();
+});
+main.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dy = e.clientY - drag.y0;
+  if (!drag.moved && Math.abs(dy) < 5) return;
+  if (!drag.moved) {
+    drag.moved = true;
+    drag.row.classList.add('dragging');
+    drag.rows.forEach(r => { if (r !== drag.row) r.classList.add('shifting'); });
+  }
+  const last = drag.rows.length - 1;
+  const minDy = -drag.from * drag.h, maxDy = (last - drag.from) * drag.h;
+  const cdy = Math.max(minDy, Math.min(maxDy, dy));
+  drag.row.style.transform = `translateY(${cdy}px)`;
+  drag.to = Math.max(0, Math.min(last, drag.from + Math.round(cdy / drag.h)));
+  drag.rows.forEach((r, i) => {
+    if (r === drag.row) return;
+    let s = 0;
+    if (drag.from < drag.to && i > drag.from && i <= drag.to) s = -drag.h;
+    if (drag.from > drag.to && i >= drag.to && i < drag.from) s = drag.h;
+    r.style.transform = s ? `translateY(${s}px)` : '';
+  });
+});
+function endDrag(e) {
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  const d = drag; drag = null;
+  if (d.moved && d.to !== d.from && active) {
+    const list = draft[active];
+    list.splice(d.to, 0, list.splice(d.from, 1)[0]);
+  }
+  render();
+}
+main.addEventListener('pointerup', endDrag);
+main.addEventListener('pointercancel', endDrag);
 
 document.getElementById('regions').addEventListener('click', e => {
   const b = e.target.closest('.reg'); if (!b) return;

@@ -198,7 +198,15 @@ function render() {
   const k = active, n = r.teams.length;
   const byId = Object.fromEntries(r.teams.map(t => [t.team_id, t]));
   if (!poolOrder[k]) poolOrder[k] = shuffle(r.teams.map(t => t.team_id));
+  // A team can leave a region after someone voted (a school closes). Drop it
+  // from what this browser remembers; the server-side ballot was already
+  // cleaned the same way, so the remaining order still counts as saved.
+  if (saved[k] && saved[k].some(id => !byId[id])) {
+    saved[k] = saved[k].filter(id => byId[id]);
+    store.set(BALLOT_KEY, saved);
+  }
   if (!draft[k]) draft[k] = (saved[k] || []).slice();
+  draft[k] = draft[k].filter(id => byId[id]);
   const picked = draft[k];
   const pool = poolOrder[k].filter(id => !picked.includes(id));
 

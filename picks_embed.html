@@ -1,0 +1,208 @@
+<!-- Maine Basketball Rankings — Nightly Picks. Paste into a Ghost HTML card. -->
+<div id="mbr-picks">
+  <style>
+    #mbr-picks{--ink:#1d1d1f;--mute:#6b6b70;--line:#e3e3e6;--wood:#c8894a;--wood2:#f6ead9;--win:#1f8a4c;--loss:#c0392b;
+      font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink);max-width:720px;margin:0 auto}
+    #mbr-picks *{box-sizing:border-box}
+    #mbr-picks .hd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+    #mbr-picks h2{font:800 26px/1 "Barlow Condensed","Oswald","Arial Narrow",sans-serif;letter-spacing:.5px;text-transform:uppercase;margin:0}
+    #mbr-picks .tabs{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+    #mbr-picks .tabs button{border:0;background:#fff;padding:7px 14px;font-weight:600;cursor:pointer;color:var(--mute)}
+    #mbr-picks .tabs button.on{background:var(--ink);color:#fff}
+    #mbr-picks .datebar{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--wood2);border-radius:10px;padding:8px 10px;margin-bottom:10px}
+    #mbr-picks .datebar > button{border:0;background:#fff;border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer}
+    #mbr-picks .datebar .d{text-align:center}
+    #mbr-picks .datebar .d b{display:block;font-size:16px}
+    #mbr-picks .datebar .d span{font-size:13px;color:var(--mute)}
+    #mbr-picks .note{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fafafa}
+    #mbr-picks .note a{font-weight:700}
+    #mbr-picks .note input{padding:7px 9px;border:1px solid #ccc;border-radius:7px;font-size:15px;width:190px;max-width:100%}
+    #mbr-picks .btn{border:0;background:var(--ink);color:#fff;padding:8px 14px;border-radius:8px;font-weight:700;cursor:pointer}
+    #mbr-picks .game{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}
+    #mbr-picks .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+    #mbr-picks .teams{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    #mbr-picks .team{display:flex;align-items:center;gap:8px;border:2px solid var(--line);border-radius:10px;padding:8px;background:#fff;cursor:pointer;text-align:left;font:inherit;color:inherit;min-height:52px}
+    #mbr-picks .team img{width:32px;height:32px;object-fit:contain;flex:none}
+    #mbr-picks .team .nm{flex:1;font-weight:700;line-height:1.15}
+    #mbr-picks .team .nm small{display:block;font-weight:500;color:var(--mute);font-size:12px}
+    #mbr-picks .team .sc{font:800 20px/1 "Barlow Condensed","Arial Narrow",sans-serif}
+    #mbr-picks .team.sel{border-color:var(--wood);background:var(--wood2)}
+    #mbr-picks .team[disabled]{cursor:default}
+    #mbr-picks .team.won .sc{color:var(--win)}
+    #mbr-picks .foot{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--mute);margin-top:6px}
+    #mbr-picks .ok{color:var(--win);font-weight:700}
+    #mbr-picks .no{color:var(--loss);font-weight:700}
+    #mbr-picks table{width:100%;border-collapse:collapse;font-size:14px}
+    #mbr-picks th,#mbr-picks td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right}
+    #mbr-picks th:nth-child(2),#mbr-picks td:nth-child(2){text-align:left}
+    #mbr-picks th{font-size:12px;text-transform:uppercase;color:var(--mute);letter-spacing:.4px}
+    #mbr-picks tr.model td{background:var(--wood2);font-weight:700}
+    #mbr-picks tr.me td{background:#eef6ff}
+    #mbr-picks tr.unq td{color:var(--mute)}
+    #mbr-picks .status{min-height:20px;font-size:13px;color:var(--mute);margin:4px 0 8px}
+    #mbr-picks .err{color:var(--loss)}
+  </style>
+
+  <div class="hd">
+    <h2>Nightly Picks</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="tabs"><button data-gender="Boys" class="on">Boys</button><button data-gender="Girls">Girls</button></div>
+      <div class="tabs"><button data-tab="slate" class="on">Picks</button><button data-tab="board">Leaderboard</button></div>
+    </div>
+  </div>
+  <div id="pk-body">Loading…</div>
+</div>
+
+<script>
+(() => {
+  const SB = 'https://vtwupenqieesoktonbzg.supabase.co';
+  const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0d3VwZW5xaWVlc29rdG9uYnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MTA0MzgsImV4cCI6MjA4Nzk4NjQzOH0.OqkqF7NXr5LBQsQ0sl6S2o-kzQqbtBlRCLFszRnUoHA';
+  const root = document.getElementById('mbr-picks');
+  const body = root.querySelector('#pk-body');
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const etDate = d => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d);
+  const addDays = (s, n) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const niceDate = s => new Date(s + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const niceTime = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+
+  const today = etDate(new Date());
+  const st = { tab: 'slate', gender: 'Boys', date: today, slate: [], me: null, picks: {}, signedIn: null, msg: '', boardNight: false };
+  const pickedHere = () => st.slate.filter(g => st.picks[g.game_id]).length;
+
+  async function rpc(fn, args) {
+    const r = await fetch(`${SB}/rest/v1/rpc/${fn}`, { method: 'POST',
+      headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+    const j = await r.json().catch(() => null);
+    if (!r.ok) throw new Error((j && j.message) || 'Could not load');
+    return j;
+  }
+  async function ghostToken() {
+    try { const r = await fetch('/members/api/session/', { credentials: 'same-origin' });
+      return r.status === 200 ? (await r.text()).trim() : ''; } catch { return ''; }
+  }
+  async function api(payload) {
+    const token = await ghostToken();
+    if (!token) { st.signedIn = false; throw new Error('Sign in to make picks.'); }
+    const r = await fetch(`${SB}/functions/v1/picks`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-ghost-token': token, apikey: KEY }, body: JSON.stringify(payload) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Something went wrong');
+    return j;
+  }
+
+  async function loadSlate() {
+    body.innerHTML = 'Loading…';
+    try {
+      st.slate = await rpc('mbr_picks_slate', { p_date: st.date, p_gender: st.gender });
+      st.picks = {}; st.me = null;
+      const token = await ghostToken();
+      st.signedIn = !!token;
+      if (token && st.slate.length && st.slate[0].frozen) {
+        try { const m = await api({ action: 'me', date: st.date }); st.me = m.display_name; st.picks = m.picks || {}; }
+        catch (e) { st.msg = `<span class="err">${esc(e.message)}</span>`; }
+      } else if (token) {
+        try { const m = await api({ action: 'me', date: st.date }); st.me = m.display_name; } catch {}
+      }
+    } catch (e) { st.slate = []; st.msg = `<span class="err">${esc(e.message)}</span>`; }
+    render();
+  }
+
+  async function pick(gameId, teamId) {
+    const cur = st.picks[gameId];
+    const next = cur === teamId ? null : teamId;           // tap again to clear
+    st.picks[gameId] = next || undefined; if (!next) delete st.picks[gameId];
+    st.msg = 'Saving…'; render();
+    try {
+      const r = await api({ action: 'submit', date: st.date, picks: [{ game_id: gameId, team_id: next }] });
+      st.picks = r.picks || {};
+      st.msg = r.skipped ? '<span class="err">That game is locked.</span>' : `Saved · ${pickedHere()} of ${st.slate.length} ${st.gender.toLowerCase()} games picked`;
+    } catch (e) { st.msg = `<span class="err">${esc(e.message)}</span>`; if (cur) st.picks[gameId] = cur; else delete st.picks[gameId]; }
+    render();
+  }
+
+  async function saveName() {
+    const v = root.querySelector('#pk-name').value;
+    st.msg = 'Saving…'; render();
+    try { const r = await api({ action: 'set_name', name: v }); st.me = r.display_name; st.msg = `You're in as <b>${esc(st.me)}</b>.`; }
+    catch (e) { st.msg = `<span class="err">${esc(e.message)}</span>`; }
+    render();
+  }
+
+  function slateHtml() {
+    const s = st.slate;
+    const frozen = s.length && s[0].frozen;
+    const locked = s.length && s[0].locked;
+    const lockAt = s.length ? s[0].lock_at : null;
+    let h = `<div class="datebar"><button data-nav="-1" aria-label="Previous day">‹</button>
+      <div class="d"><b>${niceDate(st.date)}${st.date === today ? ' · Tonight' : ''}</b>
+      <span>${st.gender} · ${!s.length ? 'No games on the slate' : locked ? 'Picks locked' : frozen ? `Picks lock at ${niceTime(lockAt)}` : `Slate opens on game day · locks ${niceTime(lockAt)}`}</span></div>
+      <button data-nav="1" aria-label="Next day">›</button></div>`;
+
+    if (frozen && !locked) {
+      if (st.signedIn === false) h += `<div class="note"><a href="#/portal/signin">Sign in</a> (free) to make your picks. Pick any of tonight's ${s.length} games — your season W-L % is what counts.</div>`;
+      else if (st.signedIn && !st.me) h += `<div class="note">Pick a display name for the leaderboard:<br>
+        <input id="pk-name" maxlength="24" placeholder="e.g. Downeast Hoops"> <button class="btn" data-act="name">Save</button></div>`;
+    }
+    h += `<div class="status">${st.msg || ''}</div>`;
+    const canPick = frozen && !locked && st.signedIn && st.me;
+
+    for (const g of s) {
+      const mine = st.picks[g.game_id];
+      const winner = g.final ? (g.home_score > g.away_score ? g.home_id : g.away_id) : null;
+      const side = (id, name, logo, score) => `
+        <button class="team ${mine === id ? 'sel' : ''} ${winner === id ? 'won' : ''}" ${canPick ? '' : 'disabled'}
+          data-g="${g.game_id}" data-t="${id}">
+          ${logo ? `<img src="${esc(logo)}" alt="" loading="lazy">` : ''}
+          <span class="nm">${esc(name)}<small>${id === g.home_id ? 'Home' : 'Away'}</small></span>
+          ${g.final ? `<span class="sc">${score}</span>` : ''}
+        </button>`;
+      let foot = [];
+      if (mine && winner) foot.push(mine === winner ? '<span class="ok">✓ Your pick won</span>' : '<span class="no">✗ Your pick lost</span>');
+      else if (mine && locked) foot.push('Your pick is in');
+      if (g.locked && g.model_team_id) foot.push(`Model: <b>${esc(g.model_team_id === g.home_id ? g.home_name : g.away_name)}</b>${winner ? (g.model_team_id === winner ? ' ✓' : ' ✗') : ''}`);
+      if (g.locked && g.picks_count) foot.push(`Picks: ${esc(g.away_name)} ${100 - g.home_pick_pct}% · ${esc(g.home_name)} ${g.home_pick_pct}%`);
+      h += `<div class="game"><div class="meta"><span>Game ${g.slate_rank}</span><span>Stax ${Number(g.stax).toFixed(1)}</span></div>
+        <div class="teams">${side(g.away_id, g.away_name, g.away_logo, g.away_score)}${side(g.home_id, g.home_name, g.home_logo, g.home_score)}</div>
+        ${foot.length ? `<div class="foot">${foot.join('<span>·</span>')}</div>` : ''}</div>`;
+    }
+    return h;
+  }
+
+  async function boardHtml() {
+    const rows = await rpc('mbr_picks_leaderboard', { p_gender: st.gender, p_date: st.boardNight ? st.date : null });
+    const need = rows[0] ? rows[0].min_picks : 0, graded = rows[0] ? rows[0].graded_games : 0;
+    let h = `<div class="datebar" style="flex-wrap:wrap">
+      <div class="d" style="text-align:left"><b>${st.gender} · ${st.boardNight ? niceDate(st.date) : 'Season standings'}</b>
+      <span>${st.boardNight ? `${graded} games graded that night` : `${graded} slate games graded · ${need} picks to qualify (25% of slate games)`}</span></div>
+      <div class="tabs"><button data-board="season" class="${!st.boardNight ? 'on' : ''}">Season</button><button data-board="night" class="${st.boardNight ? 'on' : ''}">That night</button></div></div>`;
+    if (!rows.length) return h + '<div class="note">No graded games yet.</div>';
+    h += `<table><thead><tr><th>#</th><th>Player</th><th>W-L</th><th>Pct</th></tr></thead><tbody>`;
+    let shownUnq = false;
+    for (const r of rows) {
+      if (!st.boardNight && !r.qualified && !shownUnq) { shownUnq = true; h += `<tr><td colspan="4" style="text-align:left;font-size:12px;color:#888">Not yet qualified (fewer than ${need} picks)</td></tr>`; }
+      const cls = [r.is_model ? 'model' : '', st.me && r.display_name === st.me ? 'me' : '', !st.boardNight && !r.qualified ? 'unq' : ''].join(' ');
+      h += `<tr class="${cls}"><td>${!st.boardNight && !r.qualified ? '–' : r.rank}</td><td>${esc(r.display_name)}${r.is_model ? ' 🤖' : ''}</td>
+        <td>${r.wins}-${r.losses}</td><td>${r.pct == null ? '–' : Number(r.pct).toFixed(3).replace(/^0/, '')}</td></tr>`;
+    }
+    return h + '</tbody></table>';
+  }
+
+  async function render() {
+    root.querySelectorAll('.hd .tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab ? b.dataset.tab === st.tab : b.dataset.gender === st.gender));
+    if (st.tab === 'slate') { body.innerHTML = slateHtml(); }
+    else { body.innerHTML = 'Loading…'; try { body.innerHTML = await boardHtml(); } catch (e) { body.innerHTML = `<div class="note err">${esc(e.message)}</div>`; } }
+  }
+
+  root.addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.tab) { st.tab = t.dataset.tab; st.msg = ''; st.tab === 'slate' ? loadSlate() : render(); }
+    else if (t.dataset.gender) { st.gender = t.dataset.gender; st.msg = ''; st.tab === 'slate' ? loadSlate() : render(); }
+    else if (t.dataset.nav) { st.date = addDays(st.date, +t.dataset.nav); st.msg = ''; loadSlate(); }
+    else if (t.dataset.board) { st.boardNight = t.dataset.board === 'night'; render(); }
+    else if (t.dataset.act === 'name') saveName();
+    else if (t.dataset.g && !t.disabled) pick(t.dataset.g, t.dataset.t);
+  });
+
+  loadSlate();
+})();
+</script>

@@ -1,0 +1,49 @@
+<!-- Maine Basketball Rankings — Ghost member identity test.
+     Paste into an HTML card on a DRAFT post/page, preview it while logged in as a member.
+     It only READS from Ghost; it changes nothing. Delete the card when done. -->
+<div id="idtest" style="font:15px/1.5 -apple-system,system-ui,sans-serif;border:2px solid #444;border-radius:8px;padding:16px;max-width:640px">
+  <strong>Picks login test</strong>
+  <div id="idtest-out" style="margin-top:8px">Checking…</div>
+</div>
+<script>
+(async () => {
+  const out = document.getElementById('idtest-out');
+  const row = (ok, label, detail) =>
+    `<div>${ok ? '✅' : '❌'} <b>${label}</b>${detail ? ' — ' + detail : ''}</div>`;
+  let html = '';
+
+  // 1. Who is logged in (Ghost's own member endpoint, same-site cookie)
+  let member = null;
+  try {
+    const r = await fetch('/members/api/member/', { credentials: 'same-origin' });
+    if (r.status === 200) member = await r.json();
+    html += row(!!member, 'Logged-in member', member
+      ? `${member.email} · status: <code>${member.status}</code>`
+      : `not logged in (HTTP ${r.status}) — log in and reload`);
+  } catch (e) { html += row(false, 'Logged-in member', e.message); }
+
+  // 2. Signed identity token (what the picks backend will verify)
+  let token = '';
+  try {
+    const r = await fetch('/members/api/session/', { credentials: 'same-origin' });
+    token = r.status === 200 ? (await r.text()).trim() : '';
+    let detail = `HTTP ${r.status}`;
+    if (token) {
+      const [h, p] = token.split('.').slice(0, 2).map(s =>
+        JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+      detail = `alg <code>${h.alg}</code>, kid <code>${h.kid || 'MISSING'}</code>, sub <code>${p.sub}</code>, expires ${new Date(p.exp * 1000).toLocaleTimeString()}`;
+    }
+    html += row(!!token, 'Identity token', detail);
+  } catch (e) { html += row(false, 'Identity token', e.message); }
+
+  // 3. Public key the backend will use to check the token
+  try {
+    const r = await fetch('/members/.well-known/jwks.json');
+    const j = r.ok ? await r.json() : null;
+    const k = j && j.keys && j.keys[0];
+    html += row(!!k, 'Public key (JWKS)', k ? `kid <code>${k.kid || 'none'}</code>, alg <code>${k.alg || '?'}</code>` : `HTTP ${r.status}`);
+  } catch (e) { html += row(false, 'Public key (JWKS)', e.message); }
+
+  out.innerHTML = html + '<div style="margin-top:10px;color:#666">Screenshot this and send it back. No data was changed.</div>';
+})();
+</script>

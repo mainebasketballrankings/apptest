@@ -4,70 +4,64 @@
 <div id="mbr-picks">
   <style>
     #mbr-picks{--ink:#111;--mute:#8a8a8a;--line:#e6e6e6;--soft:#f6f6f6;--win:#1f8a4c;--loss:#c0392b;
-      font:16px/1.45 Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);max-width:1100px;margin:0 auto}
+      font:14px/1.45 Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);max-width:960px;margin:0 auto}
     #mbr-picks *{box-sizing:border-box}
-    #mbr-picks .cd{font-family:"Barlow Condensed","Arial Narrow",sans-serif}
-    #mbr-picks h2.pk-title{font:800 46px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:-.5px;margin:0 0 6px;text-transform:none}
-    #mbr-picks .pk-sub{color:var(--mute);font-size:19px;margin:0 0 22px}
-    /* sport-style tabs */
-    #mbr-picks .gtabs{display:flex;gap:30px;border-bottom:1px solid var(--line);margin-bottom:22px}
-    #mbr-picks .gtabs button{background:none;border:0;border-bottom:3px solid transparent;padding:0 0 8px;margin-bottom:-1px;cursor:pointer;
-      font:700 24px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.6px;text-transform:uppercase;color:#a3a3a3}
+    #mbr-picks h2.pk-title{font:800 30px/1.05 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:-.2px;margin:0 0 4px;text-transform:none}
+    #mbr-picks .pk-sub{color:var(--mute);font-size:14px;margin:0 0 14px}
+    #mbr-picks .gtabs{display:flex;gap:20px;border-bottom:1px solid var(--line);margin-bottom:14px}
+    #mbr-picks .gtabs button{background:none;border:0;border-bottom:2px solid transparent;padding:0 0 6px;margin-bottom:-1px;cursor:pointer;
+      font:700 16px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.5px;text-transform:uppercase;color:#a3a3a3}
     #mbr-picks .gtabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
-    /* pill buttons */
-    #mbr-picks .row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
-    #mbr-picks .pills{display:flex;gap:10px;flex-wrap:wrap}
-    #mbr-picks .pill{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:9px 18px;cursor:pointer;
-      font:700 17px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.7px;text-transform:uppercase;color:#333}
+    #mbr-picks .row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+    #mbr-picks .pills{display:flex;gap:8px;flex-wrap:wrap}
+    #mbr-picks .pill{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;
+      font:700 13px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.6px;text-transform:uppercase;color:#333}
     #mbr-picks .pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
-    #mbr-picks .pill.sm{padding:7px 12px;font-size:15px}
-    #mbr-picks .meta-r{font:600 15px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.8px;text-transform:uppercase;color:var(--mute)}
-    /* cards */
-    #mbr-picks .card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;margin-bottom:16px}
-    #mbr-picks .card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--soft);border-bottom:1px solid var(--line);padding:14px 20px}
-    #mbr-picks .card-h h3{margin:0;font:700 21px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:1.2px;text-transform:uppercase}
-    #mbr-picks .card-h .nav{display:flex;align-items:center;gap:10px}
-    #mbr-picks .card-b{padding:6px 20px 14px}
-    #mbr-picks .card-f{padding:12px 20px 16px;color:var(--mute);font-size:15px;border-top:1px solid var(--line)}
-    #mbr-picks .note{padding:14px 0;color:#555}
+    #mbr-picks .pill.sm{padding:4px 9px;font-size:12px}
+    #mbr-picks .meta-r{font:600 12px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.7px;text-transform:uppercase;color:var(--mute)}
+    #mbr-picks .card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;margin-bottom:12px}
+    #mbr-picks .card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--soft);border-bottom:1px solid var(--line);padding:9px 14px}
+    #mbr-picks .card-h h3{margin:0;font:700 14px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:1px;text-transform:uppercase}
+    #mbr-picks .card-h .nav{display:flex;align-items:center;gap:6px}
+    #mbr-picks .card-b{padding:2px 14px 8px}
+    #mbr-picks .card-f{padding:8px 14px 10px;color:var(--mute);font-size:12px;border-top:1px solid var(--line)}
+    #mbr-picks .note{padding:10px 0;color:#555;font-size:14px}
     #mbr-picks .note a{color:var(--ink);font-weight:700}
-    #mbr-picks .note input{padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;font:500 16px Barlow,sans-serif;width:220px;max-width:100%;margin:6px 8px 0 0}
-    #mbr-picks .status{min-height:22px;font-size:14px;color:var(--mute);padding-top:10px}
+    #mbr-picks .note input{padding:6px 9px;border:1px solid var(--line);border-radius:6px;font:500 14px Barlow,sans-serif;width:200px;max-width:100%;margin:6px 6px 0 0}
+    #mbr-picks .status{min-height:16px;font-size:12px;color:var(--mute);padding-top:6px}
     #mbr-picks .err{color:var(--loss)}
-    /* games */
-    #mbr-picks .game{display:grid;grid-template-columns:34px 1fr 1fr;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+    #mbr-picks .game{display:grid;grid-template-columns:22px 1fr 1fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
     #mbr-picks .game:last-child{border-bottom:0}
-    #mbr-picks .rk{font:700 18px/1 "Barlow Condensed","Arial Narrow",sans-serif;color:var(--mute)}
-    #mbr-picks .team{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;background:#fff;
-      cursor:pointer;text-align:left;font:inherit;color:inherit;min-height:52px;width:100%}
-    #mbr-picks .team img{width:30px;height:30px;object-fit:contain;flex:none}
-    #mbr-picks .team .nm{flex:1;font-weight:600;font-size:17px;line-height:1.15}
-    #mbr-picks .team .nm small{display:block;font:600 12px/1.2 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.8px;text-transform:uppercase;color:var(--mute)}
-    #mbr-picks .team .sc{font:700 22px/1 "Barlow Condensed","Arial Narrow",sans-serif}
-    #mbr-picks .team.sel{border:2px solid var(--ink);background:var(--soft)}
+    #mbr-picks .rk{font:700 14px/1 "Barlow Condensed","Arial Narrow",sans-serif;color:var(--mute)}
+    #mbr-picks .team{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:5px 9px;background:#fff;
+      cursor:pointer;text-align:left;font:inherit;color:inherit;min-height:38px;width:100%}
+    #mbr-picks .team img{width:22px;height:22px;object-fit:contain;flex:none}
+    #mbr-picks .team .nm{flex:1;font-weight:600;font-size:14px;line-height:1.15}
+    #mbr-picks .team .nm small{display:block;font:600 10px/1.2 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.6px;text-transform:uppercase;color:var(--mute)}
+    #mbr-picks .team .sc{font:700 16px/1 "Barlow Condensed","Arial Narrow",sans-serif}
+    #mbr-picks .team.sel{border:2px solid var(--ink);padding:4px 8px;background:var(--soft)}
     #mbr-picks .team[disabled]{cursor:default}
     #mbr-picks .team.won .sc{color:var(--ink)}
     #mbr-picks .team.lost .sc{color:#b5b5b5}
-    #mbr-picks .gfoot{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--mute);margin-top:-2px}
+    #mbr-picks .gfoot{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--mute);margin-top:-2px}
     #mbr-picks .ok{color:var(--win);font-weight:700}
     #mbr-picks .no{color:var(--loss);font-weight:700}
-    /* leaderboard */
     #mbr-picks table{width:100%;border-collapse:collapse}
-    #mbr-picks th{font:700 15px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:1px;text-transform:uppercase;color:#555;padding:14px 8px;text-align:right;border-bottom:1px solid var(--line)}
-    #mbr-picks td{padding:14px 8px;text-align:right;border-bottom:1px solid var(--line);font:600 20px/1 "Barlow Condensed","Arial Narrow",sans-serif}
+    #mbr-picks th{font:700 12px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.8px;text-transform:uppercase;color:#777;padding:9px 6px;text-align:right;border-bottom:1px solid var(--line)}
+    #mbr-picks td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--line);font:600 15px/1 "Barlow Condensed","Arial Narrow",sans-serif}
     #mbr-picks th:nth-child(2),#mbr-picks td:nth-child(2){text-align:left}
-    #mbr-picks td:nth-child(2){font:600 18px/1.2 Barlow,sans-serif}
-    #mbr-picks td:first-child,#mbr-picks th:first-child{width:44px;text-align:left}
-    #mbr-picks tr.cut td{border-bottom:2.5px solid var(--ink)}
+    #mbr-picks td:nth-child(2){font:600 14px/1.2 Barlow,sans-serif}
+    #mbr-picks td:first-child,#mbr-picks th:first-child{width:34px;text-align:left;color:var(--mute)}
+    #mbr-picks tr.cut td{border-bottom:2px solid var(--ink)}
     #mbr-picks tr.model td{font-weight:800}
     #mbr-picks tr.model td:nth-child(2){font-weight:700}
     #mbr-picks tr.me td{background:var(--soft)}
-    #mbr-picks tr.unq td{color:#9a9a9a}
-    #mbr-picks .tag{font:700 12px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.8px;text-transform:uppercase;border:1px solid var(--line);border-radius:4px;padding:3px 5px;margin-left:8px;color:var(--mute);vertical-align:2px}
+    #mbr-picks tr.unq td{color:#a0a0a0}
+    #mbr-picks .tag{font:700 10px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.6px;text-transform:uppercase;border:1px solid var(--line);border-radius:3px;padding:2px 4px;margin-left:6px;color:var(--mute);vertical-align:1px}
     @media (max-width:600px){
-      #mbr-picks h2.pk-title{font-size:36px} #mbr-picks .pk-sub{font-size:16px}
-      #mbr-picks .game{grid-template-columns:24px 1fr 1fr;gap:6px} #mbr-picks .team{padding:8px} #mbr-picks .team img{width:24px;height:24px}
-      #mbr-picks .team .nm{font-size:15px} #mbr-picks .card-h,#mbr-picks .card-b,#mbr-picks .card-f{padding-left:12px;padding-right:12px}
+      #mbr-picks h2.pk-title{font-size:26px}
+      #mbr-picks .game{grid-template-columns:16px 1fr 1fr;gap:5px} #mbr-picks .team{padding:5px 6px} #mbr-picks .team img{width:18px;height:18px}
+      #mbr-picks .team .nm{font-size:13px} #mbr-picks .card-h,#mbr-picks .card-b,#mbr-picks .card-f{padding-left:10px;padding-right:10px}
     }
   </style>
 

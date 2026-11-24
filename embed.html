@@ -2307,7 +2307,7 @@
       const tp = g.app_scored && g.top_performer && g.top_performer.name ? g.top_performer : null;
       const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
       const tpEl = tp
-        ? `<span class="top-perf">⭐ <strong>${esc(tp.name)}</strong>${tp.team ? ` (${esc(tp.team)})` : ''}${tp.line ? `: ${esc(tp.line)}` : ''}</span>`
+        ? `<span class="top-perf"><strong>${esc(tp.name)}</strong>${(tp.short || tp.team) ? ` (${esc(tp.short || tp.team)})` : ''}${tp.line ? `: ${esc(tp.line)}` : ''}</span>`
         : '';
       const notesContent = notes
         ? `<span class="notes-text">${notes}</span>${tpEl}`

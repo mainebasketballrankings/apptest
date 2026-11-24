@@ -487,6 +487,12 @@
       transition: all 0.15s;
     }
     .live-btn:hover { background: var(--green); color: #fff; }
+    /* Top performer line under a final's notes. Set automatically from the
+       app's final stat lines (games.top_performer), so it only appears on
+       games scored live in the app. */
+    .top-perf { display: block; color: var(--gray); font-size: 11px; line-height: 1.4; }
+    .top-perf + .top-perf, .card-meta .notes-text + .top-perf { margin-top: 2px; }
+    .top-perf strong { color: var(--black); font-weight: 600; }
     .ppd-btn {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700; font-size: 11px;
@@ -1135,6 +1141,7 @@
       id, game_date, game_time, location, status, new_date, stream_url, stax_index, event,
       is_neutral_site, is_tournament, is_summer, home_seed, away_seed,
       home_score, away_score, home_score_live, away_score_live, game_clock, notes, quarter_scores,
+      app_scored, top_performer,
       home_team:home_team_id ( id, school_name, gender, logo_url, stream_url, team_class,
         team_classifications ( classes ( name ) ) ),
       away_team:away_team_id ( id, school_name, gender, logo_url, team_class,
@@ -2297,8 +2304,15 @@
     // State-aware footer meta
     let footerMeta;
     if (isFinal) {
-      const notesContent = notes || '—';
-      const notesStyle = notes ? 'color:var(--black)' : 'color:var(--lgray)';
+      const tp = g.app_scored && g.top_performer && g.top_performer.name ? g.top_performer : null;
+      const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+      const tpEl = tp
+        ? `<span class="top-perf">⭐ <strong>${esc(tp.name)}</strong>${tp.team ? ` (${esc(tp.team)})` : ''}${tp.line ? `: ${esc(tp.line)}` : ''}</span>`
+        : '';
+      const notesContent = notes
+        ? `<span class="notes-text">${notes}</span>${tpEl}`
+        : (tpEl || '—');
+      const notesStyle = (notes || tpEl) ? 'color:var(--black)' : 'color:var(--lgray)';
       footerMeta = `<a class="card-meta" href="${gamePageUrl}" target="_blank" style="${notesStyle};text-decoration:none">${notesContent}</a>`;
     } else if (isLive) {
       footerMeta = `<div class="card-meta" style="color:var(--lgray)">In progress</div>`;
@@ -2330,7 +2344,8 @@
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${staxEl(g.stax_index)}
           ${streamUrl ? streamIconEl(streamUrl) : ''}
-          ${isLive ? `<a href="https://app.mainebasketballrankings.com/live.html?game_id=${g.id}" class="live-btn" target="_blank">LIVE</a>` : ''}
+          ${isLive && g.app_scored ? `<a href="https://app.mainebasketballrankings.com/live.html?game_id=${g.id}" class="live-btn" target="_blank">LIVE</a>` : ''}
+          ${isFinal && g.app_scored ? `<a href="https://app.mainebasketballrankings.com/live.html?game_id=${g.id}" class="live-btn" target="_blank" title="Full game report">STATS</a>` : ''}
           ${!isFinal && !isPPD && !isLive ? `<button class="ppd-btn" data-ppd-id="${g.id}">PPD</button>` : ''}
           ${isPPD ? `<button class="ppd-btn" data-ppd-id="${g.id}" style="border-color:#c0392b;color:#c0392b">Edit PPD</button>` : ''}
         </div>
